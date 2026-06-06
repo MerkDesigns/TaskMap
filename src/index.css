@@ -10,7 +10,9 @@
   background: #050609;
   --void-bg: #050609;
   --canvas-bg: #090b10;
-  --canvas-dot: rgba(70, 79, 96, 0.42);
+  --canvas-dot-rgb: 70 79 96;
+  --canvas-line-rgb: 88 101 124;
+  --canvas-line-major-rgb: 118 136 164;
   --container-chrome: #005763;
   --container-bg: #1b1b1e;
 }
@@ -34,10 +36,157 @@ body {
 
 .canvas-grid {
   background-color: var(--canvas-bg);
-  background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
+}
+
+.canvas-grid[data-grid-style="dots"] {
+  --canvas-grid-opacity: 0.5;
+  --canvas-dot-opacity-scale: 1;
+  --canvas-dot-size: 1.25px;
+  background-image: radial-gradient(
+    circle,
+    rgb(var(--canvas-dot-rgb) / calc(var(--canvas-grid-opacity) * var(--canvas-dot-opacity-scale)))
+      var(--canvas-dot-size),
+    transparent calc(var(--canvas-dot-size) + 0.5px)
+  );
   background-size: 24px 24px;
 }
 
-.text-white\/32 {
+.canvas-grid[data-grid-style="lines"] {
+  --canvas-grid-opacity: 0.15;
+  background-image:
+    linear-gradient(
+      rgb(var(--canvas-line-major-rgb) / calc(var(--canvas-grid-opacity) * 0.48)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgb(var(--canvas-line-major-rgb) / calc(var(--canvas-grid-opacity) * 0.48)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      rgb(var(--canvas-line-rgb) / calc(var(--canvas-grid-opacity) * 0.62)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgb(var(--canvas-line-rgb) / calc(var(--canvas-grid-opacity) * 0.62)) 1px,
+      transparent 1px
+    );
+  background-size:
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+}
+
+.canvas-browser-scroll {
+  scrollbar-width: none;
+}
+
+.canvas-browser-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.context-menu-panel {
+  transform-origin: top left;
+}
+
+.context-menu-enter {
+  animation: context-menu-enter 90ms ease-out both;
+}
+
+.context-menu-exit {
+  animation: context-menu-exit 90ms ease-in both;
+}
+
+.side-panel-enter {
+  animation: side-panel-enter 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left center;
+}
+
+.side-panel-exit {
+  animation: side-panel-exit 120ms ease-in both;
+  transform-origin: left center;
+}
+
+@keyframes context-menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes context-menu-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+}
+
+@keyframes side-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes side-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+}
+
+.container-enter {
+  animation: container-enter 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center;
+}
+
+.container-exit {
+  animation: container-exit 150ms ease-in both;
+  transform-origin: center;
+}
+
+@keyframes container-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.965) translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes container-exit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.965) translateY(4px);
+  }
 }
