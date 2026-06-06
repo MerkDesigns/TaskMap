@@ -39,7 +39,7 @@ export function Minimap({
   return (
     <div
       className={`fixed bottom-4 right-4 z-20 rounded-md border border-white/10 bg-[#15171c]/58 p-2 shadow-[0_12px_34px_rgba(0,0,0,0.32)] backdrop-blur-md transition-opacity duration-500 ${
-        visible ? "opacity-100" : "opacity-0"
+        visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       }`}
     >
       <div className="mb-1 flex items-center gap-2 pl-1 text-[11px] font-medium text-white/70">

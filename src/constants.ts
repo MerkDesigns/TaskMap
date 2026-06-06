@@ -15,14 +15,14 @@ export const MINIMAP_HEIGHT =
   CANVAS_ASPECT >= 1 ? Math.max(72, Math.round(MINIMAP_MAX_SIZE / CANVAS_ASPECT)) : MINIMAP_MAX_SIZE;
 
 export const ACCENT_PRESETS = [
-  { swatch: "#008b9a", accent: "#005763", textCardAccent: "#006e7c" },
-  { swatch: "#2f80ed", accent: "#2d5f87", textCardAccent: "#2e6eb5" },
-  { swatch: "#4f46e5", accent: "#314d91", textCardAccent: "#3f4ab7" },
-  { swatch: "#8b5cf6", accent: "#5b3f86", textCardAccent: "#714cb8" },
-  { swatch: "#d946ef", accent: "#7a3d61", textCardAccent: "#a541a1" },
-  { swatch: "#ef4444", accent: "#81473d", textCardAccent: "#b24640" },
-  { swatch: "#f59e0b", accent: "#6f5c2b", textCardAccent: "#ab7a1d" },
-  { swatch: "#22c55e", accent: "#3f6b3c", textCardAccent: "#32944b" },
+  { swatch: "#008b9a", accent: "#005763", textCardAccent: "#007482" },
+  { swatch: "#2f80ed", accent: "#2d5f87", textCardAccent: "#2e72c0" },
+  { swatch: "#6352e8", accent: "#3d4a9a", textCardAccent: "#514ec7" },
+  { swatch: "#8b5cf6", accent: "#5b3f86", textCardAccent: "#764fc4" },
+  { swatch: "#d946ef", accent: "#7a3d61", textCardAccent: "#af42b1" },
+  { swatch: "#ef4444", accent: "#81473d", textCardAccent: "#be4641" },
+  { swatch: "#f59e0b", accent: "#6f5c2b", textCardAccent: "#ba8119" },
+  { swatch: "#22c55e", accent: "#3f6b3c", textCardAccent: "#2f9e4f" },
 ];
 
 export const DEFAULT_CONTAINER_ACCENT = ACCENT_PRESETS[0].accent;

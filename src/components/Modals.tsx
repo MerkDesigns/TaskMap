@@ -57,6 +57,7 @@ type SettingsModalProps = {
   onExportData: (password: string) => Promise<void>;
   onImportData: (file: File, password: string) => Promise<void>;
   availableUpdate: AppUpdateInfo | null;
+  appVersion: string;
   onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
   onInstallUpdate: () => Promise<void>;
   onClose: () => void;
@@ -79,6 +80,7 @@ export function SettingsModal({
   onExportData,
   onImportData,
   availableUpdate,
+  appVersion,
   onCheckForUpdate,
   onInstallUpdate,
   onClose,
@@ -299,8 +301,10 @@ export function SettingsModal({
               <IconRefresh size={17} stroke={2} />
               <span>{updateBusy ? "Checking..." : "Check for updates"}</span>
             </button>
-            {updateStatus && <div className="mt-2 text-xs text-white/58">{updateStatus}</div>}
           </div>
+        </div>
+        <div className="mt-5 text-center text-[12px] font-semibold tracking-[0.18em] text-white/26">
+          MADE BY MERK - v{appVersion}
         </div>
       </div>
       {updateModalOpen && availableUpdate && (

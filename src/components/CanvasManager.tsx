@@ -609,7 +609,7 @@ export function CanvasManager({
               }}
               className={`relative flex w-full touch-none select-none gap-3 overflow-clip rounded-lg border p-1.5 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
                 active
-                  ? "border-white/[0.14] bg-[#24252b]"
+                  ? "border-[#2dd8c8]/70 bg-[#15161a] shadow-[0_0_0_1px_rgba(45,216,200,0.32)]"
                   : "border-white/[0.10] bg-[#15161a] hover:bg-[#1d1e24]"
               } ${dragging ? "scale-[0.985] opacity-20" : ""}`}
               onPointerDown={(event) => startCanvasDrag(event, canvas)}
@@ -654,8 +654,8 @@ export function CanvasManager({
                 </div>
               </div>
 
-              <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-                <div className="flex min-w-0 items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-1 flex-col py-0.5">
+                <div className="flex min-w-0 items-start justify-between gap-2 pt-2">
                   <div className="min-w-0">
                     {editingId === canvas.id ? (
                       <input
@@ -774,11 +774,7 @@ export function CanvasManager({
                       />
                     </label>
                   </div>
-                ) : (
-                  <div className="text-xs text-white/[0.18]">
-                    {canvas.width} x {canvas.height}
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           );

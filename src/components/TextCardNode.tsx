@@ -13,6 +13,7 @@ type TextCardNodeProps = {
     maxWidth?: number;
   };
   dragging?: boolean;
+  settling?: boolean;
   onDraftChange: (value: string) => void;
   onSave: (id: string) => void;
   onCancel: () => void;
@@ -26,6 +27,7 @@ export function TextCardNode({
   draft,
   position,
   dragging = false,
+  settling = false,
   onDraftChange,
   onSave,
   onCancel,
@@ -48,8 +50,14 @@ export function TextCardNode({
 
   return (
     <article
-      className={`absolute inline-flex cursor-grab select-none items-center rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white shadow-[0_6px_14px_rgba(0,0,0,0.22)] transition-[top,left,width] duration-150 active:cursor-grabbing ${
-        dragging ? "z-30 cursor-grabbing opacity-95 transition-none" : "z-20"
+      className={`absolute inline-flex cursor-grab select-none items-center rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
+        dragging
+          ? "z-30 cursor-grabbing opacity-95 shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)] transition-none"
+          : `z-20 shadow-[0_6px_14px_rgba(0,0,0,0.22)] ${
+              settling
+                ? "transition-[top,left,width,transform,box-shadow,opacity] duration-100 ease-in"
+                : "transition-[top,left,width,transform,box-shadow,opacity] duration-150 ease-out"
+            }`
       } ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
       style={{
         left: position?.x ?? card.x,
@@ -57,6 +65,7 @@ export function TextCardNode({
         width: position?.width,
         maxWidth: position?.maxWidth,
         borderColor: accent,
+        transform: dragging ? "scale(1.035)" : "scale(1)",
       }}
       onPointerDown={(event) => onStartMove(event, card)}
       onContextMenu={(event) => onOpenMenu(event, card)}

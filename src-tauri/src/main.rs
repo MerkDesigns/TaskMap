@@ -12,7 +12,7 @@ use sha2::Sha256;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{Manager, PhysicalPosition, PhysicalSize, WindowEvent};
+use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 const APP_STATE_KEY: &str = "app_state";
 const KEYRING_SERVICE: &str = "TaskMap";
@@ -83,25 +83,6 @@ fn load_window_state(app: &tauri::AppHandle) -> Result<Option<WindowState>, Stri
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(format!("Could not read window state: {error}")),
     }
-}
-
-fn save_window_state(window: &tauri::Window) -> Result<(), String> {
-    if window.is_minimized().map_err(|error| error.to_string())? {
-        return Ok(());
-    }
-
-    let position = window.outer_position().map_err(|error| error.to_string())?;
-    let size = window.inner_size().map_err(|error| error.to_string())?;
-    let state = WindowState {
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
-        maximized: window.is_maximized().map_err(|error| error.to_string())?,
-    };
-    let contents = serde_json::to_string_pretty(&state).map_err(|error| error.to_string())?;
-    fs::write(window_state_path(window.app_handle())?, contents)
-        .map_err(|error| format!("Could not save window state: {error}"))
 }
 
 fn restore_window_state(window: &tauri::WebviewWindow) -> Result<(), String> {
@@ -424,14 +405,6 @@ fn main() {
             }
 
             Ok(())
-        })
-        .on_window_event(|window, event| match event {
-            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
-                if let Err(error) = save_window_state(window) {
-                    eprintln!("Failed to save window state: {error}");
-                }
-            }
-            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             load_app_data,

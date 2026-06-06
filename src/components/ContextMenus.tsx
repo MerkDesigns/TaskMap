@@ -56,7 +56,7 @@ export function ContainerContextMenu({
             <button
               key={preset.accent}
               className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
-              style={{ backgroundColor: preset.swatch }}
+              style={{ backgroundColor: preset.accent }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
               title="Container accent color"
             >

@@ -62,6 +62,16 @@ export type AppUpdateInfo = {
   body?: string;
 };
 
+export type ToastTone = "info" | "success" | "warning" | "error";
+
+export type ToastMessage = {
+  id: string;
+  tone: ToastTone;
+  title: string;
+  message?: string;
+  exiting?: boolean;
+};
+
 export type DragState =
   | {
       type: "pan";
@@ -103,6 +113,8 @@ export type DragState =
       startY: number;
       startContainerId?: string;
       pointerOffsetY: number;
+      width: number;
+      height: number;
     }
   | {
       type: "select";

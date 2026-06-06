@@ -3,7 +3,7 @@ import {
   IconBox,
   IconDotsVertical,
 } from "@tabler/icons-react";
-import { PointerEvent, ReactNode } from "react";
+import { PointerEvent, ReactNode, WheelEvent } from "react";
 import { ContainerElement, DragState } from "../types";
 
 type ContainerNodeProps = {
@@ -23,6 +23,7 @@ type ContainerNodeProps = {
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
+  onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
   children?: ReactNode;
 };
 
@@ -43,6 +44,7 @@ export function ContainerNode({
   onStartResize,
   onToggleMenu,
   onOpenContentMenu,
+  onWheelContent,
   children,
 }: ContainerNodeProps) {
   return (
@@ -73,6 +75,7 @@ export function ContainerNode({
           onSelect(element);
         }
       }}
+      onWheelCapture={(event) => onWheelContent(event, element)}
     >
       <div
         className="pointer-events-none absolute -inset-[6px] rounded-[15px] border-2 border-[#2dd8c8]/75 transition-opacity duration-100 ease-out"
@@ -83,7 +86,7 @@ export function ContainerNode({
       />
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
-          className={`flex h-12 items-center justify-between px-4 text-white ${
+          className={`relative z-30 flex h-12 items-center justify-between px-4 text-white ${
             dragState?.type === "move" && dragState.ids.includes(element.id)
               ? "cursor-grabbing"
               : "cursor-grab"
@@ -95,7 +98,7 @@ export function ContainerNode({
             <IconBox size={19} stroke={2} className="shrink-0 text-white/80" />
             {renaming ? (
               <input
-                className="h-8 min-w-0 flex-1 appearance-none rounded-md border border-white/20 bg-black/[0.18] px-2 text-[16px] font-semibold text-white outline-none selection:bg-white/20 focus:border-white/45"
+                className="h-8 min-w-0 flex-1 appearance-none rounded-md border border-white/20 bg-black/[0.18] px-2 text-[18.4px] font-semibold text-white outline-none selection:bg-white/20 focus:border-white/45"
                 value={renameDraft}
                 autoFocus
                 spellCheck={false}
@@ -115,7 +118,7 @@ export function ContainerNode({
                 }}
               />
             ) : (
-              <span className="truncate text-[16px] font-semibold">{element.name}</span>
+              <span className="truncate text-[18.4px] font-semibold">{element.name}</span>
             )}
           </div>
           <button
@@ -137,6 +140,7 @@ export function ContainerNode({
               : ""
           }`}
           onContextMenu={(event) => onOpenContentMenu(event, element)}
+          onWheelCapture={(event) => onWheelContent(event, element)}
         />
 
         {children}
