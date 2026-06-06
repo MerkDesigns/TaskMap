@@ -12,7 +12,7 @@ use sha2::Sha256;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::Manager;
+use tauri::{Manager, PhysicalPosition, PhysicalSize, WindowEvent};
 
 const APP_STATE_KEY: &str = "app_state";
 const KEYRING_SERVICE: &str = "TaskMap";
@@ -39,6 +39,15 @@ struct ExportPayload {
     ciphertext: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WindowState {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    maximized: bool,
+}
+
 fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
@@ -57,6 +66,61 @@ fn backup_database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 fn legacy_key_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     Ok(data_dir.join("taskmap.key"))
+}
+
+fn window_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
+    Ok(data_dir.join("window-state.json"))
+}
+
+fn load_window_state(app: &tauri::AppHandle) -> Result<Option<WindowState>, String> {
+    let path = window_state_path(app)?;
+    match fs::read_to_string(path) {
+        Ok(contents) => serde_json::from_str(&contents)
+            .map(Some)
+            .map_err(|error| format!("Stored window state is invalid: {error}")),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!("Could not read window state: {error}")),
+    }
+}
+
+fn save_window_state(window: &tauri::Window) -> Result<(), String> {
+    if window.is_minimized().map_err(|error| error.to_string())? {
+        return Ok(());
+    }
+
+    let position = window.outer_position().map_err(|error| error.to_string())?;
+    let size = window.inner_size().map_err(|error| error.to_string())?;
+    let state = WindowState {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+        maximized: window.is_maximized().map_err(|error| error.to_string())?,
+    };
+    let contents = serde_json::to_string_pretty(&state).map_err(|error| error.to_string())?;
+    fs::write(window_state_path(window.app_handle())?, contents)
+        .map_err(|error| format!("Could not save window state: {error}"))
+}
+
+fn restore_window_state(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let Some(state) = load_window_state(window.app_handle())? else {
+        return Ok(());
+    };
+
+    window
+        .set_position(PhysicalPosition::new(state.x, state.y))
+        .map_err(|error| error.to_string())?;
+    window
+        .set_size(PhysicalSize::new(state.width, state.height))
+        .map_err(|error| error.to_string())?;
+
+    if state.maximized {
+        window.maximize().map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
 }
 
 fn open_database(app: &tauri::AppHandle) -> Result<Connection, String> {
@@ -350,6 +414,25 @@ fn reset_local_database(app: tauri::AppHandle) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(error) = restore_window_state(&window) {
+                    eprintln!("Failed to restore window state: {error}");
+                }
+            }
+
+            Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
+                if let Err(error) = save_window_state(window) {
+                    eprintln!("Failed to save window state: {error}");
+                }
+            }
+            _ => {}
+        })
         .invoke_handler(tauri::generate_handler![
             load_app_data,
             save_app_data,

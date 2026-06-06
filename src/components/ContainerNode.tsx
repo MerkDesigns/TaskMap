@@ -3,7 +3,7 @@ import {
   IconBox,
   IconDotsVertical,
 } from "@tabler/icons-react";
-import { PointerEvent } from "react";
+import { PointerEvent, ReactNode } from "react";
 import { ContainerElement, DragState } from "../types";
 
 type ContainerNodeProps = {
@@ -22,6 +22,8 @@ type ContainerNodeProps = {
   onStartMove: (event: PointerEvent<HTMLElement>, element: ContainerElement) => void;
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
+  onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
+  children?: ReactNode;
 };
 
 export function ContainerNode({
@@ -40,6 +42,8 @@ export function ContainerNode({
   onStartMove,
   onStartResize,
   onToggleMenu,
+  onOpenContentMenu,
+  children,
 }: ContainerNodeProps) {
   return (
     <article
@@ -94,6 +98,7 @@ export function ContainerNode({
                 className="h-8 min-w-0 flex-1 appearance-none rounded-md border border-white/20 bg-black/[0.18] px-2 text-[16px] font-semibold text-white outline-none selection:bg-white/20 focus:border-white/45"
                 value={renameDraft}
                 autoFocus
+                spellCheck={false}
                 onChange={(event) => onRenameDraftChange(event.target.value)}
                 onFocus={(event) => event.target.select()}
                 onPointerDown={(event) => event.stopPropagation()}
@@ -131,10 +136,13 @@ export function ContainerNode({
                 : "cursor-grab"
               : ""
           }`}
+          onContextMenu={(event) => onOpenContentMenu(event, element)}
         />
 
+        {children}
+
         <button
-          className="absolute bottom-1.5 right-1.5 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-md text-white/45 transition-colors hover:bg-white/10 hover:text-white/80 active:bg-white/15 active:text-white focus:outline-none"
+          className="absolute bottom-1.5 right-1.5 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-md text-white/45 transition-colors hover:bg-white/10 hover:text-white/80 active:bg-white/15 active:text-white focus:outline-none"
           onPointerDown={(event) => {
             event.currentTarget.blur();
             onStartResize(event, element);

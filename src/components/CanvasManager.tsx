@@ -34,6 +34,11 @@ type DragLayoutRow = {
   height: number;
 };
 
+type PreviewViewportSize = {
+  width: number;
+  height: number;
+};
+
 type CanvasDragState = {
   id: string;
   pointerId: number;
@@ -80,6 +85,7 @@ export function CanvasManager({
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const reorderFirstRectsRef = useRef<Record<string, DOMRect> | null>(null);
   const cardAnimationsRef = useRef<Record<string, Animation>>({});
+  const previewViewportSizesRef = useRef<Record<string, PreviewViewportSize>>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const dragRef = useRef<CanvasDragState | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -570,12 +576,25 @@ export function CanvasManager({
         >
           {orderedCanvases.map((canvas) => {
           const active = canvas.id === activeCanvasId;
+          previewViewportSizesRef.current[canvas.id] ??= canvas.previewViewport ?? {
+            width: viewportWidth,
+            height: viewportHeight,
+          };
+
+          if (active) {
+            previewViewportSizesRef.current[canvas.id] = {
+              width: viewportWidth,
+              height: viewportHeight,
+            };
+          }
+
+          const previewViewport = previewViewportSizesRef.current[canvas.id];
           const dragging = draggingId === canvas.id;
           const previewWidth = 96;
           const previewHeight = 64;
           const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
-          const visibleWidth = viewportWidth / safeZoom;
-          const visibleHeight = viewportHeight / safeZoom;
+          const visibleWidth = previewViewport.width / safeZoom;
+          const visibleHeight = previewViewport.height / safeZoom;
           const visibleLeft = -canvas.pan.x / safeZoom;
           const visibleTop = -canvas.pan.y / safeZoom;
           const previewScale = previewWidth / visibleWidth;
@@ -643,6 +662,7 @@ export function CanvasManager({
                         ref={nameInputRef}
                         className="h-7 w-full min-w-0 cursor-text rounded-md border border-white/[0.14] bg-black/[0.20] px-2 text-sm font-semibold text-white outline-none selection:bg-white/25 focus:border-white/35"
                         value={draft.name}
+                        spellCheck={false}
                         onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={(event) => event.stopPropagation()}
@@ -716,6 +736,7 @@ export function CanvasManager({
                         max={10000}
                         step={100}
                         value={draft.width}
+                        spellCheck={false}
                         onChange={(event) =>
                           setDraft((current) => ({ ...current, width: Number(event.target.value) }))
                         }
@@ -738,6 +759,7 @@ export function CanvasManager({
                         max={10000}
                         step={100}
                         value={draft.height}
+                        spellCheck={false}
                         onChange={(event) =>
                           setDraft((current) => ({ ...current, height: Number(event.target.value) }))
                         }
@@ -829,6 +851,7 @@ export function CanvasManager({
                 className="h-10 w-full rounded-md border border-white/[0.12] bg-black/[0.18] px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/35"
                 value={draft.name}
                 autoFocus
+                spellCheck={false}
                 onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -845,6 +868,7 @@ export function CanvasManager({
                   max={10000}
                   step={100}
                   value={draft.width}
+                  spellCheck={false}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, width: Number(event.target.value) }))
                   }
@@ -857,6 +881,7 @@ export function CanvasManager({
                   max={10000}
                   step={100}
                   value={draft.height}
+                  spellCheck={false}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, height: Number(event.target.value) }))
                   }

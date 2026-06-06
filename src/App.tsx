@@ -1,18 +1,27 @@
 import { PointerEvent, WheelEvent, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check as checkForUpdate, Update } from "@tauri-apps/plugin-updater";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { CanvasManager } from "./components/CanvasManager";
-import { CanvasContextMenu, ContainerContextMenu } from "./components/ContextMenus";
+import {
+  CanvasContextMenu,
+  ContainerContentContextMenu,
+  ContainerContextMenu,
+  TextCardContextMenu,
+} from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { Minimap } from "./components/Minimap";
 import { ClearCanvasModal, SettingsModal } from "./components/Modals";
+import { TextCardNode } from "./components/TextCardNode";
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   ALIGN_SNAP_DISTANCE,
   DEFAULT_CONTAINER_ACCENT,
+  DEFAULT_TEXT_CARD_ACCENT,
   MIN_HEIGHT,
   MIN_WIDTH,
   MINIMAP_MAX_SIZE,
@@ -21,12 +30,14 @@ import {
 import { clamp, quantizeZoom } from "./canvasMath";
 import {
   AppData,
+  AppUpdateInfo,
   CanvasGridStyle,
   ContainerElement,
   ContainerMenuState,
   CopiedContainer,
   DragState,
   TaskCanvas,
+  TextCardElement,
 } from "./types";
 
 type SnapGuide = {
@@ -63,16 +74,29 @@ const DEFAULT_CANVAS: TaskCanvas = {
   width: CANVAS_WIDTH,
   height: CANVAS_HEIGHT,
   containers: DEFAULT_ELEMENTS,
+  textCards: [],
   pan: DEFAULT_PAN,
   zoom: 1,
 };
 const CANVAS_MANAGER_ANIMATION_MS = 160;
+const CONTAINER_HEADER_HEIGHT = 48;
+const CONTAINER_TEXT_CARD_PADDING = 14;
+const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
+const CONTAINER_TEXT_CARD_GAP = 8;
+
+const getWindowPreviewViewport = () => ({
+  width: window.innerWidth,
+  height: window.innerHeight,
+});
 
 function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
+  const pendingUpdateRef = useRef<Update | null>(null);
+  const textCardDropPreviewRef = useRef<{ containerId: string; index: number } | null>(null);
+  const textCardDragCenterYRef = useRef<number | null>(null);
   const latestAppDataRef = useRef<AppData>({
     activeCanvasId: DEFAULT_CANVAS.id,
     canvases: [DEFAULT_CANVAS],
@@ -87,16 +111,26 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [containerMenu, setContainerMenu] = useState<ContainerMenuState | null>(null);
   const [closingContainerMenu, setClosingContainerMenu] = useState<ContainerMenuState | null>(null);
+  const [containerContentMenu, setContainerContentMenu] =
+    useState<{ containerId: string; clientX: number; clientY: number } | null>(null);
+  const [closingContainerContentMenu, setClosingContainerContentMenu] =
+    useState<{ containerId: string; clientX: number; clientY: number } | null>(null);
+  const [textCardMenu, setTextCardMenu] = useState<{ id: string; left: number; top: number } | null>(null);
+  const [closingTextCardMenu, setClosingTextCardMenu] =
+    useState<{ id: string; left: number; top: number } | null>(null);
   const [canvasMenu, setCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
   const [closingCanvasMenu, setClosingCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [editingTextCardId, setEditingTextCardId] = useState<string | null>(null);
+  const [textCardDraft, setTextCardDraft] = useState("");
   const [copiedContainer, setCopiedContainer] = useState<CopiedContainer | null>(null);
   const [canvasGridStyle, setCanvasGridStyle] = useState<CanvasGridStyle>("dots");
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -106,6 +140,10 @@ function App() {
   const [activeCanvas, setActiveCanvas] = useState<TaskCanvas>(DEFAULT_CANVAS);
   const [canvases, setCanvases] = useState<TaskCanvas[]>([DEFAULT_CANVAS]);
   const [elements, setElements] = useState<ContainerElement[]>(DEFAULT_ELEMENTS);
+  const [textCards, setTextCards] = useState<TextCardElement[]>([]);
+  const [textCardDropPreview, setTextCardDropPreview] =
+    useState<{ containerId: string; index: number } | null>(null);
+  const [textCardDetachedContainerId, setTextCardDetachedContainerId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
 
   const persistAppData = async (data: AppData) => {
@@ -114,7 +152,14 @@ function App() {
 
   const normalizeAppData = (data: AppData | LegacyAppData): AppData => {
     if (Array.isArray(data.canvases) && data.activeCanvasId) {
-      return data as AppData;
+      return {
+        ...(data as AppData),
+        canvases: (data as AppData).canvases.map((canvas) => ({
+          ...canvas,
+          textCards: canvas.textCards ?? [],
+          previewViewport: canvas.previewViewport ?? getWindowPreviewViewport(),
+        })),
+      };
     }
 
     const legacy = data as LegacyAppData;
@@ -125,8 +170,10 @@ function App() {
         {
           ...DEFAULT_CANVAS,
           containers: legacy.containers ?? DEFAULT_ELEMENTS,
+          textCards: [],
           pan: legacy.pan ?? DEFAULT_PAN,
           zoom: legacy.zoom ?? 1,
+          previewViewport: getWindowPreviewViewport(),
         },
       ],
       canvasGridStyle: data.canvasGridStyle ?? "dots",
@@ -139,8 +186,13 @@ function App() {
   const getActiveCanvasSnapshot = (): TaskCanvas => ({
     ...activeCanvas,
     containers: elements,
+    textCards,
     pan,
     zoom,
+    previewViewport: {
+      width: stageRef.current?.clientWidth ?? window.innerWidth,
+      height: stageRef.current?.clientHeight ?? window.innerHeight,
+    },
   });
 
   const getPersistedCanvases = () => {
@@ -175,6 +227,7 @@ function App() {
           setCanvases(normalized.canvases.length ? normalized.canvases : [DEFAULT_CANVAS]);
           setActiveCanvas(selectedCanvas);
           setElements(selectedCanvas.containers);
+          setTextCards(selectedCanvas.textCards);
           setPan(selectedCanvas.pan);
           setZoom(selectedCanvas.zoom);
           setCanvasGridStyle(normalized.canvasGridStyle);
@@ -198,7 +251,7 @@ function App() {
 
   useEffect(() => {
     latestAppDataRef.current = getCurrentAppData();
-  }, [activeCanvas, canvasGridOpacity, canvasGridStyle, canvases, elements, pan, zoom]);
+  }, [activeCanvas, canvasGridOpacity, canvasGridStyle, canvases, elements, pan, textCards, zoom]);
 
   useEffect(() => {
     if (!appDataLoaded) {
@@ -234,6 +287,7 @@ function App() {
     canvases,
     elements,
     pan,
+    textCards,
     zoom,
   ]);
 
@@ -283,11 +337,49 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const htmlSpellCheck = document.documentElement.getAttribute("spellcheck");
+    const bodySpellCheck = document.body.getAttribute("spellcheck");
+
+    document.documentElement.setAttribute("spellcheck", "false");
+    document.body.setAttribute("spellcheck", "false");
+
+    return () => {
+      if (htmlSpellCheck === null) {
+        document.documentElement.removeAttribute("spellcheck");
+      } else {
+        document.documentElement.setAttribute("spellcheck", htmlSpellCheck);
+      }
+
+      if (bodySpellCheck === null) {
+        document.body.removeAttribute("spellcheck");
+      } else {
+        document.body.setAttribute("spellcheck", bodySpellCheck);
+      }
+    };
+  }, []);
+
   const closeContextMenus = () => {
     setContainerMenu((current) => {
       if (current) {
         setClosingContainerMenu(current);
         window.setTimeout(() => setClosingContainerMenu(null), 110);
+      }
+
+      return null;
+    });
+    setContainerContentMenu((current) => {
+      if (current) {
+        setClosingContainerContentMenu(current);
+        window.setTimeout(() => setClosingContainerContentMenu(null), 110);
+      }
+
+      return null;
+    });
+    setTextCardMenu((current) => {
+      if (current) {
+        setClosingTextCardMenu(current);
+        window.setTimeout(() => setClosingTextCardMenu(null), 110);
       }
 
       return null;
@@ -300,6 +392,11 @@ function App() {
 
       return null;
     });
+  };
+
+  const updateTextCardDropPreview = (preview: { containerId: string; index: number } | null) => {
+    textCardDropPreviewRef.current = preview;
+    setTextCardDropPreview(preview);
   };
 
   const showMinimap = () => {
@@ -347,6 +444,235 @@ function App() {
       element.y < bounds.bottom &&
       element.y + element.height > bounds.top
     );
+  };
+
+  const getOrderedContainerTextCards = (containerId: string, cards = textCards) =>
+    cards
+      .filter((card) => card.containerId === containerId)
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+
+  const getTextCardStackPosition = (card: TextCardElement, cards = textCards) => {
+    const container = card.containerId
+      ? elements.find((element) => element.id === card.containerId)
+      : null;
+    if (!container) {
+      return { x: card.x, y: card.y };
+    }
+
+    const orderedCards = getOrderedContainerTextCards(container.id, cards);
+    const index = Math.max(
+      orderedCards.findIndex((currentCard) => currentCard.id === card.id),
+      0,
+    );
+
+    return {
+      x: container.x + CONTAINER_TEXT_CARD_PADDING,
+      y:
+        container.y +
+        CONTAINER_HEADER_HEIGHT +
+        CONTAINER_TEXT_CARD_PADDING +
+        index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+    };
+  };
+
+  const toContainerRelativePosition = (
+    position: { x: number; y: number; width?: number; height?: number; maxWidth?: number; text?: string },
+    container: ContainerElement,
+  ) => ({
+    ...position,
+    x: position.x - container.x,
+    y: position.y - container.y,
+  });
+
+  const getTextCardRenderPosition = (card: TextCardElement) => {
+    if (!card.containerId) {
+      return undefined;
+    }
+
+    const draggingTextCard = dragState?.type === "text-card-move" && dragState.id === card.id;
+    if (draggingTextCard) {
+      return { x: card.x, y: card.y };
+    }
+
+    const container = elements.find((element) => element.id === card.containerId);
+    if (!container) {
+      return { x: card.x, y: card.y };
+    }
+
+    const draggedId = dragState?.type === "text-card-move" ? dragState.id : null;
+    const previewingThisContainer = textCardDropPreview?.containerId === container.id;
+    const detachedFromThisContainer = textCardDetachedContainerId === container.id;
+    const orderedCards = getOrderedContainerTextCards(container.id).filter(
+      (currentCard) =>
+        !(previewingThisContainer || detachedFromThisContainer) || currentCard.id !== draggedId,
+    );
+    let index = Math.max(
+      orderedCards.findIndex((currentCard) => currentCard.id === card.id),
+      0,
+    );
+
+    if (previewingThisContainer && index >= textCardDropPreview.index) {
+      index += 1;
+    }
+
+    return {
+      x: container.x + CONTAINER_TEXT_CARD_PADDING,
+      y:
+        container.y +
+        CONTAINER_HEADER_HEIGHT +
+        CONTAINER_TEXT_CARD_PADDING +
+        index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+    };
+  };
+
+  const getTextCardDropContainer = (point: { x: number; y: number }) => {
+    for (const element of [...elements].reverse()) {
+      const bodyTop = element.y + CONTAINER_HEADER_HEIGHT;
+      if (
+        point.x >= element.x &&
+        point.x <= element.x + element.width &&
+        point.y >= bodyTop &&
+        point.y <= element.y + element.height
+      ) {
+        return element;
+      }
+    }
+
+    return null;
+  };
+
+  const getTextCardDropIndex = (
+    container: ContainerElement,
+    point: { x: number; y: number },
+    cards: TextCardElement[],
+    draggingId: string,
+    currentIndex?: number,
+  ) => {
+    const orderedCards = cards
+      .filter((card) => card.containerId === container.id)
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+    const stackTop = container.y + CONTAINER_HEADER_HEIGHT + CONTAINER_TEXT_CARD_PADDING;
+    const slotHeight = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
+
+    if (currentIndex !== undefined) {
+      const cardsWithoutDragged = orderedCards.filter((card) => card.id !== draggingId);
+      const previousCard = cardsWithoutDragged[currentIndex - 1];
+      const nextCard = cardsWithoutDragged[currentIndex];
+
+      if (previousCard) {
+        const previousMidpoint =
+          stackTop + (currentIndex - 1) * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
+        if (point.y < previousMidpoint) {
+          return currentIndex - 1;
+        }
+      }
+
+      if (nextCard) {
+        const nextMidpoint =
+          stackTop + (currentIndex + 1) * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
+        if (point.y > nextMidpoint) {
+          return currentIndex + 1;
+        }
+      }
+
+      return currentIndex;
+    }
+
+    let insertionIndex = 0;
+
+    for (let index = 0; index < orderedCards.length; index += 1) {
+      if (orderedCards[index].id === draggingId) {
+        continue;
+      }
+
+      const midpoint = stackTop + index * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
+      if (point.y < midpoint) {
+        return insertionIndex;
+      }
+
+      insertionIndex += 1;
+    }
+
+    return insertionIndex;
+  };
+
+  const getDirectionalTextCardDropIndex = (
+    container: ContainerElement,
+    centerY: number,
+    cards: TextCardElement[],
+    draggingId: string,
+    currentIndex: number,
+  ) => {
+    const previousCenterY = textCardDragCenterYRef.current ?? centerY;
+    const cardsWithoutDragged = cards
+      .filter((card) => card.containerId === container.id && card.id !== draggingId)
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+    const stackTop = container.y + CONTAINER_HEADER_HEIGHT + CONTAINER_TEXT_CARD_PADDING;
+    const slotHeight = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
+    let nextIndex = currentIndex;
+
+    if (centerY > previousCenterY + 0.5 && currentIndex < cardsWithoutDragged.length) {
+      const nextMidpoint =
+        stackTop + (currentIndex + 1) * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
+      if (centerY > nextMidpoint) {
+        nextIndex = currentIndex + 1;
+      }
+    }
+
+    if (centerY < previousCenterY - 0.5 && currentIndex > 0) {
+      const previousMidpoint =
+        stackTop + (currentIndex - 1) * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
+      if (centerY < previousMidpoint) {
+        nextIndex = currentIndex - 1;
+      }
+    }
+
+    textCardDragCenterYRef.current = centerY;
+    return nextIndex;
+  };
+
+  const getTextCardDropPreviewPosition = () => {
+    if (!textCardDropPreview) {
+      return null;
+    }
+
+    const container = elements.find((element) => element.id === textCardDropPreview.containerId);
+    const draggedCard =
+      dragState?.type === "text-card-move"
+        ? textCards.find((card) => card.id === dragState.id)
+        : null;
+    if (!container || !draggedCard) {
+      return null;
+    }
+
+    return {
+      x: container.x + CONTAINER_TEXT_CARD_PADDING,
+      y:
+        container.y +
+        CONTAINER_HEADER_HEIGHT +
+        CONTAINER_TEXT_CARD_PADDING +
+        textCardDropPreview.index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+      maxWidth: container.width - CONTAINER_TEXT_CARD_PADDING * 2,
+      text: draggedCard.text,
+    };
+  };
+
+  const normalizeTextCardOrders = (cards: TextCardElement[]) => {
+    const nextCards = cards.map((card) => ({ ...card }));
+    const containerIds = Array.from(
+      new Set(nextCards.map((card) => card.containerId).filter((id): id is string => Boolean(id))),
+    );
+
+    containerIds.forEach((containerId) => {
+      nextCards
+        .filter((card) => card.containerId === containerId)
+        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+        .forEach((card, index) => {
+          card.order = index;
+        });
+    });
+
+    return nextCards;
   };
 
   const moveContainerLayer = (
@@ -405,11 +731,29 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
+      const isEditingText =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+
+      if (event.key === "Tab" && !isEditingText && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+
+        if (canvasManagerOpen && !canvasManagerClosing) {
+          setCanvasManagerClosing(true);
+          window.setTimeout(() => {
+            setCanvasManagerOpen(false);
+            setCanvasManagerClosing(false);
+          }, CANVAS_MANAGER_ANIMATION_MS);
+          return;
+        }
+
+        setCanvasManagerOpen(true);
+        setCanvasManagerClosing(false);
+        return;
+      }
+
       if (
         event.key !== "Delete" ||
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.isContentEditable
+        isEditingText
       ) {
         return;
       }
@@ -422,7 +766,7 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds]);
+  }, [canvasManagerClosing, canvasManagerOpen, selectedIds]);
 
   const selectionBounds =
     dragState?.type === "select"
@@ -583,6 +927,64 @@ function App() {
     setRenamingId(null);
   };
 
+  const createTextCard = (clientX: number, clientY: number) => {
+    const point = canvasPointFromEvent({ clientX, clientY });
+    const id = `text-card-${Date.now()}`;
+    const card: TextCardElement = {
+      id,
+      text: "Text card",
+      x: clamp(point.x, 0, canvasWidth),
+      y: clamp(point.y, 0, canvasHeight),
+      accent: DEFAULT_TEXT_CARD_ACCENT,
+    };
+
+    setTextCards((current) => [...current, card]);
+    setEditingTextCardId(id);
+    setTextCardDraft(card.text);
+    setSelectedIds([]);
+    closeContextMenus();
+    setRenamingId(null);
+  };
+
+  const createTextCardInContainer = (containerId: string, clientX: number, clientY: number) => {
+    const container = elements.find((element) => element.id === containerId);
+    if (!container) {
+      return;
+    }
+
+    const point = canvasPointFromEvent({ clientX, clientY });
+    const id = `text-card-${Date.now()}`;
+    const order = getTextCardDropIndex(container, point, textCards, id);
+    const card: TextCardElement = {
+      id,
+      text: "Text card",
+      x: container.x + CONTAINER_TEXT_CARD_PADDING,
+      y:
+        container.y +
+        CONTAINER_HEADER_HEIGHT +
+        CONTAINER_TEXT_CARD_PADDING +
+        order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+      accent: DEFAULT_TEXT_CARD_ACCENT,
+      containerId,
+      order,
+    };
+    const cardsOutsideContainer = textCards.filter((currentCard) => currentCard.containerId !== containerId);
+    const containerCards = getOrderedContainerTextCards(containerId);
+    containerCards.splice(order, 0, card);
+
+    setTextCards(
+      normalizeTextCardOrders([
+        ...cardsOutsideContainer,
+        ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
+      ]),
+    );
+    setEditingTextCardId(id);
+    setTextCardDraft(card.text);
+    setSelectedIds([]);
+    closeContextMenus();
+    setRenamingId(null);
+  };
+
   const handleCanvasContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
 
@@ -595,6 +997,20 @@ function App() {
     setRenamingId(null);
     setClosingCanvasMenu(null);
     setCanvasMenu({ clientX: event.clientX, clientY: event.clientY });
+  };
+
+  const openContainerContentMenu = (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedIds([element.id]);
+    closeContextMenus();
+    setRenamingId(null);
+    setClosingContainerContentMenu(null);
+    setContainerContentMenu({
+      containerId: element.id,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
   };
 
   const suppressContextMenu = (event: React.MouseEvent) => {
@@ -725,6 +1141,59 @@ function App() {
       return;
     }
 
+    if (dragState.type === "text-card-move") {
+      const dropContainer = getTextCardDropContainer(pointerPoint);
+      const draggedCenterPoint = {
+        ...pointerPoint,
+        y: pointerPoint.y - dragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
+      };
+      const currentPreview = textCardDropPreviewRef.current;
+      const dropIndex = dropContainer
+        ? currentPreview?.containerId === dropContainer.id
+          ? getDirectionalTextCardDropIndex(
+              dropContainer,
+              draggedCenterPoint.y,
+              textCards,
+              dragState.id,
+              currentPreview.index,
+            )
+          : getTextCardDropIndex(dropContainer, draggedCenterPoint, textCards, dragState.id)
+        : null;
+
+      if (!dropContainer || currentPreview?.containerId !== dropContainer.id) {
+        textCardDragCenterYRef.current = draggedCenterPoint.y;
+      }
+
+      setTextCardDetachedContainerId(
+        dragState.startContainerId && dropContainer?.id !== dragState.startContainerId
+          ? dragState.startContainerId
+          : null,
+      );
+      updateTextCardDropPreview(
+        dropContainer && dropIndex !== null
+          ? { containerId: dropContainer.id, index: dropIndex }
+          : null,
+      );
+      setTextCards((current) => {
+        const draggedCard = current.find((card) => card.id === dragState.id);
+        if (!draggedCard) {
+          return current;
+        }
+
+        return current.map((card) =>
+          card.id === dragState.id
+            ? {
+                ...card,
+                x: clamp(dragState.startX + worldDeltaX, 0, canvasWidth),
+                y: clamp(dragState.startY + worldDeltaY, 0, canvasHeight),
+              }
+            : card,
+        );
+      });
+      setSnapGuides([]);
+      return;
+    }
+
     setElements(
       elements.map((element) => {
         if (element.id !== dragState.id) {
@@ -753,6 +1222,66 @@ function App() {
       return;
     }
 
+    if (dragState.type === "text-card-move") {
+      const endPoint = canvasPointFromEvent(event);
+      const dropContainer = getTextCardDropContainer(endPoint);
+      const draggedCenterPoint = {
+        ...endPoint,
+        y: endPoint.y - dragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
+      };
+      const currentPreview = textCardDropPreviewRef.current;
+
+      setTextCards((current) => {
+        const draggedCard = current.find((card) => card.id === dragState.id);
+        if (!draggedCard) {
+          return current;
+        }
+
+        if (!dropContainer) {
+          return normalizeTextCardOrders(
+            current.map((card) =>
+              card.id === dragState.id
+                ? {
+                    ...card,
+                    containerId: undefined,
+                    order: undefined,
+                  }
+                : card,
+            ),
+          );
+        }
+
+        const dropIndex =
+          currentPreview?.containerId === dropContainer.id
+            ? currentPreview.index
+            : getTextCardDropIndex(dropContainer, draggedCenterPoint, current, dragState.id);
+        const withoutDraggedCard = current
+          .filter((card) => card.id !== dragState.id)
+          .map((card) => ({ ...card }));
+        const targetCards = withoutDraggedCard
+          .filter((card) => card.containerId === dropContainer.id)
+          .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+
+        targetCards.splice(dropIndex, 0, {
+          ...draggedCard,
+          containerId: dropContainer.id,
+          order: dropIndex,
+        });
+
+        return normalizeTextCardOrders([
+          ...withoutDraggedCard.filter((card) => card.containerId !== dropContainer.id),
+          ...targetCards.map((card, index) => ({
+            ...card,
+            containerId: dropContainer.id,
+            order: index,
+          })),
+        ]);
+      });
+      updateTextCardDropPreview(null);
+      setTextCardDetachedContainerId(null);
+      textCardDragCenterYRef.current = null;
+    }
+
     if (dragState.type === "select") {
       const endPoint = canvasPointFromEvent(event);
       const left = Math.min(dragState.startX, endPoint.x);
@@ -777,6 +1306,9 @@ function App() {
     }
 
     setDragState(null);
+    updateTextCardDropPreview(null);
+    setTextCardDetachedContainerId(null);
+    textCardDragCenterYRef.current = null;
     setSnapGuides([]);
   };
 
@@ -853,6 +1385,97 @@ function App() {
     });
   };
 
+  const startTextCardMove = (event: PointerEvent<HTMLElement>, card: TextCardElement) => {
+    if (event.button !== 0 || editingTextCardId === card.id) {
+      return;
+    }
+
+    event.stopPropagation();
+    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
+      event.pointerId,
+    );
+    closeContextMenus();
+    setRenamingId(null);
+    setEditingTextCardId(null);
+    setSelectedIds([]);
+    const startPosition = getTextCardStackPosition(card);
+    setTextCards((current) =>
+      current.map((currentCard) =>
+        currentCard.id === card.id
+          ? {
+              ...currentCard,
+              x: startPosition.x,
+              y: startPosition.y,
+            }
+          : currentCard,
+      ),
+    );
+    const pointerPoint = canvasPointFromEvent(event);
+    const pointerOffsetY = pointerPoint.y - startPosition.y;
+    textCardDragCenterYRef.current =
+      pointerPoint.y - pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
+    setDragState({
+      type: "text-card-move",
+      pointerId: event.pointerId,
+      id: card.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: startPosition.x,
+      startY: startPosition.y,
+      startContainerId: card.containerId,
+      pointerOffsetY,
+    });
+  };
+
+  const openTextCardMenu = (event: React.MouseEvent<HTMLElement>, card: TextCardElement) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenus();
+    setRenamingId(null);
+    setEditingTextCardId(null);
+    setClosingTextCardMenu(null);
+    setTextCardMenu({
+      id: card.id,
+      left: event.clientX + 8,
+      top: event.clientY + 8,
+    });
+  };
+
+  const startTextCardEdit = (card: TextCardElement) => {
+    setTextCardDraft(card.text);
+    setEditingTextCardId(card.id);
+    closeContextMenus();
+  };
+
+  const saveTextCardEdit = (id: string) => {
+    const nextText = textCardDraft.trim();
+    if (!nextText) {
+      return;
+    }
+
+    setTextCards((current) =>
+      current.map((card) => (card.id === id ? { ...card, text: nextText } : card)),
+    );
+    setEditingTextCardId(null);
+  };
+
+  const cancelTextCardEdit = () => {
+    setEditingTextCardId(null);
+    setTextCardDraft("");
+  };
+
+  const updateTextCardAccent = (id: string, accent: string) => {
+    setTextCards((current) =>
+      current.map((card) => (card.id === id ? { ...card, accent } : card)),
+    );
+  };
+
+  const deleteTextCard = (id: string) => {
+    setTextCards((current) => current.filter((card) => card.id !== id));
+    closeContextMenus();
+    setEditingTextCardId(null);
+  };
+
   const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
@@ -910,6 +1533,11 @@ function App() {
       width: element.width,
       height: element.height,
       accent: element.accent,
+      textCards: getOrderedContainerTextCards(element.id).map((card) => ({
+        text: card.text,
+        accent: card.accent,
+        order: card.order,
+      })),
     });
     closeContextMenus();
   };
@@ -930,6 +1558,22 @@ function App() {
     };
 
     setElements((current) => [...current, duplicate]);
+    setTextCards((current) => [
+      ...current,
+      ...copiedContainer.textCards.map((card, index) => ({
+        id: `text-card-${Date.now()}-${index}`,
+        text: card.text,
+        x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
+        y:
+          duplicate.y +
+          CONTAINER_HEADER_HEIGHT +
+          CONTAINER_TEXT_CARD_PADDING +
+          index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+        accent: card.accent,
+        containerId: id,
+        order: card.order ?? index,
+      })),
+    ]);
     setSelectedIds([id]);
     animateContainerIn(id);
     closeContextMenus();
@@ -943,8 +1587,10 @@ function App() {
 
   const clearCanvas = () => {
     removeContainers(elements.map((element) => element.id));
+    setTextCards([]);
     closeContextMenus();
     setRenamingId(null);
+    setEditingTextCardId(null);
     setClearModalOpen(false);
   };
 
@@ -985,12 +1631,14 @@ function App() {
     setCanvases(normalized.canvases.length ? normalized.canvases : [DEFAULT_CANVAS]);
     setActiveCanvas(selectedCanvas);
     setElements(selectedCanvas.containers);
+    setTextCards(selectedCanvas.textCards);
     setPan(selectedCanvas.pan);
     setZoom(selectedCanvas.zoom);
     setCanvasGridStyle(normalized.canvasGridStyle);
     setCanvasGridOpacity(normalized.canvasGridOpacity);
     setSelectedIds([]);
     setRenamingId(null);
+    setEditingTextCardId(null);
     setCopiedContainer(null);
     closeContextMenus();
   };
@@ -1020,6 +1668,49 @@ function App() {
     setStorageError(null);
   };
 
+  const checkForAppUpdate = async () => {
+    const update = await checkForUpdate();
+    pendingUpdateRef.current = update;
+
+    if (!update) {
+      setAvailableUpdate(null);
+      return null;
+    }
+
+    const info = {
+      version: update.version,
+      currentVersion: update.currentVersion,
+      date: update.date,
+      body: update.body,
+    };
+
+    setAvailableUpdate(info);
+    return info;
+  };
+
+  const installAppUpdate = async () => {
+    let update = pendingUpdateRef.current;
+
+    if (!update) {
+      update = await checkForUpdate();
+      pendingUpdateRef.current = update;
+    }
+
+    if (!update) {
+      setAvailableUpdate(null);
+      return;
+    }
+
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    await persistAppData(getCurrentAppData());
+    await update.downloadAndInstall();
+    await relaunch();
+  };
+
   const resetLocalDatabase = async () => {
     await invoke("reset_local_database");
     const data: AppData = {
@@ -1047,13 +1738,19 @@ function App() {
       width,
       height,
       containers: [],
+      textCards: [],
       pan: DEFAULT_PAN,
       zoom: 1,
+      previewViewport: {
+        width: stageRef.current?.clientWidth ?? window.innerWidth,
+        height: stageRef.current?.clientHeight ?? window.innerHeight,
+      },
     };
 
     setCanvases([...currentCanvases, canvas]);
     setActiveCanvas(canvas);
     setElements([]);
+    setTextCards([]);
     setPan(canvas.pan);
     setZoom(canvas.zoom);
     setSelectedIds([]);
@@ -1075,6 +1772,7 @@ function App() {
     setCanvases(currentCanvases);
     setActiveCanvas(nextCanvas);
     setElements(nextCanvas.containers);
+    setTextCards(nextCanvas.textCards);
     setPan(nextCanvas.pan);
     setZoom(nextCanvas.zoom);
     setSelectedIds([]);
@@ -1115,6 +1813,13 @@ function App() {
           height: Math.min(element.height, height),
         })),
       );
+      setTextCards((current) =>
+        current.map((card) => ({
+          ...card,
+          x: clamp(card.x, 0, width),
+          y: clamp(card.y, 0, height),
+        })),
+      );
     }
   };
 
@@ -1133,6 +1838,7 @@ function App() {
     if (nextActiveCanvas.id !== activeCanvas.id) {
       setActiveCanvas(nextActiveCanvas);
       setElements(nextActiveCanvas.containers);
+      setTextCards(nextActiveCanvas.textCards);
       setPan(nextActiveCanvas.pan);
       setZoom(nextActiveCanvas.zoom);
       setSelectedIds([]);
@@ -1199,11 +1905,19 @@ function App() {
   const closingContextMenuElement = closingContainerMenu
     ? elements.find((element) => element.id === closingContainerMenu.id)
     : null;
+  const textCardContextElement = textCardMenu
+    ? textCards.find((card) => card.id === textCardMenu.id)
+    : null;
+  const closingTextCardContextElement = closingTextCardMenu
+    ? textCards.find((card) => card.id === closingTextCardMenu.id)
+    : null;
+  const textCardDropPreviewPosition = getTextCardDropPreviewPosition();
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
 
   return (
     <main
       data-theme="taskmap"
+      spellCheck={false}
       className="h-full w-full bg-[color:var(--void-bg)] text-white"
       onContextMenu={suppressContextMenu}
       onPointerDownCapture={handleMainPointerDownCapture}
@@ -1298,26 +2012,93 @@ function App() {
                   }
                 />
               ))}
-              {elements.map((element) => (
-                <ContainerNode
-                  key={element.id}
-                  element={element}
-                  selected={outlinedIds.includes(element.id)}
-                  multiSelected={selectedIds.length > 1 && selectedIds.includes(element.id)}
-                  entering={enteringIds.includes(element.id)}
-                  deleting={deletingIds.includes(element.id)}
-                  dragState={dragState}
-                  renaming={renamingId === element.id}
-                  renameDraft={renameDraft}
-                  onRenameDraftChange={setRenameDraft}
-                  onSaveRename={saveRename}
-                  onCancelRename={cancelRename}
-                  onSelect={selectContainer}
-                  onStartMove={startMove}
-                  onStartResize={startResize}
-                  onToggleMenu={toggleMenu}
-                />
-              ))}
+              {elements.map((element) => {
+                const containedCards = textCards.filter(
+                  (card) =>
+                    card.containerId === element.id &&
+                    !(dragState?.type === "text-card-move" && dragState.id === card.id),
+                );
+                const relativeDropPreview =
+                  textCardDropPreview?.containerId === element.id && textCardDropPreviewPosition
+                    ? toContainerRelativePosition(textCardDropPreviewPosition, element)
+                    : null;
+
+                return (
+                  <ContainerNode
+                    key={element.id}
+                    element={element}
+                    selected={outlinedIds.includes(element.id)}
+                    multiSelected={selectedIds.length > 1 && selectedIds.includes(element.id)}
+                    entering={enteringIds.includes(element.id)}
+                    deleting={deletingIds.includes(element.id)}
+                    dragState={dragState}
+                    renaming={renamingId === element.id}
+                    renameDraft={renameDraft}
+                    onRenameDraftChange={setRenameDraft}
+                    onSaveRename={saveRename}
+                    onCancelRename={cancelRename}
+                    onSelect={selectContainer}
+                    onStartMove={startMove}
+                    onStartResize={startResize}
+                    onToggleMenu={toggleMenu}
+                    onOpenContentMenu={openContainerContentMenu}
+                  >
+                    {relativeDropPreview && (
+                      <div
+                        className="pointer-events-none absolute z-20 inline-flex select-none items-center rounded-lg border border-dashed border-white/42 bg-white/[0.035] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-transparent"
+                        style={{
+                          left: relativeDropPreview.x,
+                          top: relativeDropPreview.y,
+                          maxWidth: relativeDropPreview.maxWidth,
+                        }}
+                      >
+                        <span className="block min-w-0 truncate">{relativeDropPreview.text}</span>
+                      </div>
+                    )}
+                    {containedCards.map((card) => {
+                      const position = {
+                        ...toContainerRelativePosition(getTextCardRenderPosition(card) ?? card, element),
+                        maxWidth: Math.max(120, element.width - CONTAINER_TEXT_CARD_PADDING * 2),
+                      };
+
+                      return (
+                        <TextCardNode
+                          key={card.id}
+                          card={card}
+                          editing={editingTextCardId === card.id}
+                          draft={textCardDraft}
+                          position={position}
+                          onDraftChange={setTextCardDraft}
+                          onSave={saveTextCardEdit}
+                          onCancel={cancelTextCardEdit}
+                          onStartMove={startTextCardMove}
+                          onOpenMenu={openTextCardMenu}
+                        />
+                      );
+                    })}
+                  </ContainerNode>
+                );
+              })}
+              {textCards.filter((card) => !card.containerId || (dragState?.type === "text-card-move" && dragState.id === card.id)).map((card) => {
+                const draggingTextCard = dragState?.type === "text-card-move" && dragState.id === card.id;
+                const position = draggingTextCard ? { x: card.x, y: card.y } : undefined;
+
+                return (
+                  <TextCardNode
+                    key={card.id}
+                    card={card}
+                    editing={editingTextCardId === card.id}
+                    draft={textCardDraft}
+                    position={position}
+                    dragging={draggingTextCard}
+                    onDraftChange={setTextCardDraft}
+                    onSave={saveTextCardEdit}
+                    onCancel={cancelTextCardEdit}
+                    onStartMove={startTextCardMove}
+                    onOpenMenu={openTextCardMenu}
+                  />
+                );
+              })}
               {selectionBounds && (
                 <div
                   className="pointer-events-none absolute z-30 rounded-md border border-white/45 bg-white/[0.08] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
@@ -1360,6 +2141,48 @@ function App() {
             />
           )}
 
+          {containerContentMenu && (
+            <ContainerContentContextMenu
+              key={`${containerContentMenu.containerId}-${containerContentMenu.clientX}-${containerContentMenu.clientY}`}
+              menu={containerContentMenu}
+              closing={false}
+              onCreateTextCard={createTextCardInContainer}
+            />
+          )}
+
+          {closingContainerContentMenu && (
+            <ContainerContentContextMenu
+              key={`closing-${closingContainerContentMenu.containerId}-${closingContainerContentMenu.clientX}-${closingContainerContentMenu.clientY}`}
+              menu={closingContainerContentMenu}
+              closing
+              onCreateTextCard={createTextCardInContainer}
+            />
+          )}
+
+          {textCardMenu && textCardContextElement && (
+            <TextCardContextMenu
+              key={`${textCardMenu.id}-${textCardMenu.left}-${textCardMenu.top}`}
+              menu={textCardMenu}
+              card={textCardContextElement}
+              closing={false}
+              onStartEdit={startTextCardEdit}
+              onUpdateAccent={updateTextCardAccent}
+              onDelete={deleteTextCard}
+            />
+          )}
+
+          {closingTextCardMenu && closingTextCardContextElement && (
+            <TextCardContextMenu
+              key={`closing-${closingTextCardMenu.id}-${closingTextCardMenu.left}-${closingTextCardMenu.top}`}
+              menu={closingTextCardMenu}
+              card={closingTextCardContextElement}
+              closing
+              onStartEdit={startTextCardEdit}
+              onUpdateAccent={updateTextCardAccent}
+              onDelete={deleteTextCard}
+            />
+          )}
+
           {canvasMenu && (
             <CanvasContextMenu
               key={`${canvasMenu.clientX}-${canvasMenu.clientY}`}
@@ -1368,6 +2191,7 @@ function App() {
               closing={false}
               onPaste={pasteContainer}
               onCreate={createContainer}
+              onCreateTextCard={createTextCard}
               onClear={requestClearCanvas}
             />
           )}
@@ -1380,6 +2204,7 @@ function App() {
               closing
               onPaste={pasteContainer}
               onCreate={createContainer}
+              onCreateTextCard={createTextCard}
               onClear={requestClearCanvas}
             />
           )}
@@ -1401,6 +2226,9 @@ function App() {
               }
               onExportData={exportData}
               onImportData={importData}
+              availableUpdate={availableUpdate}
+              onCheckForUpdate={checkForAppUpdate}
+              onInstallUpdate={installAppUpdate}
               onClose={() => setSettingsOpen(false)}
             />
           )}

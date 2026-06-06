@@ -2,6 +2,7 @@ import {
   IconDownload,
   IconGrid3x3,
   IconGridDots,
+  IconRefresh,
   IconRotateClockwise,
   IconSettings,
   IconTrash,
@@ -9,7 +10,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { ChangeEvent, useRef, useState } from "react";
-import { CanvasGridStyle } from "../types";
+import { AppUpdateInfo, CanvasGridStyle } from "../types";
 
 type ClearCanvasModalProps = {
   onCancel: () => void;
@@ -55,6 +56,9 @@ type SettingsModalProps = {
   onCanvasGridOpacityChange: (opacity: number) => void;
   onExportData: (password: string) => Promise<void>;
   onImportData: (file: File, password: string) => Promise<void>;
+  availableUpdate: AppUpdateInfo | null;
+  onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
+  onInstallUpdate: () => Promise<void>;
   onClose: () => void;
 };
 
@@ -74,6 +78,9 @@ export function SettingsModal({
   onCanvasGridOpacityChange,
   onExportData,
   onImportData,
+  availableUpdate,
+  onCheckForUpdate,
+  onInstallUpdate,
   onClose,
 }: SettingsModalProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +88,10 @@ export function SettingsModal({
   const [passwordDraft, setPasswordDraft] = useState("");
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [dataStatus, setDataStatus] = useState("");
+  const [updateStatus, setUpdateStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [updateBusy, setUpdateBusy] = useState(false);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
 
   const runDataAction = async (
     password: string,
@@ -154,6 +164,38 @@ export function SettingsModal({
     setPendingImportFile(null);
   };
 
+  const handleCheckForUpdate = async () => {
+    setUpdateStatus("");
+    setUpdateBusy(true);
+
+    try {
+      const update = await onCheckForUpdate();
+      if (update) {
+        setUpdateStatus("");
+        setUpdateModalOpen(true);
+      } else {
+        setUpdateStatus("TaskMap is up to date.");
+      }
+    } catch (error) {
+      setUpdateStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setUpdateBusy(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    setUpdateStatus("Saving data and installing update...");
+    setUpdateBusy(true);
+
+    try {
+      await onInstallUpdate();
+    } catch (error) {
+      setUpdateStatus(error instanceof Error ? error.message : String(error));
+      setUpdateModalOpen(false);
+      setUpdateBusy(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/35">
       <div className="w-[440px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-md">
@@ -208,6 +250,7 @@ export function SettingsModal({
               max={100}
               step={5}
               value={canvasGridOpacity}
+              spellCheck={false}
               onChange={(event) => onCanvasGridOpacityChange(Number(event.target.value))}
               title="Grid opacity"
             />
@@ -221,6 +264,7 @@ export function SettingsModal({
               className="hidden"
               type="file"
               accept="application/json,.json"
+              spellCheck={false}
               onChange={handleImportFile}
             />
             <div className="grid grid-cols-2 gap-2">
@@ -243,8 +287,68 @@ export function SettingsModal({
             </div>
             {dataStatus && <div className="mt-2 text-xs text-white/58">{dataStatus}</div>}
           </div>
+          <div className="border-t border-white/[0.10] pt-3">
+            <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">
+              Updates
+            </div>
+            <button
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/[0.10] bg-black/[0.12] text-sm text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+              onClick={handleCheckForUpdate}
+              disabled={updateBusy}
+            >
+              <IconRefresh size={17} stroke={2} />
+              <span>{updateBusy ? "Checking..." : "Check for updates"}</span>
+            </button>
+            {updateStatus && <div className="mt-2 text-xs text-white/58">{updateStatus}</div>}
+          </div>
         </div>
       </div>
+      {updateModalOpen && availableUpdate && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
+          <div className="w-[380px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <IconDownload size={19} stroke={2} className="text-white/70" />
+                <h2 className="text-[16px] font-semibold">Update available</h2>
+              </div>
+              <button
+                className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                onClick={() => setUpdateModalOpen(false)}
+                disabled={updateBusy}
+                title="Close"
+              >
+                <IconX size={17} stroke={2} />
+              </button>
+            </div>
+            <div className="mb-5 space-y-2 text-sm text-white/68">
+              <div>
+                TaskMap {availableUpdate.version} is ready to download.
+              </div>
+              <div className="text-xs text-white/48">
+                Current version: {availableUpdate.currentVersion}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                onClick={() => setUpdateModalOpen(false)}
+                disabled={updateBusy}
+              >
+                <IconX size={17} stroke={2} />
+                <span>Later</span>
+              </button>
+              <button
+                className="flex h-9 items-center gap-2 rounded-md bg-white/[0.12] px-3 text-sm text-white transition-colors hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
+                onClick={handleInstallUpdate}
+                disabled={updateBusy}
+              >
+                <IconDownload size={17} stroke={2} />
+                <span>{updateBusy ? "Installing..." : "Download"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {passwordModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
           <div className="w-[340px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
@@ -272,6 +376,7 @@ export function SettingsModal({
               type="password"
               value={passwordDraft}
               autoFocus
+              spellCheck={false}
               onChange={(event) => setPasswordDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {

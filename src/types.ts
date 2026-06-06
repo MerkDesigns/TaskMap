@@ -8,13 +8,25 @@ export type ContainerElement = {
   accent: string;
 };
 
+export type TextCardElement = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  accent: string;
+  containerId?: string;
+  order?: number;
+};
+
 export type ContainerMenuState = {
   id: string;
   left: number;
   top: number;
 };
 
-export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent">;
+export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent"> & {
+  textCards: Array<Pick<TextCardElement, "text" | "accent" | "order">>;
+};
 
 export type CanvasGridStyle = "dots" | "lines";
 
@@ -24,11 +36,16 @@ export type TaskCanvas = {
   width: number;
   height: number;
   containers: ContainerElement[];
+  textCards: TextCardElement[];
   pan: {
     x: number;
     y: number;
   };
   zoom: number;
+  previewViewport?: {
+    width: number;
+    height: number;
+  };
 };
 
 export type AppData = {
@@ -36,6 +53,13 @@ export type AppData = {
   canvases: TaskCanvas[];
   canvasGridStyle: CanvasGridStyle;
   canvasGridOpacity: Record<CanvasGridStyle, number>;
+};
+
+export type AppUpdateInfo = {
+  version: string;
+  currentVersion: string;
+  date?: string;
+  body?: string;
 };
 
 export type DragState =
@@ -68,6 +92,17 @@ export type DragState =
       startClientY: number;
       startWidth: number;
       startHeight: number;
+    }
+  | {
+      type: "text-card-move";
+      pointerId: number;
+      id: string;
+      startClientX: number;
+      startClientY: number;
+      startX: number;
+      startY: number;
+      startContainerId?: string;
+      pointerOffsetY: number;
     }
   | {
       type: "select";
