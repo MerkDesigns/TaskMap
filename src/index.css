@@ -208,6 +208,21 @@ body {
   transform-origin: center;
 }
 
+.text-card-enter {
+  animation: text-card-enter 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left center;
+}
+
+.text-card-exit {
+  animation: text-card-exit 140ms ease-in both;
+  transform-origin: left center;
+}
+
+.text-card-pulse {
+  animation: text-card-pulse 240ms ease-out both;
+  transform-origin: left center;
+}
+
 @keyframes container-enter {
   from {
     opacity: 0;
@@ -229,5 +244,43 @@ body {
   to {
     opacity: 0;
     transform: scale(0.965) translateY(4px);
+  }
+}
+
+@keyframes text-card-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes text-card-exit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+}
+
+@keyframes text-card-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.021);
+  }
+
+  100% {
+    transform: scale(1);
   }
 }

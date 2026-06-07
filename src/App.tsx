@@ -143,6 +143,9 @@ function App() {
   const [storageError, setStorageError] = useState<string | null>(null);
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const [enteringTextCardIds, setEnteringTextCardIds] = useState<string[]>([]);
+  const [deletingTextCardIds, setDeletingTextCardIds] = useState<string[]>([]);
+  const [pulsingTextCardIds, setPulsingTextCardIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [activeCanvas, setActiveCanvas] = useState<TaskCanvas>(DEFAULT_CANVAS);
   const [canvases, setCanvases] = useState<TaskCanvas[]>([DEFAULT_CANVAS]);
@@ -818,6 +821,20 @@ function App() {
     }, 180);
   };
 
+  const animateTextCardIn = (id: string) => {
+    setEnteringTextCardIds((current) => [...current, id]);
+    window.setTimeout(() => {
+      setEnteringTextCardIds((current) => current.filter((enteringId) => enteringId !== id));
+    }, 180);
+  };
+
+  const pulseTextCard = (id: string) => {
+    setPulsingTextCardIds((current) => [...current.filter((pulsingId) => pulsingId !== id), id]);
+    window.setTimeout(() => {
+      setPulsingTextCardIds((current) => current.filter((pulsingId) => pulsingId !== id));
+    }, 260);
+  };
+
   const removeContainers = (ids: string[]) => {
     if (ids.length === 0) {
       return;
@@ -831,6 +848,23 @@ function App() {
       setEnteringIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
     }, 160);
   };
+
+  const removeTextCards = (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+
+    setDeletingTextCardIds((current) => Array.from(new Set([...current, ...ids])));
+    setEditingTextCardId((current) => (current && ids.includes(current) ? null : current));
+    setTextCardMenu((current) => (current && ids.includes(current.id) ? null : current));
+    window.setTimeout(() => {
+      setTextCards((current) => normalizeTextCardOrders(current.filter((card) => !ids.includes(card.id))));
+      setDeletingTextCardIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
+      setEnteringTextCardIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
+      setPulsingTextCardIds((current) => current.filter((pulsingId) => !ids.includes(pulsingId)));
+    }, 150);
+  };
+
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1028,7 +1062,9 @@ function App() {
     setSelectedIds([id]);
     animateContainerIn(id);
     closeContextMenus();
-    setRenamingId(null);
+    setEditingTextCardId(null);
+    setRenameDraft(nextElement.name);
+    setRenamingId(id);
   };
 
   const createTextCard = (clientX: number, clientY: number) => {
@@ -1043,6 +1079,7 @@ function App() {
     };
 
     setTextCards((current) => [...current, card]);
+    animateTextCardIn(id);
     setEditingTextCardId(id);
     setTextCardDraft(card.text);
     setSelectedIds([]);
@@ -1082,6 +1119,7 @@ function App() {
         ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
       ]),
     );
+    animateTextCardIn(id);
     setEditingTextCardId(id);
     setTextCardDraft(card.text);
     setSelectedIds([]);
@@ -1161,6 +1199,9 @@ function App() {
 
     event.preventDefault();
     closeContextMenus();
+    if (editingTextCardId) {
+      saveTextCardEdit(editingTextCardId);
+    }
     setRenamingId(null);
     const point = canvasPointFromEvent(event);
     (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
@@ -1580,17 +1621,20 @@ function App() {
 
   const saveTextCardEdit = (id: string) => {
     const nextText = textCardDraft.trim();
-    if (!nextText) {
-      return;
+    if (nextText) {
+      setTextCards((current) =>
+        current.map((card) => (card.id === id ? { ...card, text: nextText } : card)),
+      );
     }
-
-    setTextCards((current) =>
-      current.map((card) => (card.id === id ? { ...card, text: nextText } : card)),
-    );
     setEditingTextCardId(null);
+    setTextCardDraft("");
+    pulseTextCard(id);
   };
 
   const cancelTextCardEdit = () => {
+    if (editingTextCardId) {
+      pulseTextCard(editingTextCardId);
+    }
     setEditingTextCardId(null);
     setTextCardDraft("");
   };
@@ -1601,10 +1645,39 @@ function App() {
     );
   };
 
+  const normalizeTextCardLink = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const withProtocol = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    try {
+      const url = new URL(withProtocol);
+      return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol) ? url.toString() : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const updateTextCardLink = (id: string, link: string) => {
+    const normalizedLink = normalizeTextCardLink(link);
+    setTextCards((current) =>
+      current.map((card) =>
+        card.id === id
+          ? {
+              ...card,
+              link: normalizedLink,
+            }
+          : card,
+      ),
+    );
+  };
+
   const deleteTextCard = (id: string) => {
-    setTextCards((current) => current.filter((card) => card.id !== id));
+    removeTextCards([id]);
     closeContextMenus();
-    setEditingTextCardId(null);
   };
 
   const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => {
@@ -1667,6 +1740,7 @@ function App() {
       textCards: getOrderedContainerTextCards(element.id).map((card) => ({
         text: card.text,
         accent: card.accent,
+        link: card.link,
         order: card.order,
       })),
     });
@@ -1689,22 +1763,23 @@ function App() {
     };
 
     setElements((current) => [...current, duplicate]);
-    setTextCards((current) => [
-      ...current,
-      ...copiedContainer.textCards.map((card, index) => ({
-        id: `text-card-${Date.now()}-${index}`,
-        text: card.text,
-        x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
+    const pastedTextCards = copiedContainer.textCards.map((card, index) => ({
+      id: `text-card-${Date.now()}-${index}`,
+      text: card.text,
+      x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
         y:
           duplicate.y +
           CONTAINER_HEADER_HEIGHT +
           CONTAINER_TEXT_CARD_PADDING +
           index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
-        accent: card.accent,
-        containerId: id,
-        order: card.order ?? index,
-      })),
-    ]);
+      accent: card.accent,
+      link: card.link,
+      containerId: id,
+      order: card.order ?? index,
+    }));
+
+    setTextCards((current) => [...current, ...pastedTextCards]);
+    pastedTextCards.forEach((card) => animateTextCardIn(card.id));
     setSelectedIds([id]);
     animateContainerIn(id);
     closeContextMenus();
@@ -1718,7 +1793,7 @@ function App() {
 
   const clearCanvas = () => {
     removeContainers(elements.map((element) => element.id));
-    setTextCards([]);
+    removeTextCards(textCards.map((card) => card.id));
     closeContextMenus();
     setRenamingId(null);
     setEditingTextCardId(null);
@@ -2271,6 +2346,9 @@ function App() {
                           editing={editingTextCardId === card.id}
                           draft={textCardDraft}
                           position={position}
+                          entering={enteringTextCardIds.includes(card.id)}
+                          deleting={deletingTextCardIds.includes(card.id)}
+                          pulsing={pulsingTextCardIds.includes(card.id)}
                           settling={settlingTextCardId === card.id}
                           onDraftChange={setTextCardDraft}
                           onSave={saveTextCardEdit}
@@ -2299,6 +2377,9 @@ function App() {
                     editing={editingTextCardId === card.id}
                     draft={textCardDraft}
                     position={position}
+                    entering={enteringTextCardIds.includes(card.id)}
+                    deleting={deletingTextCardIds.includes(card.id)}
+                    pulsing={pulsingTextCardIds.includes(card.id)}
                     dragging={draggingTextCard}
                     settling={settlingTextCardId === card.id}
                     onDraftChange={setTextCardDraft}
@@ -2377,6 +2458,7 @@ function App() {
               closing={false}
               onStartEdit={startTextCardEdit}
               onUpdateAccent={updateTextCardAccent}
+              onUpdateLink={updateTextCardLink}
               onDelete={deleteTextCard}
             />
           )}
@@ -2389,6 +2471,7 @@ function App() {
               closing
               onStartEdit={startTextCardEdit}
               onUpdateAccent={updateTextCardAccent}
+              onUpdateLink={updateTextCardLink}
               onDelete={deleteTextCard}
             />
           )}

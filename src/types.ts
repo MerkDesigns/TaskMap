@@ -14,6 +14,7 @@ export type TextCardElement = {
   x: number;
   y: number;
   accent: string;
+  link?: string;
   containerId?: string;
   order?: number;
 };
@@ -25,7 +26,7 @@ export type ContainerMenuState = {
 };
 
 export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent"> & {
-  textCards: Array<Pick<TextCardElement, "text" | "accent" | "order">>;
+  textCards: Array<Pick<TextCardElement, "text" | "accent" | "link" | "order">>;
 };
 
 export type CanvasGridStyle = "dots" | "lines";

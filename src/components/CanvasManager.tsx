@@ -12,6 +12,7 @@ import { PointerEvent as ReactPointerEvent, useEffect, useLayoutEffect, useRef, 
 import { createPortal } from "react-dom";
 import { MENU_DIVIDER_CLASS, MENU_ITEM_CLASS } from "../constants";
 import { TaskCanvas } from "../types";
+import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
 
@@ -87,6 +88,7 @@ export function CanvasManager({
   const cardAnimationsRef = useRef<Record<string, Animation>>({});
   const previewViewportSizesRef = useRef<Record<string, PreviewViewportSize>>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<CanvasDragState | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const suppressClickRef = useRef(false);
@@ -96,6 +98,10 @@ export function CanvasManager({
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
+  const menuPosition = useClampedFixedPosition(menuRef, {
+    left: menu?.left ?? 0,
+    top: menu?.top ?? 0,
+  });
 
   const openCreate = () => {
     if (modalMode === "create") {
@@ -785,9 +791,10 @@ export function CanvasManager({
       {menu &&
         createPortal(
         <div
+          ref={menuRef}
           data-context-menu
           className="context-menu-panel context-menu-enter fixed z-40 w-36 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)]"
-          style={{ left: menu.left, top: menu.top }}
+          style={menuPosition}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
         >

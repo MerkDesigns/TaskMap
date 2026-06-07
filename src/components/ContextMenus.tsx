@@ -4,12 +4,17 @@ import {
   IconArrowAutofitUp,
   IconArrowAutofitUpFilled,
   IconCopy,
+  IconCheck,
+  IconLink,
   IconPencil,
   IconPlus,
   IconTrash,
+  IconX,
 } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
 import { ACCENT_PRESETS, getTextCardAccent, MENU_DIVIDER_CLASS, MENU_ITEM_CLASS } from "../constants";
 import { ContainerElement, ContainerMenuState, TextCardElement } from "../types";
+import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 type ContainerContextMenuProps = {
   menu: ContainerMenuState;
@@ -35,13 +40,17 @@ export function ContainerContextMenu({
   onMoveLayer,
   onDelete,
 }: ContainerContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+
   return (
     <div
+      ref={menuRef}
       data-context-menu
       className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
-      style={{ left: menu.left, top: menu.top }}
+      style={position}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
@@ -56,7 +65,7 @@ export function ContainerContextMenu({
             <button
               key={preset.accent}
               className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
-              style={{ backgroundColor: preset.accent }}
+              style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
               title="Container accent color"
             >
@@ -138,13 +147,17 @@ export function ContainerContentContextMenu({
   closing,
   onCreateTextCard,
 }: ContainerContentContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.clientX + 8, top: menu.clientY + 8 });
+
   return (
     <div
+      ref={menuRef}
       data-context-menu
       className={`context-menu-panel fixed z-30 w-52 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
-      style={{ left: menu.clientX + 8, top: menu.clientY + 8 }}
+      style={position}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
@@ -168,13 +181,17 @@ export function CanvasContextMenu({
   onCreateTextCard,
   onClear,
 }: CanvasContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.clientX + 8, top: menu.clientY + 8 });
+
   return (
     <div
+      ref={menuRef}
       data-context-menu
       className={`context-menu-panel fixed z-30 w-52 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
-      style={{ left: menu.clientX + 8, top: menu.clientY + 8 }}
+      style={position}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
@@ -214,6 +231,7 @@ type TextCardContextMenuProps = {
   closing: boolean;
   onStartEdit: (card: TextCardElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  onUpdateLink: (id: string, link: string) => void;
   onDelete: (id: string) => void;
 };
 
@@ -223,50 +241,125 @@ export function TextCardContextMenu({
   closing,
   onStartEdit,
   onUpdateAccent,
+  onUpdateLink,
   onDelete,
 }: TextCardContextMenuProps) {
   const activeAccent = getTextCardAccent(card.accent);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const linkMenuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+  const linkMenuPosition = useClampedFixedPosition(linkMenuRef, {
+    left: position.left + 232,
+    top: position.top + 98,
+  });
+  const [linkDraft, setLinkDraft] = useState(card.link ?? "");
+  const [linkMenuOpen, setLinkMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setLinkDraft(card.link ?? "");
+  }, [card.id, card.link]);
+
+  const saveLink = () => {
+    onUpdateLink(card.id, linkDraft);
+  };
 
   return (
-    <div
-      data-context-menu
-      className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
-        closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
-      }`}
-      style={{ left: menu.left, top: menu.top }}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <button className={MENU_ITEM_CLASS} onClick={() => onStartEdit(card)}>
-        <IconPencil size={17} stroke={2} />
-        <span>Edit Text</span>
-      </button>
-      <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 pb-2 pt-1.5">
-        <div className="grid grid-cols-8 gap-1.5">
-          {ACCENT_PRESETS.map((preset) => (
-            <button
-              key={preset.textCardAccent}
-              className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
-              style={{ backgroundColor: preset.swatch }}
-              onClick={() => onUpdateAccent(card.id, preset.textCardAccent)}
-              title="Text card color"
-            >
-              {activeAccent === preset.textCardAccent && (
-                <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className={MENU_DIVIDER_CLASS} />
-      <button
-        className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
-        onClick={() => onDelete(card.id)}
+    <>
+      <div
+        ref={menuRef}
+        data-context-menu
+        className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+          closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
+        }`}
+        style={position}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
-        <IconTrash size={17} stroke={2} />
-        <span>Remove</span>
-      </button>
-    </div>
+        <button className={MENU_ITEM_CLASS} onClick={() => onStartEdit(card)}>
+          <IconPencil size={17} stroke={2} />
+          <span>Edit Text</span>
+        </button>
+        <div className={MENU_DIVIDER_CLASS} />
+        <div className="px-2 pb-2 pt-1.5">
+          <div className="grid grid-cols-8 gap-1.5">
+            {ACCENT_PRESETS.map((preset) => (
+              <button
+                key={preset.textCardAccent}
+                className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+                style={{ backgroundColor: preset.swatch }}
+                onClick={() => onUpdateAccent(card.id, preset.textCardAccent)}
+                title="Text card color"
+              >
+                {activeAccent === preset.textCardAccent && (
+                  <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className={MENU_DIVIDER_CLASS} />
+        <button className={MENU_ITEM_CLASS} onClick={() => setLinkMenuOpen((current) => !current)}>
+          <IconLink size={17} stroke={2} />
+          <span>Hyperlink</span>
+        </button>
+        <div className={MENU_DIVIDER_CLASS} />
+        <button
+          className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+          onClick={() => onDelete(card.id)}
+        >
+          <IconTrash size={17} stroke={2} />
+          <span>Remove</span>
+        </button>
+      </div>
+
+      {linkMenuOpen && !closing && (
+        <div
+          ref={linkMenuRef}
+          data-context-menu
+          className="context-menu-panel context-menu-enter fixed z-30 w-72 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)]"
+          style={linkMenuPosition}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-center gap-1 px-2 py-1.5">
+          <input
+            className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-black/[0.18] px-2 text-[13px] text-white outline-none placeholder:text-white/28 focus:border-white/35"
+            value={linkDraft}
+            placeholder="https://example.com"
+            spellCheck={false}
+            onChange={(event) => setLinkDraft(event.target.value)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                saveLink();
+              }
+
+              if (event.key === "Escape") {
+                setLinkDraft(card.link ?? "");
+              }
+            }}
+          />
+          <button
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={saveLink}
+            title="Save hyperlink"
+          >
+            <IconCheck size={17} stroke={2} />
+          </button>
+          <button
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white/80"
+            onClick={() => {
+              setLinkDraft("");
+              onUpdateLink(card.id, "");
+            }}
+            title="Remove hyperlink"
+          >
+            <IconX size={17} stroke={2} />
+          </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
