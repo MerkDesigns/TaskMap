@@ -11,7 +11,7 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ACCENT_PRESETS, getTextCardAccent, MENU_DIVIDER_CLASS, MENU_ITEM_CLASS } from "../constants";
 import { ContainerElement, ContainerMenuState, TextCardElement } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
@@ -116,7 +116,7 @@ export function ContainerContextMenu({
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <button
-        className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
         onClick={() => onDelete(element.id)}
       >
         <IconTrash size={17} stroke={2} />
@@ -128,7 +128,7 @@ export function ContainerContextMenu({
 
 type CanvasContextMenuProps = {
   menu: { clientX: number; clientY: number };
-  hasCopiedContainer: boolean;
+  hasCopiedItem: boolean;
   closing: boolean;
   onPaste: (clientX: number, clientY: number) => void;
   onCreate: (clientX: number, clientY: number) => void;
@@ -174,7 +174,7 @@ export function ContainerContentContextMenu({
 
 export function CanvasContextMenu({
   menu,
-  hasCopiedContainer,
+  hasCopiedItem,
   closing,
   onPaste,
   onCreate,
@@ -195,7 +195,7 @@ export function CanvasContextMenu({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
-      {hasCopiedContainer && (
+      {hasCopiedItem && (
         <>
           <button className={MENU_ITEM_CLASS} onClick={() => onPaste(menu.clientX, menu.clientY)}>
             <IconCopy size={17} stroke={2} />
@@ -215,7 +215,7 @@ export function CanvasContextMenu({
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <button
-        className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
         onClick={onClear}
       >
         <IconTrash size={17} stroke={2} />
@@ -232,6 +232,7 @@ type TextCardContextMenuProps = {
   onStartEdit: (card: TextCardElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
+  onCopy: (card: TextCardElement) => void;
   onDelete: (id: string) => void;
 };
 
@@ -242,22 +243,41 @@ export function TextCardContextMenu({
   onStartEdit,
   onUpdateAccent,
   onUpdateLink,
+  onCopy,
   onDelete,
 }: TextCardContextMenuProps) {
   const activeAccent = getTextCardAccent(card.accent);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const linkButtonRef = useRef<HTMLButtonElement | null>(null);
   const linkMenuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  const linkMenuPosition = useClampedFixedPosition(linkMenuRef, {
+  const [linkMenuPreferredPosition, setLinkMenuPreferredPosition] = useState({
     left: position.left + 232,
-    top: position.top + 98,
+    top: position.top,
   });
+  const linkMenuPosition = useClampedFixedPosition(linkMenuRef, linkMenuPreferredPosition);
   const [linkDraft, setLinkDraft] = useState(card.link ?? "");
   const [linkMenuOpen, setLinkMenuOpen] = useState(false);
 
   useEffect(() => {
     setLinkDraft(card.link ?? "");
   }, [card.id, card.link]);
+
+  useLayoutEffect(() => {
+    if (!linkMenuOpen) {
+      return;
+    }
+
+    const buttonRect = linkButtonRef.current?.getBoundingClientRect();
+    if (!buttonRect) {
+      return;
+    }
+
+    setLinkMenuPreferredPosition({
+      left: buttonRect.right + 8,
+      top: buttonRect.top,
+    });
+  }, [linkMenuOpen, position.left, position.top]);
 
   const saveLink = () => {
     onUpdateLink(card.id, linkDraft);
@@ -298,13 +318,22 @@ export function TextCardContextMenu({
           </div>
         </div>
         <div className={MENU_DIVIDER_CLASS} />
-        <button className={MENU_ITEM_CLASS} onClick={() => setLinkMenuOpen((current) => !current)}>
+        <button
+          ref={linkButtonRef}
+          className={MENU_ITEM_CLASS}
+          onClick={() => setLinkMenuOpen((current) => !current)}
+        >
           <IconLink size={17} stroke={2} />
           <span>Hyperlink</span>
         </button>
         <div className={MENU_DIVIDER_CLASS} />
+        <button className={MENU_ITEM_CLASS} onClick={() => onCopy(card)}>
+          <IconCopy size={17} stroke={2} />
+          <span>Copy</span>
+        </button>
+        <div className={MENU_DIVIDER_CLASS} />
         <button
-          className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+          className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
           onClick={() => onDelete(card.id)}
         >
           <IconTrash size={17} stroke={2} />
@@ -322,41 +351,38 @@ export function TextCardContextMenu({
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-center gap-1 px-2 py-1.5">
-          <input
-            className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-black/[0.18] px-2 text-[13px] text-white outline-none placeholder:text-white/28 focus:border-white/35"
-            value={linkDraft}
-            placeholder="https://example.com"
-            spellCheck={false}
-            onChange={(event) => setLinkDraft(event.target.value)}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                saveLink();
-              }
+            <input
+              className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-black/[0.18] px-2 text-[13px] text-white outline-none placeholder:text-white/28 focus:border-white/35"
+              value={linkDraft}
+              placeholder="https://example.com"
+              spellCheck={false}
+              onChange={(event) => setLinkDraft(event.target.value)}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  saveLink();
+                }
 
-              if (event.key === "Escape") {
-                setLinkDraft(card.link ?? "");
-              }
-            }}
-          />
-          <button
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
-            onClick={saveLink}
-            title="Save hyperlink"
-          >
-            <IconCheck size={17} stroke={2} />
-          </button>
-          <button
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white/80"
-            onClick={() => {
-              setLinkDraft("");
-              onUpdateLink(card.id, "");
-            }}
-            title="Remove hyperlink"
-          >
-            <IconX size={17} stroke={2} />
-          </button>
+                if (event.key === "Escape") {
+                  setLinkDraft(card.link ?? "");
+                }
+              }}
+            />
+            <button
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
+              onClick={saveLink}
+              title="Save hyperlink"
+            >
+              <IconCheck size={17} stroke={2} />
+            </button>
+            <button
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white/80"
+              onClick={() => setLinkMenuOpen(false)}
+              title="Close hyperlink menu"
+            >
+              <IconX size={17} stroke={2} />
+            </button>
           </div>
         </div>
       )}

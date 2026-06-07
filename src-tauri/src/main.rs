@@ -104,6 +104,22 @@ fn restore_window_state(window: &tauri::WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
+fn save_window_state(window: &tauri::Window) -> Result<(), String> {
+    let position = window.outer_position().map_err(|error| error.to_string())?;
+    let size = window.outer_size().map_err(|error| error.to_string())?;
+    let state = WindowState {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+        maximized: window.is_maximized().map_err(|error| error.to_string())?,
+    };
+    let payload = serde_json::to_string_pretty(&state).map_err(|error| error.to_string())?;
+
+    fs::write(window_state_path(window.app_handle())?, payload)
+        .map_err(|error| format!("Could not save window state: {error}"))
+}
+
 fn open_database(app: &tauri::AppHandle) -> Result<Connection, String> {
     let connection = Connection::open(database_path(app)?).map_err(|error| error.to_string())?;
     connection
@@ -405,6 +421,13 @@ fn main() {
             }
 
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                if let Err(error) = save_window_state(window) {
+                    eprintln!("Failed to save window state: {error}");
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             load_app_data,

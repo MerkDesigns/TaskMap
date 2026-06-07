@@ -29,6 +29,18 @@ export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height"
   textCards: Array<Pick<TextCardElement, "text" | "accent" | "link" | "order">>;
 };
 
+export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link">;
+
+export type CopiedCanvasItem =
+  | {
+      type: "container";
+      item: CopiedContainer;
+    }
+  | {
+      type: "text-card";
+      item: CopiedTextCard;
+    };
+
 export type CanvasGridStyle = "dots" | "lines";
 
 export type TaskCanvas = {
@@ -87,9 +99,16 @@ export type DragState =
       pointerId: number;
       id: string;
       ids: string[];
+      activeWidth: number;
+      activeHeight: number;
       startClientX: number;
       startClientY: number;
       startPositions: Array<{
+        id: string;
+        x: number;
+        y: number;
+      }>;
+      textCardStartPositions: Array<{
         id: string;
         x: number;
         y: number;
@@ -116,6 +135,7 @@ export type DragState =
       pointerOffsetY: number;
       width: number;
       height: number;
+      snapping: boolean;
     }
   | {
       type: "select";

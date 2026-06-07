@@ -220,7 +220,6 @@ body {
 
 .text-card-pulse {
   animation: text-card-pulse 240ms ease-out both;
-  transform-origin: left center;
 }
 
 @keyframes container-enter {
@@ -273,14 +272,14 @@ body {
 
 @keyframes text-card-pulse {
   0% {
-    transform: scale(1);
+    filter: brightness(1);
   }
 
   45% {
-    transform: scale(1.021);
+    filter: brightness(1.16);
   }
 
   100% {
-    transform: scale(1);
+    filter: brightness(1);
   }
 }

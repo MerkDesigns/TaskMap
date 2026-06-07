@@ -1,5 +1,10 @@
 # TaskMap Project Notes
 
+## Communication
+
+- Keep explanations minimal.
+- Avoid unnecessary explanations and unnecessary changes.
+
 ## Stack
 
 - Tauri desktop app.

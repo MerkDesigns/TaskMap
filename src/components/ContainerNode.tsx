@@ -98,6 +98,7 @@ export function ContainerNode({
             <IconBox size={19} stroke={2} className="shrink-0 text-white/80" />
             {renaming ? (
               <input
+                data-container-rename-input
                 className="h-8 min-w-0 flex-1 appearance-none rounded-md border border-white/20 bg-black/[0.18] px-2 text-[18.4px] font-semibold text-white outline-none selection:bg-white/20 focus:border-white/45"
                 value={renameDraft}
                 autoFocus
@@ -139,7 +140,15 @@ export function ContainerNode({
                 : "cursor-grab"
               : ""
           }`}
-          onContextMenu={(event) => onOpenContentMenu(event, element)}
+          onContextMenu={(event) => {
+            if (multiSelected) {
+              event.preventDefault();
+              event.stopPropagation();
+              return;
+            }
+
+            onOpenContentMenu(event, element);
+          }}
           onWheelCapture={(event) => onWheelContent(event, element)}
         />
 

@@ -33,5 +33,5 @@ export const getTextCardAccent = (accent: string) =>
     ?.textCardAccent ?? accent;
 
 export const MENU_ITEM_CLASS =
-  "flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-white/88 transition-colors hover:bg-white/[0.10] hover:text-white";
+  "flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-white/88 transition-colors hover:bg-white/[0.10] hover:text-white";
 export const MENU_DIVIDER_CLASS = "my-1 h-px bg-white/[0.18]";
