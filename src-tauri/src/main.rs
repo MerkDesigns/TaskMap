@@ -29,15 +29,29 @@ type AppData = serde_json::Value;
 /// Holds the live Discord IPC connection. `None` when RPC is disabled or
 /// Discord is not running. The session start time is fixed for the whole
 /// app run so the presence shows total time spent in the application.
+///
+/// `desired` is the last enabled/disabled state the UI asked for. A single
+/// mutex serializes reconciliation so that rapid toggling collapses into one
+/// connection change instead of thrashing the (fragile) IPC pipe.
 struct DiscordRpc {
-    client: Mutex<Option<DiscordIpcClient>>,
+    inner: Mutex<DiscordRpcInner>,
     started_at: i64,
+}
+
+struct DiscordRpcInner {
+    client: Option<DiscordIpcClient>,
+    desired: bool,
+    canvas_name: Option<String>,
 }
 
 impl DiscordRpc {
     fn new(started_at: i64) -> Self {
         Self {
-            client: Mutex::new(None),
+            inner: Mutex::new(DiscordRpcInner {
+                client: None,
+                desired: false,
+                canvas_name: None,
+            }),
             started_at,
         }
     }
@@ -106,16 +120,58 @@ fn restore_window_state(window: &tauri::WebviewWindow) -> Result<(), String> {
         return Ok(());
     };
 
-    window
-        .set_position(PhysicalPosition::new(state.x, state.y))
-        .map_err(|error| error.to_string())?;
-    window
-        .set_size(PhysicalSize::new(state.width, state.height))
-        .map_err(|error| error.to_string())?;
-
     if state.maximized {
         window.maximize().map_err(|error| error.to_string())?;
+        return Ok(());
     }
+
+    // Clamp the saved geometry so the window can never restore off-screen or
+    // smaller than usable — e.g. when it was last closed on a monitor that is
+    // no longer connected, or with a degenerate size.
+    let (mut x, mut y, mut width, mut height) =
+        (state.x, state.y, state.width, state.height);
+
+    const MIN_WIDTH: u32 = 640;
+    const MIN_HEIGHT: u32 = 480;
+    width = width.max(MIN_WIDTH);
+    height = height.max(MIN_HEIGHT);
+
+    // Find a monitor whose area contains the window's top-left corner; if none
+    // does (the saved screen is gone), fall back to the primary monitor.
+    let monitors = window.available_monitors().unwrap_or_default();
+    let contains = |m: &tauri::window::Monitor| {
+        let pos = m.position();
+        let size = m.size();
+        x >= pos.x
+            && y >= pos.y
+            && x < pos.x + size.width as i32
+            && y < pos.y + size.height as i32
+    };
+    let target = monitors
+        .iter()
+        .find(|m| contains(m))
+        .cloned()
+        .or_else(|| window.primary_monitor().ok().flatten());
+
+    if let Some(monitor) = target {
+        let mpos = monitor.position();
+        let msize = monitor.size();
+        // Keep the window no larger than the monitor.
+        width = width.min(msize.width);
+        height = height.min(msize.height);
+        // Keep the window fully inside the monitor.
+        let max_x = mpos.x + msize.width as i32 - width as i32;
+        let max_y = mpos.y + msize.height as i32 - height as i32;
+        x = x.clamp(mpos.x, max_x.max(mpos.x));
+        y = y.clamp(mpos.y, max_y.max(mpos.y));
+    }
+
+    window
+        .set_size(PhysicalSize::new(width, height))
+        .map_err(|error| error.to_string())?;
+    window
+        .set_position(PhysicalPosition::new(x, y))
+        .map_err(|error| error.to_string())?;
 
     Ok(())
 }
@@ -371,35 +427,87 @@ fn reset_local_database(app: tauri::AppHandle) -> Result<(), String> {
 /// only the elapsed time since the app started — no other information.
 /// Connecting is best-effort: if Discord is not running the call still
 /// succeeds so the app keeps working.
+///
+/// This is hardened against rapid toggling: a single mutex guards the whole
+/// reconcile, and every call to the (panic-prone) IPC crate is wrapped in
+/// `catch_unwind` so a broken pipe degrades to "RPC off" instead of crashing
+/// the app. Any failure drops the client so the next enable reconnects clean.
 #[tauri::command]
-fn set_discord_rpc(enabled: bool, rpc: tauri::State<'_, DiscordRpc>) -> Result<(), String> {
-    let mut guard = rpc.client.lock().map_err(|error| error.to_string())?;
+fn set_discord_rpc(
+    enabled: bool,
+    canvas_name: Option<String>,
+    rpc: tauri::State<'_, DiscordRpc>,
+) -> Result<(), String> {
+    let mut inner = match rpc.inner.lock() {
+        Ok(guard) => guard,
+        // A previous call panicked while holding the lock. Recover the state
+        // and carry on rather than propagating the poison (and crashing).
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    inner.desired = enabled;
+    inner.canvas_name = canvas_name;
 
     if !enabled {
-        if let Some(mut client) = guard.take() {
-            let _ = client.clear_activity();
-            let _ = client.close();
+        if let Some(mut client) = inner.client.take() {
+            let _ = catch_ipc(move || {
+                let _ = client.clear_activity();
+                let _ = client.close();
+            });
         }
         return Ok(());
     }
 
-    if guard.is_none() {
-        let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
+    if inner.client.is_none() {
+        let connected = catch_ipc(|| {
+            let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
+            client.connect().map_err(|error| error.to_string())?;
+            Ok::<_, String>(client)
+        });
 
-        if client.connect().is_err() {
-            // Discord is not running or unreachable; leave RPC off silently.
-            return Ok(());
+        match connected {
+            // `Ok(Ok(client))`: connected cleanly.
+            Ok(Ok(client)) => inner.client = Some(client),
+            // Discord not running / unreachable, or the IPC layer panicked.
+            // Leave RPC off silently so the app keeps working.
+            Ok(Err(_)) | Err(_) => return Ok(()),
         }
-
-        *guard = Some(client);
     }
 
-    if let Some(client) = guard.as_mut() {
-        let activity = Activity::new().timestamps(Timestamps::new().start(rpc.started_at));
-        let _ = client.set_activity(activity);
+    if let Some(mut client) = inner.client.take() {
+        let started_at = rpc.started_at;
+        let details = inner
+            .canvas_name
+            .as_deref()
+            .filter(|name| !name.trim().is_empty())
+            .map(|name| format!("Working on {name}"));
+        let result = catch_ipc(move || {
+            let mut activity =
+                Activity::new().timestamps(Timestamps::new().start(started_at));
+            if let Some(details) = details.as_deref() {
+                activity = activity.details(details);
+            }
+            client.set_activity(activity).map_err(|error| error.to_string())?;
+            Ok::<_, String>(client)
+        });
+
+        match result {
+            Ok(Ok(client)) => inner.client = Some(client),
+            // set_activity failed or panicked: drop the client. The next
+            // enable will reconnect from scratch instead of reusing a pipe
+            // that's in a bad state.
+            Ok(Err(_)) | Err(_) => inner.client = None,
+        }
     }
 
     Ok(())
+}
+
+/// Run a closure that touches the Discord IPC crate, converting any panic
+/// (the crate can panic on a half-open pipe) into an `Err` so the caller
+/// stays alive. Returns `Err(())` on panic, otherwise the closure's value.
+fn catch_ipc<T>(f: impl FnOnce() -> T) -> Result<T, ()> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| ())
 }
 
 fn main() {

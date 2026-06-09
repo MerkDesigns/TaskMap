@@ -556,10 +556,21 @@ function App() {
       return;
     }
 
-    invoke("set_discord_rpc", { enabled: discordRpcEnabled }).catch((error) => {
-      console.error(`Failed to update Discord Rich Presence: ${String(error)}`);
-    });
-  }, [appDataLoaded, discordRpcEnabled]);
+    // Debounce so spamming the toggle collapses into a single backend call
+    // with the final value, instead of thrashing the Discord IPC connection.
+    const handle = window.setTimeout(() => {
+      invoke("set_discord_rpc", {
+        enabled: discordRpcEnabled,
+        canvasName: activeCanvas.name,
+      }).catch((error) => {
+        console.error(`Failed to update Discord Rich Presence: ${String(error)}`);
+      });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(handle);
+    };
+  }, [appDataLoaded, discordRpcEnabled, activeCanvas.name]);
 
   useEffect(() => {
     return () => {
