@@ -7,6 +7,7 @@ import {
   IconLayoutSidebarLeftExpand,
   IconPencil,
   IconPlus,
+  IconStack2,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
@@ -566,8 +567,14 @@ export function CanvasManager({
         }
       }}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-[13px] font-semibold uppercase tracking-wide text-white/48">Canvas browser</div>
+      <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
+        <div className="flex items-center gap-2 text-white/80">
+          <IconStack2 size={17} stroke={2} className="text-white/55" />
+          <span className="text-[13px] font-semibold tracking-tight text-white/85">Canvases</span>
+          <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-white/45">
+            {canvases.length}
+          </span>
+        </div>
         <div className="flex items-center gap-1">
           <button
             className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/[0.10] hover:text-white ${
@@ -596,7 +603,7 @@ export function CanvasManager({
       <div className="relative min-h-0 flex-1">
         <div
           ref={listRef}
-          className="canvas-browser-scroll min-h-0 h-full space-y-2 overflow-y-auto"
+          className="canvas-browser-scroll min-h-0 h-full space-y-2.5 overflow-y-auto pr-0.5"
         >
           {orderedCanvases.map((canvas) => {
           const active = canvas.id === activeCanvasId;
@@ -623,6 +630,113 @@ export function CanvasManager({
           const visibleTop = -canvas.pan.y / safeZoom;
           const previewScale = previewWidth / visibleWidth;
 
+          if (editingId === canvas.id) {
+            return (
+              <div
+                key={canvas.id}
+                data-canvas-card-id={canvas.id}
+                ref={(node) => {
+                  cardRefs.current[canvas.id] = node;
+                }}
+                className="relative flex w-full select-none flex-col gap-3 rounded-xl border border-[#2dd8c8]/40 bg-[#1c1d22] p-3 text-left"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+                  <IconPencil size={14} stroke={2} />
+                  <span>Edit canvas</span>
+                </div>
+
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-medium text-white/50">Name</span>
+                  <input
+                    ref={nameInputRef}
+                    className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm font-medium text-white outline-none selection:bg-white/25 focus:border-[#2dd8c8]/60"
+                    value={draft.name}
+                    spellCheck={false}
+                    onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        saveInlineEdit();
+                      }
+
+                      if (event.key === "Escape") {
+                        cancelInlineEdit();
+                      }
+                    }}
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
+                      <IconArrowsHorizontal size={13} stroke={2} />
+                      Width
+                    </span>
+                    <input
+                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      type="number"
+                      min={600}
+                      max={10000}
+                      step={100}
+                      value={draft.width}
+                      spellCheck={false}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, width: Number(event.target.value) }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          saveInlineEdit();
+                        }
+                      }}
+                      title="Canvas width"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
+                      <IconArrowsVertical size={13} stroke={2} />
+                      Height
+                    </span>
+                    <input
+                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      type="number"
+                      min={600}
+                      max={10000}
+                      step={100}
+                      value={draft.height}
+                      spellCheck={false}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, height: Number(event.target.value) }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          saveInlineEdit();
+                        }
+                      }}
+                      title="Canvas height"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-0.5 flex justify-end gap-2">
+                  <button
+                    className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
+                    onClick={cancelInlineEdit}
+                  >
+                    <IconX size={15} stroke={2} />
+                    <span>Cancel</span>
+                  </button>
+                  <button
+                    className="flex h-8 items-center gap-1.5 rounded-md bg-white/[0.12] px-2.5 text-[13px] text-white transition-colors hover:bg-white/[0.18]"
+                    onClick={saveInlineEdit}
+                  >
+                    <IconCheck size={15} stroke={2} />
+                    <span>Save</span>
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
           if (minimalView) {
             return (
               <div
@@ -632,10 +746,10 @@ export function CanvasManager({
                 ref={(node) => {
                   cardRefs.current[canvas.id] = node;
                 }}
-                className={`relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border px-2 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+                className={`group relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border pl-3 pr-2 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
                   active
-                    ? "border-[#2dd8c8]/70 bg-[#15161a] shadow-[0_0_0_1px_rgba(45,216,200,0.32)]"
-                    : "border-white/[0.10] bg-[#15161a] hover:bg-[#1d1e24]"
+                    ? "border-white/[0.16] bg-[#1c1d22]"
+                    : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
                 } ${dragging ? "scale-[0.985] opacity-20" : ""}`}
                 onPointerDown={(event) => startCanvasDrag(event, canvas)}
                 onClick={() => {
@@ -649,71 +763,30 @@ export function CanvasManager({
                   }
                 }}
               >
+                <span
+                  className={`pointer-events-none absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
+                    active ? "opacity-100" : "opacity-0"
+                  }`}
+                />
                 <div className="min-w-0 flex-1">
-                  {editingId === canvas.id ? (
-                    <input
-                      ref={nameInputRef}
-                      className="h-7 w-full min-w-0 cursor-text rounded-md border border-white/[0.14] bg-black/[0.20] px-2 text-sm font-semibold text-white outline-none selection:bg-white/25 focus:border-white/35"
-                      value={draft.name}
-                      spellCheck={false}
-                      onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          saveInlineEdit();
-                        }
-
-                        if (event.key === "Escape") {
-                          cancelInlineEdit();
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="truncate text-sm font-semibold text-white">{canvas.name}</div>
-                  )}
+                  <div className="truncate text-sm font-semibold text-white">{canvas.name}</div>
                 </div>
                 <div className="relative shrink-0">
-                  {editingId === canvas.id ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        className="grid h-7 w-7 place-items-center rounded-md text-white/62 hover:bg-white/[0.10] hover:text-white"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          saveInlineEdit();
-                        }}
-                        title="Save canvas"
-                      >
-                        <IconCheck size={16} stroke={2} />
-                      </button>
-                      <button
-                        className="grid h-7 w-7 place-items-center rounded-md text-white/52 hover:bg-white/[0.10] hover:text-white"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          cancelInlineEdit();
-                        }}
-                        title="Cancel"
-                      >
-                        <IconX size={16} stroke={2} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      data-canvas-menu-trigger
-                      className="grid h-7 w-7 place-items-center rounded-md text-white/52 hover:bg-white/[0.10] hover:text-white"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setMenu((current) =>
-                          current?.id === canvas.id
-                            ? null
-                            : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
-                        );
-                      }}
-                      title="Canvas menu"
-                    >
-                      <IconDotsVertical size={16} stroke={2} />
-                    </button>
-                  )}
+                  <button
+                    data-canvas-menu-trigger
+                    className="grid h-7 w-7 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMenu((current) =>
+                        current?.id === canvas.id
+                          ? null
+                          : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
+                      );
+                    }}
+                    title="Canvas menu"
+                  >
+                    <IconDotsVertical size={16} stroke={2} />
+                  </button>
                 </div>
               </div>
             );
@@ -727,10 +800,10 @@ export function CanvasManager({
               ref={(node) => {
                 cardRefs.current[canvas.id] = node;
               }}
-              className={`relative flex w-full touch-none select-none gap-3 overflow-clip rounded-lg border p-1.5 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+              className={`group relative flex w-full touch-none select-none gap-3 overflow-clip rounded-xl border p-2 pl-3 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
                 active
-                  ? "border-[#2dd8c8]/70 bg-[#15161a] shadow-[0_0_0_1px_rgba(45,216,200,0.32)]"
-                  : "border-white/[0.10] bg-[#15161a] hover:bg-[#1d1e24]"
+                  ? "border-white/[0.16] bg-[#1c1d22]"
+                  : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
               } ${dragging ? "scale-[0.985] opacity-20" : ""}`}
               onPointerDown={(event) => startCanvasDrag(event, canvas)}
               onClick={() => {
@@ -744,9 +817,16 @@ export function CanvasManager({
                 }
               }}
             >
-              <div className="grid h-[64px] w-[96px] shrink-0 place-items-center">
+              <span
+                className={`pointer-events-none absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
+                  active ? "opacity-100" : "opacity-0"
+                }`}
+              />
+              <div className="shrink-0">
                 <div
-                  className="relative overflow-hidden rounded-[4px] border border-white/[0.18] bg-[#121317]"
+                  className={`relative overflow-hidden rounded-md border bg-[#101116] transition-colors ${
+                    active ? "border-white/[0.22]" : "border-white/[0.10]"
+                  }`}
                   style={{ width: previewWidth, height: previewHeight }}
                 >
                   {canvas.containers.map((container) => (
@@ -796,127 +876,30 @@ export function CanvasManager({
                 </div>
               </div>
 
-              <div className="flex min-w-0 flex-1 flex-col py-0.5">
-                <div className="flex min-w-0 items-start justify-between gap-2 pt-2">
-                  <div className="min-w-0">
-                    {editingId === canvas.id ? (
-                      <input
-                        ref={nameInputRef}
-                        className="h-7 w-full min-w-0 cursor-text rounded-md border border-white/[0.14] bg-black/[0.20] px-2 text-sm font-semibold text-white outline-none selection:bg-white/25 focus:border-white/35"
-                        value={draft.name}
-                        spellCheck={false}
-                        onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            saveInlineEdit();
-                          }
-
-                          if (event.key === "Escape") {
-                            cancelInlineEdit();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="line-clamp-2 break-words text-sm font-semibold leading-4 text-white">
-                        {canvas.name}
-                      </div>
-                    )}
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5">
+                <div className="min-w-0">
+                  <div className="line-clamp-2 break-words text-sm font-semibold leading-snug text-white">
+                    {canvas.name}
                   </div>
-                  <div className="relative shrink-0">
-                    {editingId === canvas.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          className="grid h-7 w-7 place-items-center rounded-md text-white/62 hover:bg-white/[0.10] hover:text-white"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            saveInlineEdit();
-                          }}
-                          title="Save canvas"
-                        >
-                          <IconCheck size={16} stroke={2} />
-                        </button>
-                        <button
-                          className="grid h-7 w-7 place-items-center rounded-md text-white/52 hover:bg-white/[0.10] hover:text-white"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            cancelInlineEdit();
-                          }}
-                          title="Cancel"
-                        >
-                          <IconX size={16} stroke={2} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        data-canvas-menu-trigger
-                        className="grid h-7 w-7 place-items-center rounded-md text-white/52 hover:bg-white/[0.10] hover:text-white"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setMenu((current) =>
-                            current?.id === canvas.id
-                              ? null
-                              : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
-                          );
-                        }}
-                        title="Canvas menu"
-                      >
-                        <IconDotsVertical size={16} stroke={2} />
-                      </button>
-                    )}
+                  <div className="mt-1 text-[11px] tabular-nums text-white/40">
+                    {canvas.width} × {canvas.height}
                   </div>
                 </div>
-                {editingId === canvas.id ? (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <label className="flex h-7 items-center gap-1.5">
-                      <IconArrowsHorizontal size={15} stroke={2} className="shrink-0 text-white/42" />
-                      <input
-                        className="h-full min-w-0 flex-1 cursor-text rounded-md border border-white/[0.12] bg-black/[0.18] px-2 text-xs text-white outline-none [appearance:textfield] focus:border-white/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        type="number"
-                        min={600}
-                        max={10000}
-                        step={100}
-                        value={draft.width}
-                        spellCheck={false}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, width: Number(event.target.value) }))
-                        }
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            saveInlineEdit();
-                          }
-                        }}
-                        title="Canvas width"
-                      />
-                    </label>
-                    <label className="flex h-7 items-center gap-1.5">
-                      <IconArrowsVertical size={15} stroke={2} className="shrink-0 text-white/42" />
-                      <input
-                        className="h-full min-w-0 flex-1 cursor-text rounded-md border border-white/[0.12] bg-black/[0.18] px-2 text-xs text-white outline-none [appearance:textfield] focus:border-white/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        type="number"
-                        min={600}
-                        max={10000}
-                        step={100}
-                        value={draft.height}
-                        spellCheck={false}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, height: Number(event.target.value) }))
-                        }
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            saveInlineEdit();
-                          }
-                        }}
-                        title="Canvas height"
-                      />
-                    </label>
-                  </div>
-                ) : null}
+                <button
+                  data-canvas-menu-trigger
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenu((current) =>
+                      current?.id === canvas.id
+                        ? null
+                        : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
+                    );
+                  }}
+                  title="Canvas menu"
+                >
+                  <IconDotsVertical size={16} stroke={2} />
+                </button>
               </div>
             </div>
           );

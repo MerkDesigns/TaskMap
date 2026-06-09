@@ -100,6 +100,9 @@ export type AppData = {
   canvasGridStyle: CanvasGridStyle;
   canvasGridOpacity: Record<CanvasGridStyle, number>;
   discordRpcEnabled: boolean;
+  /** Update version the user dismissed with "Not now"; suppresses the startup
+   *  modal for that version only. A newer version still prompts. */
+  dismissedUpdateVersion?: string;
 };
 
 export type AppUpdateInfo = {

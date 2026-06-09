@@ -12,6 +12,72 @@ import {
 import { ChangeEvent, useRef, useState } from "react";
 import { AppUpdateInfo, CanvasGridStyle } from "../types";
 
+type UpdateAvailableModalProps = {
+  update: AppUpdateInfo;
+  onInstall: () => Promise<void>;
+  onDismiss: () => void;
+};
+
+export function UpdateAvailableModal({ update, onInstall, onDismiss }: UpdateAvailableModalProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleInstall = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      await onInstall();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
+      <div className="w-[380px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <IconDownload size={19} stroke={2} className="text-white/70" />
+            <h2 className="text-[16px] font-semibold">Update available</h2>
+          </div>
+          <button
+            className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+            onClick={onDismiss}
+            disabled={busy}
+            title="Close"
+          >
+            <IconX size={17} stroke={2} />
+          </button>
+        </div>
+        <div className="mb-5 space-y-2 text-sm text-white/68">
+          <div>TaskMap {update.version} is ready to download.</div>
+          <div className="text-xs text-white/48">Current version: {update.currentVersion}</div>
+          {error && <div className="text-xs text-red-300">{error}</div>}
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+            onClick={onDismiss}
+            disabled={busy}
+          >
+            <IconX size={17} stroke={2} />
+            <span>Not now</span>
+          </button>
+          <button
+            className="flex h-9 items-center gap-2 rounded-md bg-white/[0.12] px-3 text-sm text-white transition-colors hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
+            onClick={handleInstall}
+            disabled={busy}
+          >
+            <IconDownload size={17} stroke={2} />
+            <span>{busy ? "Installing..." : "Update"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type ClearCanvasModalProps = {
   onCancel: () => void;
   onConfirm: () => void;
@@ -189,19 +255,6 @@ export function SettingsModal({
     }
   };
 
-  const handleInstallUpdate = async () => {
-    setUpdateStatus("Saving data and installing update...");
-    setUpdateBusy(true);
-
-    try {
-      await onInstallUpdate();
-    } catch (error) {
-      setUpdateStatus(error instanceof Error ? error.message : String(error));
-      setUpdateModalOpen(false);
-      setUpdateBusy(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/35">
       <div className="w-[440px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-md">
@@ -334,50 +387,11 @@ export function SettingsModal({
         </div>
       </div>
       {updateModalOpen && availableUpdate && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
-          <div className="w-[380px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <IconDownload size={19} stroke={2} className="text-white/70" />
-                <h2 className="text-[16px] font-semibold">Update available</h2>
-              </div>
-              <button
-                className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                onClick={() => setUpdateModalOpen(false)}
-                disabled={updateBusy}
-                title="Close"
-              >
-                <IconX size={17} stroke={2} />
-              </button>
-            </div>
-            <div className="mb-5 space-y-2 text-sm text-white/68">
-              <div>
-                TaskMap {availableUpdate.version} is ready to download.
-              </div>
-              <div className="text-xs text-white/48">
-                Current version: {availableUpdate.currentVersion}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                onClick={() => setUpdateModalOpen(false)}
-                disabled={updateBusy}
-              >
-                <IconX size={17} stroke={2} />
-                <span>Later</span>
-              </button>
-              <button
-                className="flex h-9 items-center gap-2 rounded-md bg-white/[0.12] px-3 text-sm text-white transition-colors hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
-                onClick={handleInstallUpdate}
-                disabled={updateBusy}
-              >
-                <IconDownload size={17} stroke={2} />
-                <span>{updateBusy ? "Installing..." : "Download"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <UpdateAvailableModal
+          update={availableUpdate}
+          onInstall={onInstallUpdate}
+          onDismiss={() => setUpdateModalOpen(false)}
+        />
       )}
       {passwordModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">

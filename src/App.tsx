@@ -16,7 +16,7 @@ import { ContainerNode } from "./components/ContainerNode";
 import { ExtensionsPanel } from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { Minimap } from "./components/Minimap";
-import { ClearCanvasModal, SettingsModal } from "./components/Modals";
+import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { TextCardNode } from "./components/TextCardNode";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
@@ -154,9 +154,11 @@ function App() {
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
+  const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(undefined);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [appVersion, setAppVersion] = useState("0.0.0");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
@@ -328,6 +330,7 @@ function App() {
       canvasGridStyle: data.canvasGridStyle ?? "dots",
       canvasGridOpacity: data.canvasGridOpacity ?? DEFAULT_GRID_OPACITY,
       discordRpcEnabled: data.discordRpcEnabled ?? false,
+      dismissedUpdateVersion: data.dismissedUpdateVersion,
     };
   };
 
@@ -357,6 +360,7 @@ function App() {
     canvasGridStyle,
     canvasGridOpacity,
     discordRpcEnabled,
+    dismissedUpdateVersion,
   });
 
   const cloneAppData = (data: AppData): AppData => JSON.parse(JSON.stringify(data));
@@ -454,6 +458,7 @@ function App() {
           setCanvasGridStyle(normalized.canvasGridStyle);
           setCanvasGridOpacity(normalized.canvasGridOpacity);
           setDiscordRpcEnabled(normalized.discordRpcEnabled);
+          setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
           historyRef.current = Object.fromEntries(
             normalized.canvases.map((canvas) => [canvas.id, [omitCameraFromHistory(cloneCanvas(canvas))]]),
           );
@@ -544,6 +549,7 @@ function App() {
     canvasGridStyle,
     canvases,
     discordRpcEnabled,
+    dismissedUpdateVersion,
     elements,
     pan,
     textBlocks,
@@ -671,8 +677,15 @@ function App() {
   const getContainerVisibleTextCards = (container: ContainerElement, cards = textCards) => {
     const orderedCards = getOrderedContainerTextCards(container.id, cards);
     const query = getContainerSearchQuery(container);
+    const filtered = query
+      ? orderedCards.filter((card) => card.text.toLowerCase().includes(query))
+      : orderedCards;
 
-    return query ? orderedCards.filter((card) => card.text.toLowerCase().includes(query)) : orderedCards;
+    // Match the render pipeline exactly (filter, then sort) so a card's index
+    // in this list is the same slot it visually occupies. Drag math relies on
+    // this — using the unfiltered/unsorted order makes a card snap to the wrong
+    // slot the instant it is grabbed (notably with the search extension).
+    return getSortedContainerTextCards(container, filtered);
   };
 
   const getAlphabetSortKey = (text: string) => text.replace(/[*_]/g, "").trim().toLocaleLowerCase();
@@ -792,9 +805,9 @@ function App() {
       return { x: card.x, y: card.y };
     }
 
-    const orderedCards = getOrderedContainerTextCards(container.id, cards);
+    const visibleCards = getContainerVisibleTextCards(container, cards);
     const index = Math.max(
-      orderedCards.findIndex((currentCard) => currentCard.id === card.id),
+      visibleCards.findIndex((currentCard) => currentCard.id === card.id),
       0,
     );
 
@@ -834,12 +847,12 @@ function App() {
     const draggedId = dragState?.type === "text-card-move" ? dragState.id : null;
     const previewingThisContainer = textCardDropPreview?.containerId === container.id;
     const detachedFromThisContainer = textCardDetachedContainerId === container.id;
-    const orderedCards = getOrderedContainerTextCards(container.id).filter(
+    const visibleCards = getContainerVisibleTextCards(container).filter(
       (currentCard) =>
         !(previewingThisContainer || detachedFromThisContainer) || currentCard.id !== draggedId,
     );
     let index = Math.max(
-      orderedCards.findIndex((currentCard) => currentCard.id === card.id),
+      visibleCards.findIndex((currentCard) => currentCard.id === card.id),
       0,
     );
 
@@ -892,16 +905,18 @@ function App() {
     draggingId: string,
     currentIndex?: number,
   ) => {
-    const orderedCards = cards
-      .filter((card) => card.containerId === container.id)
-      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+    // Index against the visible (filtered + sorted) list, minus the dragged
+    // card, so a drop slot matches what the user actually sees. When no search
+    // is active this is just the full ordered list.
+    const visibleCards = getContainerVisibleTextCards(container, cards).filter(
+      (card) => card.id !== draggingId,
+    );
     const stackTop = getContainerCardStackTop(container) - getContainerScrollOffset(container);
     const slotHeight = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
 
     if (currentIndex !== undefined) {
-      const cardsWithoutDragged = orderedCards.filter((card) => card.id !== draggingId);
-      const previousCard = cardsWithoutDragged[currentIndex - 1];
-      const nextCard = cardsWithoutDragged[currentIndex];
+      const previousCard = visibleCards[currentIndex - 1];
+      const nextCard = visibleCards[currentIndex];
 
       if (previousCard) {
         const previousMidpoint =
@@ -924,11 +939,7 @@ function App() {
 
     let insertionIndex = 0;
 
-    for (let index = 0; index < orderedCards.length; index += 1) {
-      if (orderedCards[index].id === draggingId) {
-        continue;
-      }
-
+    for (let index = 0; index < visibleCards.length; index += 1) {
       const midpoint = stackTop + index * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
       if (point.y < midpoint) {
         return insertionIndex;
@@ -948,9 +959,9 @@ function App() {
     currentIndex: number,
   ) => {
     const previousCenterY = textCardDragCenterYRef.current ?? centerY;
-    const cardsWithoutDragged = cards
-      .filter((card) => card.containerId === container.id && card.id !== draggingId)
-      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+    const cardsWithoutDragged = getContainerVisibleTextCards(container, cards).filter(
+      (card) => card.id !== draggingId,
+    );
     const stackTop = getContainerCardStackTop(container) - getContainerScrollOffset(container);
     const slotHeight = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
     let nextIndex = currentIndex;
@@ -973,6 +984,37 @@ function App() {
 
     textCardDragCenterYRef.current = centerY;
     return nextIndex;
+  };
+
+  // The drop index above is a slot in the visible (filtered) list. Translate it
+  // to a real position in the container's full ordered list so dropping into a
+  // searched container inserts relative to the cards on screen while leaving
+  // hidden cards in their existing relative order. Without a filter the visible
+  // and full lists are identical, so this is an identity mapping.
+  const resolveContainerInsertOrderIndex = (
+    container: ContainerElement,
+    visibleInsertionIndex: number,
+    cards: TextCardElement[],
+    draggingId: string,
+  ) => {
+    const fullOrdered = cards
+      .filter((card) => card.containerId === container.id && card.id !== draggingId)
+      .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+    const visibleCards = getContainerVisibleTextCards(container, cards).filter(
+      (card) => card.id !== draggingId,
+    );
+
+    if (visibleCards.length === 0) {
+      return fullOrdered.length;
+    }
+
+    if (visibleInsertionIndex >= visibleCards.length) {
+      const lastVisible = visibleCards[visibleCards.length - 1];
+      return fullOrdered.findIndex((card) => card.id === lastVisible.id) + 1;
+    }
+
+    const target = visibleCards[Math.max(visibleInsertionIndex, 0)];
+    return fullOrdered.findIndex((card) => card.id === target.id);
   };
 
   const getTextCardDropPreviewPosition = () => {
@@ -1966,10 +2008,16 @@ function App() {
           );
         }
 
-        const dropIndex =
+        const visibleDropIndex =
           currentPreview?.containerId === dropContainer.id
             ? currentPreview.index
             : getTextCardDropIndex(dropContainer, draggedCenterPoint, current, dragState.id);
+        const realDropIndex = resolveContainerInsertOrderIndex(
+          dropContainer,
+          visibleDropIndex,
+          current,
+          dragState.id,
+        );
         const withoutDraggedCard = current
           .filter((card) => card.id !== dragState.id)
           .map((card) => ({ ...card }));
@@ -1977,10 +2025,10 @@ function App() {
           .filter((card) => card.containerId === dropContainer.id)
           .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
 
-        targetCards.splice(dropIndex, 0, {
+        targetCards.splice(realDropIndex, 0, {
           ...draggedCard,
           containerId: dropContainer.id,
-          order: dropIndex,
+          order: realDropIndex,
         });
 
         return normalizeTextCardOrders([
@@ -2943,6 +2991,7 @@ function App() {
     setCanvasGridStyle(normalized.canvasGridStyle);
     setCanvasGridOpacity(normalized.canvasGridOpacity);
     setDiscordRpcEnabled(normalized.discordRpcEnabled);
+    setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
     setSelectedIds([]);
     setRenamingId(null);
     setEditingTextCardId(null);
@@ -3106,12 +3155,21 @@ function App() {
       };
 
       setAvailableUpdate(info);
-      showToast({
-        tone: "info",
-        title: "Update available",
-        message: `TaskMap ${info.version} is ready to download.`,
-        duration: source === "startup" ? 7200 : 5200,
-      });
+
+      if (source === "startup") {
+        // Show the modal once per version: respect a prior "Not now" for this
+        // same version, but always prompt for a newer one.
+        if (latestAppDataRef.current.dismissedUpdateVersion !== info.version) {
+          setUpdateModalOpen(true);
+        }
+      } else {
+        showToast({
+          tone: "info",
+          title: "Update available",
+          message: `TaskMap ${info.version} is ready to download.`,
+          duration: 5200,
+        });
+      }
 
       return info;
     } catch (error) {
@@ -3190,6 +3248,15 @@ function App() {
       console.error("Automatic update check failed", error);
     });
   }, [appDataLoaded]);
+
+  const dismissUpdateModal = () => {
+    setUpdateModalOpen(false);
+    // Remember this version so the startup modal stays closed for it; a newer
+    // version will still prompt. Persisted via the normal app-data save.
+    if (availableUpdate) {
+      setDismissedUpdateVersion(availableUpdate.version);
+    }
+  };
 
   const resetLocalDatabase = async () => {
     await invoke("reset_local_database");
@@ -3531,12 +3598,16 @@ function App() {
                 />
               ))}
               {elements.map((element) => {
+                // Keep the settling card in the index list so neighbours keep
+                // their correct visible slots; it is rendered in the loose
+                // layer (for its free-flying settle animation) and merely
+                // skipped in the container loop below. Excluding it here
+                // instead shifts every later card up a row for the settle
+                // window, which reads as a brief shuffle.
                 const allContainedCards = (
                   orderedTextCardsByContainerId.get(element.id) ?? []
                 ).filter(
-                  (card) =>
-                    !(dragState?.type === "text-card-move" && dragState.id === card.id) &&
-                    card.id !== settlingTextCardId,
+                  (card) => !(dragState?.type === "text-card-move" && dragState.id === card.id),
                 );
                 const searchQuery = getContainerSearchQuery(element);
                 const searchedCards = searchQuery
@@ -3587,12 +3658,27 @@ function App() {
                       />
                     )}
                     {containedCards.map((card, visibleIndex) => {
+                      // The settling card occupies its slot here (so neighbours
+                      // index correctly) but is drawn in the loose layer, which
+                      // owns its settle animation. Skip emitting it twice.
+                      if (card.id === settlingTextCardId) {
+                        return null;
+                      }
+                      // While dropping into this container, cards at or after
+                      // the preview slot slide down one row to open the gap —
+                      // matching the non-filtered render path's behaviour.
+                      const previewShift =
+                        textCardDropPreview?.containerId === element.id &&
+                        visibleIndex >= textCardDropPreview.index
+                          ? 1
+                          : 0;
                       const compactSearchPosition = searchQuery || sorted
                         ? {
                             x: element.x + CONTAINER_TEXT_CARD_PADDING,
                             y:
                               getContainerCardStackTop(element) +
-                              visibleIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
+                              (visibleIndex + previewShift) *
+                                (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
                               getContainerScrollOffset(element),
                           }
                         : null;
@@ -3873,6 +3959,14 @@ function App() {
               onCheckForUpdate={checkForAppUpdate}
               onInstallUpdate={installAppUpdate}
               onClose={() => setSettingsOpen(false)}
+            />
+          )}
+
+          {updateModalOpen && availableUpdate && !settingsOpen && (
+            <UpdateAvailableModal
+              update={availableUpdate}
+              onInstall={installAppUpdate}
+              onDismiss={dismissUpdateModal}
             />
           )}
 
