@@ -99,6 +99,7 @@ export type AppData = {
   canvases: TaskCanvas[];
   canvasGridStyle: CanvasGridStyle;
   canvasGridOpacity: Record<CanvasGridStyle, number>;
+  discordRpcEnabled: boolean;
 };
 
 export type AppUpdateInfo = {

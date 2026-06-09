@@ -56,6 +56,8 @@ type SettingsModalProps = {
   onCanvasGridOpacityChange: (opacity: number) => void;
   onExportData: (password: string) => Promise<void>;
   onImportData: (file: File, password: string) => Promise<void>;
+  discordRpcEnabled: boolean;
+  onDiscordRpcEnabledChange: (enabled: boolean) => void;
   availableUpdate: AppUpdateInfo | null;
   appVersion: string;
   onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
@@ -79,6 +81,8 @@ export function SettingsModal({
   onCanvasGridOpacityChange,
   onExportData,
   onImportData,
+  discordRpcEnabled,
+  onDiscordRpcEnabledChange,
   availableUpdate,
   appVersion,
   onCheckForUpdate,
@@ -256,6 +260,24 @@ export function SettingsModal({
               onChange={(event) => onCanvasGridOpacityChange(Number(event.target.value))}
               title="Grid opacity"
             />
+          </div>
+          <div className="border-t border-white/[0.10] pt-3">
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <span className="flex flex-col">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
+                  Discord status
+                </span>
+                <span className="mt-0.5 text-[12px] text-white/45">
+                  Show time spent in TaskMap on your Discord profile.
+                </span>
+              </span>
+              <input
+                className="toggle toggle-sm"
+                type="checkbox"
+                checked={discordRpcEnabled}
+                onChange={(event) => onDiscordRpcEnabledChange(event.target.checked)}
+              />
+            </label>
           </div>
           <div className="border-t border-white/[0.10] pt-3">
             <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">

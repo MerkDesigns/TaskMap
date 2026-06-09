@@ -120,6 +120,7 @@ function App() {
     canvases: [DEFAULT_CANVAS],
     canvasGridStyle: "dots",
     canvasGridOpacity: DEFAULT_GRID_OPACITY,
+    discordRpcEnabled: false,
   });
   const appDataLoadedRef = useRef(false);
   const [appDataLoaded, setAppDataLoaded] = useState(false);
@@ -152,6 +153,7 @@ function App() {
   const [canvasGridStyle, setCanvasGridStyle] = useState<CanvasGridStyle>("dots");
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
+  const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
@@ -283,6 +285,7 @@ function App() {
     if (Array.isArray(data.canvases) && data.activeCanvasId) {
       return {
         ...(data as AppData),
+        discordRpcEnabled: (data as AppData).discordRpcEnabled ?? false,
         canvases: (data as AppData).canvases.map((canvas) => ({
           ...canvas,
           containers: canvas.containers.map((element) => ({
@@ -324,6 +327,7 @@ function App() {
       ],
       canvasGridStyle: data.canvasGridStyle ?? "dots",
       canvasGridOpacity: data.canvasGridOpacity ?? DEFAULT_GRID_OPACITY,
+      discordRpcEnabled: data.discordRpcEnabled ?? false,
     };
   };
 
@@ -352,6 +356,7 @@ function App() {
     canvases: getPersistedCanvases(),
     canvasGridStyle,
     canvasGridOpacity,
+    discordRpcEnabled,
   });
 
   const cloneAppData = (data: AppData): AppData => JSON.parse(JSON.stringify(data));
@@ -448,6 +453,7 @@ function App() {
           setZoom(selectedCanvas.zoom);
           setCanvasGridStyle(normalized.canvasGridStyle);
           setCanvasGridOpacity(normalized.canvasGridOpacity);
+          setDiscordRpcEnabled(normalized.discordRpcEnabled);
           historyRef.current = Object.fromEntries(
             normalized.canvases.map((canvas) => [canvas.id, [omitCameraFromHistory(cloneCanvas(canvas))]]),
           );
@@ -537,12 +543,23 @@ function App() {
     canvasGridOpacity,
     canvasGridStyle,
     canvases,
+    discordRpcEnabled,
     elements,
     pan,
     textBlocks,
     textCards,
     zoom,
   ]);
+
+  useEffect(() => {
+    if (!appDataLoaded) {
+      return;
+    }
+
+    invoke("set_discord_rpc", { enabled: discordRpcEnabled }).catch((error) => {
+      console.error(`Failed to update Discord Rich Presence: ${String(error)}`);
+    });
+  }, [appDataLoaded, discordRpcEnabled]);
 
   useEffect(() => {
     return () => {
@@ -2914,6 +2931,7 @@ function App() {
     setZoom(preserveCamera ? latestCameraRef.current.zoom : selectedCanvas.zoom);
     setCanvasGridStyle(normalized.canvasGridStyle);
     setCanvasGridOpacity(normalized.canvasGridOpacity);
+    setDiscordRpcEnabled(normalized.discordRpcEnabled);
     setSelectedIds([]);
     setRenamingId(null);
     setEditingTextCardId(null);
@@ -3169,6 +3187,7 @@ function App() {
       canvases: [DEFAULT_CANVAS],
       canvasGridStyle: "dots",
       canvasGridOpacity: DEFAULT_GRID_OPACITY,
+      discordRpcEnabled: false,
     };
 
     latestAppDataRef.current = data;
@@ -3836,6 +3855,8 @@ function App() {
               }
               onExportData={exportData}
               onImportData={importData}
+              discordRpcEnabled={discordRpcEnabled}
+              onDiscordRpcEnabledChange={setDiscordRpcEnabled}
               availableUpdate={availableUpdate}
               appVersion={appVersion}
               onCheckForUpdate={checkForAppUpdate}

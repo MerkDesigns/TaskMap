@@ -4,6 +4,8 @@ use aes_gcm::aead::{Aead, OsRng};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use discord_rich_presence::activity::{Activity, Timestamps};
+use discord_rich_presence::{DiscordIpc, DiscordIpcClient};
 use pbkdf2::pbkdf2_hmac;
 use rand::RngCore;
 use rusqlite::{params, Connection, OptionalExtension};
@@ -11,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
@@ -19,8 +22,26 @@ const KEYRING_SERVICE: &str = "TaskMap";
 const KEYRING_USER: &str = "app-data-key";
 const EXPORT_VERSION: u8 = 1;
 const EXPORT_KDF_ITERATIONS: u32 = 210_000;
+const DISCORD_CLIENT_ID: &str = "1513214503297486898";
 
 type AppData = serde_json::Value;
+
+/// Holds the live Discord IPC connection. `None` when RPC is disabled or
+/// Discord is not running. The session start time is fixed for the whole
+/// app run so the presence shows total time spent in the application.
+struct DiscordRpc {
+    client: Mutex<Option<DiscordIpcClient>>,
+    started_at: i64,
+}
+
+impl DiscordRpc {
+    fn new(started_at: i64) -> Self {
+        Self {
+            client: Mutex::new(None),
+            started_at,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct EncryptedPayload {
@@ -61,11 +82,6 @@ fn backup_database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| error.to_string())?
         .as_secs();
     Ok(data_dir.join(format!("taskmap-unreadable-{timestamp}.sqlite3")))
-}
-
-fn legacy_key_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
-    Ok(data_dir.join("taskmap.key"))
 }
 
 fn window_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -155,20 +171,6 @@ fn keyring_entry() -> Result<keyring::Entry, String> {
         .map_err(|error| format!("Could not open keyring: {error}"))
 }
 
-fn read_legacy_database_key(app: &tauri::AppHandle) -> Result<Option<[u8; 32]>, String> {
-    match fs::read_to_string(legacy_key_path(app)?) {
-        Ok(legacy_key) => decode_database_key(legacy_key).map(Some),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(format!("Could not read legacy database key: {error}")),
-    }
-}
-
-fn save_key_to_keyring(key: &[u8; 32]) -> Result<(), String> {
-    keyring_entry()?
-        .set_password(&BASE64.encode(key))
-        .map_err(|error| format!("Could not save database key to keyring: {error}"))
-}
-
 fn delete_keyring_key() -> Result<(), String> {
     match keyring_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
@@ -176,51 +178,24 @@ fn delete_keyring_key() -> Result<(), String> {
     }
 }
 
-fn get_database_key(app: &tauri::AppHandle, create: bool) -> Result<[u8; 32], String> {
+fn get_database_key(create: bool) -> Result<[u8; 32], String> {
     let entry = keyring_entry()?;
 
     match entry.get_password() {
         Ok(password) => decode_database_key(password),
-        Err(keyring::Error::NoEntry) => {
-            if let Some(key) = read_legacy_database_key(app)? {
-                save_key_to_keyring(&key)?;
-                return Ok(key);
-            }
-
-            if !create {
-                return Err("Encrypted app data exists, but no database key was found in keyring.".to_string());
-            }
-
+        Err(keyring::Error::NoEntry) if create => {
             let key = random_bytes::<32>();
             entry
                 .set_password(&BASE64.encode(key))
                 .map_err(|error| format!("Could not save generated database key: {error}"))?;
             Ok(key)
         }
+        Err(keyring::Error::NoEntry) => Err(
+            "Encrypted app data exists, but no database key was found in the system keyring."
+                .to_string(),
+        ),
         Err(error) => Err(format!("Could not read database key: {error}")),
     }
-}
-
-fn database_key_candidates(app: &tauri::AppHandle) -> Result<Vec<([u8; 32], &'static str)>, String> {
-    let mut candidates = Vec::new();
-
-    match keyring_entry()?.get_password() {
-        Ok(password) => candidates.push((decode_database_key(password)?, "keyring")),
-        Err(keyring::Error::NoEntry) => {}
-        Err(error) => return Err(format!("Could not read database key: {error}")),
-    }
-
-    if let Some(legacy_key) = read_legacy_database_key(app)? {
-        if !candidates.iter().any(|(key, _)| key == &legacy_key) {
-            candidates.push((legacy_key, "legacy key file"));
-        }
-    }
-
-    if candidates.is_empty() {
-        return Err("Encrypted app data exists, but no database key was found.".to_string());
-    }
-
-    Ok(candidates)
 }
 
 fn encrypt_with_key(plaintext: &[u8], key: &[u8; 32]) -> Result<EncryptedPayload, String> {
@@ -317,7 +292,7 @@ fn decrypt_export(payload: &str, password: &str) -> Result<AppData, String> {
 
 fn save_app_data_to_database(app: &tauri::AppHandle, data: &AppData) -> Result<(), String> {
     let connection = open_database(app)?;
-    let key = get_database_key(app, true)?;
+    let key = get_database_key(true)?;
     let plaintext = serde_json::to_string(data).map_err(|error| error.to_string())?;
     let encrypted = encrypt_with_key(plaintext.as_bytes(), &key)?;
     let value = serde_json::to_string(&encrypted).map_err(|error| error.to_string())?;
@@ -352,28 +327,12 @@ fn load_app_data(app: tauri::AppHandle) -> Result<Option<AppData>, String> {
         return Ok(None);
     };
 
-    if let Ok(encrypted) = serde_json::from_str::<EncryptedPayload>(&value) {
-        let candidates = database_key_candidates(&app)?;
+    let encrypted: EncryptedPayload =
+        serde_json::from_str(&value).map_err(|error| format!("Stored app data is invalid: {error}"))?;
+    let key = get_database_key(false)?;
+    let plaintext = decrypt_with_key(&encrypted, &key)?;
 
-        for (key, source) in candidates {
-            if let Ok(plaintext) = decrypt_with_key(&encrypted, &key) {
-                if source == "legacy key file" {
-                    save_key_to_keyring(&key)?;
-                }
-
-                return serde_json::from_slice(&plaintext)
-                    .map(Some)
-                    .map_err(|error| error.to_string());
-            }
-        }
-
-        return Err(
-            "Could not decrypt app data with any local key. The database key no longer matches this database."
-                .to_string(),
-        );
-    }
-
-    serde_json::from_str(&value)
+    serde_json::from_slice(&plaintext)
         .map(Some)
         .map_err(|error| error.to_string())
 }
@@ -408,8 +367,49 @@ fn reset_local_database(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Enable or disable Discord Rich Presence. When enabled, the presence shows
+/// only the elapsed time since the app started — no other information.
+/// Connecting is best-effort: if Discord is not running the call still
+/// succeeds so the app keeps working.
+#[tauri::command]
+fn set_discord_rpc(enabled: bool, rpc: tauri::State<'_, DiscordRpc>) -> Result<(), String> {
+    let mut guard = rpc.client.lock().map_err(|error| error.to_string())?;
+
+    if !enabled {
+        if let Some(mut client) = guard.take() {
+            let _ = client.clear_activity();
+            let _ = client.close();
+        }
+        return Ok(());
+    }
+
+    if guard.is_none() {
+        let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
+
+        if client.connect().is_err() {
+            // Discord is not running or unreachable; leave RPC off silently.
+            return Ok(());
+        }
+
+        *guard = Some(client);
+    }
+
+    if let Some(client) = guard.as_mut() {
+        let activity = Activity::new().timestamps(Timestamps::new().start(rpc.started_at));
+        let _ = client.set_activity(activity);
+    }
+
+    Ok(())
+}
+
 fn main() {
+    let started_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs() as i64)
+        .unwrap_or(0);
+
     tauri::Builder::default()
+        .manage(DiscordRpc::new(started_at))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -434,7 +434,8 @@ fn main() {
             save_app_data,
             export_app_data,
             import_app_data,
-            reset_local_database
+            reset_local_database,
+            set_discord_rpc
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

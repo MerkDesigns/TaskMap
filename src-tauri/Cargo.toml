@@ -11,7 +11,13 @@ tauri-build = { version = "2.2.0", features = [] }
 [dependencies]
 aes-gcm = "0.10.3"
 base64 = "0.22.1"
-keyring = "3.6.2"
+discord-rich-presence = "1.1.0"
+keyring = { version = "3.6.2", default-features = false, features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "crypto-rust",
+] }
 pbkdf2 = "0.12.2"
 rand = "0.8.5"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
