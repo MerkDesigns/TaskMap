@@ -3,6 +3,7 @@ import { IconBold, IconItalic, IconLink, IconUnderline } from "@tabler/icons-rea
 import { MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getTextCardAccent } from "../constants";
+import { FormatMarker, isTextFormatActive, renderFormattedText, toggleTextFormat } from "../textFormatting";
 import { TextCardElement } from "../types";
 
 type TextCardNodeProps = {
@@ -24,6 +25,7 @@ type TextCardNodeProps = {
   selected?: boolean;
   interactionDisabled?: boolean;
   linksDisabled?: boolean;
+  privacyHidden?: boolean;
   onDraftChange: (value: string) => void;
   onSave: (id: string) => void;
   onCancel: () => void;
@@ -47,24 +49,12 @@ function tintTowardWhite(hexColor: string, amount = 0.61) {
   return `rgb(${mix(red)}, ${mix(green)}, ${mix(blue)})`;
 }
 
-function renderFormattedText(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*)/g).filter(Boolean);
-
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
-    }
-
-    if (part.startsWith("__") && part.endsWith("__")) {
-      return <u key={index}>{part.slice(2, -2)}</u>;
-    }
-
-    if (part.startsWith("*") && part.endsWith("*")) {
-      return <em key={index}>{part.slice(1, -1)}</em>;
-    }
-
-    return <span key={index}>{part}</span>;
-  });
+function getFormatButtonClass(active: boolean) {
+  return `grid h-7 w-7 place-items-center rounded-md transition-colors ${
+    active
+      ? "bg-white/[0.16] text-white ring-1 ring-white/20"
+      : "text-white/75 hover:bg-white/[0.10] hover:text-white"
+  }`;
 }
 
 export function TextCardNode({
@@ -81,6 +71,7 @@ export function TextCardNode({
   selected = false,
   interactionDisabled = false,
   linksDisabled = false,
+  privacyHidden = false,
   onDraftChange,
   onSave,
   onCancel,
@@ -145,17 +136,15 @@ export function TextCardNode({
     window.setTimeout(updateFormatMenu, 0);
   };
 
-  const applyFormat = (marker: "*" | "**" | "__") => {
+  const applyFormat = (marker: FormatMarker) => {
     if (!formatMenu) {
       return;
     }
 
-    const nextDraft = `${draft.slice(0, formatMenu.start)}${marker}${draft.slice(
-      formatMenu.start,
-      formatMenu.end,
-    )}${marker}${draft.slice(formatMenu.end)}`;
-    const selectionStart = formatMenu.start + marker.length;
-    const selectionEnd = formatMenu.end + marker.length;
+    const formatted = toggleTextFormat(draft, formatMenu.start, formatMenu.end, marker);
+    const nextDraft = formatted.text;
+    const selectionStart = formatted.start;
+    const selectionEnd = formatted.end;
 
     onDraftChange(nextDraft);
     requestAnimationFrame(() => {
@@ -164,6 +153,9 @@ export function TextCardNode({
       updateFormatMenu();
     });
   };
+
+  const isFormatActive = (marker: FormatMarker) =>
+    formatMenu ? isTextFormatActive(draft, formatMenu.start, formatMenu.end, marker) : false;
 
   return (
     <article
@@ -181,7 +173,7 @@ export function TextCardNode({
         deleting ? "text-card-exit pointer-events-none" : ""
       } ${pulsing ? "text-card-pulse" : ""} ${
         interactionDisabled ? "pointer-events-none" : ""
-      } ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
+      } ${privacyHidden ? "blur-sm" : ""} ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
       style={{
         left: position?.x ?? card.x,
         top: position?.y ?? card.y,
@@ -206,7 +198,8 @@ export function TextCardNode({
             >
               <button
                 type="button"
-                className="grid h-7 w-7 place-items-center rounded-md text-white/75 hover:bg-white/[0.10] hover:text-white"
+                className={getFormatButtonClass(isFormatActive("**"))}
+                aria-pressed={isFormatActive("**")}
                 onClick={() => applyFormat("**")}
                 title="Bold"
               >
@@ -214,7 +207,8 @@ export function TextCardNode({
               </button>
               <button
                 type="button"
-                className="grid h-7 w-7 place-items-center rounded-md text-white/75 hover:bg-white/[0.10] hover:text-white"
+                className={getFormatButtonClass(isFormatActive("*"))}
+                aria-pressed={isFormatActive("*")}
                 onClick={() => applyFormat("*")}
                 title="Italic"
               >
@@ -222,7 +216,8 @@ export function TextCardNode({
               </button>
               <button
                 type="button"
-                className="grid h-7 w-7 place-items-center rounded-md text-white/75 hover:bg-white/[0.10] hover:text-white"
+                className={getFormatButtonClass(isFormatActive("__"))}
+                aria-pressed={isFormatActive("__")}
                 onClick={() => applyFormat("__")}
                 title="Underline"
               >

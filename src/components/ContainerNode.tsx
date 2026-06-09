@@ -2,6 +2,13 @@ import {
   IconArrowDownRight,
   IconBox,
   IconDotsVertical,
+  IconEye,
+  IconEyeOff,
+  IconSearch,
+  IconSortAZ,
+  IconSortZA,
+  IconPalette,
+  IconX,
 } from "@tabler/icons-react";
 import { PointerEvent, ReactNode, WheelEvent } from "react";
 import { ContainerElement, DragState } from "../types";
@@ -22,6 +29,9 @@ type ContainerNodeProps = {
   onStartMove: (event: PointerEvent<HTMLElement>, element: ContainerElement) => void;
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
+  onTogglePrivacy: (id: string) => void;
+  onCycleSort: (id: string, mode: "alphabet" | "color") => void;
+  onSearchChange: (id: string, query: string) => void;
   onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
   onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
   children?: ReactNode;
@@ -43,10 +53,25 @@ export function ContainerNode({
   onStartMove,
   onStartResize,
   onToggleMenu,
+  onTogglePrivacy,
+  onCycleSort,
+  onSearchChange,
   onOpenContentMenu,
   onWheelContent,
   children,
 }: ContainerNodeProps) {
+  const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
+  const searchInstalled = Boolean(element.extensions?.search);
+  const searchQuery = element.extensions?.search?.query ?? "";
+  const sorting = element.extensions?.sorting;
+  const alphabetSortActive = sorting?.mode === "alphabet";
+  const colorSortActive = sorting?.mode === "color";
+
+  const getSortButtonClass = (active: boolean) =>
+    `grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
+      active ? "bg-white/10 text-white" : "text-white/70"
+    }`;
+
   return (
     <article
       className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl ${
@@ -86,54 +111,145 @@ export function ContainerNode({
       />
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
-          className={`relative z-30 flex h-12 items-center justify-between px-4 text-white ${
+          className={`relative z-30 flex flex-col text-white ${
             dragState?.type === "move" && dragState.ids.includes(element.id)
               ? "cursor-grabbing"
               : "cursor-grab"
-          }`}
+          } ${searchInstalled ? "h-[90px]" : "h-12"}`}
           style={{ backgroundColor: element.accent }}
           onPointerDown={(event) => onStartMove(event, element)}
         >
-          <div className="flex min-w-0 items-center gap-2">
-            <IconBox size={19} stroke={2} className="shrink-0 text-white/80" />
-            {renaming ? (
-              <input
-                data-container-rename-input
-                className="h-8 min-w-0 flex-1 appearance-none rounded-md border border-white/20 bg-black/[0.18] px-2 text-[18.4px] font-semibold text-white outline-none selection:bg-white/20 focus:border-white/45"
-                value={renameDraft}
-                autoFocus
-                spellCheck={false}
-                onChange={(event) => onRenameDraftChange(event.target.value)}
-                onFocus={(event) => event.target.select()}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => event.stopPropagation()}
-                onBlur={() => onSaveRename(element.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    onSaveRename(element.id);
-                  }
+          <div className="flex h-12 items-center justify-between gap-3 px-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <IconBox size={19} stroke={2} className="shrink-0 text-white/80" />
+              {renaming ? (
+                <input
+                  data-container-rename-input
+                  className="h-8 min-w-0 flex-1 appearance-none rounded-md border border-white/20 bg-black/[0.18] px-2 text-[18.4px] font-semibold text-white outline-none selection:bg-white/20 focus:border-white/45"
+                  value={renameDraft}
+                  autoFocus
+                  spellCheck={false}
+                  onChange={(event) => onRenameDraftChange(event.target.value)}
+                  onFocus={(event) => event.target.select()}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                  onBlur={() => onSaveRename(element.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      onSaveRename(element.id);
+                    }
 
-                  if (event.key === "Escape") {
-                    onCancelRename();
-                  }
-                }}
-              />
-            ) : (
-              <span className="truncate text-[18.4px] font-semibold">{element.name}</span>
-            )}
+                    if (event.key === "Escape") {
+                      onCancelRename();
+                    }
+                  }}
+                />
+              ) : (
+                <span className="truncate text-[18.4px] font-semibold">{element.name}</span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {element.extensions?.privacy && (
+                <button
+                  className={getSortButtonClass(privacyEnabled)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onTogglePrivacy(element.id);
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  title={privacyEnabled ? "Show content" : "Hide content"}
+                >
+                  {privacyEnabled ? <IconEyeOff size={25} stroke={2} /> : <IconEye size={25} stroke={2} />}
+                </button>
+              )}
+              {element.extensions?.sorting && (
+                <>
+                  <button
+                    className={getSortButtonClass(alphabetSortActive)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCycleSort(element.id, "alphabet");
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    title={
+                      alphabetSortActive
+                        ? sorting.direction === "asc"
+                          ? "Alphabet: A to Z"
+                          : "Alphabet: Z to A"
+                        : "Sort alphabetically"
+                    }
+                  >
+                    {alphabetSortActive && sorting.direction === "desc" ? (
+                      <IconSortZA size={25} stroke={2} />
+                    ) : (
+                      <IconSortAZ size={25} stroke={2} />
+                    )}
+                  </button>
+                  <button
+                    className={getSortButtonClass(colorSortActive)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCycleSort(element.id, "color");
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    title={
+                      colorSortActive
+                        ? sorting.direction === "asc"
+                          ? "Color: ascending"
+                          : "Color: descending"
+                        : "Sort by color"
+                    }
+                  >
+                    <IconPalette size={22} stroke={2} />
+                  </button>
+                </>
+              )}
+              <button
+                className="grid h-8 w-8 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
+                onClick={(event) => onToggleMenu(event, element)}
+                onPointerDown={(event) => event.stopPropagation()}
+                title="Container menu"
+              >
+                <IconDotsVertical size={18} stroke={2} />
+              </button>
+            </div>
           </div>
-          <button
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
-            onClick={(event) => onToggleMenu(event, element)}
-            onPointerDown={(event) => event.stopPropagation()}
-            title="Container menu"
-          >
-            <IconDotsVertical size={18} stroke={2} />
-          </button>
+
+          {searchInstalled && (
+            <div
+              className="flex h-[42px] items-center px-4 pb-3"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex h-8 w-full items-center gap-2 rounded-md bg-black/[0.38] px-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <IconSearch size={16} stroke={2} className="shrink-0 text-white/48" />
+                <input
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
+                  value={searchQuery}
+                  spellCheck={false}
+                  placeholder="Search"
+                  onChange={(event) => onSearchChange(element.id, event.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/[0.12] hover:text-white"
+                    onClick={() => onSearchChange(element.id, "")}
+                    title="Clear search"
+                  >
+                    <IconX size={15} stroke={2} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div
-          className={`h-[calc(100%-48px)] rounded-t-lg bg-[color:var(--container-bg)] ${
+          className={`${
+            searchInstalled ? "h-[calc(100%-90px)]" : "h-[calc(100%-48px)]"
+          } rounded-t-lg bg-[color:var(--container-bg)] transition-[filter] ${
+            privacyEnabled ? "blur-sm" : ""
+          } ${
             multiSelected
               ? dragState?.type === "move" && dragState.ids.includes(element.id)
                 ? "cursor-grabbing"

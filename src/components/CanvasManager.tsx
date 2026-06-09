@@ -3,6 +3,8 @@ import {
   IconArrowsVertical,
   IconCheck,
   IconDotsVertical,
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarLeftExpand,
   IconPencil,
   IconPlus,
   IconTrash,
@@ -94,6 +96,7 @@ export function CanvasManager({
   const suppressClickRef = useRef(false);
   const [modalMode, setModalMode] = useState<"create" | null>(null);
   const [createMenuClosing, setCreateMenuClosing] = useState(false);
+  const [minimalView, setMinimalView] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -565,14 +568,29 @@ export function CanvasManager({
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="text-[13px] font-semibold uppercase tracking-wide text-white/48">Canvas browser</div>
-        <button
-          data-new-canvas-trigger
-          className="grid h-8 w-8 place-items-center rounded-md text-white/72 transition-colors hover:bg-white/[0.10] hover:text-white"
-          onClick={openCreate}
-          title="Create canvas"
-        >
-          <IconPlus size={19} stroke={2} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/[0.10] hover:text-white ${
+              minimalView ? "bg-white/[0.12] text-white" : "text-white/72"
+            }`}
+            onClick={() => setMinimalView((current) => !current)}
+            title={minimalView ? "Show previews" : "Minimal view"}
+          >
+            {minimalView ? (
+              <IconLayoutSidebarLeftExpand size={19} stroke={2} />
+            ) : (
+              <IconLayoutSidebarLeftCollapse size={19} stroke={2} />
+            )}
+          </button>
+          <button
+            data-new-canvas-trigger
+            className="grid h-8 w-8 place-items-center rounded-md text-white/72 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={openCreate}
+            title="Create canvas"
+          >
+            <IconPlus size={19} stroke={2} />
+          </button>
+        </div>
       </div>
 
       <div className="relative min-h-0 flex-1">
@@ -604,6 +622,102 @@ export function CanvasManager({
           const visibleLeft = -canvas.pan.x / safeZoom;
           const visibleTop = -canvas.pan.y / safeZoom;
           const previewScale = previewWidth / visibleWidth;
+
+          if (minimalView) {
+            return (
+              <div
+                key={canvas.id}
+                data-bar-id={canvas.id}
+                data-canvas-card-id={canvas.id}
+                ref={(node) => {
+                  cardRefs.current[canvas.id] = node;
+                }}
+                className={`relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border px-2 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+                  active
+                    ? "border-[#2dd8c8]/70 bg-[#15161a] shadow-[0_0_0_1px_rgba(45,216,200,0.32)]"
+                    : "border-white/[0.10] bg-[#15161a] hover:bg-[#1d1e24]"
+                } ${dragging ? "scale-[0.985] opacity-20" : ""}`}
+                onPointerDown={(event) => startCanvasDrag(event, canvas)}
+                onClick={() => {
+                  if (suppressClickRef.current) {
+                    suppressClickRef.current = false;
+                    return;
+                  }
+
+                  if (!editingId) {
+                    onSelectCanvas(canvas.id);
+                  }
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  {editingId === canvas.id ? (
+                    <input
+                      ref={nameInputRef}
+                      className="h-7 w-full min-w-0 cursor-text rounded-md border border-white/[0.14] bg-black/[0.20] px-2 text-sm font-semibold text-white outline-none selection:bg-white/25 focus:border-white/35"
+                      value={draft.name}
+                      spellCheck={false}
+                      onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          saveInlineEdit();
+                        }
+
+                        if (event.key === "Escape") {
+                          cancelInlineEdit();
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="truncate text-sm font-semibold text-white">{canvas.name}</div>
+                  )}
+                </div>
+                <div className="relative shrink-0">
+                  {editingId === canvas.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        className="grid h-7 w-7 place-items-center rounded-md text-white/62 hover:bg-white/[0.10] hover:text-white"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          saveInlineEdit();
+                        }}
+                        title="Save canvas"
+                      >
+                        <IconCheck size={16} stroke={2} />
+                      </button>
+                      <button
+                        className="grid h-7 w-7 place-items-center rounded-md text-white/52 hover:bg-white/[0.10] hover:text-white"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          cancelInlineEdit();
+                        }}
+                        title="Cancel"
+                      >
+                        <IconX size={16} stroke={2} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      data-canvas-menu-trigger
+                      className="grid h-7 w-7 place-items-center rounded-md text-white/52 hover:bg-white/[0.10] hover:text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMenu((current) =>
+                          current?.id === canvas.id
+                            ? null
+                            : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
+                        );
+                      }}
+                      title="Canvas menu"
+                    >
+                      <IconDotsVertical size={16} stroke={2} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div
@@ -653,6 +767,28 @@ export function CanvasManager({
                         style={{
                           height: Math.max(2, 48 * previewScale),
                           backgroundColor: container.accent,
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {canvas.textBlocks.map((element) => (
+                    <div
+                      key={element.id}
+                      className="absolute overflow-hidden rounded-[1px] border"
+                      style={{
+                        left: (element.x - visibleLeft) * previewScale,
+                        top: (element.y - visibleTop) * previewScale,
+                        width: Math.max(element.width * previewScale, 3),
+                        height: Math.max(element.height * previewScale, 3),
+                        borderColor: element.accent,
+                        backgroundColor: "#1b1b1e",
+                      }}
+                    >
+                      <div
+                        className="absolute inset-x-0 top-0"
+                        style={{
+                          height: Math.max(2, 40 * previewScale),
+                          backgroundColor: element.accent,
                         }}
                       />
                     </div>

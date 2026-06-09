@@ -1,9 +1,10 @@
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { MINIMAP_MAX_SIZE } from "../constants";
-import { ContainerElement } from "../types";
+import { ContainerElement, TextBlockElement } from "../types";
 
 type MinimapProps = {
   elements: ContainerElement[];
+  textBlocks: TextBlockElement[];
   canvasWidth: number;
   canvasHeight: number;
   visible: boolean;
@@ -19,6 +20,7 @@ type MinimapProps = {
 
 export function Minimap({
   elements,
+  textBlocks,
   canvasWidth,
   canvasHeight,
   visible,
@@ -57,6 +59,20 @@ export function Minimap({
         style={{ width: minimapWidth, height: minimapHeight }}
       >
         {elements.map((element) => (
+          <div
+            key={element.id}
+            className="absolute rounded-[2px] border"
+            style={{
+              left: (element.x / canvasWidth) * minimapWidth,
+              top: (element.y / canvasHeight) * minimapHeight,
+              width: Math.max((element.width / canvasWidth) * minimapWidth, 4),
+              height: Math.max((element.height / canvasHeight) * minimapHeight, 4),
+              borderColor: element.accent,
+              backgroundColor: `${element.accent}26`,
+            }}
+          />
+        ))}
+        {textBlocks.map((element) => (
           <div
             key={element.id}
             className="absolute rounded-[2px] border"

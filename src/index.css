@@ -87,6 +87,14 @@ body {
   display: none;
 }
 
+.hidden-scrollbar {
+  scrollbar-width: none;
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .context-menu-panel {
   transform-origin: top left;
 }

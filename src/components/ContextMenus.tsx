@@ -8,12 +8,16 @@ import {
   IconLink,
   IconPencil,
   IconPlus,
+  IconNotes,
+  IconSearch,
+  IconShieldLock,
+  IconSortAZ,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ACCENT_PRESETS, getTextCardAccent, MENU_DIVIDER_CLASS, MENU_ITEM_CLASS } from "../constants";
-import { ContainerElement, ContainerMenuState, TextCardElement } from "../types";
+import { ContainerElement, ContainerMenuState, TextBlockElement, TextCardElement } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 type ContainerContextMenuProps = {
@@ -23,6 +27,9 @@ type ContainerContextMenuProps = {
   onStartRename: (element: ContainerElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: ContainerElement) => void;
+  onRemovePrivacyExtension: (id: string) => void;
+  onRemoveSearchExtension: (id: string) => void;
+  onRemoveSortingExtension: (id: string) => void;
   onMoveLayer: (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
@@ -37,6 +44,9 @@ export function ContainerContextMenu({
   onStartRename,
   onUpdateAccent,
   onCopy,
+  onRemovePrivacyExtension,
+  onRemoveSearchExtension,
+  onRemoveSortingExtension,
   onMoveLayer,
   onDelete,
 }: ContainerContextMenuProps) {
@@ -114,6 +124,29 @@ export function ContainerContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>Copy</span>
       </button>
+      {(element.extensions?.privacy || element.extensions?.search || element.extensions?.sorting) && (
+        <>
+          <div className={MENU_DIVIDER_CLASS} />
+          {element.extensions?.privacy && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
+            <IconShieldLock size={17} stroke={2} />
+            <span>Remove privacy</span>
+          </button>
+          )}
+          {element.extensions?.search && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSearchExtension(element.id)}>
+            <IconSearch size={17} stroke={2} />
+            <span>Remove search</span>
+          </button>
+          )}
+          {element.extensions?.sorting && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSortingExtension(element.id)}>
+            <IconSortAZ size={17} stroke={2} />
+            <span>Remove sorting</span>
+          </button>
+          )}
+        </>
+      )}
       <div className={MENU_DIVIDER_CLASS} />
       <button
         className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
@@ -133,18 +166,23 @@ type CanvasContextMenuProps = {
   onPaste: (clientX: number, clientY: number) => void;
   onCreate: (clientX: number, clientY: number) => void;
   onCreateTextCard: (clientX: number, clientY: number) => void;
+  onCreateTextBlock: (clientX: number, clientY: number) => void;
   onClear: () => void;
 };
 
 type ContainerContentContextMenuProps = {
   menu: { containerId: string; clientX: number; clientY: number };
+  hasCopiedItem: boolean;
   closing: boolean;
+  onPaste: (clientX: number, clientY: number, containerId: string) => void;
   onCreateTextCard: (containerId: string, clientX: number, clientY: number) => void;
 };
 
 export function ContainerContentContextMenu({
   menu,
+  hasCopiedItem,
   closing,
+  onPaste,
   onCreateTextCard,
 }: ContainerContentContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -161,6 +199,15 @@ export function ContainerContentContextMenu({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
+      {hasCopiedItem && (
+        <>
+          <button className={MENU_ITEM_CLASS} onClick={() => onPaste(menu.clientX, menu.clientY, menu.containerId)}>
+            <IconCopy size={17} stroke={2} />
+            <span>Paste</span>
+          </button>
+          <div className={MENU_DIVIDER_CLASS} />
+        </>
+      )}
       <button
         className={MENU_ITEM_CLASS}
         onClick={() => onCreateTextCard(menu.containerId, menu.clientX, menu.clientY)}
@@ -179,6 +226,7 @@ export function CanvasContextMenu({
   onPaste,
   onCreate,
   onCreateTextCard,
+  onCreateTextBlock,
   onClear,
 }: CanvasContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -214,12 +262,138 @@ export function CanvasContextMenu({
         <span>Create text card</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCreateTextBlock(menu.clientX, menu.clientY)}>
+        <IconNotes size={17} stroke={2} />
+        <span>Text block</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
       <button
         className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
         onClick={onClear}
       >
         <IconTrash size={17} stroke={2} />
         <span>Clear canvas</span>
+      </button>
+    </div>
+  );
+}
+
+type TextBlockContextMenuProps = {
+  menu: { id: string; left: number; top: number };
+  element: TextBlockElement;
+  closing: boolean;
+  onStartEdit: (element: TextBlockElement) => void;
+  onUpdateAccent: (id: string, accent: string) => void;
+  onCopy: (element: TextBlockElement) => void;
+  onRemovePrivacyExtension: (id: string) => void;
+  onMoveLayer: (
+    id: string,
+    direction: "back" | "backward" | "forward" | "front",
+  ) => void;
+  onDelete: (id: string) => void;
+};
+
+export function TextBlockContextMenu({
+  menu,
+  element,
+  closing,
+  onStartEdit,
+  onUpdateAccent,
+  onCopy,
+  onRemovePrivacyExtension,
+  onMoveLayer,
+  onDelete,
+}: TextBlockContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+
+  return (
+    <div
+      ref={menuRef}
+      data-context-menu
+      className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+        closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
+      }`}
+      style={position}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button className={MENU_ITEM_CLASS} onClick={() => onStartEdit(element)}>
+        <IconPencil size={17} stroke={2} />
+        <span>Edit Text</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
+      <div className="px-2 pb-2 pt-1.5">
+        <div className="grid grid-cols-8 gap-1.5">
+          {ACCENT_PRESETS.map((preset) => (
+            <button
+              key={preset.accent}
+              className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+              style={{ backgroundColor: preset.swatch }}
+              onClick={() => onUpdateAccent(element.id, preset.accent)}
+              title="Text block color"
+            >
+              {element.accent === preset.accent && (
+                <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={MENU_DIVIDER_CLASS} />
+      <div className="px-2 py-1">
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(element.id, "back")}
+            title="Send to back"
+          >
+            <IconArrowAutofitDown size={20} stroke={2} />
+          </button>
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(element.id, "backward")}
+            title="Send one layer back"
+          >
+            <IconArrowAutofitDownFilled size={20} />
+          </button>
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(element.id, "forward")}
+            title="Bring one layer forward"
+          >
+            <IconArrowAutofitUpFilled size={20} />
+          </button>
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(element.id, "front")}
+            title="Bring to front"
+          >
+            <IconArrowAutofitUp size={20} stroke={2} />
+          </button>
+        </div>
+      </div>
+      <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCopy(element)}>
+        <IconCopy size={17} stroke={2} />
+        <span>Copy</span>
+      </button>
+      {element.extensions?.privacy && (
+        <>
+          <div className={MENU_DIVIDER_CLASS} />
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
+            <IconShieldLock size={17} stroke={2} />
+            <span>Remove privacy</span>
+          </button>
+        </>
+      )}
+      <div className={MENU_DIVIDER_CLASS} />
+      <button
+        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        onClick={() => onDelete(element.id)}
+      >
+        <IconTrash size={17} stroke={2} />
+        <span>Remove</span>
       </button>
     </div>
   );

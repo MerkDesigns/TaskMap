@@ -1,3 +1,16 @@
+export type ElementExtensions = {
+  privacy?: {
+    enabled: boolean;
+  };
+  search?: {
+    query: string;
+  };
+  sorting?: {
+    mode: "alphabet" | "color" | null;
+    direction: "asc" | "desc";
+  };
+};
+
 export type ContainerElement = {
   id: string;
   name: string;
@@ -6,6 +19,7 @@ export type ContainerElement = {
   width: number;
   height: number;
   accent: string;
+  extensions?: ElementExtensions;
 };
 
 export type TextCardElement = {
@@ -17,6 +31,18 @@ export type TextCardElement = {
   link?: string;
   containerId?: string;
   order?: number;
+};
+
+export type TextBlockElement = {
+  id: string;
+  name: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  accent: string;
+  extensions?: ElementExtensions;
 };
 
 export type ContainerMenuState = {
@@ -31,6 +57,8 @@ export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height"
 
 export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link">;
 
+export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent">;
+
 export type CopiedCanvasItem =
   | {
       type: "container";
@@ -39,6 +67,10 @@ export type CopiedCanvasItem =
   | {
       type: "text-card";
       item: CopiedTextCard;
+    }
+  | {
+      type: "text-block";
+      item: CopiedTextBlock;
     };
 
 export type CanvasGridStyle = "dots" | "lines";
@@ -50,6 +82,7 @@ export type TaskCanvas = {
   height: number;
   containers: ContainerElement[];
   textCards: TextCardElement[];
+  textBlocks: TextBlockElement[];
   pan: {
     x: number;
     y: number;
@@ -109,6 +142,11 @@ export type DragState =
         y: number;
       }>;
       textCardStartPositions: Array<{
+        id: string;
+        x: number;
+        y: number;
+      }>;
+      textBlockStartPositions: Array<{
         id: string;
         x: number;
         y: number;
