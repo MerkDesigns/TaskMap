@@ -1703,10 +1703,8 @@ function App() {
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setSelectedIds([]);
     closeContextMenus();
     setRenamingId(null);
-    setEditingTextBlockId(null);
     showMinimap();
     setDragState({
       type: "pan",
@@ -2146,6 +2144,9 @@ function App() {
     }
     closeContextMenus();
     setRenamingId(null);
+    if (editingTextBlockId) {
+      saveTextBlockEdit(editingTextBlockId);
+    }
     setEditingTextBlockId(null);
     setDragState({
       type: "move",

@@ -168,7 +168,11 @@ export function TextBlockNode({
   }, [editing]);
 
   const handleTextBlockWheel = (event: WheelEvent<HTMLElement>) => {
-    event.stopPropagation();
+    // While editing, keep the wheel for scrolling the textarea. Otherwise let it
+    // bubble to the canvas so zooming works with the pointer over a text block.
+    if (editing) {
+      event.stopPropagation();
+    }
   };
 
   const updateFormatMenu = () => {
@@ -208,10 +212,12 @@ export function TextBlockNode({
     const selectionEnd = formatted.end;
 
     onDraftChange(nextDraft);
+    setFormatMenu((current) =>
+      current ? { ...current, start: selectionStart, end: selectionEnd } : current,
+    );
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(selectionStart, selectionEnd);
-      updateFormatMenu();
     });
   };
 

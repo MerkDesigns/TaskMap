@@ -1,19 +1,53 @@
 export type FormatMarker = "*" | "**" | "__";
 
-function countStarsBefore(text: string, index: number) {
-  let count = 0;
-  for (let position = index - 1; position >= 0 && text[position] === "*"; position -= 1) {
-    count += 1;
-  }
-  return count;
+function isMarkerChar(char: string | undefined) {
+  return char === "*" || char === "_";
 }
 
-function countStarsAfter(text: string, index: number) {
-  let count = 0;
-  for (let position = index; position < text.length && text[position] === "*"; position += 1) {
-    count += 1;
+// The run of contiguous formatting-marker characters that directly wrap the selection.
+// Markers separated from the selection by any non-marker character are not part of its wrap.
+function wrappingRuns(text: string, start: number, end: number) {
+  let before = start;
+  while (before > 0 && isMarkerChar(text[before - 1])) {
+    before -= 1;
   }
-  return count;
+
+  let after = end;
+  while (after < text.length && isMarkerChar(text[after])) {
+    after += 1;
+  }
+
+  return {
+    before: text.slice(before, start),
+    after: text.slice(end, after),
+    beforeIndex: before,
+    afterIndex: after,
+  };
+}
+
+function countMarkers(run: string) {
+  let stars = 0;
+  let underscores = 0;
+  for (const char of run) {
+    if (char === "*") {
+      stars += 1;
+    } else if (char === "_") {
+      underscores += 1;
+    }
+  }
+  return { stars, underscores };
+}
+
+// Active formats are those whose markers wrap BOTH sides of the selection, regardless of
+// nesting order (e.g. bold stays detected even when underline sits between it and the text).
+function activeFormats(before: string, after: string) {
+  const b = countMarkers(before);
+  const a = countMarkers(after);
+  return {
+    bold: b.stars >= 2 && a.stars >= 2,
+    italic: b.stars % 2 === 1 && a.stars % 2 === 1,
+    underline: b.underscores >= 2 && a.underscores >= 2,
+  };
 }
 
 export function isTextFormatActive(text: string, start: number, end: number, marker: FormatMarker) {
@@ -21,35 +55,40 @@ export function isTextFormatActive(text: string, start: number, end: number, mar
     return false;
   }
 
-  if (marker === "*" || marker === "**") {
-    const beforeStars = countStarsBefore(text, start);
-    const afterStars = countStarsAfter(text, end);
+  const { before, after } = wrappingRuns(text, start, end);
+  const formats = activeFormats(before, after);
 
-    return marker === "*"
-      ? beforeStars % 2 === 1 && afterStars % 2 === 1
-      : beforeStars >= 2 && afterStars >= 2;
-  }
-
-  return text.slice(start - marker.length, start) === marker && text.slice(end, end + marker.length) === marker;
+  return marker === "**" ? formats.bold : marker === "*" ? formats.italic : formats.underline;
 }
 
 export function toggleTextFormat(text: string, start: number, end: number, marker: FormatMarker) {
-  if (isTextFormatActive(text, start, end, marker)) {
-    const markerLength = marker.length;
-
-    return {
-      text: `${text.slice(0, start - markerLength)}${text.slice(start, end)}${text.slice(
-        end + markerLength,
-      )}`,
-      start: start - markerLength,
-      end: end - markerLength,
-    };
+  if (start === end) {
+    return { text, start, end };
   }
 
+  const { before, after, beforeIndex, afterIndex } = wrappingRuns(text, start, end);
+  const formats = activeFormats(before, after);
+
+  if (marker === "**") {
+    formats.bold = !formats.bold;
+  } else if (marker === "*") {
+    formats.italic = !formats.italic;
+  } else {
+    formats.underline = !formats.underline;
+  }
+
+  // Rebuild the wrap canonically: stars carry bold/italic (`***` = both), underscores carry underline.
+  const stars = "*".repeat((formats.bold ? 2 : 0) + (formats.italic ? 1 : 0));
+  const underscores = formats.underline ? "__" : "";
+  const open = `${stars}${underscores}`;
+  const close = `${underscores}${stars}`;
+  const inner = text.slice(start, end);
+  const nextStart = beforeIndex + open.length;
+
   return {
-    text: `${text.slice(0, start)}${marker}${text.slice(start, end)}${marker}${text.slice(end)}`,
-    start: start + marker.length,
-    end: end + marker.length,
+    text: `${text.slice(0, beforeIndex)}${open}${inner}${close}${text.slice(afterIndex)}`,
+    start: nextStart,
+    end: nextStart + inner.length,
   };
 }
 
