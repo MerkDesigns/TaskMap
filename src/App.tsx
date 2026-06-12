@@ -1376,11 +1376,11 @@ function App() {
 
   const getAlignmentTargets = (
     current: Array<ContainerElement | TextBlockElement>,
-    activeId: string,
+    excludeIds: Set<string>,
     axis: "x" | "y",
   ) =>
     current
-      .filter((element) => element.id !== activeId && isElementVisible(element))
+      .filter((element) => !excludeIds.has(element.id) && isElementVisible(element))
       .flatMap((element) =>
         axis === "x"
           ? [
@@ -1393,31 +1393,35 @@ function App() {
             ],
       );
 
-  const getTextCardAlignmentTargets = (activeId: string, axis: "x" | "y") => [
-    ...elements.flatMap((element) =>
-      axis === "x"
-        ? [
-            { value: element.x, kind: "start" as const },
-            { value: element.x + element.width, kind: "end" as const },
-          ]
-        : [
-            { value: element.y, kind: "start" as const },
-            { value: element.y + element.height, kind: "end" as const },
-          ],
-    ),
-    ...textBlocks.flatMap((element) =>
-      axis === "x"
-        ? [
-            { value: element.x, kind: "start" as const },
-            { value: element.x + element.width, kind: "end" as const },
-          ]
-        : [
-            { value: element.y, kind: "start" as const },
-            { value: element.y + element.height, kind: "end" as const },
-          ],
-    ),
+  const getTextCardAlignmentTargets = (excludeIds: Set<string>, axis: "x" | "y") => [
+    ...elements
+      .filter((element) => !excludeIds.has(element.id))
+      .flatMap((element) =>
+        axis === "x"
+          ? [
+              { value: element.x, kind: "start" as const },
+              { value: element.x + element.width, kind: "end" as const },
+            ]
+          : [
+              { value: element.y, kind: "start" as const },
+              { value: element.y + element.height, kind: "end" as const },
+            ],
+      ),
+    ...textBlocks
+      .filter((element) => !excludeIds.has(element.id))
+      .flatMap((element) =>
+        axis === "x"
+          ? [
+              { value: element.x, kind: "start" as const },
+              { value: element.x + element.width, kind: "end" as const },
+            ]
+          : [
+              { value: element.y, kind: "start" as const },
+              { value: element.y + element.height, kind: "end" as const },
+            ],
+      ),
     ...textCards
-      .filter((card) => card.id !== activeId && !card.containerId)
+      .filter((card) => !excludeIds.has(card.id) && !card.containerId)
       .flatMap((card) => {
         const bounds = getLooseTextCardSelectionBounds(card);
         return axis === "x"
@@ -1438,20 +1442,21 @@ function App() {
     nextX: number,
     nextY: number,
     pointer: { x: number; y: number },
+    excludeIds: Set<string> = new Set([element.id]),
   ) => {
     const xSnap = findSnapOffset(
       [
         { value: nextX, kind: "start" },
         { value: nextX + element.width, kind: "end" },
       ],
-      getAlignmentTargets(current, element.id, "x"),
+      getAlignmentTargets(current, excludeIds, "x"),
     );
     const ySnap = findSnapOffset(
       [
         { value: nextY, kind: "start" },
         { value: nextY + element.height, kind: "end" },
       ],
-      getAlignmentTargets(current, element.id, "y"),
+      getAlignmentTargets(current, excludeIds, "y"),
     );
 
     return {
@@ -1475,20 +1480,21 @@ function App() {
     nextX: number,
     nextY: number,
     pointer: { x: number; y: number },
+    excludeIds: Set<string> = new Set([activeId]),
   ) => {
     const xSnap = findSnapOffset(
       [
         { value: nextX, kind: "start" },
         { value: nextX + width, kind: "end" },
       ],
-      getTextCardAlignmentTargets(activeId, "x"),
+      getTextCardAlignmentTargets(excludeIds, "x"),
     );
     const ySnap = findSnapOffset(
       [
         { value: nextY, kind: "start" },
         { value: nextY + height, kind: "end" },
       ],
-      getTextCardAlignmentTargets(activeId, "y"),
+      getTextCardAlignmentTargets(excludeIds, "y"),
     );
 
     return {
@@ -1798,10 +1804,30 @@ function App() {
 
       const nextX = clamp(activePosition.x + worldDeltaX, 0, canvasWidth - activeWidth);
       const nextY = clamp(activePosition.y + worldDeltaY, 0, canvasHeight - activeHeight);
+      const movingIds = new Set<string>([
+        ...dragState.startPositions.map((position) => position.id),
+        ...dragState.textBlockStartPositions.map((position) => position.id),
+        ...dragState.textCardStartPositions.map((position) => position.id),
+      ]);
       const snapped = event.shiftKey
         ? activeElement || activeTextBlock
-          ? snapMovedContainer(activeElement ?? activeTextBlock!, [...elements, ...textBlocks], nextX, nextY, pointerPoint)
-          : snapMovedTextCard(dragState.id, activeWidth, activeHeight, nextX, nextY, pointerPoint)
+          ? snapMovedContainer(
+              activeElement ?? activeTextBlock!,
+              [...elements, ...textBlocks],
+              nextX,
+              nextY,
+              pointerPoint,
+              movingIds,
+            )
+          : snapMovedTextCard(
+              dragState.id,
+              activeWidth,
+              activeHeight,
+              nextX,
+              nextY,
+              pointerPoint,
+              movingIds,
+            )
         : { x: nextX, y: nextY, guides: [] };
       const appliedDeltaX = clamp(snapped.x, 0, canvasWidth - activeWidth) - activePosition.x;
       const appliedDeltaY = clamp(snapped.y, 0, canvasHeight - activeHeight) - activePosition.y;
@@ -2123,8 +2149,18 @@ function App() {
     });
   };
 
+  const isContainerLocked = (id: string) =>
+    Boolean(containersById.get(id)?.extensions?.lock?.enabled);
+
   const startMove = (event: PointerEvent<HTMLElement>, element: ContainerElement | TextBlockElement) => {
     if (event.button !== 0) {
+      return;
+    }
+
+    if (isContainerLocked(element.id)) {
+      event.stopPropagation();
+      selectCanvasElement(element);
+      closeContextMenus();
       return;
     }
 
@@ -2183,6 +2219,11 @@ function App() {
 
   const startResize = (event: PointerEvent<HTMLButtonElement>, element: ContainerElement | TextBlockElement) => {
     if (event.button !== 0) {
+      return;
+    }
+
+    if (isContainerLocked(element.id)) {
+      event.stopPropagation();
       return;
     }
 
@@ -2354,6 +2395,21 @@ function App() {
     const trimmed = value.trim();
     if (!trimmed) {
       return undefined;
+    }
+
+    // Local file paths are kept as-is so they can be opened with the file handler.
+    // Windows drive (C:\ or C:/), UNC (\\server\share), or a file:// URI.
+    const windowsDrive = /^[a-zA-Z]:[\\/]/.test(trimmed);
+    const uncPath = /^\\\\[^\\]/.test(trimmed);
+    if (windowsDrive || uncPath) {
+      return trimmed;
+    }
+    if (/^file:/i.test(trimmed)) {
+      try {
+        return decodeURIComponent(new URL(trimmed).pathname.replace(/^\/([a-zA-Z]:)/, "$1"));
+      } catch {
+        return undefined;
+      }
     }
 
     const withProtocol = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -2791,6 +2847,144 @@ function App() {
     closeContextMenus();
   };
 
+  const installLockExtension = (id: string) => {
+    setElements((current) =>
+      current.map((element) =>
+        element.id === id
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                lock: element.extensions?.lock ?? { enabled: true },
+              },
+            }
+          : element,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const toggleLockExtension = (id: string) => {
+    setElements((current) =>
+      current.map((element) =>
+        element.id === id && element.extensions?.lock
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                lock: {
+                  enabled: !element.extensions.lock.enabled,
+                },
+              },
+            }
+          : element,
+      ),
+    );
+  };
+
+  const removeLockExtension = (id: string) => {
+    setElements((current) =>
+      current.map((element) => {
+        if (element.id !== id || !element.extensions?.lock) {
+          return element;
+        }
+
+        const { lock: _lock, ...extensions } = element.extensions;
+        return {
+          ...element,
+          extensions,
+        };
+      }),
+    );
+    closeContextMenus();
+  };
+
+  const installColorsExtension = (id: string) => {
+    setElements((current) =>
+      current.map((element) =>
+        element.id === id
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                colors: element.extensions?.colors ?? { enabled: true },
+              },
+            }
+          : element,
+      ),
+    );
+    setTextBlocks((current) =>
+      current.map((element) =>
+        element.id === id
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                colors: element.extensions?.colors ?? { enabled: true },
+              },
+            }
+          : element,
+      ),
+    );
+    setTextCards((current) =>
+      current.map((card) =>
+        card.id === id
+          ? {
+              ...card,
+              extensions: {
+                ...card.extensions,
+                colors: card.extensions?.colors ?? { enabled: true },
+              },
+            }
+          : card,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const removeColorsExtension = (id: string) => {
+    setElements((current) =>
+      current.map((element) => {
+        if (element.id !== id || !element.extensions?.colors) {
+          return element;
+        }
+
+        const { colors: _colors, ...extensions } = element.extensions;
+        return {
+          ...element,
+          extensions,
+        };
+      }),
+    );
+    setTextBlocks((current) =>
+      current.map((element) => {
+        if (element.id !== id || !element.extensions?.colors) {
+          return element;
+        }
+
+        const { colors: _colors, ...extensions } = element.extensions;
+        return {
+          ...element,
+          extensions,
+        };
+      }),
+    );
+    setTextCards((current) =>
+      current.map((card) => {
+        if (card.id !== id || !card.extensions?.colors) {
+          return card;
+        }
+
+        const { colors: _colors, ...extensions } = card.extensions;
+        return {
+          ...card,
+          extensions,
+        };
+      }),
+    );
+    closeContextMenus();
+  };
+
   const updateContainerSearchQuery = (id: string, query: string) => {
     setElements((current) =>
       current.map((element) =>
@@ -2885,9 +3079,31 @@ function App() {
     closeContextMenus();
   };
 
-  const dropExtensionOnCanvas = (extensionId: "privacy" | "search" | "sorting", clientX: number, clientY: number) => {
+  const dropExtensionOnCanvas = (
+    extensionId: "privacy" | "lock" | "colors" | "search" | "sorting",
+    clientX: number,
+    clientY: number,
+  ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    if (extensionId === "privacy") {
+    if (extensionId === "colors") {
+      const targetTextCard = [...looseTextCards].reverse().find((card) => {
+        const bounds = getLooseTextCardSelectionBounds(card);
+        return (
+          point.x >= bounds.left &&
+          point.x <= bounds.left + bounds.width &&
+          point.y >= bounds.top &&
+          point.y <= bounds.top + bounds.height
+        );
+      });
+
+      if (targetTextCard) {
+        installColorsExtension(targetTextCard.id);
+        setSelectedIds([targetTextCard.id]);
+        return;
+      }
+    }
+
+    if (extensionId === "privacy" || extensionId === "colors") {
     const targetTextBlock = [...textBlocks]
       .reverse()
       .find(
@@ -2899,7 +3115,11 @@ function App() {
       );
 
     if (targetTextBlock) {
-      installPrivacyExtension(targetTextBlock.id);
+      if (extensionId === "colors") {
+        installColorsExtension(targetTextBlock.id);
+      } else {
+        installPrivacyExtension(targetTextBlock.id);
+      }
       setSelectedIds([targetTextBlock.id]);
       return;
     }
@@ -2920,6 +3140,10 @@ function App() {
         installSearchExtension(targetContainer.id);
       } else if (extensionId === "sorting") {
         installSortingExtension(targetContainer.id);
+      } else if (extensionId === "lock") {
+        installLockExtension(targetContainer.id);
+      } else if (extensionId === "colors") {
+        installColorsExtension(targetContainer.id);
       } else {
         installPrivacyExtension(targetContainer.id);
       }
@@ -3749,7 +3973,6 @@ function App() {
               })}
               {renderedLooseTextCards.map((card) => {
                 const draggingTextCard = dragState?.type === "text-card-move" && dragState.id === card.id;
-                const textCardSnapping = dragState?.type === "text-card-move" && dragState.snapping;
                 const settlingTextCard = settlingTextCardId === card.id;
                 const position = draggingTextCard
                   ? { x: card.x, y: card.y }
@@ -3767,7 +3990,7 @@ function App() {
                     entering={enteringTextCardIds.includes(card.id)}
                     deleting={deletingTextCardIds.includes(card.id)}
                     pulsing={pulsingTextCardIds.includes(card.id)}
-                    dragging={draggingTextCard && !textCardSnapping}
+                    dragging={draggingTextCard}
                     moving={dragState?.type === "move" && selectedIds.includes(card.id)}
                     settling={settlingTextCardId === card.id}
                     selected={outlinedIds.includes(card.id)}
@@ -3806,6 +4029,9 @@ function App() {
               onRemovePrivacyExtension={removePrivacyExtension}
               onRemoveSearchExtension={removeSearchExtension}
               onRemoveSortingExtension={removeSortingExtension}
+              onToggleLockExtension={toggleLockExtension}
+              onRemoveLockExtension={removeLockExtension}
+              onRemoveColorsExtension={removeColorsExtension}
               onMoveLayer={moveContainerLayer}
               onDelete={deleteContainer}
             />
@@ -3823,6 +4049,9 @@ function App() {
               onRemovePrivacyExtension={removePrivacyExtension}
               onRemoveSearchExtension={removeSearchExtension}
               onRemoveSortingExtension={removeSortingExtension}
+              onToggleLockExtension={toggleLockExtension}
+              onRemoveLockExtension={removeLockExtension}
+              onRemoveColorsExtension={removeColorsExtension}
               onMoveLayer={moveContainerLayer}
               onDelete={deleteContainer}
             />
@@ -3860,6 +4089,7 @@ function App() {
               onUpdateAccent={updateTextCardAccent}
               onUpdateLink={updateTextCardLink}
               onCopy={copyTextCard}
+              onRemoveColorsExtension={removeColorsExtension}
               onDelete={deleteTextCard}
             />
           )}
@@ -3874,6 +4104,7 @@ function App() {
               onUpdateAccent={updateTextCardAccent}
               onUpdateLink={updateTextCardLink}
               onCopy={copyTextCard}
+              onRemoveColorsExtension={removeColorsExtension}
               onDelete={deleteTextCard}
             />
           )}
@@ -3888,6 +4119,7 @@ function App() {
               onUpdateAccent={updateTextBlockAccent}
               onCopy={copyTextBlock}
               onRemovePrivacyExtension={removePrivacyExtension}
+              onRemoveColorsExtension={removeColorsExtension}
               onMoveLayer={moveTextBlockLayer}
               onDelete={deleteTextBlock}
             />
@@ -3903,6 +4135,7 @@ function App() {
               onUpdateAccent={updateTextBlockAccent}
               onCopy={copyTextBlock}
               onRemovePrivacyExtension={removePrivacyExtension}
+              onRemoveColorsExtension={removeColorsExtension}
               onMoveLayer={moveTextBlockLayer}
               onDelete={deleteTextBlock}
             />
@@ -3999,6 +4232,7 @@ function App() {
           <Minimap
             elements={elements}
             textBlocks={textBlocks}
+            textCards={looseTextCards}
             canvasWidth={canvasWidth}
             canvasHeight={canvasHeight}
             visible={minimapVisible}

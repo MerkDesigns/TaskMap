@@ -6,9 +6,11 @@ import {
   IconCopy,
   IconCheck,
   IconLink,
+  IconLock,
   IconPencil,
   IconPlus,
   IconNotes,
+  IconPalette,
   IconSearch,
   IconShieldLock,
   IconSortAZ,
@@ -16,7 +18,13 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ACCENT_PRESETS, getTextCardAccent, MENU_DIVIDER_CLASS, MENU_ITEM_CLASS } from "../constants";
+import {
+  ACCENT_PRESETS,
+  ALL_ACCENT_PRESETS,
+  getTextCardAccent,
+  MENU_DIVIDER_CLASS,
+  MENU_ITEM_CLASS,
+} from "../constants";
 import { ContainerElement, ContainerMenuState, TextBlockElement, TextCardElement } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
@@ -30,6 +38,9 @@ type ContainerContextMenuProps = {
   onRemovePrivacyExtension: (id: string) => void;
   onRemoveSearchExtension: (id: string) => void;
   onRemoveSortingExtension: (id: string) => void;
+  onToggleLockExtension: (id: string) => void;
+  onRemoveLockExtension: (id: string) => void;
+  onRemoveColorsExtension: (id: string) => void;
   onMoveLayer: (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
@@ -47,11 +58,15 @@ export function ContainerContextMenu({
   onRemovePrivacyExtension,
   onRemoveSearchExtension,
   onRemoveSortingExtension,
+  onToggleLockExtension,
+  onRemoveLockExtension,
+  onRemoveColorsExtension,
   onMoveLayer,
   onDelete,
 }: ContainerContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+  const presets = element.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
   return (
     <div
@@ -71,7 +86,7 @@ export function ContainerContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-2 pb-2 pt-1.5">
         <div className="grid grid-cols-8 gap-1.5">
-          {ACCENT_PRESETS.map((preset) => (
+          {presets.map((preset) => (
             <button
               key={preset.accent}
               className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
@@ -124,9 +139,19 @@ export function ContainerContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>Copy</span>
       </button>
-      {(element.extensions?.privacy || element.extensions?.search || element.extensions?.sorting) && (
+      {(element.extensions?.privacy ||
+        element.extensions?.search ||
+        element.extensions?.sorting ||
+        element.extensions?.lock ||
+        element.extensions?.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
+          {element.extensions?.lock && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onToggleLockExtension(element.id)}>
+            <IconLock size={17} stroke={2} />
+            <span>{element.extensions.lock.enabled ? "Unlock container" : "Lock container"}</span>
+          </button>
+          )}
           {element.extensions?.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
             <IconShieldLock size={17} stroke={2} />
@@ -143,6 +168,18 @@ export function ContainerContextMenu({
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSortingExtension(element.id)}>
             <IconSortAZ size={17} stroke={2} />
             <span>Remove sorting</span>
+          </button>
+          )}
+          {element.extensions?.colors && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
+            <IconPalette size={17} stroke={2} />
+            <span>Remove more colors</span>
+          </button>
+          )}
+          {element.extensions?.lock && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
+            <IconLock size={17} stroke={2} />
+            <span>Remove lock</span>
           </button>
           )}
         </>
@@ -286,6 +323,7 @@ type TextBlockContextMenuProps = {
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: TextBlockElement) => void;
   onRemovePrivacyExtension: (id: string) => void;
+  onRemoveColorsExtension: (id: string) => void;
   onMoveLayer: (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
@@ -301,11 +339,13 @@ export function TextBlockContextMenu({
   onUpdateAccent,
   onCopy,
   onRemovePrivacyExtension,
+  onRemoveColorsExtension,
   onMoveLayer,
   onDelete,
 }: TextBlockContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+  const presets = element.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
   return (
     <div
@@ -325,7 +365,7 @@ export function TextBlockContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-2 pb-2 pt-1.5">
         <div className="grid grid-cols-8 gap-1.5">
-          {ACCENT_PRESETS.map((preset) => (
+          {presets.map((preset) => (
             <button
               key={preset.accent}
               className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
@@ -378,13 +418,21 @@ export function TextBlockContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>Copy</span>
       </button>
-      {element.extensions?.privacy && (
+      {(element.extensions?.privacy || element.extensions?.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
+          {element.extensions?.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
             <IconShieldLock size={17} stroke={2} />
             <span>Remove privacy</span>
           </button>
+          )}
+          {element.extensions?.colors && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
+            <IconPalette size={17} stroke={2} />
+            <span>Remove more colors</span>
+          </button>
+          )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
@@ -407,6 +455,7 @@ type TextCardContextMenuProps = {
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
   onCopy: (card: TextCardElement) => void;
+  onRemoveColorsExtension: (id: string) => void;
   onDelete: (id: string) => void;
 };
 
@@ -418,9 +467,11 @@ export function TextCardContextMenu({
   onUpdateAccent,
   onUpdateLink,
   onCopy,
+  onRemoveColorsExtension,
   onDelete,
 }: TextCardContextMenuProps) {
   const activeAccent = getTextCardAccent(card.accent);
+  const presets = card.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
   const menuRef = useRef<HTMLDivElement | null>(null);
   const linkButtonRef = useRef<HTMLButtonElement | null>(null);
   const linkMenuRef = useRef<HTMLDivElement | null>(null);
@@ -476,7 +527,7 @@ export function TextCardContextMenu({
         <div className={MENU_DIVIDER_CLASS} />
         <div className="px-2 pb-2 pt-1.5">
           <div className="grid grid-cols-8 gap-1.5">
-            {ACCENT_PRESETS.map((preset) => (
+            {presets.map((preset) => (
               <button
                 key={preset.textCardAccent}
                 className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
@@ -505,6 +556,15 @@ export function TextCardContextMenu({
           <IconCopy size={17} stroke={2} />
           <span>Copy</span>
         </button>
+        {card.extensions?.colors && (
+          <>
+            <div className={MENU_DIVIDER_CLASS} />
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(card.id)}>
+              <IconPalette size={17} stroke={2} />
+              <span>Remove more colors</span>
+            </button>
+          </>
+        )}
         <div className={MENU_DIVIDER_CLASS} />
         <button
           className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
@@ -528,7 +588,7 @@ export function TextCardContextMenu({
             <input
               className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-black/[0.18] px-2 text-[13px] text-white outline-none placeholder:text-white/28 focus:border-white/35"
               value={linkDraft}
-              placeholder="https://example.com"
+              placeholder="https://example.com or C:\path\file"
               spellCheck={false}
               onChange={(event) => setLinkDraft(event.target.value)}
               onPointerDown={(event) => event.stopPropagation()}

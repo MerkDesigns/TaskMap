@@ -104,7 +104,13 @@ export function TextCardNode({
       return;
     }
 
-    invoke("plugin:opener|open_url", { url: card.link }).catch((error) => {
+    // Local file paths (Windows drive or UNC) open with the system file handler;
+    // everything else is treated as a URL.
+    const isLocalPath = /^[a-zA-Z]:[\\/]/.test(card.link) || /^\\\\[^\\]/.test(card.link);
+    const command = isLocalPath ? "plugin:opener|open_path" : "plugin:opener|open_url";
+    const args = isLocalPath ? { path: card.link } : { url: card.link };
+
+    invoke(command, args).catch((error) => {
       console.error("Failed to open text card link", error);
     });
   };
@@ -173,7 +179,7 @@ export function TextCardNode({
         deleting ? "text-card-exit pointer-events-none" : ""
       } ${pulsing ? "text-card-pulse" : ""} ${
         interactionDisabled ? "pointer-events-none" : ""
-      } ${privacyHidden ? "blur-sm" : ""} ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
+      } ${privacyHidden ? "select-none blur-[5px]" : ""} ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
       style={{
         left: position?.x ?? card.x,
         top: position?.y ?? card.y,

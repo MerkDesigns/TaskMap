@@ -2,6 +2,12 @@ export type ElementExtensions = {
   privacy?: {
     enabled: boolean;
   };
+  lock?: {
+    enabled: boolean;
+  };
+  colors?: {
+    enabled: boolean;
+  };
   search?: {
     query: string;
   };
@@ -31,6 +37,7 @@ export type TextCardElement = {
   link?: string;
   containerId?: string;
   order?: number;
+  extensions?: ElementExtensions;
 };
 
 export type TextBlockElement = {

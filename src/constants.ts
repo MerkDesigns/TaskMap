@@ -25,11 +25,27 @@ export const ACCENT_PRESETS = [
   { swatch: "#22c55e", accent: "#3f6b3c", textCardAccent: "#2f9e4f" },
 ];
 
+// Unlocked by the "More colors" extension. Hues are chosen to stay visually
+// distinct from the base presets above (orange, lime, sky, rose, slate,
+// bronze, emerald, periwinkle).
+export const EXTENDED_ACCENT_PRESETS = [
+  { swatch: "#f97316", accent: "#7c4a2c", textCardAccent: "#c2641f" },
+  { swatch: "#84cc16", accent: "#566b2c", textCardAccent: "#69a019" },
+  { swatch: "#0ea5e9", accent: "#2c5d77", textCardAccent: "#1683b8" },
+  { swatch: "#f43f5e", accent: "#7e3a47", textCardAccent: "#c23a50" },
+  { swatch: "#64748b", accent: "#454f5e", textCardAccent: "#5b6779" },
+  { swatch: "#a16207", accent: "#5f4a25", textCardAccent: "#876217" },
+  { swatch: "#10b981", accent: "#2f6356", textCardAccent: "#159069" },
+  { swatch: "#818cf8", accent: "#4a4f8a", textCardAccent: "#6068c9" },
+];
+
+export const ALL_ACCENT_PRESETS = [...ACCENT_PRESETS, ...EXTENDED_ACCENT_PRESETS];
+
 export const DEFAULT_CONTAINER_ACCENT = ACCENT_PRESETS[0].accent;
 export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[0].textCardAccent;
 
 export const getTextCardAccent = (accent: string) =>
-  ACCENT_PRESETS.find((preset) => preset.accent === accent || preset.textCardAccent === accent)
+  ALL_ACCENT_PRESETS.find((preset) => preset.accent === accent || preset.textCardAccent === accent)
     ?.textCardAccent ?? accent;
 
 export const MENU_ITEM_CLASS =

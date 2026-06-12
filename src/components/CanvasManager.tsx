@@ -740,7 +740,7 @@ export function CanvasManager({
           if (minimalView) {
             return (
               <div
-                key={canvas.id}
+                key={`${canvas.id}-minimal`}
                 data-bar-id={canvas.id}
                 data-canvas-card-id={canvas.id}
                 ref={(node) => {
@@ -769,7 +769,7 @@ export function CanvasManager({
                   }`}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-white">{canvas.name}</div>
+                  <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
                 </div>
                 <div className="relative shrink-0">
                   <button
@@ -794,7 +794,7 @@ export function CanvasManager({
 
           return (
             <div
-              key={canvas.id}
+              key={`${canvas.id}-full`}
               data-bar-id={canvas.id}
               data-canvas-card-id={canvas.id}
               ref={(node) => {
@@ -878,7 +878,7 @@ export function CanvasManager({
 
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5">
                 <div className="min-w-0">
-                  <div className="line-clamp-2 break-words text-sm font-semibold leading-snug text-white">
+                  <div className="line-clamp-2 break-words text-base font-semibold leading-snug text-white">
                     {canvas.name}
                   </div>
                   <div className="mt-1 text-[11px] tabular-nums text-white/40">

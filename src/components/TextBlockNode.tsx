@@ -334,7 +334,7 @@ export function TextBlockNode({
 
         <div
           className={`h-[calc(100%-40px)] bg-[color:var(--container-bg)] transition-[filter] ${
-            privacyEnabled ? "blur-sm" : ""
+            privacyEnabled ? "select-none blur-[5px]" : ""
           } ${
             multiSelected
               ? dragState?.type === "move" && dragState.ids.includes(element.id)

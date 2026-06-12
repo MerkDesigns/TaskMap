@@ -9,7 +9,7 @@ import {
   IconUpload,
   IconX,
 } from "@tabler/icons-react";
-import { ChangeEvent, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { AppUpdateInfo, CanvasGridStyle } from "../types";
 
 type UpdateAvailableModalProps = {
@@ -165,6 +165,37 @@ export function SettingsModal({
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
 
+  useEffect(() => {
+    const trigger = document.activeElement;
+    if (trigger instanceof HTMLElement) {
+      trigger.blur();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (updateModalOpen) {
+        setUpdateModalOpen(false);
+      } else if (passwordModal) {
+        setPasswordModal(null);
+        setPasswordDraft("");
+        setPendingImportFile(null);
+      } else {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [updateModalOpen, passwordModal, onClose]);
+
+
   const runDataAction = async (
     password: string,
     action: (password: string) => Promise<void>,
@@ -256,8 +287,8 @@ export function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/35">
-      <div className="w-[440px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-md">
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
+      <div className="w-[440px] rounded-xl border border-white/[0.15] bg-[#1b1b1e] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-md">
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconSettings size={20} stroke={2} className="text-white/75" />

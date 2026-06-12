@@ -1,28 +1,51 @@
-import { IconBox, IconNotes, IconSearch, IconShieldLock, IconSortAZ } from "@tabler/icons-react";
+import {
+  IconBox,
+  IconLock,
+  IconNotes,
+  IconPalette,
+  IconPencil,
+  IconSearch,
+  IconShieldLock,
+  IconSortAZ,
+} from "@tabler/icons-react";
 import { PointerEvent, useEffect, useState } from "react";
 
-type ExtensionId = "privacy" | "search" | "sorting";
+type ExtensionId = "privacy" | "lock" | "colors" | "search" | "sorting";
 
 type ExtensionsPanelProps = {
   closing: boolean;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
 };
 
-function TargetTags({ targets }: { targets: Array<"container" | "textblock"> }) {
+function TargetTags({ targets }: { targets: Array<"container" | "textblock" | "textcard"> }) {
+  const tagMeta = {
+    container: { title: "Containers", icon: <IconBox size={13} stroke={2} /> },
+    textblock: { title: "Text blocks", icon: <IconNotes size={13} stroke={2} /> },
+    textcard: { title: "Text cards", icon: <IconPencil size={13} stroke={2} /> },
+  } as const;
+
   return (
     <span className="absolute right-2 top-2 flex items-center gap-1">
       {targets.map((target) => (
         <span
           key={target}
           className="grid h-5 w-5 place-items-center rounded border border-white/[0.10] bg-black/[0.18] text-white/48"
-          title={target === "container" ? "Containers" : "Text blocks"}
+          title={tagMeta[target].title}
         >
-          {target === "container" ? <IconBox size={13} stroke={2} /> : <IconNotes size={13} stroke={2} />}
+          {tagMeta[target].icon}
         </span>
       ))}
     </span>
   );
 }
+
+const DRAG_META: Record<ExtensionId, { label: string; Icon: typeof IconShieldLock }> = {
+  privacy: { label: "Privacy", Icon: IconShieldLock },
+  lock: { label: "Lock", Icon: IconLock },
+  colors: { label: "More colors", Icon: IconPalette },
+  search: { label: "Search", Icon: IconSearch },
+  sorting: { label: "Sorting", Icon: IconSortAZ },
+};
 
 export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelProps) {
   const [drag, setDrag] = useState<{ extensionId: ExtensionId; clientX: number; clientY: number } | null>(null);
@@ -64,8 +87,8 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
     setDrag({ extensionId, clientX: event.clientX, clientY: event.clientY });
   };
 
-  const draggedLabel = drag?.extensionId === "search" ? "Search" : drag?.extensionId === "sorting" ? "Sorting" : "Privacy";
-  const DragIcon = drag?.extensionId === "search" ? IconSearch : drag?.extensionId === "sorting" ? IconSortAZ : IconShieldLock;
+  const draggedLabel = drag ? DRAG_META[drag.extensionId].label : "";
+  const DragIcon = drag ? DRAG_META[drag.extensionId].Icon : IconShieldLock;
 
   return (
     <>
@@ -91,6 +114,32 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
               <span className="block text-xs leading-5 text-white/42">Blur element content</span>
             </span>
             <TargetTags targets={["container", "textblock"]} />
+          </button>
+          <button
+            className="relative flex w-full touch-none select-none items-center gap-2.5 rounded-lg border border-white/[0.10] bg-[#15161a] p-2.5 pr-14 text-left transition-colors hover:bg-[#1d1e24]"
+            onPointerDown={(event) => startExtensionDrag(event, "lock")}
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/[0.12] bg-black/[0.18] text-white/72">
+              <IconLock size={19} stroke={2} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-white">Lock</span>
+              <span className="block text-xs leading-5 text-white/42">Lock move, resize &amp; deletion</span>
+            </span>
+            <TargetTags targets={["container"]} />
+          </button>
+          <button
+            className="relative flex w-full touch-none select-none items-center gap-2.5 rounded-lg border border-white/[0.10] bg-[#15161a] p-2.5 pr-14 text-left transition-colors hover:bg-[#1d1e24]"
+            onPointerDown={(event) => startExtensionDrag(event, "colors")}
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/[0.12] bg-black/[0.18] text-white/72">
+              <IconPalette size={19} stroke={2} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-white">More colors</span>
+              <span className="block text-xs leading-5 text-white/42">Unlock 8 extra accents</span>
+            </span>
+            <TargetTags targets={["container", "textblock", "textcard"]} />
           </button>
           <button
             className="relative flex w-full touch-none select-none items-center gap-2.5 rounded-lg border border-white/[0.10] bg-[#15161a] p-2.5 pr-14 text-left transition-colors hover:bg-[#1d1e24]"

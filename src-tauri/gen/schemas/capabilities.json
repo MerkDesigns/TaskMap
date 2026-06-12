@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"default desktop permissions","local":true,"windows":["main"],"permissions":["core:default","opener:default","process:default","updater:default"]}}
+{"default":{"identifier":"default","description":"default desktop permissions","local":true,"windows":["main"],"permissions":["core:default","opener:default",{"identifier":"opener:allow-open-path","allow":[{"path":"**"}]},"process:default","updater:default"]}}
