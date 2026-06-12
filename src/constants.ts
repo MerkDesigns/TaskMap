@@ -2,6 +2,7 @@ export const CANVAS_WIDTH = 3000;
 export const CANVAS_HEIGHT = 3000;
 export const MIN_WIDTH = 220;
 export const MIN_HEIGHT = 140;
+export const MIN_IMAGE_SIZE = 80;
 export const MIN_ZOOM = 0.35;
 export const MAX_ZOOM = 2.5;
 export const ZOOM_STEP = 0.05;

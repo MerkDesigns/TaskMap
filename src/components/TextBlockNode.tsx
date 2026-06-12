@@ -1,10 +1,14 @@
 import {
   IconArrowDownRight,
   IconBold,
+  IconChevronLeft,
+  IconChevronRight,
   IconDotsVertical,
   IconEye,
   IconEyeOff,
   IconItalic,
+  IconLock,
+  IconLockOpen,
   IconNotes,
   IconUnderline,
 } from "@tabler/icons-react";
@@ -111,6 +115,7 @@ type TextBlockNodeProps = {
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: TextBlockElement) => void;
   onToggleMenu: (event: MouseEvent<HTMLButtonElement>, element: TextBlockElement) => void;
   onTogglePrivacy: (id: string) => void;
+  onToggleLock: (id: string) => void;
 };
 
 export function TextBlockNode({
@@ -137,6 +142,7 @@ export function TextBlockNode({
   onStartResize,
   onToggleMenu,
   onTogglePrivacy,
+  onToggleLock,
 }: TextBlockNodeProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -230,6 +236,11 @@ export function TextBlockNode({
   const isFormatActive = (marker: FormatMarker) =>
     formatMenu ? isTextFormatActive(draft, formatMenu.start, formatMenu.end, marker) : false;
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
+  const lockInstalled = Boolean(element.extensions?.lock);
+  const lockEnabled = Boolean(element.extensions?.lock?.enabled);
+  const [extensionButtonsVisible, setExtensionButtonsVisible] = useState(true);
+  const headerExtensionButtonCount = (lockInstalled ? 1 : 0) + (element.extensions?.privacy ? 1 : 0);
+  const collapsibleExtensions = headerExtensionButtonCount > 1;
 
   return (
     <article
@@ -306,21 +317,61 @@ export function TextBlockNode({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {element.extensions?.privacy && (
+            {collapsibleExtensions && (
               <button
-                className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
-                  privacyEnabled ? "bg-white/10 text-white" : "text-white/70"
-                }`}
+                className="grid h-8 w-6 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onTogglePrivacy(element.id);
+                  setExtensionButtonsVisible((current) => !current);
                 }}
                 onPointerDown={(event) => event.stopPropagation()}
-                title={privacyEnabled ? "Show content" : "Hide content"}
+                title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
               >
-                {privacyEnabled ? <IconEyeOff size={18} stroke={2} /> : <IconEye size={18} stroke={2} />}
+                {extensionButtonsVisible ? (
+                  <IconChevronLeft size={18} stroke={2} />
+                ) : (
+                  <IconChevronRight size={18} stroke={2} />
+                )}
               </button>
             )}
+            <div
+              className={`flex items-center gap-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out ${
+                !collapsibleExtensions || extensionButtonsVisible
+                  ? "max-w-[76px] translate-x-0 opacity-100"
+                  : "pointer-events-none max-w-0 translate-x-2 opacity-0"
+              }`}
+            >
+              {lockInstalled && (
+                <button
+                  className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
+                    lockEnabled ? "bg-white/10 text-white" : "text-white/70"
+                  }`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleLock(element.id);
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  title={lockEnabled ? "Unlock" : "Lock"}
+                >
+                  {lockEnabled ? <IconLock size={18} stroke={2} /> : <IconLockOpen size={18} stroke={2} />}
+                </button>
+              )}
+              {element.extensions?.privacy && (
+                <button
+                  className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
+                    privacyEnabled ? "bg-white/10 text-white" : "text-white/70"
+                  }`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onTogglePrivacy(element.id);
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  title={privacyEnabled ? "Show content" : "Hide content"}
+                >
+                  {privacyEnabled ? <IconEyeOff size={18} stroke={2} /> : <IconEye size={18} stroke={2} />}
+                </button>
+              )}
+            </div>
             <button
               className="grid h-8 w-8 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
               onClick={(event) => onToggleMenu(event, element)}

@@ -1,6 +1,6 @@
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { getTextCardAccent, MINIMAP_MAX_SIZE } from "../constants";
-import { ContainerElement, TextBlockElement, TextCardElement } from "../types";
+import { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "../types";
 
 const TEXT_CARD_PREVIEW_WIDTH = 220;
 const TEXT_CARD_PREVIEW_HEIGHT = 52;
@@ -9,6 +9,7 @@ type MinimapProps = {
   elements: ContainerElement[];
   textBlocks: TextBlockElement[];
   textCards: TextCardElement[];
+  images: ImageElement[];
   canvasWidth: number;
   canvasHeight: number;
   visible: boolean;
@@ -26,6 +27,7 @@ export function Minimap({
   elements,
   textBlocks,
   textCards,
+  images,
   canvasWidth,
   canvasHeight,
   visible,
@@ -108,6 +110,20 @@ export function Minimap({
             />
           );
         })}
+        {images.map((image) => (
+          <div
+            key={image.id}
+            className="absolute rounded-[2px] border"
+            style={{
+              left: (image.x / canvasWidth) * minimapWidth,
+              top: (image.y / canvasHeight) * minimapHeight,
+              width: Math.max((image.width / canvasWidth) * minimapWidth, 3),
+              height: Math.max((image.height / canvasHeight) * minimapHeight, 3),
+              borderColor: image.accent,
+              backgroundColor: `${image.accent}26`,
+            }}
+          />
+        ))}
         <div
           className="absolute rounded-[2px] border border-[#c8dae8]/85 bg-[#7aa2c8]/10"
           style={{

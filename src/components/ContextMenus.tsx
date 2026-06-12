@@ -11,6 +11,9 @@ import {
   IconPlus,
   IconNotes,
   IconPalette,
+  IconPhoto,
+  IconSquare,
+  IconSquareOff,
   IconSearch,
   IconShieldLock,
   IconSortAZ,
@@ -25,7 +28,7 @@ import {
   MENU_DIVIDER_CLASS,
   MENU_ITEM_CLASS,
 } from "../constants";
-import { ContainerElement, ContainerMenuState, TextBlockElement, TextCardElement } from "../types";
+import { ContainerElement, ContainerMenuState, ImageElement, TextBlockElement, TextCardElement } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 type ContainerContextMenuProps = {
@@ -38,7 +41,6 @@ type ContainerContextMenuProps = {
   onRemovePrivacyExtension: (id: string) => void;
   onRemoveSearchExtension: (id: string) => void;
   onRemoveSortingExtension: (id: string) => void;
-  onToggleLockExtension: (id: string) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
   onMoveLayer: (
@@ -58,7 +60,6 @@ export function ContainerContextMenu({
   onRemovePrivacyExtension,
   onRemoveSearchExtension,
   onRemoveSortingExtension,
-  onToggleLockExtension,
   onRemoveLockExtension,
   onRemoveColorsExtension,
   onMoveLayer,
@@ -146,12 +147,6 @@ export function ContainerContextMenu({
         element.extensions?.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
-          {element.extensions?.lock && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onToggleLockExtension(element.id)}>
-            <IconLock size={17} stroke={2} />
-            <span>{element.extensions.lock.enabled ? "Unlock container" : "Lock container"}</span>
-          </button>
-          )}
           {element.extensions?.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
             <IconShieldLock size={17} stroke={2} />
@@ -204,6 +199,7 @@ type CanvasContextMenuProps = {
   onCreate: (clientX: number, clientY: number) => void;
   onCreateTextCard: (clientX: number, clientY: number) => void;
   onCreateTextBlock: (clientX: number, clientY: number) => void;
+  onCreateImage: (clientX: number, clientY: number) => void;
   onClear: () => void;
 };
 
@@ -264,6 +260,7 @@ export function CanvasContextMenu({
   onCreate,
   onCreateTextCard,
   onCreateTextBlock,
+  onCreateImage,
   onClear,
 }: CanvasContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -302,6 +299,11 @@ export function CanvasContextMenu({
       <button className={MENU_ITEM_CLASS} onClick={() => onCreateTextBlock(menu.clientX, menu.clientY)}>
         <IconNotes size={17} stroke={2} />
         <span>Text block</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCreateImage(menu.clientX, menu.clientY)}>
+        <IconPhoto size={17} stroke={2} />
+        <span>Image</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <button
@@ -621,5 +623,131 @@ export function TextCardContextMenu({
         </div>
       )}
     </>
+  );
+}
+
+type ImageContextMenuProps = {
+  menu: { id: string; left: number; top: number };
+  image: ImageElement;
+  closing: boolean;
+  onReplace: (id: string) => void;
+  onUpdateAccent: (id: string, accent: string) => void;
+  onToggleBackground: (id: string) => void;
+  onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
+  onCopy: (image: ImageElement) => void;
+  onRemoveColorsExtension: (id: string) => void;
+  onDelete: (id: string) => void;
+};
+
+export function ImageContextMenu({
+  menu,
+  image,
+  closing,
+  onReplace,
+  onUpdateAccent,
+  onToggleBackground,
+  onMoveLayer,
+  onCopy,
+  onRemoveColorsExtension,
+  onDelete,
+}: ImageContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+  const presets = image.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+
+  return (
+    <div
+      ref={menuRef}
+      data-context-menu
+      className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+        closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
+      }`}
+      style={position}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button className={MENU_ITEM_CLASS} onClick={() => onReplace(image.id)}>
+        <IconPhoto size={17} stroke={2} />
+        <span>Replace image</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
+      <div className="px-2 pb-2 pt-1.5">
+        <div className="grid grid-cols-8 gap-1.5">
+          {presets.map((preset) => (
+            <button
+              key={preset.accent}
+              className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+              style={{ backgroundColor: preset.swatch }}
+              onClick={() => onUpdateAccent(image.id, preset.accent)}
+              title="Image frame color"
+            >
+              {image.accent === preset.accent && (
+                <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={MENU_DIVIDER_CLASS} />
+      <div className="px-2 py-1">
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(image.id, "back")}
+            title="Send to back"
+          >
+            <IconArrowAutofitDown size={20} stroke={2} />
+          </button>
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(image.id, "backward")}
+            title="Send one layer back"
+          >
+            <IconArrowAutofitDownFilled size={20} />
+          </button>
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(image.id, "forward")}
+            title="Bring one layer forward"
+          >
+            <IconArrowAutofitUpFilled size={20} />
+          </button>
+          <button
+            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+            onClick={() => onMoveLayer(image.id, "front")}
+            title="Bring to front"
+          >
+            <IconArrowAutofitUp size={20} stroke={2} />
+          </button>
+        </div>
+      </div>
+      <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onToggleBackground(image.id)}>
+        {image.background === false ? <IconSquare size={17} stroke={2} /> : <IconSquareOff size={17} stroke={2} />}
+        <span>{image.background === false ? "Show background" : "Hide background"}</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCopy(image)}>
+        <IconCopy size={17} stroke={2} />
+        <span>Copy</span>
+      </button>
+      {image.extensions?.colors && (
+        <>
+          <div className={MENU_DIVIDER_CLASS} />
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(image.id)}>
+            <IconPalette size={17} stroke={2} />
+            <span>Remove more colors</span>
+          </button>
+        </>
+      )}
+      <div className={MENU_DIVIDER_CLASS} />
+      <button
+        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        onClick={() => onDelete(image.id)}
+      >
+        <IconTrash size={17} stroke={2} />
+        <span>Remove</span>
+      </button>
+    </div>
   );
 }

@@ -28,6 +28,32 @@ export type ContainerElement = {
   extensions?: ElementExtensions;
 };
 
+export type ImageMeta = {
+  hash: string;
+  format: string;
+  width: number;
+  height: number;
+};
+
+export type ImageElement = {
+  id: string;
+  imageId?: string;
+  format?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  accent: string;
+  /** When false, the element shell (border/background/shadow) is hidden so a
+   *  transparent image shows its true shape. Defaults to true. */
+  background?: boolean;
+  containerId?: string;
+  order?: number;
+  extensions?: ElementExtensions;
+};
+
 export type TextCardElement = {
   id: string;
   text: string;
@@ -64,6 +90,11 @@ export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height"
 
 export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link">;
 
+export type CopiedImage = Pick<
+  ImageElement,
+  "imageId" | "format" | "width" | "height" | "naturalWidth" | "naturalHeight" | "accent" | "background"
+>;
+
 export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent">;
 
 export type CopiedCanvasItem =
@@ -78,6 +109,10 @@ export type CopiedCanvasItem =
   | {
       type: "text-block";
       item: CopiedTextBlock;
+    }
+  | {
+      type: "image";
+      item: CopiedImage;
     };
 
 export type CanvasGridStyle = "dots" | "lines";
@@ -90,6 +125,7 @@ export type TaskCanvas = {
   containers: ContainerElement[];
   textCards: TextCardElement[];
   textBlocks: TextBlockElement[];
+  images: ImageElement[];
   pan: {
     x: number;
     y: number;
@@ -162,6 +198,11 @@ export type DragState =
         x: number;
         y: number;
       }>;
+      imageStartPositions: Array<{
+        id: string;
+        x: number;
+        y: number;
+      }>;
     }
   | {
       type: "resize";
@@ -185,6 +226,28 @@ export type DragState =
       width: number;
       height: number;
       snapping: boolean;
+    }
+  | {
+      type: "image-move";
+      pointerId: number;
+      id: string;
+      startClientX: number;
+      startClientY: number;
+      startX: number;
+      startY: number;
+      width: number;
+      height: number;
+      snapping: boolean;
+    }
+  | {
+      type: "image-resize";
+      pointerId: number;
+      id: string;
+      startClientX: number;
+      startClientY: number;
+      startWidth: number;
+      startHeight: number;
+      aspectRatio: number;
     }
   | {
       type: "select";

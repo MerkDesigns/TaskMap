@@ -126,6 +126,8 @@ type SettingsModalProps = {
   onDiscordRpcEnabledChange: (enabled: boolean) => void;
   availableUpdate: AppUpdateInfo | null;
   appVersion: string;
+  fpsCounterVisible: boolean;
+  onFpsCounterVisibleChange: (visible: boolean) => void;
   onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
   onInstallUpdate: () => Promise<void>;
   onClose: () => void;
@@ -151,6 +153,8 @@ export function SettingsModal({
   onDiscordRpcEnabledChange,
   availableUpdate,
   appVersion,
+  fpsCounterVisible,
+  onFpsCounterVisibleChange,
   onCheckForUpdate,
   onInstallUpdate,
   onClose,
@@ -288,7 +292,7 @@ export function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
-      <div className="w-[440px] rounded-xl border border-white/[0.15] bg-[#1b1b1e] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-md">
+      <div className="relative w-[440px] rounded-xl border border-white/[0.15] bg-[#1b1b1e] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-md">
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconSettings size={20} stroke={2} className="text-white/75" />
@@ -416,6 +420,15 @@ export function SettingsModal({
         <div className="mt-5 text-center text-[12px] font-semibold tracking-[0.18em] text-white/26">
           MADE BY MERK - v{appVersion}
         </div>
+        <button
+          className={`absolute bottom-2 right-2 h-3 w-3 rounded-sm border transition-opacity hover:opacity-60 ${
+            fpsCounterVisible
+              ? "border-white/25 bg-white/18 opacity-25"
+              : "border-white/10 bg-white/5 opacity-10"
+          }`}
+          onClick={() => onFpsCounterVisibleChange(!fpsCounterVisible)}
+          title="Toggle FPS counter"
+        />
       </div>
       {updateModalOpen && availableUpdate && (
         <UpdateAvailableModal

@@ -873,6 +873,20 @@ export function CanvasManager({
                       />
                     </div>
                   ))}
+                  {(canvas.images ?? []).map((image) => (
+                    <div
+                      key={image.id}
+                      className="absolute overflow-hidden rounded-[1px] border"
+                      style={{
+                        left: (image.x - visibleLeft) * previewScale,
+                        top: (image.y - visibleTop) * previewScale,
+                        width: Math.max(image.width * previewScale, 3),
+                        height: Math.max(image.height * previewScale, 3),
+                        borderColor: image.accent,
+                        backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
 

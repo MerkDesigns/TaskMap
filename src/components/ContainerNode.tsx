@@ -1,16 +1,20 @@
 import {
   IconArrowDownRight,
   IconBox,
+  IconChevronLeft,
+  IconChevronRight,
   IconDotsVertical,
   IconEye,
   IconEyeOff,
+  IconLock,
+  IconLockOpen,
   IconSearch,
   IconSortAZ,
   IconSortZA,
   IconPalette,
   IconX,
 } from "@tabler/icons-react";
-import { PointerEvent, ReactNode, WheelEvent } from "react";
+import { PointerEvent, ReactNode, WheelEvent, useState } from "react";
 import { ContainerElement, DragState } from "../types";
 
 type ContainerNodeProps = {
@@ -30,6 +34,7 @@ type ContainerNodeProps = {
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onTogglePrivacy: (id: string) => void;
+  onToggleLock: (id: string) => void;
   onCycleSort: (id: string, mode: "alphabet" | "color") => void;
   onSearchChange: (id: string, query: string) => void;
   onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
@@ -54,6 +59,7 @@ export function ContainerNode({
   onStartResize,
   onToggleMenu,
   onTogglePrivacy,
+  onToggleLock,
   onCycleSort,
   onSearchChange,
   onOpenContentMenu,
@@ -61,11 +67,17 @@ export function ContainerNode({
   children,
 }: ContainerNodeProps) {
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
+  const lockInstalled = Boolean(element.extensions?.lock);
+  const lockEnabled = Boolean(element.extensions?.lock?.enabled);
   const searchInstalled = Boolean(element.extensions?.search);
   const searchQuery = element.extensions?.search?.query ?? "";
   const sorting = element.extensions?.sorting;
   const alphabetSortActive = sorting?.mode === "alphabet";
   const colorSortActive = sorting?.mode === "color";
+  const [extensionButtonsVisible, setExtensionButtonsVisible] = useState(true);
+  const headerExtensionButtonCount =
+    (lockInstalled ? 1 : 0) + (element.extensions?.privacy ? 1 : 0) + (element.extensions?.sorting ? 2 : 0);
+  const collapsibleExtensions = headerExtensionButtonCount > 1;
 
   const getSortButtonClass = (active: boolean) =>
     `grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
@@ -149,61 +161,99 @@ export function ContainerNode({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {element.extensions?.privacy && (
+              {collapsibleExtensions && (
                 <button
-                  className={getSortButtonClass(privacyEnabled)}
+                  className="grid h-8 w-6 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onTogglePrivacy(element.id);
+                    setExtensionButtonsVisible((current) => !current);
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
-                  title={privacyEnabled ? "Show content" : "Hide content"}
+                  title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
                 >
-                  {privacyEnabled ? <IconEyeOff size={25} stroke={2} /> : <IconEye size={25} stroke={2} />}
+                  {extensionButtonsVisible ? (
+                    <IconChevronLeft size={18} stroke={2} />
+                  ) : (
+                    <IconChevronRight size={18} stroke={2} />
+                  )}
                 </button>
               )}
-              {element.extensions?.sorting && (
-                <>
+              <div
+                className={`flex items-center gap-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out ${
+                  !collapsibleExtensions || extensionButtonsVisible
+                    ? "max-w-[152px] translate-x-0 opacity-100"
+                    : "pointer-events-none max-w-0 translate-x-2 opacity-0"
+                }`}
+              >
+                {lockInstalled && (
                   <button
-                    className={getSortButtonClass(alphabetSortActive)}
+                    className={getSortButtonClass(lockEnabled)}
                     onClick={(event) => {
                       event.stopPropagation();
-                      onCycleSort(element.id, "alphabet");
+                      onToggleLock(element.id);
                     }}
                     onPointerDown={(event) => event.stopPropagation()}
-                    title={
-                      alphabetSortActive
-                        ? sorting.direction === "asc"
-                          ? "Alphabet: A to Z"
-                          : "Alphabet: Z to A"
-                        : "Sort alphabetically"
-                    }
+                    title={lockEnabled ? "Unlock" : "Lock"}
                   >
-                    {alphabetSortActive && sorting.direction === "desc" ? (
-                      <IconSortZA size={25} stroke={2} />
-                    ) : (
-                      <IconSortAZ size={25} stroke={2} />
-                    )}
+                    {lockEnabled ? <IconLock size={22} stroke={2} /> : <IconLockOpen size={22} stroke={2} />}
                   </button>
+                )}
+                {element.extensions?.privacy && (
                   <button
-                    className={getSortButtonClass(colorSortActive)}
+                    className={getSortButtonClass(privacyEnabled)}
                     onClick={(event) => {
                       event.stopPropagation();
-                      onCycleSort(element.id, "color");
+                      onTogglePrivacy(element.id);
                     }}
                     onPointerDown={(event) => event.stopPropagation()}
-                    title={
-                      colorSortActive
-                        ? sorting.direction === "asc"
-                          ? "Color: ascending"
-                          : "Color: descending"
-                        : "Sort by color"
-                    }
+                    title={privacyEnabled ? "Show content" : "Hide content"}
                   >
-                    <IconPalette size={22} stroke={2} />
+                    {privacyEnabled ? <IconEyeOff size={25} stroke={2} /> : <IconEye size={25} stroke={2} />}
                   </button>
-                </>
-              )}
+                )}
+                {element.extensions?.sorting && (
+                  <>
+                    <button
+                      className={getSortButtonClass(alphabetSortActive)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onCycleSort(element.id, "alphabet");
+                      }}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      title={
+                        alphabetSortActive
+                          ? sorting.direction === "asc"
+                            ? "Alphabet: A to Z"
+                            : "Alphabet: Z to A"
+                          : "Sort alphabetically"
+                      }
+                    >
+                      {alphabetSortActive && sorting.direction === "desc" ? (
+                        <IconSortZA size={25} stroke={2} />
+                      ) : (
+                        <IconSortAZ size={25} stroke={2} />
+                      )}
+                    </button>
+                    <button
+                      className={getSortButtonClass(colorSortActive)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onCycleSort(element.id, "color");
+                      }}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      title={
+                        colorSortActive
+                          ? sorting.direction === "asc"
+                            ? "Color: ascending"
+                            : "Color: descending"
+                          : "Sort by color"
+                      }
+                    >
+                      <IconPalette size={22} stroke={2} />
+                    </button>
+                  </>
+                )}
+              </div>
               <button
                 className="grid h-8 w-8 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
                 onClick={(event) => onToggleMenu(event, element)}

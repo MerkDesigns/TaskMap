@@ -1,20 +1,30 @@
 import { PointerEvent, WheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check as checkForUpdate, Update } from "@tauri-apps/plugin-updater";
-import { IconRotateClockwise } from "@tabler/icons-react";
+import {
+  IconLock,
+  IconPalette,
+  IconRotateClockwise,
+  IconSearch,
+  IconShieldLock,
+  IconSortAZ,
+} from "@tabler/icons-react";
 import { CanvasManager } from "./components/CanvasManager";
 import {
   CanvasContextMenu,
   ContainerContentContextMenu,
   ContainerContextMenu,
+  ImageContextMenu,
   TextBlockContextMenu,
   TextCardContextMenu,
 } from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
 import { ExtensionsPanel } from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
+import { ImageNode } from "./components/ImageNode";
 import { Minimap } from "./components/Minimap";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { TextCardNode } from "./components/TextCardNode";
@@ -27,6 +37,7 @@ import {
   DEFAULT_CONTAINER_ACCENT,
   DEFAULT_TEXT_CARD_ACCENT,
   MIN_HEIGHT,
+  MIN_IMAGE_SIZE,
   MIN_WIDTH,
   MINIMAP_MAX_SIZE,
   ZOOM_STEP,
@@ -40,6 +51,9 @@ import {
   ContainerMenuState,
   CopiedCanvasItem,
   DragState,
+  ElementExtensions,
+  ImageElement,
+  ImageMeta,
   TaskCanvas,
   TextBlockElement,
   TextCardElement,
@@ -52,6 +66,30 @@ type SnapGuide = {
   pointerPosition: number;
 };
 
+type ExtensionDropRipple = {
+  id: string;
+  extensionId: ExtensionId;
+  target:
+    | { type: "container"; id: string }
+    | { type: "text-block"; id: string }
+    | { type: "text-card"; id: string }
+    | { type: "image"; id: string };
+  offsetX: number;
+  offsetY: number;
+};
+
+type ExtensionRippleBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  borderRadius?: number;
+  borderTopLeftRadius?: number;
+  borderTopRightRadius?: number;
+  borderBottomRightRadius?: number;
+  borderBottomLeftRadius?: number;
+};
+
 type LegacyAppData = Partial<AppData> & {
   containers?: ContainerElement[];
   textBlocks?: TextBlockElement[];
@@ -60,6 +98,23 @@ type LegacyAppData = Partial<AppData> & {
 };
 
 type UpdateCheckSource = "startup" | "manual";
+type ExtensionId = "privacy" | "lock" | "colors" | "search" | "sorting";
+
+const EXTENSION_DROP_ICONS: Record<ExtensionId, typeof IconShieldLock> = {
+  privacy: IconShieldLock,
+  lock: IconLock,
+  colors: IconPalette,
+  search: IconSearch,
+  sorting: IconSortAZ,
+};
+
+type FrameStats = {
+  fps: number;
+  averageMs: number;
+  p95Ms: number;
+  maxMs: number;
+  samples: number;
+};
 
 const DEFAULT_PAN = { x: -520, y: -420 };
 const DEFAULT_GRID_OPACITY: Record<CanvasGridStyle, number> = {
@@ -85,6 +140,7 @@ const DEFAULT_CANVAS: TaskCanvas = {
   containers: DEFAULT_ELEMENTS,
   textCards: [],
   textBlocks: [],
+  images: [],
   pan: DEFAULT_PAN,
   zoom: 1,
 };
@@ -141,6 +197,9 @@ function App() {
   const [textBlockMenu, setTextBlockMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [closingTextBlockMenu, setClosingTextBlockMenu] =
     useState<{ id: string; left: number; top: number } | null>(null);
+  const [imageMenu, setImageMenu] = useState<{ id: string; left: number; top: number } | null>(null);
+  const [closingImageMenu, setClosingImageMenu] =
+    useState<{ id: string; left: number; top: number } | null>(null);
   const [canvasMenu, setCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
   const [closingCanvasMenu, setClosingCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -157,9 +216,17 @@ function App() {
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(undefined);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fpsCounterVisible, setFpsCounterVisible] = useState(true);
   const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [appVersion, setAppVersion] = useState("0.0.0");
+  const [frameStats, setFrameStats] = useState<FrameStats>({
+    fps: 0,
+    averageMs: 0,
+    p95Ms: 0,
+    maxMs: 0,
+    samples: 0,
+  });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
@@ -172,15 +239,20 @@ function App() {
   const [enteringTextCardIds, setEnteringTextCardIds] = useState<string[]>([]);
   const [deletingTextCardIds, setDeletingTextCardIds] = useState<string[]>([]);
   const [pulsingTextCardIds, setPulsingTextCardIds] = useState<string[]>([]);
+  const [enteringImageIds, setEnteringImageIds] = useState<string[]>([]);
+  const [deletingImageIds, setDeletingImageIds] = useState<string[]>([]);
+  const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
   const [enteringTextBlockIds, setEnteringTextBlockIds] = useState<string[]>([]);
   const [deletingTextBlockIds, setDeletingTextBlockIds] = useState<string[]>([]);
   const [pulsingTextBlockIds, setPulsingTextBlockIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
+  const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
   const [activeCanvas, setActiveCanvas] = useState<TaskCanvas>(DEFAULT_CANVAS);
   const [canvases, setCanvases] = useState<TaskCanvas[]>([DEFAULT_CANVAS]);
   const [elements, setElements] = useState<ContainerElement[]>(DEFAULT_ELEMENTS);
   const [textCards, setTextCards] = useState<TextCardElement[]>([]);
   const [textBlocks, setTextBlocks] = useState<TextBlockElement[]>([]);
+  const [images, setImages] = useState<ImageElement[]>([]);
   const [textCardDropPreview, setTextCardDropPreview] =
     useState<{ containerId: string; index: number } | null>(null);
   const [textCardDetachedContainerId, setTextCardDetachedContainerId] = useState<string | null>(null);
@@ -221,6 +293,14 @@ function App() {
   const looseTextCards = useMemo(
     () => textCards.filter((card) => !card.containerId),
     [textCards],
+  );
+  const imagesById = useMemo(
+    () => new Map(images.map((image) => [image.id, image])),
+    [images],
+  );
+  const looseImages = useMemo(
+    () => images.filter((image) => !image.containerId),
+    [images],
   );
   const renderedLooseTextCards = useMemo(() => {
     const extraCards: TextCardElement[] = [];
@@ -275,12 +355,160 @@ function App() {
     await invoke("save_app_data", { data });
   };
 
+  // Object-URL cache keyed by image hash. Image bytes never live in React state
+  // (that would bloat autosave/history); they are fetched once on demand and
+  // turned into a stable object URL that the <img> tags reuse.
+  const imageUrlCacheRef = useRef<Map<string, string>>(new Map());
+  const imageUrlPendingRef = useRef<Map<string, Promise<string | null>>>(new Map());
+  const [imageUrlVersion, setImageUrlVersion] = useState(0);
+  // Latest image drop/paste handlers, refreshed each render so the once-mounted
+  // OS drag-drop and clipboard listeners never call stale closures.
+  const imageDropOpsRef = useRef<{
+    canvasPointFromEvent: (event: { clientX: number; clientY: number }) => { x: number; y: number };
+    looseImages: ImageElement[];
+    fillElementFromPath: (id: string, path: string) => void;
+    importImageFromPath: (path: string, clientX: number, clientY: number, offset?: number) => void;
+    addImageFromBuffer: (buffer: ArrayBuffer, clientX: number, clientY: number) => void;
+  } | null>(null);
+
+  const imageFormatToMime = (format: string) =>
+    format === "svg" ? "image/svg+xml" : format === "gif" ? "image/gif" : "image/webp";
+
+  const base64ToBlob = (data: string, mime: string) => {
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return new Blob([bytes], { type: mime });
+  };
+
+  const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+    }
+    return btoa(binary);
+  };
+
+  // Returns a cached object URL for an image hash, or null until the bytes have
+  // been fetched. Triggers a re-render via imageUrlVersion once ready.
+  const getImageUrl = (hash: string | undefined, format?: string): string | null => {
+    if (!hash) {
+      return null;
+    }
+    const resolvedFormat = format ?? "webp";
+
+    const cached = imageUrlCacheRef.current.get(hash);
+    if (cached) {
+      return cached;
+    }
+
+    if (!imageUrlPendingRef.current.has(hash)) {
+      const pending = invoke<string>("load_image", { hash })
+        .then((data) => {
+          const url = URL.createObjectURL(base64ToBlob(data, imageFormatToMime(resolvedFormat)));
+          imageUrlCacheRef.current.set(hash, url);
+          imageUrlPendingRef.current.delete(hash);
+          setImageUrlVersion((version) => version + 1);
+          return url;
+        })
+        .catch((error) => {
+          console.error("Failed to load image", error);
+          imageUrlPendingRef.current.delete(hash);
+          return null;
+        });
+      imageUrlPendingRef.current.set(hash, pending);
+    }
+
+    return null;
+  };
+
+  useEffect(
+    () => () => {
+      imageUrlCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
+      imageUrlCacheRef.current.clear();
+    },
+    [],
+  );
+
+  const storeImageFromBytes = async (buffer: ArrayBuffer): Promise<ImageMeta | null> => {
+    try {
+      return await invoke<ImageMeta>("store_image", { data: arrayBufferToBase64(buffer) });
+    } catch (error) {
+      console.error("Failed to store image", error);
+      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+      return null;
+    }
+  };
+
+  const collectAllImageIds = (data: AppData): string[] => {
+    const ids = new Set<string>();
+    data.canvases.forEach((canvas) => {
+      (canvas.images ?? []).forEach((image) => {
+        if (image.imageId) {
+          ids.add(image.imageId);
+        }
+      });
+    });
+    return Array.from(ids);
+  };
+
+  const collectImageGarbage = (data: AppData) => {
+    invoke("gc_images", { used: collectAllImageIds(data) }).catch((error) => {
+      console.error("Image garbage collection failed", error);
+    });
+  };
+
   useEffect(() => {
     getVersion()
       .then(setAppVersion)
       .catch((error) => {
         console.error("Failed to read app version", error);
       });
+  }, []);
+
+  useEffect(() => {
+    let frameId = 0;
+    let lastFrameTime = window.performance.now();
+    let lastPublishTime = lastFrameTime;
+    const samples: number[] = [];
+
+    const tick = (time: number) => {
+      const delta = time - lastFrameTime;
+      lastFrameTime = time;
+
+      if (delta > 0 && delta < 1000) {
+        samples.push(delta);
+        if (samples.length > 720) {
+          samples.shift();
+        }
+      }
+
+      if (time - lastPublishTime >= 250 && samples.length > 0) {
+        const sorted = [...samples].sort((left, right) => left - right);
+        const total = samples.reduce((sum, sample) => sum + sample, 0);
+        const averageMs = total / samples.length;
+        const p95Ms = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))];
+        const maxMs = sorted[sorted.length - 1];
+
+        setFrameStats({
+          fps: 1000 / averageMs,
+          averageMs,
+          p95Ms,
+          maxMs,
+          samples: samples.length,
+        });
+        lastPublishTime = time;
+      }
+
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
   }, []);
 
   const normalizeAppData = (data: AppData | LegacyAppData): AppData => {
@@ -300,6 +528,7 @@ function App() {
             name: element.name ?? `Text block ${index + 1}`,
             extensions: element.extensions ?? {},
           })),
+          images: canvas.images ?? [],
           previewViewport: canvas.previewViewport ?? getWindowPreviewViewport(),
         })),
       };
@@ -322,6 +551,7 @@ function App() {
             name: element.name ?? `Text block ${index + 1}`,
             extensions: element.extensions ?? {},
           })),
+          images: [],
           pan: legacy.pan ?? DEFAULT_PAN,
           zoom: legacy.zoom ?? 1,
           previewViewport: getWindowPreviewViewport(),
@@ -341,6 +571,7 @@ function App() {
     containers: elements,
     textCards,
     textBlocks,
+    images,
     pan,
     zoom,
     previewViewport: {
@@ -453,6 +684,7 @@ function App() {
           setElements(selectedCanvas.containers);
           setTextCards(selectedCanvas.textCards);
           setTextBlocks(selectedCanvas.textBlocks ?? []);
+          setImages(selectedCanvas.images ?? []);
           setPan(selectedCanvas.pan);
           setZoom(selectedCanvas.zoom);
           setCanvasGridStyle(normalized.canvasGridStyle);
@@ -493,7 +725,7 @@ function App() {
     const data = getCurrentAppData();
     latestAppDataRef.current = data;
     scheduleHistorySnapshot(data);
-  }, [activeCanvas, canvasGridOpacity, canvasGridStyle, canvases, elements, pan, textBlocks, textCards, zoom]);
+  }, [activeCanvas, canvasGridOpacity, canvasGridStyle, canvases, elements, images, pan, textBlocks, textCards, zoom]);
 
   useEffect(() => {
     latestCameraRef.current = { pan, zoom };
@@ -529,6 +761,7 @@ function App() {
       persistAppData(latestAppDataRef.current)
         .then(() => {
           setStorageError(null);
+          collectImageGarbage(latestAppDataRef.current);
         })
         .catch((error) => {
           const message = `Failed to save app data: ${String(error)}`;
@@ -551,6 +784,7 @@ function App() {
     discordRpcEnabled,
     dismissedUpdateVersion,
     elements,
+    images,
     pan,
     textBlocks,
     textCards,
@@ -640,6 +874,14 @@ function App() {
       if (current) {
         setClosingTextBlockMenu(current);
         window.setTimeout(() => setClosingTextBlockMenu(null), 110);
+      }
+
+      return null;
+    });
+    setImageMenu((current) => {
+      if (current) {
+        setClosingImageMenu(current);
+        window.setTimeout(() => setClosingImageMenu(null), 110);
       }
 
       return null;
@@ -1113,6 +1355,33 @@ function App() {
     });
   };
 
+  const moveImageLayer = (
+    id: string,
+    direction: "back" | "backward" | "forward" | "front",
+  ) => {
+    setImages((current) => {
+      const index = current.findIndex((image) => image.id === id);
+      const target = current[index];
+      if (!target) {
+        return current;
+      }
+
+      const withoutTarget = current.filter((image) => image.id !== id);
+      const nextIndex =
+        direction === "back"
+          ? 0
+          : direction === "front"
+            ? withoutTarget.length
+            : direction === "backward"
+              ? Math.max(0, index - 1)
+              : Math.min(withoutTarget.length, index + 1);
+
+      const nextImages = [...withoutTarget];
+      nextImages.splice(nextIndex, 0, target);
+      return nextImages;
+    });
+  };
+
   const selectCanvasElement = (element: ContainerElement | TextBlockElement) => {
     setSelectedIds([element.id]);
   };
@@ -1136,6 +1405,29 @@ function App() {
     window.setTimeout(() => {
       setEnteringTextBlockIds((current) => current.filter((enteringId) => enteringId !== id));
     }, 180);
+  };
+
+  const animateImageIn = (id: string) => {
+    setEnteringImageIds((current) => [...current, id]);
+    window.setTimeout(() => {
+      setEnteringImageIds((current) => current.filter((enteringId) => enteringId !== id));
+    }, 180);
+  };
+
+  const removeImages = (ids: string[]) => {
+    if (ids.length === 0) {
+      return;
+    }
+
+    setDeletingImageIds((current) => Array.from(new Set([...current, ...ids])));
+    setImageMenu((current) => (current && ids.includes(current.id) ? null : current));
+    setSelectedIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
+    setLoadingImageIds((current) => current.filter((loadingId) => !ids.includes(loadingId)));
+    window.setTimeout(() => {
+      setImages((current) => current.filter((image) => !ids.includes(image.id)));
+      setDeletingImageIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
+      setEnteringImageIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
+    }, 160);
   };
 
   const pulseTextCard = (id: string) => {
@@ -1270,6 +1562,7 @@ function App() {
         }),
       );
       removeTextBlocks(selectedIds.filter((id) => textBlocksById.has(id)));
+      removeImages(selectedIds.filter((id) => imagesById.has(id)));
       closeContextMenus();
       setRenamingId(null);
     };
@@ -1282,6 +1575,7 @@ function App() {
     closeCanvasManager,
     closeExtensionsPanel,
     containersById,
+    imagesById,
     selectedIds,
     textBlocksById,
     textCardsById,
@@ -1295,6 +1589,66 @@ function App() {
       top: card.y,
       width: estimatedTextWidth,
       height: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+    };
+  };
+
+  const getMeasuredTextCardBounds = (card: TextCardElement): ExtensionRippleBounds | null => {
+    const node = worldRef.current?.querySelector<HTMLElement>(`[data-text-card-id="${card.id}"]`);
+    const worldRect = worldRef.current?.getBoundingClientRect();
+    if (!node || !worldRect || zoom <= 0) {
+      return null;
+    }
+
+    const rect = node.getBoundingClientRect();
+    return {
+      left: (rect.left - worldRect.left) / zoom,
+      top: (rect.top - worldRect.top) / zoom,
+      width: rect.width / zoom,
+      height: rect.height / zoom,
+      borderRadius: 8,
+    };
+  };
+
+  const getTextCardRippleBounds = (card: TextCardElement): ExtensionRippleBounds | null => {
+    const measuredBounds = getMeasuredTextCardBounds(card);
+    if (!card.containerId) {
+      return measuredBounds ?? { ...getLooseTextCardSelectionBounds(card), borderRadius: 8 };
+    }
+
+    const container = containersById.get(card.containerId);
+    const position = getTextCardRenderPosition(card);
+    if (!container || !position) {
+      return null;
+    }
+
+    const contentTop =
+      container.y +
+      CONTAINER_HEADER_HEIGHT +
+      (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0);
+    const baseBounds =
+      measuredBounds ??
+      ({
+        left: position.x,
+        top: position.y,
+        width: Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2),
+        height: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+      } satisfies ExtensionRippleBounds);
+    const top = Math.max(baseBounds.top, contentTop);
+    const bottom = Math.min(baseBounds.top + baseBounds.height, container.y + container.height);
+    const height = bottom - top;
+    if (height <= 0) {
+      return null;
+    }
+
+    return {
+      left: baseBounds.left,
+      top,
+      width: baseBounds.width,
+      height,
+      borderTopLeftRadius: top === baseBounds.top ? 8 : 0,
+      borderTopRightRadius: top === baseBounds.top ? 8 : 0,
+      borderBottomRightRadius: bottom === baseBounds.top + baseBounds.height ? 8 : 0,
+      borderBottomLeftRadius: bottom === baseBounds.top + baseBounds.height ? 8 : 0,
     };
   };
 
@@ -1341,6 +1695,18 @@ function App() {
             }),
           )
           .map((element) => element.id),
+        ...images
+          .filter(
+            (image) =>
+              !image.containerId &&
+              rectsOverlap(selectionBounds, {
+                left: image.x,
+                top: image.y,
+                width: image.width,
+                height: image.height,
+              }),
+          )
+          .map((image) => image.id),
       ]
     : [];
   const outlinedIds =
@@ -1434,6 +1800,19 @@ function App() {
               { value: bounds.top + bounds.height, kind: "end" as const },
             ];
       }),
+    ...images
+      .filter((image) => !excludeIds.has(image.id) && !image.containerId)
+      .flatMap((image) =>
+        axis === "x"
+          ? [
+              { value: image.x, kind: "start" as const },
+              { value: image.x + image.width, kind: "end" as const },
+            ]
+          : [
+              { value: image.y, kind: "start" as const },
+              { value: image.y + image.height, kind: "end" as const },
+            ],
+      ),
   ];
 
   const snapMovedContainer = (
@@ -1545,6 +1924,42 @@ function App() {
     };
   };
 
+  // Aspect-locked resize snapping: snap the right or bottom edge to nearby
+  // element edges, whichever is closer, and derive the other dimension so the
+  // image keeps its aspect ratio.
+  const snapResizedImage = (
+    image: ImageElement,
+    nextWidth: number,
+    nextHeight: number,
+    pointer: { x: number; y: number },
+  ) => {
+    const aspect = nextHeight > 0 ? nextWidth / nextHeight : 1;
+    const excludeIds = new Set([image.id]);
+    const xSnap = findSnapOffset(
+      [{ value: image.x + nextWidth, kind: "end" }],
+      getTextCardAlignmentTargets(excludeIds, "x"),
+    );
+    const ySnap = findSnapOffset(
+      [{ value: image.y + nextHeight, kind: "end" }],
+      getTextCardAlignmentTargets(excludeIds, "y"),
+    );
+
+    const xGuide = xSnap.guide;
+    const yGuide = ySnap.guide;
+    let width = nextWidth;
+    const guides: SnapGuide[] = [];
+
+    if (xGuide !== null && (yGuide === null || Math.abs(xSnap.offset) <= Math.abs(ySnap.offset))) {
+      width = nextWidth + xSnap.offset;
+      guides.push({ axis: "x", position: xGuide, pointerPosition: pointer.y });
+    } else if (yGuide !== null) {
+      width = (nextHeight + ySnap.offset) * aspect;
+      guides.push({ axis: "y", position: yGuide, pointerPosition: pointer.x });
+    }
+
+    return { width, height: aspect > 0 ? width / aspect : nextHeight, guides };
+  };
+
   const createContainer = (clientX: number, clientY: number) => {
     const point = canvasPointFromEvent({ clientX, clientY });
     const width = 360;
@@ -1568,6 +1983,310 @@ function App() {
     setEditingTextCardId(null);
     setRenameDraft(nextElement.name);
     setRenamingId(id);
+  };
+
+  // Fit an image's natural size into a sensible initial on-canvas box.
+  const getInitialImageSize = (naturalWidth?: number, naturalHeight?: number) => {
+    const maxEdge = 360;
+    if (!naturalWidth || !naturalHeight) {
+      return { width: 280, height: 200 };
+    }
+    const scale = Math.min(1, maxEdge / Math.max(naturalWidth, naturalHeight));
+    return {
+      width: Math.max(MIN_IMAGE_SIZE, Math.round(naturalWidth * scale)),
+      height: Math.max(MIN_IMAGE_SIZE, Math.round(naturalHeight * scale)),
+    };
+  };
+
+  // Create an empty image placeholder at a canvas point; the caller (or the
+  // user clicking it) fills it with a picked/dropped/pasted image afterwards.
+  const createImageElement = (clientX: number, clientY: number): string => {
+    const point = canvasPointFromEvent({ clientX, clientY });
+    const id = `image-${Date.now()}`;
+    const width = 280;
+    const height = 200;
+    const image: ImageElement = {
+      id,
+      x: clamp(point.x - width / 2, 0, canvasWidth - width),
+      y: clamp(point.y - height / 2, 0, canvasHeight - height),
+      width,
+      height,
+      accent: DEFAULT_CONTAINER_ACCENT,
+    };
+
+    setImages((current) => [...current, image]);
+    animateImageIn(id);
+    setSelectedIds([id]);
+    closeContextMenus();
+    setRenamingId(null);
+    return id;
+  };
+
+  const setImageLoading = (id: string, loading: boolean) => {
+    setLoadingImageIds((current) =>
+      loading
+        ? current.includes(id)
+          ? current
+          : [...current, id]
+        : current.filter((loadingId) => loadingId !== id),
+    );
+  };
+
+  // Apply stored image metadata to an element, sizing it to the image's aspect.
+  // Only resizes empty placeholders; an element that already had an image keeps
+  // its current box when the image is replaced.
+  const applyImageMeta = (id: string, meta: ImageMeta) => {
+    setImages((current) =>
+      current.map((image) => {
+        if (image.id !== id) {
+          return image;
+        }
+        const wasEmpty = !image.imageId;
+        const size = getInitialImageSize(meta.width, meta.height);
+        return {
+          ...image,
+          imageId: meta.hash,
+          format: meta.format,
+          naturalWidth: meta.width || undefined,
+          naturalHeight: meta.height || undefined,
+          ...(wasEmpty
+            ? {
+                x: clamp(image.x, 0, canvasWidth - size.width),
+                y: clamp(image.y, 0, canvasHeight - size.height),
+                ...size,
+              }
+            : {}),
+        };
+      }),
+    );
+    setImageLoading(id, false);
+  };
+
+  // Store an already-read image path into the given element, showing a loading
+  // spinner while the (off-thread) decode/encode runs.
+  const fillElementFromPath = async (id: string, path: string) => {
+    setImageLoading(id, true);
+    try {
+      const meta = await invoke<ImageMeta>("store_image_path", { path });
+      applyImageMeta(id, meta);
+    } catch (error) {
+      console.error("Failed to store image", error);
+      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+      setImageLoading(id, false);
+    }
+  };
+
+  // Open the native file picker (fast — returns a path) and fill the given
+  // element. The heavy processing happens afterward behind a loading spinner so
+  // the app never freezes on a large image.
+  const pickImageForElement = async (id: string) => {
+    try {
+      const path = await invoke<string | null>("pick_image_path");
+      if (path) {
+        await fillElementFromPath(id, path);
+      }
+    } catch (error) {
+      console.error("Failed to pick image", error);
+      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+    }
+  };
+
+  // Create an empty placeholder at a canvas point and return its id, without
+  // touching selection focus the way the menu/double-click path does.
+  const spawnImagePlaceholder = (clientX: number, clientY: number, offset = 0): string => {
+    const point = canvasPointFromEvent({ clientX, clientY });
+    const width = 280;
+    const height = 200;
+    const id = `image-${Date.now()}-${Math.round(point.x) + offset}`;
+    const image: ImageElement = {
+      id,
+      x: clamp(point.x - width / 2 + offset, 0, canvasWidth - width),
+      y: clamp(point.y - height / 2 + offset, 0, canvasHeight - height),
+      width,
+      height,
+      accent: DEFAULT_CONTAINER_ACCENT,
+    };
+    setImages((current) => [...current, image]);
+    animateImageIn(id);
+    return id;
+  };
+
+  // Drop a loading placeholder at a point, then fill it from a path off-thread.
+  const importImageFromPath = (path: string, clientX: number, clientY: number, offset = 0) => {
+    const id = spawnImagePlaceholder(clientX, clientY, offset);
+    void fillElementFromPath(id, path);
+  };
+
+  // Clipboard paste: placeholder first, then store the bytes behind a spinner.
+  const addImageFromBuffer = async (buffer: ArrayBuffer, clientX: number, clientY: number) => {
+    const id = spawnImagePlaceholder(clientX, clientY);
+    setSelectedIds([id]);
+    setImageLoading(id, true);
+    try {
+      // Yield so the placeholder + spinner paint before the base64 encode.
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      const meta = await storeImageFromBytes(buffer);
+      if (meta) {
+        applyImageMeta(id, meta);
+      } else {
+        removeImages([id]);
+      }
+    } finally {
+      setImageLoading(id, false);
+    }
+  };
+
+  imageDropOpsRef.current = {
+    canvasPointFromEvent,
+    looseImages,
+    fillElementFromPath,
+    importImageFromPath,
+    addImageFromBuffer,
+  };
+
+  // OS file drop (Tauri native drag-drop). HTML5 ondrop does not receive files
+  // while native drag-drop is enabled, so we listen on the webview instead and
+  // store dropped image paths in Rust. A drop over an empty image placeholder
+  // fills it; otherwise a new image element is created at the drop point.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (event.payload.type !== "drop") {
+          return;
+        }
+
+        const ops = imageDropOpsRef.current;
+        if (!ops) {
+          return;
+        }
+
+        const { x, y } = event.payload.position;
+        const paths = event.payload.paths.filter((path) => /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(path));
+        if (paths.length === 0) {
+          return;
+        }
+
+        const point = ops.canvasPointFromEvent({ clientX: x, clientY: y });
+        const targetEmpty = [...ops.looseImages]
+          .reverse()
+          .find(
+            (image) =>
+              !image.imageId &&
+              point.x >= image.x &&
+              point.x <= image.x + image.width &&
+              point.y >= image.y &&
+              point.y <= image.y + image.height,
+          );
+
+        paths.forEach((path, index) => {
+          if (targetEmpty && index === 0) {
+            ops.fillElementFromPath(targetEmpty.id, path);
+          } else {
+            ops.importImageFromPath(path, x, y, index * 24);
+          }
+        });
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to register drag-drop listener", error);
+      });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  // Clipboard paste of an image → new image element at the viewport center.
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const ops = imageDropOpsRef.current;
+      if (!ops || !event.clipboardData) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+
+      const item = Array.from(event.clipboardData.items).find((entry) =>
+        entry.type.startsWith("image/"),
+      );
+      if (!item) {
+        return;
+      }
+
+      const file = item.getAsFile();
+      if (!file) {
+        return;
+      }
+
+      event.preventDefault();
+      file
+        .arrayBuffer()
+        .then((buffer) => {
+          ops.addImageFromBuffer(buffer, window.innerWidth / 2, window.innerHeight / 2);
+        })
+        .catch((error) => {
+          console.error("Failed to read pasted image", error);
+        });
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
+
+  // Canvas menu "Image": drop an empty placeholder. The user fills it by
+  // double-clicking inside (or dropping a file onto it).
+  const createImageFromMenu = (clientX: number, clientY: number) => {
+    createImageElement(clientX, clientY);
+  };
+
+  const updateImageAccent = (id: string, accent: string) => {
+    setImages((current) =>
+      current.map((image) => (image.id === id ? { ...image, accent } : image)),
+    );
+  };
+
+  const toggleImageBackground = (id: string) => {
+    setImages((current) =>
+      current.map((image) =>
+        image.id === id ? { ...image, background: image.background === false } : image,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const copyImage = (image: ImageElement) => {
+    setCopiedItem({
+      type: "image",
+      item: {
+        imageId: image.imageId,
+        format: image.format,
+        width: image.width,
+        height: image.height,
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+        accent: image.accent,
+        background: image.background,
+      },
+    });
+    closeContextMenus();
+  };
+
+  const deleteImageElement = (id: string) => {
+    removeImages([id]);
+    closeContextMenus();
   };
 
   const createTextCard = (clientX: number, clientY: number) => {
@@ -1794,20 +2513,25 @@ function App() {
       const activeTextBlockStart = dragState.textBlockStartPositions.find(
         (position) => position.id === dragState.id,
       );
-      const activePosition = activeStart ?? activeTextBlockStart ?? activeTextCardStart;
-      const activeWidth = activeElement?.width ?? activeTextBlock?.width ?? dragState.activeWidth;
-      const activeHeight = activeElement?.height ?? activeTextBlock?.height ?? dragState.activeHeight;
+      const activeImage = imagesById.get(dragState.id);
+      const activeImageStart = dragState.imageStartPositions.find(
+        (position) => position.id === dragState.id,
+      );
+      const activePosition = activeStart ?? activeTextBlockStart ?? activeTextCardStart ?? activeImageStart;
+      const activeWidth = activeElement?.width ?? activeTextBlock?.width ?? activeImage?.width ?? dragState.activeWidth;
+      const activeHeight = activeElement?.height ?? activeTextBlock?.height ?? activeImage?.height ?? dragState.activeHeight;
 
       if (!activePosition) {
         return;
       }
 
-      const nextX = clamp(activePosition.x + worldDeltaX, 0, canvasWidth - activeWidth);
-      const nextY = clamp(activePosition.y + worldDeltaY, 0, canvasHeight - activeHeight);
+      const nextX = activePosition.x + worldDeltaX;
+      const nextY = activePosition.y + worldDeltaY;
       const movingIds = new Set<string>([
         ...dragState.startPositions.map((position) => position.id),
         ...dragState.textBlockStartPositions.map((position) => position.id),
         ...dragState.textCardStartPositions.map((position) => position.id),
+        ...dragState.imageStartPositions.map((position) => position.id),
       ]);
       const snapped = event.shiftKey
         ? activeElement || activeTextBlock
@@ -1829,8 +2553,8 @@ function App() {
               movingIds,
             )
         : { x: nextX, y: nextY, guides: [] };
-      const appliedDeltaX = clamp(snapped.x, 0, canvasWidth - activeWidth) - activePosition.x;
-      const appliedDeltaY = clamp(snapped.y, 0, canvasHeight - activeHeight) - activePosition.y;
+      const appliedDeltaX = snapped.x - activePosition.x;
+      const appliedDeltaY = snapped.y - activePosition.y;
       nextGuides = snapped.guides;
       const startPositionsById = new Map(
         dragState.startPositions.map((position) => [position.id, position]),
@@ -1840,6 +2564,9 @@ function App() {
       );
       const textBlockStartPositionsById = new Map(
         dragState.textBlockStartPositions.map((position) => [position.id, position]),
+      );
+      const imageStartPositionsById = new Map(
+        dragState.imageStartPositions.map((position) => [position.id, position]),
       );
 
       setElements(
@@ -1851,8 +2578,8 @@ function App() {
 
           return {
             ...element,
-            x: clamp(startPosition.x + appliedDeltaX, 0, canvasWidth - element.width),
-            y: clamp(startPosition.y + appliedDeltaY, 0, canvasHeight - element.height),
+            x: startPosition.x + appliedDeltaX,
+            y: startPosition.y + appliedDeltaY,
           };
         }),
       );
@@ -1865,8 +2592,8 @@ function App() {
 
           return {
             ...card,
-            x: clamp(startPosition.x + appliedDeltaX, 0, canvasWidth),
-            y: clamp(startPosition.y + appliedDeltaY, 0, canvasHeight),
+            x: startPosition.x + appliedDeltaX,
+            y: startPosition.y + appliedDeltaY,
           };
         }),
       );
@@ -1879,8 +2606,22 @@ function App() {
 
           return {
             ...element,
-            x: clamp(startPosition.x + appliedDeltaX, 0, canvasWidth - element.width),
-            y: clamp(startPosition.y + appliedDeltaY, 0, canvasHeight - element.height),
+            x: startPosition.x + appliedDeltaX,
+            y: startPosition.y + appliedDeltaY,
+          };
+        }),
+      );
+      setImages(
+        images.map((image) => {
+          const startPosition = imageStartPositionsById.get(image.id);
+          if (!startPosition) {
+            return image;
+          }
+
+          return {
+            ...image,
+            x: startPosition.x + appliedDeltaX,
+            y: startPosition.y + appliedDeltaY,
           };
         }),
       );
@@ -1915,8 +2656,8 @@ function App() {
         setDragState({ ...dragState, snapping: event.shiftKey });
       }
 
-      const nextX = clamp(dragState.startX + worldDeltaX, 0, canvasWidth);
-      const nextY = clamp(dragState.startY + worldDeltaY, 0, canvasHeight);
+      const nextX = dragState.startX + worldDeltaX;
+      const nextY = dragState.startY + worldDeltaY;
       const snapped = event.shiftKey
         ? snapMovedTextCard(dragState.id, dragState.width, dragState.height, nextX, nextY, pointerPoint)
         : { x: nextX, y: nextY, guides: [] };
@@ -1941,12 +2682,66 @@ function App() {
           card.id === dragState.id
             ? {
                 ...card,
-                x: clamp(snapped.x, 0, canvasWidth),
-                y: clamp(snapped.y, 0, canvasHeight),
+                x: snapped.x,
+                y: snapped.y,
               }
             : card,
         );
       });
+      setSnapGuides(event.shiftKey ? snapped.guides : []);
+      return;
+    }
+
+    if (dragState.type === "image-move") {
+      const nextX = dragState.startX + worldDeltaX;
+      const nextY = dragState.startY + worldDeltaY;
+      const movingImage = imagesById.get(dragState.id);
+      const snapped =
+        event.shiftKey && movingImage
+          ? snapMovedTextCard(
+              dragState.id,
+              dragState.width,
+              dragState.height,
+              nextX,
+              nextY,
+              pointerPoint,
+            )
+          : { x: nextX, y: nextY, guides: [] };
+      const appliedX = snapped.x;
+      const appliedY = snapped.y;
+      setImages((current) =>
+        current.map((image) =>
+          image.id === dragState.id ? { ...image, x: appliedX, y: appliedY } : image,
+        ),
+      );
+      setSnapGuides(event.shiftKey ? snapped.guides : []);
+      return;
+    }
+
+    if (dragState.type === "image-resize") {
+      const resizingImage = imagesById.get(dragState.id);
+      if (!resizingImage) {
+        return;
+      }
+
+      // Aspect-locked: drive width from the larger pointer delta, derive height.
+      const proposedWidth = dragState.startWidth + Math.max(worldDeltaX, worldDeltaY * dragState.aspectRatio);
+      const maxWidth = Math.min(
+        canvasWidth - resizingImage.x,
+        (canvasHeight - resizingImage.y) * dragState.aspectRatio,
+      );
+      const baseWidth = clamp(proposedWidth, MIN_IMAGE_SIZE, maxWidth);
+      const baseHeight = baseWidth / dragState.aspectRatio;
+      const snapped = event.shiftKey
+        ? snapResizedImage(resizingImage, baseWidth, baseHeight, pointerPoint)
+        : { width: baseWidth, height: baseHeight, guides: [] };
+      const width = clamp(snapped.width, MIN_IMAGE_SIZE, maxWidth);
+      const height = width / dragState.aspectRatio;
+      setImages((current) =>
+        current.map((image) =>
+          image.id === dragState.id ? { ...image, width, height } : image,
+        ),
+      );
       setSnapGuides(event.shiftKey ? snapped.guides : []);
       return;
     }
@@ -2120,6 +2915,19 @@ function App() {
                   ),
                 )
                 .map((element) => element.id),
+              ...looseImages
+                .filter((image) =>
+                  rectsOverlap(
+                    { left, top, width: right - left, height: bottom - top },
+                    {
+                      left: image.x,
+                      top: image.y,
+                      width: image.width,
+                      height: image.height,
+                    },
+                  ),
+                )
+                .map((image) => image.id),
             ],
       );
     }
@@ -2149,15 +2957,21 @@ function App() {
     });
   };
 
-  const isContainerLocked = (id: string) =>
-    Boolean(containersById.get(id)?.extensions?.lock?.enabled);
+  const isElementLocked = (id: string) =>
+    Boolean(
+      (
+        containersById.get(id) ??
+        textBlocksById.get(id) ??
+        imagesById.get(id)
+      )?.extensions?.lock?.enabled,
+    );
 
   const startMove = (event: PointerEvent<HTMLElement>, element: ContainerElement | TextBlockElement) => {
     if (event.button !== 0) {
       return;
     }
 
-    if (isContainerLocked(element.id)) {
+    if (isElementLocked(element.id)) {
       event.stopPropagation();
       selectCanvasElement(element);
       closeContextMenus();
@@ -2175,6 +2989,7 @@ function App() {
       const card = textCardsById.get(id);
       return Boolean(card && !card.containerId);
     });
+    const movingImageIds = movingIds.filter((id) => imagesById.has(id));
     if (!selectedIds.includes(element.id)) {
       selectCanvasElement(element);
     }
@@ -2214,6 +3029,13 @@ function App() {
           x: currentElement.x,
           y: currentElement.y,
         })),
+      imageStartPositions: images
+        .filter((image) => movingImageIds.includes(image.id))
+        .map((image) => ({
+          id: image.id,
+          x: image.x,
+          y: image.y,
+        })),
     });
   };
 
@@ -2222,7 +3044,7 @@ function App() {
       return;
     }
 
-    if (isContainerLocked(element.id)) {
+    if (isElementLocked(element.id)) {
       event.stopPropagation();
       return;
     }
@@ -2263,6 +3085,7 @@ function App() {
         const currentCard = textCardsById.get(id);
         return Boolean(currentCard && !currentCard.containerId);
       });
+      const movingImageIds = movingIds.filter((id) => imagesById.has(id));
       const cardRect = event.currentTarget.getBoundingClientRect();
 
       if (!selectedIds.includes(card.id)) {
@@ -2303,6 +3126,13 @@ function App() {
             x: element.x,
             y: element.y,
           })),
+        imageStartPositions: images
+          .filter((image) => movingImageIds.includes(image.id))
+          .map((image) => ({
+            id: image.id,
+            x: image.x,
+            y: image.y,
+          })),
       });
       return;
     }
@@ -2342,6 +3172,125 @@ function App() {
       width: cardRect.width / zoom,
       height: cardRect.height / zoom,
       snapping: false,
+    });
+  };
+
+  const startImageMove = (event: PointerEvent<HTMLElement>, image: ImageElement) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    if (isElementLocked(image.id)) {
+      event.stopPropagation();
+      setSelectedIds([image.id]);
+      closeContextMenus();
+      return;
+    }
+
+    event.stopPropagation();
+    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
+      event.pointerId,
+    );
+
+    // Part of a multi-selection → use the shared container/card/block move path.
+    if (selectedIds.length > 1 && selectedIds.includes(image.id)) {
+      const movingIds = selectedIds;
+      const movingContainerIds = movingIds.filter((id) => containersById.has(id));
+      const movingTextBlockIds = movingIds.filter((id) => textBlocksById.has(id));
+      const movingTextCardIds = movingIds.filter((id) => {
+        const card = textCardsById.get(id);
+        return Boolean(card && !card.containerId);
+      });
+      const movingImageIds = movingIds.filter((id) => imagesById.has(id));
+
+      closeContextMenus();
+      setRenamingId(null);
+      setEditingTextCardId(null);
+      setEditingTextBlockId(null);
+      setDragState({
+        type: "move",
+        pointerId: event.pointerId,
+        id: image.id,
+        ids: [...movingContainerIds, ...movingTextBlockIds],
+        activeWidth: image.width,
+        activeHeight: image.height,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startPositions: elements
+          .filter((element) => movingContainerIds.includes(element.id))
+          .map((element) => ({ id: element.id, x: element.x, y: element.y })),
+        textCardStartPositions: textCards
+          .filter((card) => movingTextCardIds.includes(card.id) && !card.containerId)
+          .map((card) => ({ id: card.id, x: card.x, y: card.y })),
+        textBlockStartPositions: textBlocks
+          .filter((element) => movingTextBlockIds.includes(element.id))
+          .map((element) => ({ id: element.id, x: element.x, y: element.y })),
+        imageStartPositions: images
+          .filter((currentImage) => movingImageIds.includes(currentImage.id))
+          .map((currentImage) => ({ id: currentImage.id, x: currentImage.x, y: currentImage.y })),
+      });
+      return;
+    }
+
+    setSelectedIds([image.id]);
+    closeContextMenus();
+    setRenamingId(null);
+    setEditingTextCardId(null);
+    setEditingTextBlockId(null);
+    setDragState({
+      type: "image-move",
+      pointerId: event.pointerId,
+      id: image.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: image.x,
+      startY: image.y,
+      width: image.width,
+      height: image.height,
+      snapping: false,
+    });
+  };
+
+  const startImageResize = (event: PointerEvent<HTMLButtonElement>, image: ImageElement) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    if (isElementLocked(image.id)) {
+      event.stopPropagation();
+      return;
+    }
+
+    event.stopPropagation();
+    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
+      event.pointerId,
+    );
+    setSelectedIds([image.id]);
+    closeContextMenus();
+    setRenamingId(null);
+    setDragState({
+      type: "image-resize",
+      pointerId: event.pointerId,
+      id: image.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startWidth: image.width,
+      startHeight: image.height,
+      aspectRatio: image.height > 0 ? image.width / image.height : 1,
+    });
+  };
+
+  const openImageMenu = (event: React.MouseEvent<HTMLElement>, image: ImageElement) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenus();
+    setRenamingId(null);
+    setSelectedIds([image.id]);
+    setClosingImageMenu(null);
+    setImageMenu({
+      id: image.id,
+      left: event.clientX + 8,
+      top: event.clientY + 8,
     });
   };
 
@@ -2670,7 +3619,7 @@ function App() {
       }
       animateTextCardIn(id);
       setSelectedIds([]);
-    } else {
+    } else if (copiedItem.type === "text-block") {
       const copiedTextBlock = copiedItem.item;
       const id = `text-block-${Date.now()}`;
       const duplicate = {
@@ -2683,6 +3632,19 @@ function App() {
 
       setTextBlocks((current) => [...current, duplicate]);
       animateTextBlockIn(id);
+      setSelectedIds([id]);
+    } else if (copiedItem.type === "image") {
+      const copiedImage = copiedItem.item;
+      const id = `image-${Date.now()}`;
+      const duplicate: ImageElement = {
+        ...copiedImage,
+        id,
+        x: clamp(point.x - copiedImage.width / 2, 0, canvasWidth - copiedImage.width),
+        y: clamp(point.y - copiedImage.height / 2, 0, canvasHeight - copiedImage.height),
+      };
+
+      setImages((current) => [...current, duplicate]);
+      animateImageIn(id);
       setSelectedIds([id]);
     }
 
@@ -2700,6 +3662,7 @@ function App() {
     removeContainers(elements.map((element) => element.id));
     removeTextCards(textCards.map((card) => card.id));
     removeTextBlocks(textBlocks.map((element) => element.id));
+    removeImages(images.map((image) => image.id));
     closeContextMenus();
     setRenamingId(null);
     setEditingTextCardId(null);
@@ -2848,54 +3811,49 @@ function App() {
   };
 
   const installLockExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                lock: element.extensions?.lock ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
+    const withLock = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
+      item.id === id
+        ? {
+            ...item,
+            extensions: {
+              ...item.extensions,
+              lock: item.extensions?.lock ?? { enabled: true },
+            },
+          }
+        : item;
+    setElements((current) => current.map(withLock));
+    setTextBlocks((current) => current.map(withLock));
+    setImages((current) => current.map(withLock));
     closeContextMenus();
   };
 
   const toggleLockExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id && element.extensions?.lock
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                lock: {
-                  enabled: !element.extensions.lock.enabled,
-                },
-              },
-            }
-          : element,
-      ),
-    );
+    const toggle = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
+      item.id === id && item.extensions?.lock
+        ? {
+            ...item,
+            extensions: {
+              ...item.extensions,
+              lock: { enabled: !item.extensions.lock.enabled },
+            },
+          }
+        : item;
+    setElements((current) => current.map(toggle));
+    setTextBlocks((current) => current.map(toggle));
+    setImages((current) => current.map(toggle));
   };
 
   const removeLockExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.lock) {
-          return element;
-        }
-
-        const { lock: _lock, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
+    const stripLock = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
+      if (item.id !== id || !item.extensions?.lock) {
+        return item;
+      }
+      const { lock: _lock, ...extensions } = item.extensions;
+      return { ...item, extensions };
+    };
+    setElements((current) => current.map(stripLock));
+    setTextBlocks((current) => current.map(stripLock));
+    setImages((current) => current.map(stripLock));
     closeContextMenus();
   };
 
@@ -2939,6 +3897,19 @@ function App() {
           : card,
       ),
     );
+    setImages((current) =>
+      current.map((image) =>
+        image.id === id
+          ? {
+              ...image,
+              extensions: {
+                ...image.extensions,
+                colors: image.extensions?.colors ?? { enabled: true },
+              },
+            }
+          : image,
+      ),
+    );
     closeContextMenus();
   };
 
@@ -2978,6 +3949,19 @@ function App() {
         const { colors: _colors, ...extensions } = card.extensions;
         return {
           ...card,
+          extensions,
+        };
+      }),
+    );
+    setImages((current) =>
+      current.map((image) => {
+        if (image.id !== id || !image.extensions?.colors) {
+          return image;
+        }
+
+        const { colors: _colors, ...extensions } = image.extensions;
+        return {
+          ...image,
           extensions,
         };
       }),
@@ -3079,15 +4063,68 @@ function App() {
     closeContextMenus();
   };
 
+  const showExtensionDropRipple = (
+    extensionId: ExtensionId,
+    point: { x: number; y: number },
+    target: ExtensionDropRipple["target"],
+    bounds: ExtensionRippleBounds,
+  ) => {
+    const id = `extension-ripple-${Date.now()}-${Math.round(point.x)}-${Math.round(point.y)}`;
+    setExtensionDropRipples((current) => [
+      ...current,
+      {
+        id,
+        extensionId,
+        target,
+        offsetX: point.x - bounds.left,
+        offsetY: point.y - bounds.top,
+      },
+    ]);
+    window.setTimeout(() => {
+      setExtensionDropRipples((current) => current.filter((ripple) => ripple.id !== id));
+    }, 2100);
+  };
+
   const dropExtensionOnCanvas = (
-    extensionId: "privacy" | "lock" | "colors" | "search" | "sorting",
+    extensionId: ExtensionId,
     clientX: number,
     clientY: number,
   ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
+    if (extensionId === "colors" || extensionId === "lock") {
+      const targetImage = [...looseImages].reverse().find(
+        (image) =>
+          point.x >= image.x &&
+          point.x <= image.x + image.width &&
+          point.y >= image.y &&
+          point.y <= image.y + image.height,
+      );
+
+      if (targetImage) {
+        if (extensionId === "lock") {
+          installLockExtension(targetImage.id);
+        } else {
+          installColorsExtension(targetImage.id);
+        }
+        setSelectedIds([targetImage.id]);
+        showExtensionDropRipple(
+          extensionId,
+          point,
+          { type: "image", id: targetImage.id },
+          {
+            left: targetImage.x,
+            top: targetImage.y,
+            width: targetImage.width,
+            height: targetImage.height,
+          },
+        );
+        return;
+      }
+    }
+
     if (extensionId === "colors") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
-        const bounds = getLooseTextCardSelectionBounds(card);
+        const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
         return (
           point.x >= bounds.left &&
           point.x <= bounds.left + bounds.width &&
@@ -3099,11 +4136,65 @@ function App() {
       if (targetTextCard) {
         installColorsExtension(targetTextCard.id);
         setSelectedIds([targetTextCard.id]);
+        const bounds = getTextCardRippleBounds(targetTextCard);
+        if (bounds) {
+          showExtensionDropRipple(extensionId, point, { type: "text-card", id: targetTextCard.id }, bounds);
+        }
+        return;
+      }
+
+      const targetContainerCard = [...elements]
+        .reverse()
+        .flatMap((container) => {
+          const contentTop =
+            container.y +
+            CONTAINER_HEADER_HEIGHT +
+            (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0);
+          const contentBottom = container.y + container.height;
+          const cardWidth = Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2);
+
+          return getContainerVisibleTextCards(container)
+            .map((card, index) => {
+              const measuredBounds = getTextCardRippleBounds(card);
+              const fallbackTop =
+                getContainerCardStackTop(container) +
+                index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
+                getContainerScrollOffset(container);
+
+              return {
+                card,
+                left: measuredBounds?.left ?? container.x + CONTAINER_TEXT_CARD_PADDING,
+                top: measuredBounds?.top ?? fallbackTop,
+                width: measuredBounds?.width ?? cardWidth,
+                height: measuredBounds?.height ?? CONTAINER_TEXT_CARD_ROW_HEIGHT,
+                visibleTop: contentTop,
+                visibleBottom: contentBottom,
+              };
+            })
+            .reverse();
+        })
+        .find(
+          ({ left, top, width, height, visibleTop, visibleBottom }) =>
+            top < visibleBottom &&
+            top + height > visibleTop &&
+            point.x >= left &&
+            point.x <= left + width &&
+            point.y >= Math.max(top, visibleTop) &&
+            point.y <= Math.min(top + height, visibleBottom),
+        )?.card;
+
+      if (targetContainerCard) {
+        installColorsExtension(targetContainerCard.id);
+        setSelectedIds([targetContainerCard.id]);
+        const bounds = getTextCardRippleBounds(targetContainerCard);
+        if (bounds) {
+          showExtensionDropRipple(extensionId, point, { type: "text-card", id: targetContainerCard.id }, bounds);
+        }
         return;
       }
     }
 
-    if (extensionId === "privacy" || extensionId === "colors") {
+    if (extensionId === "privacy" || extensionId === "colors" || extensionId === "lock") {
     const targetTextBlock = [...textBlocks]
       .reverse()
       .find(
@@ -3117,10 +4208,23 @@ function App() {
     if (targetTextBlock) {
       if (extensionId === "colors") {
         installColorsExtension(targetTextBlock.id);
+      } else if (extensionId === "lock") {
+        installLockExtension(targetTextBlock.id);
       } else {
         installPrivacyExtension(targetTextBlock.id);
       }
       setSelectedIds([targetTextBlock.id]);
+      showExtensionDropRipple(
+        extensionId,
+        point,
+        { type: "text-block", id: targetTextBlock.id },
+        {
+          left: targetTextBlock.x,
+          top: targetTextBlock.y,
+          width: targetTextBlock.width,
+          height: targetTextBlock.height,
+        },
+      );
       return;
     }
     }
@@ -3148,6 +4252,17 @@ function App() {
         installPrivacyExtension(targetContainer.id);
       }
       setSelectedIds([targetContainer.id]);
+      showExtensionDropRipple(
+        extensionId,
+        point,
+        { type: "container", id: targetContainer.id },
+        {
+          left: targetContainer.x,
+          top: targetContainer.y,
+          width: targetContainer.width,
+          height: targetContainer.height,
+        },
+      );
     }
   };
 
@@ -3211,6 +4326,7 @@ function App() {
     setElements(selectedCanvas.containers);
     setTextCards(selectedCanvas.textCards);
     setTextBlocks(selectedCanvas.textBlocks ?? []);
+    setImages(selectedCanvas.images ?? []);
     setPan(preserveCamera ? latestCameraRef.current.pan : selectedCanvas.pan);
     setZoom(preserveCamera ? latestCameraRef.current.zoom : selectedCanvas.zoom);
     setCanvasGridStyle(normalized.canvasGridStyle);
@@ -3253,6 +4369,7 @@ function App() {
     setElements(snapshot.containers);
     setTextCards(snapshot.textCards);
     setTextBlocks(snapshot.textBlocks ?? []);
+    setImages(snapshot.images ?? []);
     setPan(latestCameraRef.current.pan);
     setZoom(latestCameraRef.current.zoom);
     setSelectedIds([]);
@@ -3513,6 +4630,7 @@ function App() {
       containers: [],
       textCards: [],
       textBlocks: [],
+      images: [],
       pan: DEFAULT_PAN,
       zoom: 1,
       previewViewport: {
@@ -3526,6 +4644,7 @@ function App() {
     setElements([]);
     setTextCards([]);
     setTextBlocks([]);
+    setImages([]);
     setPan(canvas.pan);
     setZoom(canvas.zoom);
     setSelectedIds([]);
@@ -3549,6 +4668,7 @@ function App() {
     setElements(nextCanvas.containers);
     setTextCards(nextCanvas.textCards);
     setTextBlocks(nextCanvas.textBlocks ?? []);
+    setImages(nextCanvas.images ?? []);
     setPan(nextCanvas.pan);
     setZoom(nextCanvas.zoom);
     setSelectedIds([]);
@@ -3605,6 +4725,15 @@ function App() {
           height: Math.min(element.height, height),
         })),
       );
+      setImages((current) =>
+        current.map((image) => ({
+          ...image,
+          x: clamp(image.x, 0, Math.max(0, width - image.width)),
+          y: clamp(image.y, 0, Math.max(0, height - image.height)),
+          width: Math.min(image.width, width),
+          height: Math.min(image.height, height),
+        })),
+      );
     }
   };
 
@@ -3625,6 +4754,7 @@ function App() {
       setElements(nextActiveCanvas.containers);
       setTextCards(nextActiveCanvas.textCards);
       setTextBlocks(nextActiveCanvas.textBlocks ?? []);
+      setImages(nextActiveCanvas.images ?? []);
       setPan(nextActiveCanvas.pan);
       setZoom(nextActiveCanvas.zoom);
       setSelectedIds([]);
@@ -3711,8 +4841,39 @@ function App() {
   const closingTextBlockContextElement = closingTextBlockMenu
     ? textBlocksById.get(closingTextBlockMenu.id)
     : null;
+  const imageContextElement = imageMenu ? imagesById.get(imageMenu.id) : null;
+  const closingImageContextElement = closingImageMenu ? imagesById.get(closingImageMenu.id) : null;
   const textCardDropPreviewPosition = getTextCardDropPreviewPosition();
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
+  const getExtensionRippleBounds = (ripple: ExtensionDropRipple): ExtensionRippleBounds | null => {
+    if (ripple.target.type === "container") {
+      const element = containersById.get(ripple.target.id);
+      return element
+        ? { left: element.x, top: element.y, width: element.width, height: element.height }
+        : null;
+    }
+
+    if (ripple.target.type === "text-block") {
+      const element = textBlocksById.get(ripple.target.id);
+      return element
+        ? { left: element.x, top: element.y, width: element.width, height: element.height }
+        : null;
+    }
+
+    if (ripple.target.type === "image") {
+      const image = imagesById.get(ripple.target.id);
+      return image
+        ? { left: image.x, top: image.y, width: image.width, height: image.height }
+        : null;
+    }
+
+    const card = textCardsById.get(ripple.target.id);
+    if (!card) {
+      return null;
+    }
+
+    return getTextCardRippleBounds(card);
+  };
 
   return (
     <main
@@ -3735,6 +4896,14 @@ function App() {
             onUndo={undo}
             onOpenSettings={() => setSettingsOpen(true)}
           />
+          {fpsCounterVisible && (
+            <div className="pointer-events-none fixed right-4 top-4 z-50 rounded-lg border border-white/[0.14] bg-[#111216]/88 px-4 py-3 font-mono text-[22px] leading-8 text-white/78 shadow-[0_12px_32px_rgba(0,0,0,0.34)] backdrop-blur-md">
+              <div className="text-white/92">{frameStats.samples ? `${Math.round(frameStats.fps)} fps` : "-- fps"}</div>
+              <div>avg {frameStats.averageMs.toFixed(2)} ms</div>
+              <div>p95 {frameStats.p95Ms.toFixed(2)} ms</div>
+              <div>max {frameStats.maxMs.toFixed(2)} ms</div>
+            </div>
+          )}
           {canvasManagerOpen && (
             <CanvasManager
               canvases={getPersistedCanvases()}
@@ -3767,8 +4936,9 @@ function App() {
           >
             <div
               ref={worldRef}
-              className="canvas-grid absolute rounded-[24px] border border-white/[0.15] shadow-premium"
+              className="canvas-grid absolute overflow-hidden rounded-[24px] border border-white/[0.15] shadow-premium"
               data-grid-style={canvasGridStyle}
+              data-image-url-version={imageUrlVersion}
               style={{
                 "--canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
                 "--canvas-dot-size": `${1.25 / zoom}px`,
@@ -3822,6 +4992,59 @@ function App() {
                   }
                 />
               ))}
+              {extensionDropRipples.map((ripple) => {
+                const bounds = getExtensionRippleBounds(ripple);
+                if (!bounds) {
+                  return null;
+                }
+
+                const DropIcon = EXTENSION_DROP_ICONS[ripple.extensionId];
+                const rippleX = clamp(ripple.offsetX, 0, bounds.width);
+                const rippleY = clamp(ripple.offsetY, 0, bounds.height);
+                const farthestDistance = Math.max(
+                  Math.hypot(rippleX, rippleY),
+                  Math.hypot(bounds.width - rippleX, rippleY),
+                  Math.hypot(rippleX, bounds.height - rippleY),
+                  Math.hypot(bounds.width - rippleX, bounds.height - rippleY),
+                );
+                const scale = Math.max(1, (farthestDistance * 2) / 42);
+
+                return (
+                  <div
+                    key={ripple.id}
+                    className="extension-drop-ripple-surface"
+                    style={{
+                      left: bounds.left,
+                      top: bounds.top,
+                      width: bounds.width,
+                      height: bounds.height,
+                      borderRadius: bounds.borderRadius,
+                      borderTopLeftRadius: bounds.borderTopLeftRadius,
+                      borderTopRightRadius: bounds.borderTopRightRadius,
+                      borderBottomRightRadius: bounds.borderBottomRightRadius,
+                      borderBottomLeftRadius: bounds.borderBottomLeftRadius,
+                    }}
+                  >
+                    <div
+                      className="extension-drop-ripple"
+                      style={{
+                        left: rippleX,
+                        top: rippleY,
+                        "--extension-ripple-scale": scale,
+                      } as React.CSSProperties}
+                    />
+                    <div
+                      className="extension-drop-token"
+                      style={{
+                        left: rippleX,
+                        top: rippleY,
+                      }}
+                    >
+                      <DropIcon size={26} stroke={2} />
+                    </div>
+                  </div>
+                );
+              })}
               {elements.map((element) => {
                 // Keep the settling card in the index list so neighbours keep
                 // their correct visible slots; it is rendered in the loose
@@ -3866,6 +5089,7 @@ function App() {
                     onStartResize={startResize}
                     onToggleMenu={toggleMenu}
                     onTogglePrivacy={togglePrivacyExtension}
+                    onToggleLock={toggleLockExtension}
                     onCycleSort={cycleContainerSort}
                     onSearchChange={updateContainerSearchQuery}
                     onOpenContentMenu={openContainerContentMenu}
@@ -3968,6 +5192,7 @@ function App() {
                     onStartResize={startResize}
                     onToggleMenu={openTextBlockMenu}
                     onTogglePrivacy={togglePrivacyExtension}
+                    onToggleLock={toggleLockExtension}
                   />
                 );
               })}
@@ -4003,6 +5228,24 @@ function App() {
                   />
                 );
               })}
+              {looseImages.map((image) => (
+                <ImageNode
+                  key={image.id}
+                  image={image}
+                  url={getImageUrl(image.imageId, image.format)}
+                  loading={loadingImageIds.includes(image.id)}
+                  entering={enteringImageIds.includes(image.id)}
+                  deleting={deletingImageIds.includes(image.id)}
+                  dragging={dragState?.type === "image-move" && dragState.id === image.id}
+                  moving={dragState?.type === "move" && selectedIds.includes(image.id)}
+                  resizing={dragState?.type === "image-resize" && dragState.id === image.id}
+                  selected={outlinedIds.includes(image.id)}
+                  onStartMove={startImageMove}
+                  onStartResize={startImageResize}
+                  onOpenMenu={openImageMenu}
+                  onPick={pickImageForElement}
+                />
+              ))}
               {selectionBounds && (
                 <div
                   className="pointer-events-none absolute z-30 rounded-md border border-dashed border-white/45 bg-white/[0.08] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
@@ -4029,7 +5272,6 @@ function App() {
               onRemovePrivacyExtension={removePrivacyExtension}
               onRemoveSearchExtension={removeSearchExtension}
               onRemoveSortingExtension={removeSortingExtension}
-              onToggleLockExtension={toggleLockExtension}
               onRemoveLockExtension={removeLockExtension}
               onRemoveColorsExtension={removeColorsExtension}
               onMoveLayer={moveContainerLayer}
@@ -4049,7 +5291,6 @@ function App() {
               onRemovePrivacyExtension={removePrivacyExtension}
               onRemoveSearchExtension={removeSearchExtension}
               onRemoveSortingExtension={removeSortingExtension}
-              onToggleLockExtension={toggleLockExtension}
               onRemoveLockExtension={removeLockExtension}
               onRemoveColorsExtension={removeColorsExtension}
               onMoveLayer={moveContainerLayer}
@@ -4141,6 +5382,38 @@ function App() {
             />
           )}
 
+          {imageMenu && imageContextElement && (
+            <ImageContextMenu
+              key={`${imageMenu.id}-${imageMenu.left}-${imageMenu.top}`}
+              menu={imageMenu}
+              image={imageContextElement}
+              closing={false}
+              onReplace={pickImageForElement}
+              onUpdateAccent={updateImageAccent}
+              onToggleBackground={toggleImageBackground}
+              onMoveLayer={moveImageLayer}
+              onCopy={copyImage}
+              onRemoveColorsExtension={removeColorsExtension}
+              onDelete={deleteImageElement}
+            />
+          )}
+
+          {closingImageMenu && closingImageContextElement && (
+            <ImageContextMenu
+              key={`closing-${closingImageMenu.id}-${closingImageMenu.left}-${closingImageMenu.top}`}
+              menu={closingImageMenu}
+              image={closingImageContextElement}
+              closing
+              onReplace={pickImageForElement}
+              onUpdateAccent={updateImageAccent}
+              onToggleBackground={toggleImageBackground}
+              onMoveLayer={moveImageLayer}
+              onCopy={copyImage}
+              onRemoveColorsExtension={removeColorsExtension}
+              onDelete={deleteImageElement}
+            />
+          )}
+
           {canvasMenu && (
             <CanvasContextMenu
               key={`${canvasMenu.clientX}-${canvasMenu.clientY}`}
@@ -4151,6 +5424,7 @@ function App() {
               onCreate={createContainer}
               onCreateTextCard={createTextCard}
               onCreateTextBlock={createTextBlock}
+              onCreateImage={createImageFromMenu}
               onClear={requestClearCanvas}
             />
           )}
@@ -4165,6 +5439,7 @@ function App() {
               onCreate={createContainer}
               onCreateTextCard={createTextCard}
               onCreateTextBlock={createTextBlock}
+              onCreateImage={createImageFromMenu}
               onClear={requestClearCanvas}
             />
           )}
@@ -4190,6 +5465,8 @@ function App() {
               onDiscordRpcEnabledChange={setDiscordRpcEnabled}
               availableUpdate={availableUpdate}
               appVersion={appVersion}
+              fpsCounterVisible={fpsCounterVisible}
+              onFpsCounterVisibleChange={setFpsCounterVisible}
               onCheckForUpdate={checkForAppUpdate}
               onInstallUpdate={installAppUpdate}
               onClose={() => setSettingsOpen(false)}
@@ -4233,6 +5510,7 @@ function App() {
             elements={elements}
             textBlocks={textBlocks}
             textCards={looseTextCards}
+            images={looseImages}
             canvasWidth={canvasWidth}
             canvasHeight={canvasHeight}
             visible={minimapVisible}

@@ -6,16 +6,19 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use discord_rich_presence::activity::{Activity, Timestamps};
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient};
+use image::imageops::FilterType;
 use pbkdf2::pbkdf2_hmac;
 use rand::RngCore;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
+use tauri_plugin_dialog::DialogExt;
 
 const APP_STATE_KEY: &str = "app_state";
 const KEYRING_SERVICE: &str = "TaskMap";
@@ -23,6 +26,11 @@ const KEYRING_USER: &str = "app-data-key";
 const EXPORT_VERSION: u8 = 1;
 const EXPORT_KDF_ITERATIONS: u32 = 210_000;
 const DISCORD_CLIENT_ID: &str = "1513214503297486898";
+/// Longest edge (px) a raster image is downscaled to on import. Matches the
+/// canvas size so nothing loses detail at full zoom.
+const IMAGE_MAX_EDGE: u32 = 2560;
+/// WebP quality (0-100) for lossy re-encoding of raster images.
+const IMAGE_WEBP_QUALITY: f32 = 80.0;
 
 type AppData = serde_json::Value;
 
@@ -72,6 +80,27 @@ struct ExportPayload {
     salt: String,
     nonce: String,
     ciphertext: String,
+}
+
+/// Metadata returned to the frontend after an image is stored. The frontend
+/// keeps only this on the element; the bytes stay in the `images` table.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ImageMeta {
+    hash: String,
+    format: String,
+    width: u32,
+    height: u32,
+}
+
+/// A full image (meta + raw bytes) used only when bundling into / restoring
+/// from an encrypted export. Never part of `app_data`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BundledImage {
+    hash: String,
+    format: String,
+    width: u32,
+    height: u32,
+    data: String, // base64 of the raw (decoded) image bytes
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +233,19 @@ fn open_database(app: &tauri::AppHandle) -> Result<Connection, String> {
             [],
         )
         .map_err(|error| error.to_string())?;
+    connection
+        .execute(
+            "CREATE TABLE IF NOT EXISTS images (
+                hash TEXT PRIMARY KEY,
+                format TEXT NOT NULL,
+                width INTEGER NOT NULL,
+                height INTEGER NOT NULL,
+                bytes BLOB NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )
+        .map_err(|error| error.to_string())?;
     Ok(connection)
 }
 
@@ -300,11 +342,45 @@ fn derive_export_key(password: &str, salt: &[u8], iterations: u32) -> Result<[u8
     Ok(key)
 }
 
-fn encrypt_export(data: &AppData, password: &str) -> Result<String, String> {
+/// The decrypted body of an export. Images are bundled so the file is portable
+/// across machines. Old exports were the bare `AppData` JSON; `from_plaintext`
+/// handles both shapes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ExportBody {
+    data: AppData,
+    #[serde(default)]
+    images: Vec<BundledImage>,
+}
+
+impl ExportBody {
+    fn from_plaintext(plaintext: &[u8]) -> Result<Self, String> {
+        if let Ok(body) = serde_json::from_slice::<ExportBody>(plaintext) {
+            return Ok(body);
+        }
+        // Backward compatibility: an export written before image bundling is the
+        // bare AppData value.
+        let data: AppData = serde_json::from_slice(plaintext)
+            .map_err(|error| format!("Export data is invalid: {error}"))?;
+        Ok(ExportBody {
+            data,
+            images: Vec::new(),
+        })
+    }
+}
+
+fn encrypt_export(
+    data: &AppData,
+    images: &[BundledImage],
+    password: &str,
+) -> Result<String, String> {
     let salt = random_bytes::<16>();
     let key = derive_export_key(password, &salt, EXPORT_KDF_ITERATIONS)?;
+    let body = ExportBody {
+        data: data.clone(),
+        images: images.to_vec(),
+    };
     let encrypted = encrypt_with_key(
-        serde_json::to_string(data)
+        serde_json::to_string(&body)
             .map_err(|error| error.to_string())?
             .as_bytes(),
         &key,
@@ -322,7 +398,7 @@ fn encrypt_export(data: &AppData, password: &str) -> Result<String, String> {
     serde_json::to_string_pretty(&payload).map_err(|error| error.to_string())
 }
 
-fn decrypt_export(payload: &str, password: &str) -> Result<AppData, String> {
+fn decrypt_export(payload: &str, password: &str) -> Result<(AppData, Vec<BundledImage>), String> {
     let export: ExportPayload =
         serde_json::from_str(payload).map_err(|error| format!("Export file is invalid: {error}"))?;
 
@@ -343,7 +419,31 @@ fn decrypt_export(payload: &str, password: &str) -> Result<AppData, String> {
         &key,
     )?;
 
-    serde_json::from_slice(&plaintext).map_err(|error| format!("Export data is invalid: {error}"))
+    let body = ExportBody::from_plaintext(&plaintext)?;
+    Ok((body.data, body.images))
+}
+
+/// Walk arbitrary AppData JSON and collect every string value under an
+/// `"imageId"` key. Keeps export bundling decoupled from the exact canvas shape.
+fn collect_image_ids(value: &serde_json::Value, out: &mut HashSet<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                if k == "imageId" {
+                    if let serde_json::Value::String(hash) = v {
+                        out.insert(hash.clone());
+                    }
+                }
+                collect_image_ids(v, out);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_image_ids(item, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn save_app_data_to_database(app: &tauri::AppHandle, data: &AppData) -> Result<(), String> {
@@ -399,15 +499,276 @@ fn save_app_data(app: tauri::AppHandle, data: AppData) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn export_app_data(data: AppData, password: String) -> Result<String, String> {
-    encrypt_export(&data, &password)
+fn export_app_data(app: tauri::AppHandle, data: AppData, password: String) -> Result<String, String> {
+    let mut hashes = HashSet::new();
+    collect_image_ids(&data, &mut hashes);
+
+    let mut images = Vec::new();
+    if !hashes.is_empty() {
+        let connection = open_database(&app)?;
+        let key = get_database_key(false)?;
+        for hash in &hashes {
+            if let Some(meta) = image_meta_by_hash(&connection, hash)? {
+                let bytes = read_image_bytes(&connection, &key, hash)?;
+                images.push(BundledImage {
+                    hash: meta.hash,
+                    format: meta.format,
+                    width: meta.width,
+                    height: meta.height,
+                    data: BASE64.encode(bytes),
+                });
+            }
+        }
+    }
+
+    encrypt_export(&data, &images, &password)
 }
 
 #[tauri::command]
 fn import_app_data(app: tauri::AppHandle, payload: String, password: String) -> Result<AppData, String> {
-    let data = decrypt_export(&payload, &password)?;
+    let (data, images) = decrypt_export(&payload, &password)?;
+    let connection = open_database(&app)?;
+    let key = get_database_key(true)?;
+    for image in &images {
+        restore_bundled_image(&connection, &key, image)?;
+    }
     save_app_data_to_database(&app, &data)?;
     Ok(data)
+}
+
+/// Whether the bytes look like an SVG document (vector — kept as-is, never
+/// rasterized) by sniffing the leading non-whitespace.
+fn looks_like_svg(bytes: &[u8]) -> bool {
+    let head = &bytes[..bytes.len().min(512)];
+    let text = String::from_utf8_lossy(head);
+    let trimmed = text.trim_start();
+    trimmed.starts_with("<svg") || (trimmed.starts_with("<?xml") && text.contains("<svg"))
+}
+
+/// Normalize an incoming image into the bytes we actually persist.
+/// - SVG: kept verbatim (dimensions reported as 0, frontend reads natural size).
+/// - GIF: kept verbatim to preserve animation (skip downscale/re-encode).
+/// - Everything else: decoded, downscaled to `IMAGE_MAX_EDGE`, re-encoded WebP.
+fn normalize_image(bytes: &[u8]) -> Result<(String, Vec<u8>, u32, u32), String> {
+    if looks_like_svg(bytes) {
+        return Ok(("svg".to_string(), bytes.to_vec(), 0, 0));
+    }
+
+    let format = image::guess_format(bytes)
+        .map_err(|error| format!("Unsupported image data: {error}"))?;
+
+    if format == image::ImageFormat::Gif {
+        let dimensions = image::load_from_memory(bytes)
+            .map(|decoded| (decoded.width(), decoded.height()))
+            .unwrap_or((0, 0));
+        return Ok(("gif".to_string(), bytes.to_vec(), dimensions.0, dimensions.1));
+    }
+
+    let decoded = image::load_from_memory(bytes)
+        .map_err(|error| format!("Could not decode image: {error}"))?;
+
+    let (width, height) = (decoded.width(), decoded.height());
+    let scaled = if width.max(height) > IMAGE_MAX_EDGE {
+        decoded.resize(IMAGE_MAX_EDGE, IMAGE_MAX_EDGE, FilterType::Lanczos3)
+    } else {
+        decoded
+    };
+
+    let rgba = scaled.to_rgba8();
+    let (out_width, out_height) = (rgba.width(), rgba.height());
+    let encoder = webp::Encoder::from_rgba(&rgba, out_width, out_height);
+    let encoded = encoder.encode(IMAGE_WEBP_QUALITY);
+
+    Ok(("webp".to_string(), encoded.to_vec(), out_width, out_height))
+}
+
+fn hash_bytes(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    let digest = hasher.finalize();
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// Look up an existing image row's metadata by hash, if present.
+fn image_meta_by_hash(connection: &Connection, hash: &str) -> Result<Option<ImageMeta>, String> {
+    connection
+        .query_row(
+            "SELECT format, width, height FROM images WHERE hash = ?1",
+            [hash],
+            |row| {
+                Ok(ImageMeta {
+                    hash: hash.to_string(),
+                    format: row.get(0)?,
+                    width: row.get::<_, i64>(1)? as u32,
+                    height: row.get::<_, i64>(2)? as u32,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+/// Insert normalized image bytes content-addressed by hash, encrypting the
+/// bytes with the database key. Returns metadata. Idempotent: an existing hash
+/// is reused (free dedup).
+fn store_normalized_image(
+    connection: &Connection,
+    key: &[u8; 32],
+    format: &str,
+    bytes: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<ImageMeta, String> {
+    let hash = hash_bytes(bytes);
+
+    if let Some(existing) = image_meta_by_hash(connection, &hash)? {
+        return Ok(existing);
+    }
+
+    let encrypted = encrypt_with_key(bytes, key)?;
+    let stored = serde_json::to_vec(&encrypted).map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "INSERT INTO images (hash, format, width, height, bytes)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(hash) DO NOTHING",
+            params![hash, format, width as i64, height as i64, stored],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(ImageMeta {
+        hash,
+        format: format.to_string(),
+        width,
+        height,
+    })
+}
+
+/// Fetch and decrypt the raw bytes for a stored image hash.
+fn read_image_bytes(connection: &Connection, key: &[u8; 32], hash: &str) -> Result<Vec<u8>, String> {
+    let stored: Vec<u8> = connection
+        .query_row("SELECT bytes FROM images WHERE hash = ?1", [hash], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Image not found".to_string())?;
+
+    let encrypted: EncryptedPayload =
+        serde_json::from_slice(&stored).map_err(|error| format!("Stored image is invalid: {error}"))?;
+    decrypt_with_key(&encrypted, key)
+}
+
+fn restore_bundled_image(
+    connection: &Connection,
+    key: &[u8; 32],
+    image: &BundledImage,
+) -> Result<(), String> {
+    let bytes = BASE64
+        .decode(&image.data)
+        .map_err(|error| format!("Bundled image is invalid: {error}"))?;
+    store_normalized_image(
+        connection,
+        key,
+        &image.format,
+        &bytes,
+        image.width,
+        image.height,
+    )?;
+    Ok(())
+}
+
+fn store_image_bytes(app: &tauri::AppHandle, bytes: &[u8]) -> Result<ImageMeta, String> {
+    let (format, normalized, width, height) = normalize_image(bytes)?;
+    let connection = open_database(app)?;
+    let key = get_database_key(true)?;
+    store_normalized_image(&connection, &key, &format, &normalized, width, height)
+}
+
+/// Store an image whose raw bytes are passed from the frontend as base64.
+/// Runs on a blocking thread so a large image's decode/resize/encode never
+/// stalls the UI event loop.
+#[tauri::command]
+async fn store_image(app: tauri::AppHandle, data: String) -> Result<ImageMeta, String> {
+    let bytes = BASE64
+        .decode(data.trim())
+        .map_err(|error| format!("Image data is invalid: {error}"))?;
+    tauri::async_runtime::spawn_blocking(move || store_image_bytes(&app, &bytes))
+        .await
+        .map_err(|error| format!("Image processing failed: {error}"))?
+}
+
+/// Return a stored image's raw bytes as base64 for the frontend to turn into a
+/// Blob / object URL.
+#[tauri::command]
+fn load_image(app: tauri::AppHandle, hash: String) -> Result<String, String> {
+    let connection = open_database(&app)?;
+    let key = get_database_key(false)?;
+    let bytes = read_image_bytes(&connection, &key, &hash)?;
+    Ok(BASE64.encode(bytes))
+}
+
+/// Open a native file picker and return the chosen image path (no processing),
+/// so the frontend can show a loading placeholder before the heavier decode.
+#[tauri::command]
+fn pick_image_path(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let path = app
+        .dialog()
+        .file()
+        .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"])
+        .blocking_pick_file();
+
+    match path {
+        Some(path) => Ok(Some(
+            path.into_path()
+                .map_err(|error| format!("Could not resolve selected file: {error}"))?
+                .to_string_lossy()
+                .into_owned(),
+        )),
+        None => Ok(None),
+    }
+}
+
+/// Store an image read from a path on disk (used for OS file drops and the
+/// picker). Runs on a blocking thread to keep the UI responsive.
+#[tauri::command]
+async fn store_image_path(app: tauri::AppHandle, path: String) -> Result<ImageMeta, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = fs::read(&path).map_err(|error| format!("Could not read file: {error}"))?;
+        store_image_bytes(&app, &bytes)
+    })
+    .await
+    .map_err(|error| format!("Image processing failed: {error}"))?
+}
+
+/// Delete every stored image whose hash is not in `used`. Called after saves so
+/// orphaned blobs (deleted elements, undone pastes) do not accumulate.
+#[tauri::command]
+fn gc_images(app: tauri::AppHandle, used: Vec<String>) -> Result<(), String> {
+    let connection = open_database(&app)?;
+    let used: HashSet<String> = used.into_iter().collect();
+
+    let hashes: Vec<String> = {
+        let mut statement = connection
+            .prepare("SELECT hash FROM images")
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|error| error.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?
+    };
+
+    for hash in hashes {
+        if !used.contains(&hash) {
+            connection
+                .execute("DELETE FROM images WHERE hash = ?1", [&hash])
+                .map_err(|error| error.to_string())?;
+        }
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -518,6 +879,7 @@ fn main() {
 
     tauri::Builder::default()
         .manage(DiscordRpc::new(started_at))
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -543,6 +905,11 @@ fn main() {
             export_app_data,
             import_app_data,
             reset_local_database,
+            store_image,
+            load_image,
+            store_image_path,
+            pick_image_path,
+            gc_images,
             set_discord_rpc
         ])
         .run(tauri::generate_context!())

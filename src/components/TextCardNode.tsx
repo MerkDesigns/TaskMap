@@ -165,6 +165,7 @@ export function TextCardNode({
 
   return (
     <article
+      data-text-card-id={card.id}
       className={`absolute inline-flex cursor-grab select-none items-center rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
         dragging
           ? "z-30 scale-[1.035] cursor-grabbing opacity-95 shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)] transition-none"

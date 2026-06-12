@@ -3,6 +3,7 @@ import {
   IconLock,
   IconNotes,
   IconPalette,
+  IconPhoto,
   IconPencil,
   IconSearch,
   IconShieldLock,
@@ -17,11 +18,12 @@ type ExtensionsPanelProps = {
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
 };
 
-function TargetTags({ targets }: { targets: Array<"container" | "textblock" | "textcard"> }) {
+function TargetTags({ targets }: { targets: Array<"container" | "textblock" | "textcard" | "image"> }) {
   const tagMeta = {
     container: { title: "Containers", icon: <IconBox size={13} stroke={2} /> },
     textblock: { title: "Text blocks", icon: <IconNotes size={13} stroke={2} /> },
     textcard: { title: "Text cards", icon: <IconPencil size={13} stroke={2} /> },
+    image: { title: "Images", icon: <IconPhoto size={13} stroke={2} /> },
   } as const;
 
   return (
@@ -87,7 +89,6 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
     setDrag({ extensionId, clientX: event.clientX, clientY: event.clientY });
   };
 
-  const draggedLabel = drag ? DRAG_META[drag.extensionId].label : "";
   const DragIcon = drag ? DRAG_META[drag.extensionId].Icon : IconShieldLock;
 
   return (
@@ -126,7 +127,7 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
               <span className="block text-sm font-semibold text-white">Lock</span>
               <span className="block text-xs leading-5 text-white/42">Lock move, resize &amp; deletion</span>
             </span>
-            <TargetTags targets={["container"]} />
+            <TargetTags targets={["container", "textblock", "image"]} />
           </button>
           <button
             className="relative flex w-full touch-none select-none items-center gap-2.5 rounded-lg border border-white/[0.10] bg-[#15161a] p-2.5 pr-14 text-left transition-colors hover:bg-[#1d1e24]"
@@ -172,11 +173,10 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
 
       {drag && (
         <div
-          className="pointer-events-none fixed z-[1000] flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-lg border border-white/[0.16] bg-[#15161a] px-3 py-2 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
+          className="pointer-events-none fixed z-[1000] grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.16] bg-[#15161a] text-white/78 shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
           style={{ left: drag.clientX, top: drag.clientY }}
         >
-          <DragIcon size={18} stroke={2} className="text-white/72" />
-          <span>{draggedLabel}</span>
+          <DragIcon size={26} stroke={2} />
         </div>
       )}
     </>
