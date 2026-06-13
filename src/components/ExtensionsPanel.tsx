@@ -9,7 +9,7 @@ import {
   IconShieldLock,
   IconSortAZ,
 } from "@tabler/icons-react";
-import { PointerEvent, useEffect, useState } from "react";
+import { PointerEvent, useEffect, useRef, useState } from "react";
 
 type ExtensionId = "privacy" | "lock" | "colors" | "search" | "sorting";
 
@@ -51,6 +51,7 @@ const DRAG_META: Record<ExtensionId, { label: string; Icon: typeof IconShieldLoc
 
 export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelProps) {
   const [drag, setDrag] = useState<{ extensionId: ExtensionId; clientX: number; clientY: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!drag) {
@@ -64,6 +65,12 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
     };
 
     const handlePointerEnd = (event: globalThis.PointerEvent) => {
+      const releaseTarget = document.elementFromPoint(event.clientX, event.clientY);
+      if (releaseTarget && panelRef.current?.contains(releaseTarget)) {
+        setDrag(null);
+        return;
+      }
+
       onDropExtension(drag.extensionId, event.clientX, event.clientY);
       setDrag(null);
     };
@@ -94,6 +101,7 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
   return (
     <>
       <div
+        ref={panelRef}
         className={`fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-md ${
           closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
         }`}

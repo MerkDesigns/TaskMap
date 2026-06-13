@@ -16,28 +16,25 @@ export const MINIMAP_HEIGHT =
   CANVAS_ASPECT >= 1 ? Math.max(72, Math.round(MINIMAP_MAX_SIZE / CANVAS_ASPECT)) : MINIMAP_MAX_SIZE;
 
 export const ACCENT_PRESETS = [
-  { swatch: "#008b9a", accent: "#005763", textCardAccent: "#007482" },
-  { swatch: "#2f80ed", accent: "#2d5f87", textCardAccent: "#2e72c0" },
-  { swatch: "#6352e8", accent: "#3d4a9a", textCardAccent: "#514ec7" },
-  { swatch: "#8b5cf6", accent: "#5b3f86", textCardAccent: "#764fc4" },
-  { swatch: "#d946ef", accent: "#7a3d61", textCardAccent: "#af42b1" },
-  { swatch: "#ef4444", accent: "#81473d", textCardAccent: "#be4641" },
-  { swatch: "#f59e0b", accent: "#6f5c2b", textCardAccent: "#ba8119" },
-  { swatch: "#22c55e", accent: "#3f6b3c", textCardAccent: "#2f9e4f" },
+  { swatch: "#F98284", accent: "#955456", textCardAccent: "#C86B6E" },
+  { swatch: "#F28E42", accent: "#915A32", textCardAccent: "#C3753A" },
+  { swatch: "#C0AC2B", accent: "#766B25", textCardAccent: "#9C8C28" },
+  { swatch: "#73C163", accent: "#4B7644", textCardAccent: "#609C54" },
+  { swatch: "#31C4AE", accent: "#27786D", textCardAccent: "#2C9F8E" },
+  { swatch: "#30BCE1", accent: "#277489", textCardAccent: "#2B99B6" },
+  { swatch: "#7CABF8", accent: "#506A96", textCardAccent: "#678BC8" },
+  { swatch: "#B994F9", accent: "#725E96", textCardAccent: "#9679C9" },
 ];
 
-// Unlocked by the "More colors" extension. Hues are chosen to stay visually
-// distinct from the base presets above (orange, lime, sky, rose, slate,
-// bronze, emerald, periwinkle).
 export const EXTENDED_ACCENT_PRESETS = [
-  { swatch: "#f97316", accent: "#7c4a2c", textCardAccent: "#c2641f" },
-  { swatch: "#84cc16", accent: "#566b2c", textCardAccent: "#69a019" },
-  { swatch: "#0ea5e9", accent: "#2c5d77", textCardAccent: "#1683b8" },
-  { swatch: "#f43f5e", accent: "#7e3a47", textCardAccent: "#c23a50" },
-  { swatch: "#64748b", accent: "#454f5e", textCardAccent: "#5b6779" },
-  { swatch: "#a16207", accent: "#5f4a25", textCardAccent: "#876217" },
-  { swatch: "#10b981", accent: "#2f6356", textCardAccent: "#159069" },
-  { swatch: "#818cf8", accent: "#4a4f8a", textCardAccent: "#6068c9" },
+  { swatch: "#D96FE8", accent: "#84498D", textCardAccent: "#AF5DBC" },
+  { swatch: "#F7A36C", accent: "#946649", textCardAccent: "#C7855B" },
+  { swatch: "#A8CF45", accent: "#697E33", textCardAccent: "#89A73C" },
+  { swatch: "#53D6A2", accent: "#3A8267", textCardAccent: "#47AD85" },
+  { swatch: "#46C8D7", accent: "#337A84", textCardAccent: "#3DA2AE" },
+  { swatch: "#56AFFF", accent: "#3B6C9A", textCardAccent: "#498ECE" },
+  { swatch: "#B59AF7", accent: "#706195", textCardAccent: "#937EC7" },
+  { swatch: "#98A1B3", accent: "#606570", textCardAccent: "#7D8492" },
 ];
 
 export const ALL_ACCENT_PRESETS = [...ACCENT_PRESETS, ...EXTENDED_ACCENT_PRESETS];

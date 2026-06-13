@@ -9,6 +9,7 @@ import {
   IconLock,
   IconPencil,
   IconPlus,
+  IconPuzzle,
   IconNotes,
   IconPalette,
   IconPhoto,
@@ -149,31 +150,31 @@ export function ContainerContextMenu({
           <div className={MENU_DIVIDER_CLASS} />
           {element.extensions?.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
-            <IconShieldLock size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove privacy</span>
           </button>
           )}
           {element.extensions?.search && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSearchExtension(element.id)}>
-            <IconSearch size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove search</span>
           </button>
           )}
           {element.extensions?.sorting && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSortingExtension(element.id)}>
-            <IconSortAZ size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove sorting</span>
           </button>
           )}
           {element.extensions?.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
-            <IconPalette size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove more colors</span>
           </button>
           )}
           {element.extensions?.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
-            <IconLock size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove lock</span>
           </button>
           )}
@@ -325,6 +326,7 @@ type TextBlockContextMenuProps = {
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: TextBlockElement) => void;
   onRemovePrivacyExtension: (id: string) => void;
+  onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
   onMoveLayer: (
     id: string,
@@ -341,6 +343,7 @@ export function TextBlockContextMenu({
   onUpdateAccent,
   onCopy,
   onRemovePrivacyExtension,
+  onRemoveLockExtension,
   onRemoveColorsExtension,
   onMoveLayer,
   onDelete,
@@ -420,18 +423,24 @@ export function TextBlockContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>Copy</span>
       </button>
-      {(element.extensions?.privacy || element.extensions?.colors) && (
+      {(element.extensions?.privacy || element.extensions?.lock || element.extensions?.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
           {element.extensions?.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
-            <IconShieldLock size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove privacy</span>
+          </button>
+          )}
+          {element.extensions?.lock && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
+            <IconPuzzle size={17} stroke={2} />
+            <span>Remove lock</span>
           </button>
           )}
           {element.extensions?.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
-            <IconPalette size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove more colors</span>
           </button>
           )}
@@ -562,7 +571,7 @@ export function TextCardContextMenu({
           <>
             <div className={MENU_DIVIDER_CLASS} />
             <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(card.id)}>
-              <IconPalette size={17} stroke={2} />
+              <IconPuzzle size={17} stroke={2} />
               <span>Remove more colors</span>
             </button>
           </>
@@ -635,6 +644,7 @@ type ImageContextMenuProps = {
   onToggleBackground: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onCopy: (image: ImageElement) => void;
+  onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
   onDelete: (id: string) => void;
 };
@@ -648,6 +658,7 @@ export function ImageContextMenu({
   onToggleBackground,
   onMoveLayer,
   onCopy,
+  onRemoveLockExtension,
   onRemoveColorsExtension,
   onDelete,
 }: ImageContextMenuProps) {
@@ -731,13 +742,21 @@ export function ImageContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>Copy</span>
       </button>
-      {image.extensions?.colors && (
+      {(image.extensions?.lock || image.extensions?.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
+          {image.extensions?.lock && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(image.id)}>
+            <IconPuzzle size={17} stroke={2} />
+            <span>Remove lock</span>
+          </button>
+          )}
+          {image.extensions?.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(image.id)}>
-            <IconPalette size={17} stroke={2} />
+            <IconPuzzle size={17} stroke={2} />
             <span>Remove more colors</span>
           </button>
+          )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
