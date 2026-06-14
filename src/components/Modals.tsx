@@ -123,7 +123,6 @@ type SettingsModalProps = {
   onExportData: (password: string) => Promise<void>;
   onImportData: (file: File, password: string) => Promise<void>;
   discordRpcEnabled: boolean;
-  discordRpcToggleDisabled: boolean;
   onDiscordRpcEnabledChange: (enabled: boolean) => void;
   availableUpdate: AppUpdateInfo | null;
   appVersion: string;
@@ -151,7 +150,6 @@ export function SettingsModal({
   onExportData,
   onImportData,
   discordRpcEnabled,
-  discordRpcToggleDisabled,
   onDiscordRpcEnabledChange,
   availableUpdate,
   appVersion,
@@ -352,11 +350,7 @@ export function SettingsModal({
             />
           </div>
           <div className="border-t border-white/[0.10] pt-3">
-            <label
-              className={`flex items-center justify-between gap-3 ${
-                discordRpcToggleDisabled ? "cursor-not-allowed opacity-55" : "cursor-pointer"
-              }`}
-            >
+            <label className="flex cursor-pointer items-center justify-between gap-3">
               <span className="flex flex-col">
                 <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
                   Discord status
@@ -369,11 +363,10 @@ export function SettingsModal({
                 className="peer sr-only"
                 type="checkbox"
                 checked={discordRpcEnabled}
-                disabled={discordRpcToggleDisabled}
                 onChange={(event) => onDiscordRpcEnabledChange(event.target.checked)}
               />
               <span
-                className="relative h-6 w-11 flex-shrink-0 rounded-full border border-white/[0.12] bg-white/[0.08] transition-colors peer-checked:border-white/30 peer-checked:bg-white/30 peer-disabled:opacity-70 after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
+                className="relative h-6 w-11 flex-shrink-0 rounded-full border border-white/[0.12] bg-white/[0.08] transition-colors peer-checked:border-white/30 peer-checked:bg-white/30 after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
                 aria-hidden="true"
               />
             </label>

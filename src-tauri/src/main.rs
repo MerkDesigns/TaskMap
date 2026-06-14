@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 use tauri_plugin_dialog::DialogExt;
@@ -38,11 +38,11 @@ type AppData = serde_json::Value;
 /// Discord is not running. The session start time is fixed for the whole
 /// app run so the presence shows total time spent in the application.
 ///
-/// `desired` is the last enabled/disabled state the UI asked for. A single
-/// mutex serializes reconciliation so that rapid toggling collapses into one
-/// connection change instead of thrashing the (fragile) IPC pipe.
+/// `desired` is the last enabled/disabled state the UI asked for. Slow Discord
+/// IPC work runs on one background worker, and repeated updates are coalesced
+/// so rapid toggling only reconciles the latest requested state.
 struct DiscordRpc {
-    inner: Mutex<DiscordRpcInner>,
+    inner: Arc<Mutex<DiscordRpcInner>>,
     started_at: i64,
 }
 
@@ -50,16 +50,20 @@ struct DiscordRpcInner {
     client: Option<DiscordIpcClient>,
     desired: bool,
     canvas_name: Option<String>,
+    reconciling: bool,
+    dirty: bool,
 }
 
 impl DiscordRpc {
     fn new(started_at: i64) -> Self {
         Self {
-            inner: Mutex::new(DiscordRpcInner {
+            inner: Arc::new(Mutex::new(DiscordRpcInner {
                 client: None,
                 desired: false,
                 canvas_name: None,
-            }),
+                reconciling: false,
+                dirty: false,
+            })),
             started_at,
         }
     }
@@ -789,79 +793,126 @@ fn reset_local_database(app: tauri::AppHandle) -> Result<(), String> {
 /// Connecting is best-effort: if Discord is not running the call still
 /// succeeds so the app keeps working.
 ///
-/// This is hardened against rapid toggling: a single mutex guards the whole
-/// reconcile, and every call to the (panic-prone) IPC crate is wrapped in
-/// `catch_unwind` so a broken pipe degrades to "RPC off" instead of crashing
-/// the app. Any failure drops the client so the next enable reconnects clean.
+/// This is hardened against rapid toggling: the command only records the
+/// latest requested state, then a single background worker reconciles Discord
+/// IPC. Every call to the (panic-prone) IPC crate is wrapped in `catch_unwind`
+/// so a broken pipe degrades to "RPC off" instead of crashing the app.
 #[tauri::command]
 fn set_discord_rpc(
     enabled: bool,
     canvas_name: Option<String>,
     rpc: tauri::State<'_, DiscordRpc>,
 ) -> Result<(), String> {
-    let mut inner = match rpc.inner.lock() {
-        Ok(guard) => guard,
-        // A previous call panicked while holding the lock. Recover the state
-        // and carry on rather than propagating the poison (and crashing).
-        Err(poisoned) => poisoned.into_inner(),
+    let should_spawn = {
+        let mut inner = lock_discord_rpc(&rpc.inner);
+        inner.desired = enabled;
+        inner.canvas_name = canvas_name;
+
+        if inner.reconciling {
+            inner.dirty = true;
+            false
+        } else {
+            inner.reconciling = true;
+            inner.dirty = false;
+            true
+        }
     };
 
-    inner.desired = enabled;
-    inner.canvas_name = canvas_name;
+    if should_spawn {
+        let inner = Arc::clone(&rpc.inner);
+        let started_at = rpc.started_at;
+        std::thread::spawn(move || reconcile_discord_rpc_worker(inner, started_at));
+    }
 
+    Ok(())
+}
+
+fn reconcile_discord_rpc_worker(inner: Arc<Mutex<DiscordRpcInner>>, started_at: i64) {
+    loop {
+        let (enabled, canvas_name, client) = {
+            let mut state = lock_discord_rpc(&inner);
+            state.dirty = false;
+            (state.desired, state.canvas_name.clone(), state.client.take())
+        };
+
+        let client = reconcile_discord_rpc(client, enabled, canvas_name, started_at);
+
+        let mut state = lock_discord_rpc(&inner);
+        state.client = client;
+
+        if state.dirty {
+            continue;
+        }
+
+        state.reconciling = false;
+        break;
+    }
+}
+
+fn reconcile_discord_rpc(
+    client: Option<DiscordIpcClient>,
+    enabled: bool,
+    canvas_name: Option<String>,
+    started_at: i64,
+) -> Option<DiscordIpcClient> {
     if !enabled {
-        if let Some(mut client) = inner.client.take() {
+        if let Some(mut client) = client {
             let _ = catch_ipc(move || {
                 let _ = client.clear_activity();
                 let _ = client.close();
             });
         }
-        return Ok(());
+        return None;
     }
 
-    if inner.client.is_none() {
-        let connected = catch_ipc(|| {
-            let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
-            client.connect().map_err(|error| error.to_string())?;
-            Ok::<_, String>(client)
-        });
+    let mut client = match client {
+        Some(client) => client,
+        None => {
+            let connected = catch_ipc(|| {
+                let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
+                client.connect().map_err(|error| error.to_string())?;
+                Ok::<_, String>(client)
+            });
 
-        match connected {
-            // `Ok(Ok(client))`: connected cleanly.
-            Ok(Ok(client)) => inner.client = Some(client),
-            // Discord not running / unreachable, or the IPC layer panicked.
-            // Leave RPC off silently so the app keeps working.
-            Ok(Err(_)) | Err(_) => return Ok(()),
-        }
-    }
-
-    if let Some(mut client) = inner.client.take() {
-        let started_at = rpc.started_at;
-        let details = inner
-            .canvas_name
-            .as_deref()
-            .filter(|name| !name.trim().is_empty())
-            .map(|name| format!("Working on {name}"));
-        let result = catch_ipc(move || {
-            let mut activity =
-                Activity::new().timestamps(Timestamps::new().start(started_at));
-            if let Some(details) = details.as_deref() {
-                activity = activity.details(details);
+            match connected {
+                Ok(Ok(client)) => client,
+                // Discord not running / unreachable, or the IPC layer panicked.
+                // Leave RPC off silently so the app keeps working.
+                Ok(Err(_)) | Err(_) => return None,
             }
-            client.set_activity(activity).map_err(|error| error.to_string())?;
-            Ok::<_, String>(client)
-        });
-
-        match result {
-            Ok(Ok(client)) => inner.client = Some(client),
-            // set_activity failed or panicked: drop the client. The next
-            // enable will reconnect from scratch instead of reusing a pipe
-            // that's in a bad state.
-            Ok(Err(_)) | Err(_) => inner.client = None,
         }
-    }
+    };
 
-    Ok(())
+    let details = canvas_name
+        .as_deref()
+        .filter(|name| !name.trim().is_empty())
+        .map(|name| format!("Working on {name}"));
+    let result = catch_ipc(move || {
+        let mut activity = Activity::new().timestamps(Timestamps::new().start(started_at));
+        if let Some(details) = details.as_deref() {
+            activity = activity.details(details);
+        }
+        client.set_activity(activity).map_err(|error| error.to_string())?;
+        Ok::<_, String>(client)
+    });
+
+    match result {
+        Ok(Ok(client)) => Some(client),
+        // set_activity failed or panicked: drop the client. The next enable
+        // will reconnect from scratch instead of reusing a pipe in a bad state.
+        Ok(Err(_)) | Err(_) => None,
+    }
+}
+
+fn lock_discord_rpc(
+    inner: &Arc<Mutex<DiscordRpcInner>>,
+) -> std::sync::MutexGuard<'_, DiscordRpcInner> {
+    match inner.lock() {
+        Ok(guard) => guard,
+        // A previous call panicked while holding the lock. Recover the state
+        // and carry on rather than propagating the poison (and crashing).
+        Err(poisoned) => poisoned.into_inner(),
+    }
 }
 
 /// Run a closure that touches the Discord IPC crate, converting any panic

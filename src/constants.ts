@@ -16,31 +16,31 @@ export const MINIMAP_HEIGHT =
   CANVAS_ASPECT >= 1 ? Math.max(72, Math.round(MINIMAP_MAX_SIZE / CANVAS_ASPECT)) : MINIMAP_MAX_SIZE;
 
 export const ACCENT_PRESETS = [
-  { swatch: "#F98284", accent: "#955456", textCardAccent: "#C86B6E" },
-  { swatch: "#F28E42", accent: "#915A32", textCardAccent: "#C3753A" },
-  { swatch: "#C0AC2B", accent: "#766B25", textCardAccent: "#9C8C28" },
-  { swatch: "#73C163", accent: "#4B7644", textCardAccent: "#609C54" },
-  { swatch: "#31C4AE", accent: "#27786D", textCardAccent: "#2C9F8E" },
-  { swatch: "#30BCE1", accent: "#277489", textCardAccent: "#2B99B6" },
-  { swatch: "#7CABF8", accent: "#506A96", textCardAccent: "#678BC8" },
-  { swatch: "#B994F9", accent: "#725E96", textCardAccent: "#9679C9" },
+  { swatch: "#E85D61", accent: "#A74144", textCardAccent: "#A74144" },
+  { swatch: "#E39343", accent: "#AA7234", textCardAccent: "#AA7234" },
+  { swatch: "#DBC13D", accent: "#A99323", textCardAccent: "#A99323" },
+  { swatch: "#91C85B", accent: "#729D49", textCardAccent: "#729D49" },
+  { swatch: "#5DC7CA", accent: "#4C9A9C", textCardAccent: "#4C9A9C" },
+  { swatch: "#5F96E8", accent: "#476FA8", textCardAccent: "#476FA8" },
+  { swatch: "#836EF0", accent: "#6657B1", textCardAccent: "#6657B1" },
+  { swatch: "#DC68D8", accent: "#A753A4", textCardAccent: "#A753A4" },
 ];
 
 export const EXTENDED_ACCENT_PRESETS = [
-  { swatch: "#D96FE8", accent: "#84498D", textCardAccent: "#AF5DBC" },
-  { swatch: "#F7A36C", accent: "#946649", textCardAccent: "#C7855B" },
-  { swatch: "#A8CF45", accent: "#697E33", textCardAccent: "#89A73C" },
-  { swatch: "#53D6A2", accent: "#3A8267", textCardAccent: "#47AD85" },
-  { swatch: "#46C8D7", accent: "#337A84", textCardAccent: "#3DA2AE" },
-  { swatch: "#56AFFF", accent: "#3B6C9A", textCardAccent: "#498ECE" },
-  { swatch: "#B59AF7", accent: "#706195", textCardAccent: "#937EC7" },
-  { swatch: "#98A1B3", accent: "#606570", textCardAccent: "#7D8492" },
+  { swatch: "#E97146", accent: "#AD5837", textCardAccent: "#AD5837" },
+  { swatch: "#51D88B", accent: "#41A76E", textCardAccent: "#41A76E" },
+  { swatch: "#5684E0", accent: "#4165A7", textCardAccent: "#4165A7" },
+  { swatch: "#A85CEB", accent: "#8648BC", textCardAccent: "#8648BC" },
+  { swatch: "#DF6CA6", accent: "#A94F78", textCardAccent: "#A94F78" },
+  { swatch: "#A0A0A0", accent: "#7B7B7B", textCardAccent: "#7B7B7B" },
+  { swatch: "#555555", accent: "#313131", textCardAccent: "#313131" },
+  { swatch: "#B6754A", accent: "#875839", textCardAccent: "#875839" },
 ];
 
 export const ALL_ACCENT_PRESETS = [...ACCENT_PRESETS, ...EXTENDED_ACCENT_PRESETS];
 
 export const DEFAULT_CONTAINER_ACCENT = ACCENT_PRESETS[0].accent;
-export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[0].textCardAccent;
+export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[4].textCardAccent;
 
 export const getTextCardAccent = (accent: string) =>
   ALL_ACCENT_PRESETS.find((preset) => preset.accent === accent || preset.textCardAccent === accent)

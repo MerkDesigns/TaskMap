@@ -348,6 +348,12 @@ const DEFAULT_CANVAS: TaskCanvas = {
   zoom: 1,
 };
 const CANVAS_MANAGER_ANIMATION_MS = 160;
+
+const isEditableKeyboardTarget = (target: HTMLElement | null) =>
+  target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+
+const isKeyboardFocusableControl = (target: HTMLElement | null) =>
+  Boolean(target?.closest("button, [role='button'], a, select, [tabindex]"));
 const CONTAINER_HEADER_HEIGHT = 48;
 const CONTAINER_SEARCH_HEIGHT = 42;
 const CONTAINER_TEXT_CARD_PADDING = 17;
@@ -366,7 +372,6 @@ function App() {
   const worldRef = useRef<HTMLDivElement>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
-  const discordRpcCooldownTimeoutRef = useRef<number | null>(null);
   const pendingUpdateRef = useRef<Update | null>(null);
   const autoUpdateCheckRef = useRef(false);
   const textCardDropPreviewRef = useRef<{ containerId: string; index: number } | null>(null);
@@ -417,7 +422,6 @@ function App() {
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
-  const [discordRpcToggleDisabled, setDiscordRpcToggleDisabled] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(undefined);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1024,9 +1028,6 @@ function App() {
       }
       if (historyTimeoutRef.current) {
         window.clearTimeout(historyTimeoutRef.current);
-      }
-      if (discordRpcCooldownTimeoutRef.current) {
-        window.clearTimeout(discordRpcCooldownTimeoutRef.current);
       }
     };
   }, []);
@@ -1735,8 +1736,7 @@ function App() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const isEditingText =
-        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      const isEditingText = isEditableKeyboardTarget(target);
 
       if (event.key === "Tab" && !isEditingText && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
@@ -1751,6 +1751,34 @@ function App() {
         closeExtensionsPanel();
         setCanvasManagerOpen(true);
         setCanvasManagerClosing(false);
+        return;
+      }
+
+      if (
+        !isEditingText &&
+        (event.key === "Enter" || event.key === " " || event.key === "Spacebar") &&
+        isKeyboardFocusableControl(target)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearFocusedElement();
+        return;
+      }
+
+      if (
+        !isEditingText &&
+        event.key === "Escape" &&
+        !settingsOpen &&
+        !clearModalOpen &&
+        !updateModalOpen
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearFocusedElement();
+        closeContextMenus();
+        closeCanvasManager();
+        closeExtensionsPanel();
+        setRenamingId(null);
         return;
       }
 
@@ -1780,13 +1808,16 @@ function App() {
   }, [
     canvasManagerClosing,
     canvasManagerOpen,
+    clearModalOpen,
     closeCanvasManager,
     closeExtensionsPanel,
     containersById,
     imagesById,
     selectedIds,
+    settingsOpen,
     textBlocksById,
     textCardsById,
+    updateModalOpen,
   ]);
 
   const getLooseTextCardSelectionBounds = (card: TextCardElement) => {
@@ -2618,6 +2649,11 @@ function App() {
     }
 
     const target = event.target as HTMLElement | null;
+    const focusedControl = target?.closest("button, [role='button'], a, select, [tabindex]");
+    if (focusedControl instanceof HTMLElement && !isEditableKeyboardTarget(focusedControl)) {
+      requestAnimationFrame(() => focusedControl.blur());
+    }
+
     if (renamingId && !target?.closest("[data-container-rename-input]")) {
       saveRename(renamingId);
     }
@@ -5009,21 +5045,7 @@ function App() {
   };
 
   const updateDiscordRpcEnabled = (enabled: boolean) => {
-    if (discordRpcToggleDisabled) {
-      return;
-    }
-
     setDiscordRpcEnabled(enabled);
-    setDiscordRpcToggleDisabled(true);
-
-    if (discordRpcCooldownTimeoutRef.current) {
-      window.clearTimeout(discordRpcCooldownTimeoutRef.current);
-    }
-
-    discordRpcCooldownTimeoutRef.current = window.setTimeout(() => {
-      setDiscordRpcToggleDisabled(false);
-      discordRpcCooldownTimeoutRef.current = null;
-    }, 3000);
   };
 
   const stageWidth = stageRef.current?.clientWidth ?? window.innerWidth;
@@ -5673,7 +5695,6 @@ function App() {
               onExportData={exportData}
               onImportData={importData}
               discordRpcEnabled={discordRpcEnabled}
-              discordRpcToggleDisabled={discordRpcToggleDisabled}
               onDiscordRpcEnabledChange={updateDiscordRpcEnabled}
               availableUpdate={availableUpdate}
               appVersion={appVersion}

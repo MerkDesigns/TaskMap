@@ -146,7 +146,7 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-white">More colors</span>
-              <span className="block text-xs leading-5 text-white/42">Unlock 8 extra accents</span>
+              <span className="block text-xs leading-5 text-white/42">Unlock 7 extra accents</span>
             </span>
             <TargetTags targets={["container", "textblock", "textcard"]} />
           </button>

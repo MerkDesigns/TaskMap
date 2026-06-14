@@ -172,9 +172,9 @@ export function ContainerNode({
                   title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
                 >
                   {extensionButtonsVisible ? (
-                    <IconChevronLeft size={18} stroke={2} />
-                  ) : (
                     <IconChevronRight size={18} stroke={2} />
+                  ) : (
+                    <IconChevronLeft size={18} stroke={2} />
                   )}
                 </button>
               )}

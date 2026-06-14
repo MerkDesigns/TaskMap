@@ -86,12 +86,12 @@ export function ContainerContextMenu({
         <span>Edit Container</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 pb-2 pt-1.5">
+      <div className="px-1 pb-2 pt-1.5">
         <div className="grid grid-cols-8 gap-1.5">
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
               title="Container accent color"
@@ -368,12 +368,12 @@ export function TextBlockContextMenu({
         <span>Edit Text</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 pb-2 pt-1.5">
+      <div className="px-1 pb-2 pt-1.5">
         <div className="grid grid-cols-8 gap-1.5">
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
               title="Text block color"
@@ -536,12 +536,12 @@ export function TextCardContextMenu({
           <span>Edit Text</span>
         </button>
         <div className={MENU_DIVIDER_CLASS} />
-        <div className="px-2 pb-2 pt-1.5">
+        <div className="px-1 pb-2 pt-1.5">
           <div className="grid grid-cols-8 gap-1.5">
             {presets.map((preset) => (
               <button
                 key={preset.textCardAccent}
-                className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+                className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
                 style={{ backgroundColor: preset.swatch }}
                 onClick={() => onUpdateAccent(card.id, preset.textCardAccent)}
                 title="Text card color"
@@ -682,12 +682,12 @@ export function ImageContextMenu({
         <span>Replace image</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 pb-2 pt-1.5">
+      <div className="px-1 pb-2 pt-1.5">
         <div className="grid grid-cols-8 gap-1.5">
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative h-5 rounded-md transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(image.id, preset.accent)}
               title="Image frame color"

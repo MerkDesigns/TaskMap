@@ -1,6 +1,6 @@
 [package]
 name = "taskmap"
-version = "0.1.6"
+version = "0.2.0"
 description = "TaskMap desktop prototype"
 authors = ["TaskMap"]
 edition = "2021"
