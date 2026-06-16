@@ -23,8 +23,10 @@ type CanvasManagerProps = {
   canvases: TaskCanvas[];
   activeCanvasId: string;
   closing: boolean;
+  minimalView: boolean;
   viewportWidth: number;
   viewportHeight: number;
+  onMinimalViewChange: (minimalView: boolean) => void;
   onCreateCanvas: (draft: CanvasDraft) => void;
   onSelectCanvas: (id: string) => void;
   onUpdateCanvas: (id: string, updates: CanvasDraft) => void;
@@ -78,8 +80,10 @@ export function CanvasManager({
   canvases,
   activeCanvasId,
   closing,
+  minimalView,
   viewportWidth,
   viewportHeight,
+  onMinimalViewChange,
   onCreateCanvas,
   onSelectCanvas,
   onUpdateCanvas,
@@ -97,7 +101,6 @@ export function CanvasManager({
   const suppressClickRef = useRef(false);
   const [modalMode, setModalMode] = useState<"create" | null>(null);
   const [createMenuClosing, setCreateMenuClosing] = useState(false);
-  const [minimalView, setMinimalView] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -555,7 +558,7 @@ export function CanvasManager({
 
   return (
     <div
-      className={`fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-md ${
+      className={`frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
         closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
       }`}
       onPointerDownCapture={(event) => {
@@ -580,7 +583,7 @@ export function CanvasManager({
             className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/[0.10] hover:text-white ${
               minimalView ? "bg-white/[0.12] text-white" : "text-white/72"
             }`}
-            onClick={() => setMinimalView((current) => !current)}
+            onClick={() => onMinimalViewChange(!minimalView)}
             title={minimalView ? "Show previews" : "Minimal view"}
           >
             {minimalView ? (
@@ -963,7 +966,7 @@ export function CanvasManager({
         createPortal(
         <div
           data-new-canvas-menu
-          className={`context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-md ${
+          className={`frosted-glass context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
             createMenuClosing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
           }`}
           onPointerDown={(event) => event.stopPropagation()}

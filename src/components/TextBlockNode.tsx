@@ -395,10 +395,19 @@ export function TextBlockNode({
           }`}
           onWheel={handleTextBlockWheel}
           onPointerDown={(event) => {
-            if (event.button !== 0 || multiSelected) {
+            if (event.button !== 0) {
               return;
             }
 
+            event.stopPropagation();
+            if (multiSelected) {
+              onStartMove(event, element);
+              return;
+            }
+
+            onSelect(element);
+          }}
+          onDoubleClick={(event) => {
             event.stopPropagation();
             const displayOffset = getDisplayedTextOffset(event.currentTarget, event.clientX, event.clientY);
             const caretPosition = rawIndexFromDisplayedOffset(element.text, displayOffset ?? element.text.length);
@@ -476,7 +485,8 @@ export function TextBlockNode({
           ) : (
             <div
               ref={contentRef}
-              className="hidden-scrollbar h-full overflow-auto whitespace-pre-wrap break-words px-4 py-3 text-[16px] leading-6 text-white/92"
+              data-text-block-content
+              className="hidden-scrollbar h-full select-text overflow-auto whitespace-pre-wrap break-words px-4 py-3 text-[16px] leading-6 text-white/92"
             >
               {renderFormattedText(element.text)}
             </div>

@@ -102,7 +102,7 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
     <>
       <div
         ref={panelRef}
-        className={`fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-md ${
+        className={`frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
           closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
         }`}
       >
@@ -135,7 +135,7 @@ export function ExtensionsPanel({ closing, onDropExtension }: ExtensionsPanelPro
               <span className="block text-sm font-semibold text-white">Lock</span>
               <span className="block text-xs leading-5 text-white/42">Lock move, resize &amp; deletion</span>
             </span>
-            <TargetTags targets={["container", "textblock", "image"]} />
+            <TargetTags targets={["container", "textblock", "textcard", "image"]} />
           </button>
           <button
             className="relative flex w-full touch-none select-none items-center gap-2.5 rounded-lg border border-white/[0.10] bg-[#15161a] p-2.5 pr-14 text-left transition-colors hover:bg-[#1d1e24]"

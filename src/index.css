@@ -95,6 +95,12 @@ body {
   display: none;
 }
 
+.frosted-glass {
+}
+
+.frosted-glass-toolbar {
+}
+
 .context-menu-panel {
   transform-origin: top left;
 }

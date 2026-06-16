@@ -39,8 +39,8 @@ export const EXTENDED_ACCENT_PRESETS = [
 
 export const ALL_ACCENT_PRESETS = [...ACCENT_PRESETS, ...EXTENDED_ACCENT_PRESETS];
 
-export const DEFAULT_CONTAINER_ACCENT = ACCENT_PRESETS[0].accent;
 export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[4].textCardAccent;
+export const DEFAULT_CONTAINER_ACCENT = DEFAULT_TEXT_CARD_ACCENT;
 
 export const getTextCardAccent = (accent: string) =>
   ALL_ACCENT_PRESETS.find((preset) => preset.accent === accent || preset.textCardAccent === accent)

@@ -34,6 +34,7 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   ALIGN_SNAP_DISTANCE,
+  ALL_ACCENT_PRESETS,
   DEFAULT_CONTAINER_ACCENT,
   DEFAULT_TEXT_CARD_ACCENT,
   MIN_HEIGHT,
@@ -99,6 +100,7 @@ type LegacyAppData = Partial<AppData> & {
 
 type UpdateCheckSource = "startup" | "manual";
 type ExtensionId = "privacy" | "lock" | "colors" | "search" | "sorting";
+type ExtensionTargetType = "container" | "text-block" | "text-card" | "image";
 
 const EXTENSION_DROP_ICONS: Record<ExtensionId, typeof IconShieldLock> = {
   privacy: IconShieldLock,
@@ -106,6 +108,14 @@ const EXTENSION_DROP_ICONS: Record<ExtensionId, typeof IconShieldLock> = {
   colors: IconPalette,
   search: IconSearch,
   sorting: IconSortAZ,
+};
+
+const EXTENSION_COMPATIBLE_TARGETS: Record<ExtensionId, ReadonlySet<ExtensionTargetType>> = {
+  privacy: new Set<ExtensionTargetType>(["container", "text-block"]),
+  lock: new Set<ExtensionTargetType>(["container", "text-block", "text-card", "image"]),
+  colors: new Set<ExtensionTargetType>(["container", "text-block", "text-card", "image"]),
+  search: new Set<ExtensionTargetType>(["container"]),
+  sorting: new Set<ExtensionTargetType>(["container"]),
 };
 
 function ExtensionDropEffect({
@@ -439,6 +449,7 @@ function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
+  const [canvasManagerMinimalView, setCanvasManagerMinimalView] = useState(false);
   const [extensionsOpen, setExtensionsOpen] = useState(false);
   const [extensionsClosing, setExtensionsClosing] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -1509,31 +1520,52 @@ function App() {
     return nextCards;
   };
 
+  const moveLayerItems = <T extends { id: string }>(
+    current: T[],
+    ids: string[],
+    direction: "back" | "backward" | "forward" | "front",
+  ) => {
+    const targetIds = new Set(ids);
+    const targets = current.filter((item) => targetIds.has(item.id));
+    if (targets.length === 0) {
+      return current;
+    }
+
+    const withoutTargets = current.filter((item) => !targetIds.has(item.id));
+    const firstIndex = current.findIndex((item) => targetIds.has(item.id));
+    let lastIndex = -1;
+    for (let index = current.length - 1; index >= 0; index -= 1) {
+      if (targetIds.has(current[index].id)) {
+        lastIndex = index;
+        break;
+      }
+    }
+    const nonTargetsBeforeFirst = current.slice(0, firstIndex).filter((item) => !targetIds.has(item.id)).length;
+    const nonTargetsThroughLast = current.slice(0, lastIndex + 1).filter((item) => !targetIds.has(item.id)).length;
+    const nextIndex =
+      direction === "back"
+        ? 0
+        : direction === "front"
+          ? withoutTargets.length
+          : direction === "backward"
+            ? Math.max(0, nonTargetsBeforeFirst - 1)
+            : Math.min(withoutTargets.length, nonTargetsThroughLast + 1);
+
+    const nextItems = [...withoutTargets];
+    nextItems.splice(nextIndex, 0, ...targets);
+    return nextItems;
+  };
+
+  const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
+    (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
+
   const moveContainerLayer = (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
   ) => {
-    setElements((current) => {
-      const index = current.findIndex((element) => element.id === id);
-      const target = current[index];
-      if (!target) {
-        return current;
-      }
-
-      const withoutTarget = current.filter((element) => element.id !== id);
-      const nextIndex =
-        direction === "back"
-          ? 0
-          : direction === "front"
-            ? withoutTarget.length
-            : direction === "backward"
-              ? Math.max(0, index - 1)
-              : Math.min(withoutTarget.length, index + 1);
-
-      const nextElements = [...withoutTarget];
-      nextElements.splice(nextIndex, 0, target);
-      return nextElements;
-    });
+    setElements((current) =>
+      moveLayerItems(current, getLayerActionIds(id, (actionId) => containersById.has(actionId)), direction),
+    );
     setRenamingId(null);
   };
 
@@ -1541,54 +1573,18 @@ function App() {
     id: string,
     direction: "back" | "backward" | "forward" | "front",
   ) => {
-    setTextBlocks((current) => {
-      const index = current.findIndex((element) => element.id === id);
-      const target = current[index];
-      if (!target) {
-        return current;
-      }
-
-      const withoutTarget = current.filter((element) => element.id !== id);
-      const nextIndex =
-        direction === "back"
-          ? 0
-          : direction === "front"
-            ? withoutTarget.length
-            : direction === "backward"
-              ? Math.max(0, index - 1)
-              : Math.min(withoutTarget.length, index + 1);
-
-      const nextElements = [...withoutTarget];
-      nextElements.splice(nextIndex, 0, target);
-      return nextElements;
-    });
+    setTextBlocks((current) =>
+      moveLayerItems(current, getLayerActionIds(id, (actionId) => textBlocksById.has(actionId)), direction),
+    );
   };
 
   const moveImageLayer = (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
   ) => {
-    setImages((current) => {
-      const index = current.findIndex((image) => image.id === id);
-      const target = current[index];
-      if (!target) {
-        return current;
-      }
-
-      const withoutTarget = current.filter((image) => image.id !== id);
-      const nextIndex =
-        direction === "back"
-          ? 0
-          : direction === "front"
-            ? withoutTarget.length
-            : direction === "backward"
-              ? Math.max(0, index - 1)
-              : Math.min(withoutTarget.length, index + 1);
-
-      const nextImages = [...withoutTarget];
-      nextImages.splice(nextIndex, 0, target);
-      return nextImages;
-    });
+    setImages((current) =>
+      moveLayerItems(current, getLayerActionIds(id, (actionId) => imagesById.has(actionId)), direction),
+    );
   };
 
   const selectCanvasElement = (element: ContainerElement | TextBlockElement) => {
@@ -1658,12 +1654,42 @@ function App() {
       return;
     }
 
+    const idsToRemove = new Set(ids);
+    const containedTextCardIds = textCards
+      .filter((card) => card.containerId && idsToRemove.has(card.containerId))
+      .map((card) => card.id);
+    const containedImageIds = images
+      .filter((image) => image.containerId && idsToRemove.has(image.containerId))
+      .map((image) => image.id);
+
     setDeletingIds((current) => Array.from(new Set([...current, ...ids])));
-    setSelectedIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
+    setDeletingTextCardIds((current) => Array.from(new Set([...current, ...containedTextCardIds])));
+    setDeletingImageIds((current) => Array.from(new Set([...current, ...containedImageIds])));
+    setSelectedIds((current) =>
+      current.filter(
+        (selectedId) =>
+          !ids.includes(selectedId) &&
+          !containedTextCardIds.includes(selectedId) &&
+          !containedImageIds.includes(selectedId),
+      ),
+    );
+    setEditingTextCardId((current) => (current && containedTextCardIds.includes(current) ? null : current));
+    setTextCardMenu((current) => (current && containedTextCardIds.includes(current.id) ? null : current));
+    setImageMenu((current) => (current && containedImageIds.includes(current.id) ? null : current));
+    setLoadingImageIds((current) => current.filter((loadingId) => !containedImageIds.includes(loadingId)));
     window.setTimeout(() => {
       setElements((current) => current.filter((element) => !ids.includes(element.id)));
+      setTextCards((current) =>
+        normalizeTextCardOrders(current.filter((card) => !containedTextCardIds.includes(card.id))),
+      );
+      setImages((current) => current.filter((image) => !containedImageIds.includes(image.id)));
       setDeletingIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
       setEnteringIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
+      setDeletingTextCardIds((current) => current.filter((deletingId) => !containedTextCardIds.includes(deletingId)));
+      setEnteringTextCardIds((current) => current.filter((enteringId) => !containedTextCardIds.includes(enteringId)));
+      setPulsingTextCardIds((current) => current.filter((pulsingId) => !containedTextCardIds.includes(pulsingId)));
+      setDeletingImageIds((current) => current.filter((deletingId) => !containedImageIds.includes(deletingId)));
+      setEnteringImageIds((current) => current.filter((enteringId) => !containedImageIds.includes(enteringId)));
     }, 160);
   };
 
@@ -1909,6 +1935,16 @@ function App() {
           height: Math.abs(dragState.currentY - dragState.startY),
         }
       : null;
+  const containerSelectionBounds =
+    dragState?.type === "container-select"
+      ? {
+          containerId: dragState.containerId,
+          left: Math.min(dragState.startX, dragState.currentX),
+          top: Math.min(dragState.startY, dragState.currentY),
+          width: Math.abs(dragState.currentX - dragState.startX),
+          height: Math.abs(dragState.currentY - dragState.startY),
+        }
+      : null;
   const selectionPreviewIds = selectionBounds
     ? [
         ...elements
@@ -1947,9 +1983,27 @@ function App() {
           )
           .map((image) => image.id),
       ]
+    : containerSelectionBounds
+      ? (() => {
+          const container = containersById.get(containerSelectionBounds.containerId);
+          if (!container) {
+            return [];
+          }
+
+          return getContainerVisibleTextCards(container)
+            .filter((card) => {
+              const bounds = getTextCardRippleBounds(card);
+              return bounds ? rectsOverlap(containerSelectionBounds, bounds) : false;
+            })
+            .map((card) => card.id);
+        })()
     : [];
   const outlinedIds =
-    dragState?.type === "select" ? selectionPreviewIds : selectedIds.length > 1 ? selectedIds : [];
+    dragState?.type === "select" || dragState?.type === "container-select"
+      ? selectionPreviewIds
+      : selectedIds.length > 1
+        ? selectedIds
+        : [];
 
   const findSnapOffset = (
     movingGuides: Array<{ value: number; kind: "start" | "end" }>,
@@ -2507,11 +2561,17 @@ function App() {
   };
 
   const copyImage = (image: ImageElement) => {
+    if (copyContextSelection(image.id)) {
+      return;
+    }
+
     setCopiedItem({
       type: "image",
       item: {
         imageId: image.imageId,
         format: image.format,
+        x: image.x,
+        y: image.y,
         width: image.width,
         height: image.height,
         naturalWidth: image.naturalWidth,
@@ -2649,6 +2709,10 @@ function App() {
     }
 
     const target = event.target as HTMLElement | null;
+    if (!target?.closest("[data-text-block-content]") && !isEditableKeyboardTarget(target)) {
+      window.getSelection()?.removeAllRanges();
+    }
+
     const focusedControl = target?.closest("button, [role='button'], a, select, [tabindex]");
     if (focusedControl instanceof HTMLElement && !isEditableKeyboardTarget(focusedControl)) {
       requestAnimationFrame(() => focusedControl.blur());
@@ -2713,12 +2777,42 @@ function App() {
     });
   };
 
+  const startContainerContentSelection = (event: PointerEvent<HTMLElement>, container: ContainerElement) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenus();
+    if (editingTextCardId) {
+      saveTextCardEdit(editingTextCardId);
+    }
+    if (editingTextBlockId) {
+      saveTextBlockEdit(editingTextBlockId);
+    }
+    setRenamingId(null);
+    const point = canvasPointFromEvent(event);
+    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
+      event.pointerId,
+    );
+    setDragState({
+      type: "container-select",
+      pointerId: event.pointerId,
+      containerId: container.id,
+      startX: point.x,
+      startY: point.y,
+      currentX: point.x,
+      currentY: point.y,
+    });
+  };
+
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
     }
 
-    if (dragState.type === "select") {
+    if (dragState.type === "select" || dragState.type === "container-select") {
       setSnapGuides([]);
       const point = canvasPointFromEvent(event);
       setDragState({
@@ -3176,6 +3270,29 @@ function App() {
       );
     }
 
+    if (dragState.type === "container-select") {
+      const endPoint = canvasPointFromEvent(event);
+      const left = Math.min(dragState.startX, endPoint.x);
+      const top = Math.min(dragState.startY, endPoint.y);
+      const right = Math.max(dragState.startX, endPoint.x);
+      const bottom = Math.max(dragState.startY, endPoint.y);
+      const tinySelection = right - left < 4 && bottom - top < 4;
+      const container = containersById.get(dragState.containerId);
+
+      setSelectedIds(
+        tinySelection || !container
+          ? []
+          : getContainerVisibleTextCards(container)
+              .filter((card) => {
+                const bounds = getTextCardRippleBounds(card);
+                return bounds
+                  ? rectsOverlap({ left, top, width: right - left, height: bottom - top }, bounds)
+                  : false;
+              })
+              .map((card) => card.id),
+      );
+    }
+
     setDragState(null);
     updateTextCardDropPreview(null);
     setTextCardDetachedContainerId(null);
@@ -3206,6 +3323,7 @@ function App() {
       (
         containersById.get(id) ??
         textBlocksById.get(id) ??
+        textCardsById.get(id) ??
         imagesById.get(id)
       )?.extensions?.lock?.enabled,
     );
@@ -3313,6 +3431,13 @@ function App() {
 
   const startTextCardMove = (event: PointerEvent<HTMLElement>, card: TextCardElement) => {
     if (event.button !== 0 || editingTextCardId === card.id) {
+      return;
+    }
+
+    if (isElementLocked(card.id)) {
+      event.stopPropagation();
+      setSelectedIds([card.id]);
+      closeContextMenus();
       return;
     }
 
@@ -3529,7 +3654,9 @@ function App() {
     event.stopPropagation();
     closeContextMenus();
     setRenamingId(null);
-    setSelectedIds([image.id]);
+    if (!selectedIds.includes(image.id)) {
+      setSelectedIds([image.id]);
+    }
     setClosingImageMenu(null);
     setImageMenu({
       id: image.id,
@@ -3544,6 +3671,9 @@ function App() {
     closeContextMenus();
     setRenamingId(null);
     setEditingTextCardId(null);
+    if (!selectedIds.includes(card.id)) {
+      setSelectedIds([card.id]);
+    }
     setClosingTextCardMenu(null);
     setTextCardMenu({
       id: card.id,
@@ -3637,7 +3767,9 @@ function App() {
   const openTextBlockMenu = (event: React.MouseEvent<HTMLButtonElement>, element: TextBlockElement) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    selectCanvasElement(element);
+    if (!selectedIds.includes(element.id)) {
+      selectCanvasElement(element);
+    }
     setRenamingId(null);
     setRenameDraft(element.name);
     setEditingTextCardId(null);
@@ -3698,7 +3830,9 @@ function App() {
   const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    selectCanvasElement(element);
+    if (!selectedIds.includes(element.id)) {
+      selectCanvasElement(element);
+    }
     setRenamingId(null);
     setRenameDraft(element.name);
 
@@ -3749,11 +3883,94 @@ function App() {
     setRenamingId(null);
   };
 
+  const getTextCardCopyPosition = (card: TextCardElement) => {
+    const position = getTextCardRenderPosition(card) ?? getTextCardStackPosition(card);
+    return { x: position.x, y: position.y };
+  };
+
+  const copyContextSelection = (id: string) => {
+    if (!isMultiContextAction(id)) {
+      return false;
+    }
+
+    const actionIds = getContextActionIds(id);
+    const actionSet = new Set(actionIds);
+    const selectedContainerIds = new Set(actionIds.filter((actionId) => containersById.has(actionId)));
+
+    setCopiedItem({
+      type: "selection",
+      item: {
+        containers: elements
+          .filter((element) => actionSet.has(element.id))
+          .map((element) => ({
+            name: element.name,
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            accent: element.accent,
+            textCards: getOrderedContainerTextCards(element.id).map((card) => ({
+              text: card.text,
+              accent: card.accent,
+              link: card.link,
+              order: card.order,
+            })),
+          })),
+        textCards: textCards
+          .filter((card) => actionSet.has(card.id) && (!card.containerId || !selectedContainerIds.has(card.containerId)))
+          .map((card) => {
+            const position = getTextCardCopyPosition(card);
+            return {
+              text: card.text,
+              accent: card.accent,
+              link: card.link,
+              x: position.x,
+              y: position.y,
+              order: card.order,
+            };
+          }),
+        textBlocks: textBlocks
+          .filter((element) => actionSet.has(element.id))
+          .map((element) => ({
+            name: element.name,
+            text: element.text,
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            accent: element.accent,
+          })),
+        images: images
+          .filter((image) => actionSet.has(image.id) && (!image.containerId || !selectedContainerIds.has(image.containerId)))
+          .map((image) => ({
+            imageId: image.imageId,
+            format: image.format,
+            x: image.x,
+            y: image.y,
+            width: image.width,
+            height: image.height,
+            naturalWidth: image.naturalWidth,
+            naturalHeight: image.naturalHeight,
+            accent: image.accent,
+            background: image.background,
+          })),
+      },
+    });
+    closeContextMenus();
+    return true;
+  };
+
   const copyContainer = (element: ContainerElement) => {
+    if (copyContextSelection(element.id)) {
+      return;
+    }
+
     setCopiedItem({
       type: "container",
       item: {
         name: element.name,
+        x: element.x,
+        y: element.y,
         width: element.width,
         height: element.height,
         accent: element.accent,
@@ -3769,23 +3986,36 @@ function App() {
   };
 
   const copyTextCard = (card: TextCardElement) => {
+    if (copyContextSelection(card.id)) {
+      return;
+    }
+
+    const position = getTextCardCopyPosition(card);
     setCopiedItem({
       type: "text-card",
       item: {
         text: card.text,
         accent: card.accent,
         link: card.link,
+        x: position.x,
+        y: position.y,
       },
     });
     closeContextMenus();
   };
 
   const copyTextBlock = (element: TextBlockElement) => {
+    if (copyContextSelection(element.id)) {
+      return;
+    }
+
     setCopiedItem({
       type: "text-block",
       item: {
         name: element.name,
         text: element.text,
+        x: element.x,
+        y: element.y,
         width: element.width,
         height: element.height,
         accent: element.accent,
@@ -3890,6 +4120,91 @@ function App() {
       setImages((current) => [...current, duplicate]);
       animateImageIn(id);
       setSelectedIds([id]);
+    } else if (copiedItem.type === "selection") {
+      const copiedSelection = copiedItem.item;
+      const positionedItems = [
+        ...copiedSelection.containers,
+        ...copiedSelection.textCards,
+        ...copiedSelection.textBlocks,
+        ...copiedSelection.images,
+      ].filter((item) => item.x !== undefined && item.y !== undefined);
+      if (positionedItems.length === 0) {
+        return;
+      }
+      const originX = Math.min(...positionedItems.map((item) => item.x ?? 0));
+      const originY = Math.min(...positionedItems.map((item) => item.y ?? 0));
+      const offsetX = point.x - originX;
+      const offsetY = point.y - originY;
+      const nextSelectedIds: string[] = [];
+
+      const pastedContainers = copiedSelection.containers.map((container, index) => {
+        const id = `container-${Date.now()}-${index}`;
+        nextSelectedIds.push(id);
+        return {
+          ...container,
+          id,
+          name: `${container.name} copy`,
+          x: clamp((container.x ?? point.x) + offsetX, 0, canvasWidth - container.width),
+          y: clamp((container.y ?? point.y) + offsetY, 0, canvasHeight - container.height),
+        };
+      });
+      const pastedContainerCards = pastedContainers.flatMap((container, containerIndex) =>
+        copiedSelection.containers[containerIndex].textCards.map((card, cardIndex) => ({
+          id: `text-card-${Date.now()}-${containerIndex}-${cardIndex}`,
+          text: card.text,
+          x: container.x + CONTAINER_TEXT_CARD_PADDING,
+          y:
+            getContainerCardStackTop(container) +
+            cardIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+          accent: card.accent,
+          link: card.link,
+          containerId: container.id,
+          order: card.order ?? cardIndex,
+        })),
+      );
+      const pastedTextCards = copiedSelection.textCards.map((card, index) => {
+        const id = `text-card-${Date.now()}-selection-${index}`;
+        nextSelectedIds.push(id);
+        return {
+          text: card.text,
+          accent: card.accent,
+          link: card.link,
+          id,
+          x: clamp((card.x ?? point.x) + offsetX, 0, canvasWidth),
+          y: clamp((card.y ?? point.y) + offsetY, 0, canvasHeight),
+        };
+      });
+      const pastedTextBlocks = copiedSelection.textBlocks.map((block, index) => {
+        const id = `text-block-${Date.now()}-${index}`;
+        nextSelectedIds.push(id);
+        return {
+          ...block,
+          id,
+          name: `${block.name} copy`,
+          x: clamp((block.x ?? point.x) + offsetX, 0, canvasWidth - block.width),
+          y: clamp((block.y ?? point.y) + offsetY, 0, canvasHeight - block.height),
+        };
+      });
+      const pastedImages = copiedSelection.images.map((image, index) => {
+        const id = `image-${Date.now()}-${index}`;
+        nextSelectedIds.push(id);
+        return {
+          ...image,
+          id,
+          x: clamp((image.x ?? point.x) + offsetX, 0, canvasWidth - image.width),
+          y: clamp((image.y ?? point.y) + offsetY, 0, canvasHeight - image.height),
+        };
+      });
+
+      setElements((current) => [...current, ...pastedContainers]);
+      setTextCards((current) => [...current, ...pastedContainerCards, ...pastedTextCards]);
+      setTextBlocks((current) => [...current, ...pastedTextBlocks]);
+      setImages((current) => [...current, ...pastedImages]);
+      pastedContainers.forEach((container) => animateContainerIn(container.id));
+      [...pastedContainerCards, ...pastedTextCards].forEach((card) => animateTextCardIn(card.id));
+      pastedTextBlocks.forEach((block) => animateTextBlockIn(block.id));
+      pastedImages.forEach((image) => animateImageIn(image.id));
+      setSelectedIds(nextSelectedIds);
     }
 
     setCopiedItem(null);
@@ -3927,10 +4242,123 @@ function App() {
     );
   };
 
-  const installPrivacyExtension = (id: string) => {
+  const getContextActionIds = (id: string) =>
+    selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id];
+
+  const isMultiContextAction = (id: string) => selectedIds.length > 1 && selectedIds.includes(id);
+
+  const getSelectedExtensionState = (ids: string[]) => {
+    const hasExtension = (id: string, key: keyof ElementExtensions) =>
+      Boolean(
+        (
+          containersById.get(id) ??
+          textBlocksById.get(id) ??
+          textCardsById.get(id) ??
+          imagesById.get(id)
+        )?.extensions?.[key],
+      );
+
+    return {
+      privacy: ids.some((id) => hasExtension(id, "privacy")),
+      search: ids.some((id) => hasExtension(id, "search")),
+      sorting: ids.some((id) => hasExtension(id, "sorting")),
+      lock: ids.some((id) => hasExtension(id, "lock")),
+      colors: ids.some((id) => hasExtension(id, "colors")),
+    };
+  };
+
+  const getElementAccentForKind = (accent: string, kind: "text-card" | "other") => {
+    const preset = ALL_ACCENT_PRESETS.find(
+      (currentPreset) => currentPreset.accent === accent || currentPreset.textCardAccent === accent,
+    );
+    return kind === "text-card" ? preset?.textCardAccent ?? accent : preset?.accent ?? accent;
+  };
+
+  const updateContextAccent = (id: string, accent: string) => {
+    const actionIds = getContextActionIds(id);
+    const actionSet = new Set(actionIds);
+
     setElements((current) =>
       current.map((element) =>
-        element.id === id
+        actionSet.has(element.id) ? { ...element, accent: getElementAccentForKind(accent, "other") } : element,
+      ),
+    );
+    setTextBlocks((current) =>
+      current.map((element) =>
+        actionSet.has(element.id) ? { ...element, accent: getElementAccentForKind(accent, "other") } : element,
+      ),
+    );
+    setTextCards((current) =>
+      current.map((card) =>
+        actionSet.has(card.id) ? { ...card, accent: getElementAccentForKind(accent, "text-card") } : card,
+      ),
+    );
+    setImages((current) =>
+      current.map((image) =>
+        actionSet.has(image.id) ? { ...image, accent: getElementAccentForKind(accent, "other") } : image,
+      ),
+    );
+  };
+
+  const stripContextExtension = (id: string, key: keyof ElementExtensions) => {
+    const actionSet = new Set(getContextActionIds(id));
+    const strip = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
+      if (!actionSet.has(item.id) || !item.extensions?.[key]) {
+        return item;
+      }
+
+      const { [key]: _removed, ...extensions } = item.extensions;
+      return { ...item, extensions };
+    };
+
+    setElements((current) => current.map(strip));
+    setTextBlocks((current) => current.map(strip));
+    setTextCards((current) => current.map(strip));
+    setImages((current) => current.map(strip));
+    if (key === "search" || key === "sorting") {
+      setContainerScrollOffsets((current) => {
+        const next = { ...current };
+        actionSet.forEach((actionId) => {
+          next[actionId] = 0;
+        });
+        return next;
+      });
+    }
+    closeContextMenus();
+  };
+
+  const deleteContextSelection = (id: string) => {
+    const actionIds = getContextActionIds(id);
+    const selectedContainerIds = actionIds.filter((actionId) => containersById.has(actionId));
+    const selectedContainerIdSet = new Set(selectedContainerIds);
+
+    removeContainers(selectedContainerIds);
+    removeTextCards(
+      actionIds.filter((actionId) => {
+        const card = textCardsById.get(actionId);
+        return Boolean(card && (!card.containerId || !selectedContainerIdSet.has(card.containerId)));
+      }),
+    );
+    removeTextBlocks(actionIds.filter((actionId) => textBlocksById.has(actionId)));
+    removeImages(
+      actionIds.filter((actionId) => {
+        const image = imagesById.get(actionId);
+        return Boolean(image && (!image.containerId || !selectedContainerIdSet.has(image.containerId)));
+      }),
+    );
+    closeContextMenus();
+    setRenamingId(null);
+  };
+
+  const installPrivacyExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    setElements((current) =>
+      current.map((element) =>
+        targetIds.has(element.id)
           ? {
               ...element,
               extensions: {
@@ -3943,7 +4371,7 @@ function App() {
     );
     setTextBlocks((current) =>
       current.map((element) =>
-        element.id === id
+        targetIds.has(element.id)
           ? {
               ...element,
               extensions: {
@@ -3957,10 +4385,19 @@ function App() {
     closeContextMenus();
   };
 
-  const installSearchExtension = (id: string) => {
+  const installPrivacyExtension = (id: string) => {
+    installPrivacyExtensions([id]);
+  };
+
+  const installSearchExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
     setElements((current) =>
       current.map((element) =>
-        element.id === id
+        targetIds.has(element.id)
           ? {
               ...element,
               extensions: {
@@ -3974,10 +4411,19 @@ function App() {
     closeContextMenus();
   };
 
-  const installSortingExtension = (id: string) => {
+  const installSearchExtension = (id: string) => {
+    installSearchExtensions([id]);
+  };
+
+  const installSortingExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
     setElements((current) =>
       current.map((element) =>
-        element.id === id
+        targetIds.has(element.id)
           ? {
               ...element,
               extensions: {
@@ -3989,6 +4435,10 @@ function App() {
       ),
     );
     closeContextMenus();
+  };
+
+  const installSortingExtension = (id: string) => {
+    installSortingExtensions([id]);
   };
 
   const togglePrivacyExtension = (id: string) => {
@@ -4054,9 +4504,14 @@ function App() {
     closeContextMenus();
   };
 
-  const installLockExtension = (id: string) => {
+  const installLockExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
     const withLock = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
-      item.id === id
+      targetIds.has(item.id)
         ? {
             ...item,
             extensions: {
@@ -4067,8 +4522,13 @@ function App() {
         : item;
     setElements((current) => current.map(withLock));
     setTextBlocks((current) => current.map(withLock));
+    setTextCards((current) => current.map(withLock));
     setImages((current) => current.map(withLock));
     closeContextMenus();
+  };
+
+  const installLockExtension = (id: string) => {
+    installLockExtensions([id]);
   };
 
   const toggleLockExtension = (id: string) => {
@@ -4084,6 +4544,7 @@ function App() {
         : item;
     setElements((current) => current.map(toggle));
     setTextBlocks((current) => current.map(toggle));
+    setTextCards((current) => current.map(toggle));
     setImages((current) => current.map(toggle));
   };
 
@@ -4097,14 +4558,20 @@ function App() {
     };
     setElements((current) => current.map(stripLock));
     setTextBlocks((current) => current.map(stripLock));
+    setTextCards((current) => current.map(stripLock));
     setImages((current) => current.map(stripLock));
     closeContextMenus();
   };
 
-  const installColorsExtension = (id: string) => {
+  const installColorsExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
     setElements((current) =>
       current.map((element) =>
-        element.id === id
+        targetIds.has(element.id)
           ? {
               ...element,
               extensions: {
@@ -4117,7 +4584,7 @@ function App() {
     );
     setTextBlocks((current) =>
       current.map((element) =>
-        element.id === id
+        targetIds.has(element.id)
           ? {
               ...element,
               extensions: {
@@ -4130,7 +4597,7 @@ function App() {
     );
     setTextCards((current) =>
       current.map((card) =>
-        card.id === id
+        targetIds.has(card.id)
           ? {
               ...card,
               extensions: {
@@ -4143,7 +4610,7 @@ function App() {
     );
     setImages((current) =>
       current.map((image) =>
-        image.id === id
+        targetIds.has(image.id)
           ? {
               ...image,
               extensions: {
@@ -4155,6 +4622,10 @@ function App() {
       ),
     );
     closeContextMenus();
+  };
+
+  const installColorsExtension = (id: string) => {
+    installColorsExtensions([id]);
   };
 
   const removeColorsExtension = (id: string) => {
@@ -4329,6 +4800,119 @@ function App() {
     }, 620);
   };
 
+  const getExtensionTargetType = (id: string): ExtensionTargetType | null => {
+    if (containersById.has(id)) {
+      return "container";
+    }
+    if (textBlocksById.has(id)) {
+      return "text-block";
+    }
+    if (textCardsById.has(id)) {
+      return "text-card";
+    }
+    if (imagesById.has(id)) {
+      return "image";
+    }
+    return null;
+  };
+
+  const getExtensionRippleTarget = (id: string): ExtensionDropRipple["target"] | null => {
+    const targetType = getExtensionTargetType(id);
+    if (!targetType) {
+      return null;
+    }
+
+    return { type: targetType, id };
+  };
+
+  const getExtensionTargetBounds = (target: ExtensionDropRipple["target"]): ExtensionRippleBounds | null => {
+    if (target.type === "container") {
+      const element = containersById.get(target.id);
+      return element
+        ? { left: element.x, top: element.y, width: element.width, height: element.height }
+        : null;
+    }
+
+    if (target.type === "text-block") {
+      const element = textBlocksById.get(target.id);
+      return element
+        ? { left: element.x, top: element.y, width: element.width, height: element.height }
+        : null;
+    }
+
+    if (target.type === "image") {
+      const image = imagesById.get(target.id);
+      return image
+        ? { left: image.x, top: image.y, width: image.width, height: image.height }
+        : null;
+    }
+
+    const card = textCardsById.get(target.id);
+    return card ? getTextCardRippleBounds(card) : null;
+  };
+
+  const getExtensionDropTargetIds = (extensionId: ExtensionId, target: ExtensionDropRipple["target"]) => {
+    if (!selectedIds.includes(target.id) || selectedIds.length <= 1) {
+      return [target.id];
+    }
+
+    return selectedIds.filter((id) => {
+      const targetType = getExtensionTargetType(id);
+      return targetType ? EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType) : false;
+    });
+  };
+
+  const installDroppedExtension = (
+    extensionId: ExtensionId,
+    ids: string[],
+  ) => {
+    if (extensionId === "privacy") {
+      installPrivacyExtensions(ids);
+    } else if (extensionId === "lock") {
+      installLockExtensions(ids);
+    } else if (extensionId === "colors") {
+      installColorsExtensions(ids);
+    } else if (extensionId === "search") {
+      installSearchExtensions(ids);
+    } else {
+      installSortingExtensions(ids);
+    }
+  };
+
+  const applyDroppedExtension = (
+    extensionId: ExtensionId,
+    point: { x: number; y: number },
+    target: ExtensionDropRipple["target"],
+    bounds: ExtensionRippleBounds,
+  ) => {
+    const targetIds = getExtensionDropTargetIds(extensionId, target);
+    installDroppedExtension(extensionId, targetIds);
+    if (!selectedIds.includes(target.id)) {
+      setSelectedIds([target.id]);
+    }
+    targetIds.forEach((targetId) => {
+      const rippleTarget = targetId === target.id ? target : getExtensionRippleTarget(targetId);
+      if (!rippleTarget) {
+        return;
+      }
+
+      const rippleBounds = targetId === target.id ? bounds : getExtensionTargetBounds(rippleTarget);
+      if (!rippleBounds) {
+        return;
+      }
+
+      const ripplePoint =
+        targetId === target.id
+          ? point
+          : {
+              x: rippleBounds.left + rippleBounds.width / 2,
+              y: rippleBounds.top + rippleBounds.height / 2,
+            };
+
+      showExtensionDropRipple(extensionId, ripplePoint, rippleTarget, rippleBounds);
+    });
+  };
+
   const dropExtensionOnCanvas = (
     extensionId: ExtensionId,
     clientX: number,
@@ -4345,13 +4929,7 @@ function App() {
       );
 
       if (targetImage) {
-        if (extensionId === "lock") {
-          installLockExtension(targetImage.id);
-        } else {
-          installColorsExtension(targetImage.id);
-        }
-        setSelectedIds([targetImage.id]);
-        showExtensionDropRipple(
+        applyDroppedExtension(
           extensionId,
           point,
           { type: "image", id: targetImage.id },
@@ -4366,7 +4944,7 @@ function App() {
       }
     }
 
-    if (extensionId === "colors") {
+    if (extensionId === "colors" || extensionId === "lock") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
         return (
@@ -4378,11 +4956,9 @@ function App() {
       });
 
       if (targetTextCard) {
-        installColorsExtension(targetTextCard.id);
-        setSelectedIds([targetTextCard.id]);
         const bounds = getTextCardRippleBounds(targetTextCard);
         if (bounds) {
-          showExtensionDropRipple(extensionId, point, { type: "text-card", id: targetTextCard.id }, bounds);
+          applyDroppedExtension(extensionId, point, { type: "text-card", id: targetTextCard.id }, bounds);
         }
         return;
       }
@@ -4428,49 +5004,39 @@ function App() {
         )?.card;
 
       if (targetContainerCard) {
-        installColorsExtension(targetContainerCard.id);
-        setSelectedIds([targetContainerCard.id]);
         const bounds = getTextCardRippleBounds(targetContainerCard);
         if (bounds) {
-          showExtensionDropRipple(extensionId, point, { type: "text-card", id: targetContainerCard.id }, bounds);
+          applyDroppedExtension(extensionId, point, { type: "text-card", id: targetContainerCard.id }, bounds);
         }
         return;
       }
     }
 
     if (extensionId === "privacy" || extensionId === "colors" || extensionId === "lock") {
-    const targetTextBlock = [...textBlocks]
-      .reverse()
-      .find(
-        (element) =>
-          point.x >= element.x &&
-          point.x <= element.x + element.width &&
-          point.y >= element.y &&
-          point.y <= element.y + element.height,
-      );
+      const targetTextBlock = [...textBlocks]
+        .reverse()
+        .find(
+          (element) =>
+            point.x >= element.x &&
+            point.x <= element.x + element.width &&
+            point.y >= element.y &&
+            point.y <= element.y + element.height,
+        );
 
-    if (targetTextBlock) {
-      if (extensionId === "colors") {
-        installColorsExtension(targetTextBlock.id);
-      } else if (extensionId === "lock") {
-        installLockExtension(targetTextBlock.id);
-      } else {
-        installPrivacyExtension(targetTextBlock.id);
+      if (targetTextBlock) {
+        applyDroppedExtension(
+          extensionId,
+          point,
+          { type: "text-block", id: targetTextBlock.id },
+          {
+            left: targetTextBlock.x,
+            top: targetTextBlock.y,
+            width: targetTextBlock.width,
+            height: targetTextBlock.height,
+          },
+        );
+        return;
       }
-      setSelectedIds([targetTextBlock.id]);
-      showExtensionDropRipple(
-        extensionId,
-        point,
-        { type: "text-block", id: targetTextBlock.id },
-        {
-          left: targetTextBlock.x,
-          top: targetTextBlock.y,
-          width: targetTextBlock.width,
-          height: targetTextBlock.height,
-        },
-      );
-      return;
-    }
     }
 
     const targetContainer = [...elements]
@@ -4484,19 +5050,7 @@ function App() {
       );
 
     if (targetContainer) {
-      if (extensionId === "search") {
-        installSearchExtension(targetContainer.id);
-      } else if (extensionId === "sorting") {
-        installSortingExtension(targetContainer.id);
-      } else if (extensionId === "lock") {
-        installLockExtension(targetContainer.id);
-      } else if (extensionId === "colors") {
-        installColorsExtension(targetContainer.id);
-      } else {
-        installPrivacyExtension(targetContainer.id);
-      }
-      setSelectedIds([targetContainer.id]);
-      showExtensionDropRipple(
+      applyDroppedExtension(
         extensionId,
         point,
         { type: "container", id: targetContainer.id },
@@ -5071,6 +5625,25 @@ function App() {
     width: minimapViewportWidth,
     height: minimapViewportHeight,
   };
+  const selectionScreenBounds = selectionBounds
+    ? {
+        left: pan.x + selectionBounds.left * zoom,
+        top: pan.y + selectionBounds.top * zoom,
+        width: selectionBounds.width * zoom,
+        height: selectionBounds.height * zoom,
+      }
+    : null;
+  const containerSelectionScreenBounds = containerSelectionBounds
+    ? {
+        left: pan.x + containerSelectionBounds.left * zoom,
+        top: pan.y + containerSelectionBounds.top * zoom,
+        width: containerSelectionBounds.width * zoom,
+        height: containerSelectionBounds.height * zoom,
+      }
+    : null;
+  const containerSelectionAccent = containerSelectionBounds
+    ? containersById.get(containerSelectionBounds.containerId)?.accent
+    : null;
   const contextMenuElement = containerMenu
     ? containersById.get(containerMenu.id)
     : null;
@@ -5093,35 +5666,8 @@ function App() {
   const closingImageContextElement = closingImageMenu ? imagesById.get(closingImageMenu.id) : null;
   const textCardDropPreviewPosition = getTextCardDropPreviewPosition();
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
-  const getExtensionRippleBounds = (ripple: ExtensionDropRipple): ExtensionRippleBounds | null => {
-    if (ripple.target.type === "container") {
-      const element = containersById.get(ripple.target.id);
-      return element
-        ? { left: element.x, top: element.y, width: element.width, height: element.height }
-        : null;
-    }
-
-    if (ripple.target.type === "text-block") {
-      const element = textBlocksById.get(ripple.target.id);
-      return element
-        ? { left: element.x, top: element.y, width: element.width, height: element.height }
-        : null;
-    }
-
-    if (ripple.target.type === "image") {
-      const image = imagesById.get(ripple.target.id);
-      return image
-        ? { left: image.x, top: image.y, width: image.width, height: image.height }
-        : null;
-    }
-
-    const card = textCardsById.get(ripple.target.id);
-    if (!card) {
-      return null;
-    }
-
-    return getTextCardRippleBounds(card);
-  };
+  const getExtensionRippleBounds = (ripple: ExtensionDropRipple): ExtensionRippleBounds | null =>
+    getExtensionTargetBounds(ripple.target);
 
   return (
     <main
@@ -5157,8 +5703,10 @@ function App() {
               canvases={getPersistedCanvases()}
               activeCanvasId={activeCanvas.id}
               closing={canvasManagerClosing}
+              minimalView={canvasManagerMinimalView}
               viewportWidth={stageWidth}
               viewportHeight={stageHeight}
+              onMinimalViewChange={setCanvasManagerMinimalView}
               onCreateCanvas={createCanvas}
               onSelectCanvas={selectCanvas}
               onUpdateCanvas={updateCanvas}
@@ -5323,6 +5871,7 @@ function App() {
                     onSearchChange={updateContainerSearchQuery}
                     onOpenContentMenu={openContainerContentMenu}
                     onWheelContent={handleContainerWheel}
+                    onStartContentSelection={startContainerContentSelection}
                   >
                     {relativeDropPreview && (
                       <div
@@ -5475,18 +6024,23 @@ function App() {
                   onPick={pickImageForElement}
                 />
               ))}
-              {selectionBounds && (
-                <div
-                  className="pointer-events-none absolute z-30 rounded-md border border-dashed border-white/45 bg-white/[0.08] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
-                  style={{
-                    left: selectionBounds.left,
-                    top: selectionBounds.top,
-                    width: selectionBounds.width,
-                    height: selectionBounds.height,
-                  }}
-                />
-              )}
             </div>
+            {selectionScreenBounds && (
+              <div
+                className="pointer-events-none absolute z-30 rounded-md border border-dashed border-[#2dd8c8]/80 bg-[#2dd8c8]/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
+                style={selectionScreenBounds}
+              />
+            )}
+            {containerSelectionScreenBounds && (
+              <div
+                className="pointer-events-none absolute z-30 rounded-md border border-dashed shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
+                style={{
+                  ...containerSelectionScreenBounds,
+                  borderColor: containerSelectionAccent ?? "#2dd8c8",
+                  backgroundColor: `color-mix(in srgb, ${containerSelectionAccent ?? "#2dd8c8"} 14%, transparent)`,
+                }}
+              />
+            )}
           </div>
 
           {containerMenu && contextMenuElement && (
@@ -5495,16 +6049,18 @@ function App() {
               menu={containerMenu}
               element={contextMenuElement}
               closing={false}
+              isMultiTarget={isMultiContextAction(contextMenuElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(contextMenuElement.id))}
               onStartRename={startRename}
-              onUpdateAccent={updateContainerAccent}
+              onUpdateAccent={updateContextAccent}
               onCopy={copyContainer}
-              onRemovePrivacyExtension={removePrivacyExtension}
-              onRemoveSearchExtension={removeSearchExtension}
-              onRemoveSortingExtension={removeSortingExtension}
-              onRemoveLockExtension={removeLockExtension}
-              onRemoveColorsExtension={removeColorsExtension}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
+              onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onMoveLayer={moveContainerLayer}
-              onDelete={deleteContainer}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5514,16 +6070,18 @@ function App() {
               menu={closingContainerMenu}
               element={closingContextMenuElement}
               closing
+              isMultiTarget={isMultiContextAction(closingContextMenuElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(closingContextMenuElement.id))}
               onStartRename={startRename}
-              onUpdateAccent={updateContainerAccent}
+              onUpdateAccent={updateContextAccent}
               onCopy={copyContainer}
-              onRemovePrivacyExtension={removePrivacyExtension}
-              onRemoveSearchExtension={removeSearchExtension}
-              onRemoveSortingExtension={removeSortingExtension}
-              onRemoveLockExtension={removeLockExtension}
-              onRemoveColorsExtension={removeColorsExtension}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
+              onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onMoveLayer={moveContainerLayer}
-              onDelete={deleteContainer}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5555,12 +6113,15 @@ function App() {
               menu={textCardMenu}
               card={textCardContextElement}
               closing={false}
+              isMultiTarget={isMultiContextAction(textCardContextElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(textCardContextElement.id))}
               onStartEdit={startTextCardEdit}
-              onUpdateAccent={updateTextCardAccent}
+              onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
               onCopy={copyTextCard}
-              onRemoveColorsExtension={removeColorsExtension}
-              onDelete={deleteTextCard}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5570,12 +6131,15 @@ function App() {
               menu={closingTextCardMenu}
               card={closingTextCardContextElement}
               closing
+              isMultiTarget={isMultiContextAction(closingTextCardContextElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(closingTextCardContextElement.id))}
               onStartEdit={startTextCardEdit}
-              onUpdateAccent={updateTextCardAccent}
+              onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
               onCopy={copyTextCard}
-              onRemoveColorsExtension={removeColorsExtension}
-              onDelete={deleteTextCard}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5585,14 +6149,16 @@ function App() {
               menu={textBlockMenu}
               element={textBlockContextElement}
               closing={false}
+              isMultiTarget={isMultiContextAction(textBlockContextElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(textBlockContextElement.id))}
               onStartEdit={startRename}
-              onUpdateAccent={updateTextBlockAccent}
+              onUpdateAccent={updateContextAccent}
               onCopy={copyTextBlock}
-              onRemovePrivacyExtension={removePrivacyExtension}
-              onRemoveLockExtension={removeLockExtension}
-              onRemoveColorsExtension={removeColorsExtension}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onMoveLayer={moveTextBlockLayer}
-              onDelete={deleteTextBlock}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5602,14 +6168,16 @@ function App() {
               menu={closingTextBlockMenu}
               element={closingTextBlockContextElement}
               closing
+              isMultiTarget={isMultiContextAction(closingTextBlockContextElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(closingTextBlockContextElement.id))}
               onStartEdit={startRename}
-              onUpdateAccent={updateTextBlockAccent}
+              onUpdateAccent={updateContextAccent}
               onCopy={copyTextBlock}
-              onRemovePrivacyExtension={removePrivacyExtension}
-              onRemoveLockExtension={removeLockExtension}
-              onRemoveColorsExtension={removeColorsExtension}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onMoveLayer={moveTextBlockLayer}
-              onDelete={deleteTextBlock}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5619,14 +6187,16 @@ function App() {
               menu={imageMenu}
               image={imageContextElement}
               closing={false}
+              isMultiTarget={isMultiContextAction(imageContextElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(imageContextElement.id))}
               onReplace={pickImageForElement}
-              onUpdateAccent={updateImageAccent}
+              onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
               onMoveLayer={moveImageLayer}
               onCopy={copyImage}
-              onRemoveLockExtension={removeLockExtension}
-              onRemoveColorsExtension={removeColorsExtension}
-              onDelete={deleteImageElement}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
+              onDelete={deleteContextSelection}
             />
           )}
 
@@ -5636,14 +6206,16 @@ function App() {
               menu={closingImageMenu}
               image={closingImageContextElement}
               closing
+              isMultiTarget={isMultiContextAction(closingImageContextElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(closingImageContextElement.id))}
               onReplace={pickImageForElement}
-              onUpdateAccent={updateImageAccent}
+              onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
               onMoveLayer={moveImageLayer}
               onCopy={copyImage}
-              onRemoveLockExtension={removeLockExtension}
-              onRemoveColorsExtension={removeColorsExtension}
-              onDelete={deleteImageElement}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
+              onDelete={deleteContextSelection}
             />
           )}
 

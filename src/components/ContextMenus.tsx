@@ -36,6 +36,8 @@ type ContainerContextMenuProps = {
   menu: ContainerMenuState;
   element: ContainerElement;
   closing: boolean;
+  isMultiTarget?: boolean;
+  extensionState?: Partial<Record<"privacy" | "search" | "sorting" | "lock" | "colors", boolean>>;
   onStartRename: (element: ContainerElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: ContainerElement) => void;
@@ -55,6 +57,8 @@ export function ContainerContextMenu({
   menu,
   element,
   closing,
+  isMultiTarget = false,
+  extensionState,
   onStartRename,
   onUpdateAccent,
   onCopy,
@@ -68,7 +72,14 @@ export function ContainerContextMenu({
 }: ContainerContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  const presets = element.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const extensions = extensionState ?? {
+    privacy: Boolean(element.extensions?.privacy),
+    search: Boolean(element.extensions?.search),
+    sorting: Boolean(element.extensions?.sorting),
+    lock: Boolean(element.extensions?.lock),
+    colors: Boolean(element.extensions?.colors),
+  };
+  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
   return (
     <div
@@ -139,43 +150,43 @@ export function ContainerContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCopy(element)}>
         <IconCopy size={17} stroke={2} />
-        <span>Copy</span>
+        <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
       </button>
-      {(element.extensions?.privacy ||
-        element.extensions?.search ||
-        element.extensions?.sorting ||
-        element.extensions?.lock ||
-        element.extensions?.colors) && (
+      {(extensions.privacy ||
+        extensions.search ||
+        extensions.sorting ||
+        extensions.lock ||
+        extensions.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
-          {element.extensions?.privacy && (
+          {extensions.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove privacy</span>
+            <span>{isMultiTarget ? "Remove all privacy" : "Remove privacy"}</span>
           </button>
           )}
-          {element.extensions?.search && (
+          {extensions.search && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSearchExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove search</span>
+            <span>{isMultiTarget ? "Remove all search" : "Remove search"}</span>
           </button>
           )}
-          {element.extensions?.sorting && (
+          {extensions.sorting && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSortingExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove sorting</span>
+            <span>{isMultiTarget ? "Remove all sorting" : "Remove sorting"}</span>
           </button>
           )}
-          {element.extensions?.colors && (
+          {extensions.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove more colors</span>
+            <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
           </button>
           )}
-          {element.extensions?.lock && (
+          {extensions.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove lock</span>
+            <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
           </button>
           )}
         </>
@@ -186,7 +197,7 @@ export function ContainerContextMenu({
         onClick={() => onDelete(element.id)}
       >
         <IconTrash size={17} stroke={2} />
-        <span>Remove</span>
+        <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
     </div>
   );
@@ -322,6 +333,8 @@ type TextBlockContextMenuProps = {
   menu: { id: string; left: number; top: number };
   element: TextBlockElement;
   closing: boolean;
+  isMultiTarget?: boolean;
+  extensionState?: Partial<Record<"privacy" | "lock" | "colors", boolean>>;
   onStartEdit: (element: TextBlockElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: TextBlockElement) => void;
@@ -339,6 +352,8 @@ export function TextBlockContextMenu({
   menu,
   element,
   closing,
+  isMultiTarget = false,
+  extensionState,
   onStartEdit,
   onUpdateAccent,
   onCopy,
@@ -350,7 +365,12 @@ export function TextBlockContextMenu({
 }: TextBlockContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  const presets = element.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const extensions = extensionState ?? {
+    privacy: Boolean(element.extensions?.privacy),
+    lock: Boolean(element.extensions?.lock),
+    colors: Boolean(element.extensions?.colors),
+  };
+  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
   return (
     <div
@@ -421,27 +441,27 @@ export function TextBlockContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCopy(element)}>
         <IconCopy size={17} stroke={2} />
-        <span>Copy</span>
+        <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
       </button>
-      {(element.extensions?.privacy || element.extensions?.lock || element.extensions?.colors) && (
+      {(extensions.privacy || extensions.lock || extensions.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
-          {element.extensions?.privacy && (
+          {extensions.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove privacy</span>
+            <span>{isMultiTarget ? "Remove all privacy" : "Remove privacy"}</span>
           </button>
           )}
-          {element.extensions?.lock && (
+          {extensions.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove lock</span>
+            <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
           </button>
           )}
-          {element.extensions?.colors && (
+          {extensions.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove more colors</span>
+            <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
           </button>
           )}
         </>
@@ -452,7 +472,7 @@ export function TextBlockContextMenu({
         onClick={() => onDelete(element.id)}
       >
         <IconTrash size={17} stroke={2} />
-        <span>Remove</span>
+        <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
     </div>
   );
@@ -462,10 +482,13 @@ type TextCardContextMenuProps = {
   menu: { id: string; left: number; top: number };
   card: TextCardElement;
   closing: boolean;
+  isMultiTarget?: boolean;
+  extensionState?: Partial<Record<"lock" | "colors", boolean>>;
   onStartEdit: (card: TextCardElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
   onCopy: (card: TextCardElement) => void;
+  onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
   onDelete: (id: string) => void;
 };
@@ -474,15 +497,22 @@ export function TextCardContextMenu({
   menu,
   card,
   closing,
+  isMultiTarget = false,
+  extensionState,
   onStartEdit,
   onUpdateAccent,
   onUpdateLink,
   onCopy,
+  onRemoveLockExtension,
   onRemoveColorsExtension,
   onDelete,
 }: TextCardContextMenuProps) {
   const activeAccent = getTextCardAccent(card.accent);
-  const presets = card.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const extensions = extensionState ?? {
+    lock: Boolean(card.extensions?.lock),
+    colors: Boolean(card.extensions?.colors),
+  };
+  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
   const menuRef = useRef<HTMLDivElement | null>(null);
   const linkButtonRef = useRef<HTMLButtonElement | null>(null);
   const linkMenuRef = useRef<HTMLDivElement | null>(null);
@@ -565,15 +595,23 @@ export function TextCardContextMenu({
         <div className={MENU_DIVIDER_CLASS} />
         <button className={MENU_ITEM_CLASS} onClick={() => onCopy(card)}>
           <IconCopy size={17} stroke={2} />
-          <span>Copy</span>
+          <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
         </button>
-        {card.extensions?.colors && (
+        {(extensions.lock || extensions.colors) && (
           <>
             <div className={MENU_DIVIDER_CLASS} />
+            {extensions.lock && (
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(card.id)}>
+              <IconPuzzle size={17} stroke={2} />
+              <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
+            </button>
+            )}
+            {extensions.colors && (
             <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(card.id)}>
               <IconPuzzle size={17} stroke={2} />
-              <span>Remove more colors</span>
+              <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
             </button>
+            )}
           </>
         )}
         <div className={MENU_DIVIDER_CLASS} />
@@ -582,7 +620,7 @@ export function TextCardContextMenu({
           onClick={() => onDelete(card.id)}
         >
           <IconTrash size={17} stroke={2} />
-          <span>Remove</span>
+          <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
         </button>
       </div>
 
@@ -639,6 +677,8 @@ type ImageContextMenuProps = {
   menu: { id: string; left: number; top: number };
   image: ImageElement;
   closing: boolean;
+  isMultiTarget?: boolean;
+  extensionState?: Partial<Record<"lock" | "colors", boolean>>;
   onReplace: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onToggleBackground: (id: string) => void;
@@ -653,6 +693,8 @@ export function ImageContextMenu({
   menu,
   image,
   closing,
+  isMultiTarget = false,
+  extensionState,
   onReplace,
   onUpdateAccent,
   onToggleBackground,
@@ -664,7 +706,11 @@ export function ImageContextMenu({
 }: ImageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  const presets = image.extensions?.colors?.enabled ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const extensions = extensionState ?? {
+    lock: Boolean(image.extensions?.lock),
+    colors: Boolean(image.extensions?.colors),
+  };
+  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
   return (
     <div
@@ -740,21 +786,21 @@ export function ImageContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCopy(image)}>
         <IconCopy size={17} stroke={2} />
-        <span>Copy</span>
+        <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
       </button>
-      {(image.extensions?.lock || image.extensions?.colors) && (
+      {(extensions.lock || extensions.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
-          {image.extensions?.lock && (
+          {extensions.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(image.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove lock</span>
+            <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
           </button>
           )}
-          {image.extensions?.colors && (
+          {extensions.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(image.id)}>
             <IconPuzzle size={17} stroke={2} />
-            <span>Remove more colors</span>
+            <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
           </button>
           )}
         </>
@@ -765,7 +811,7 @@ export function ImageContextMenu({
         onClick={() => onDelete(image.id)}
       >
         <IconTrash size={17} stroke={2} />
-        <span>Remove</span>
+        <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
     </div>
   );

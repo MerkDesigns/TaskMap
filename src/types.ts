@@ -85,17 +85,30 @@ export type ContainerMenuState = {
 };
 
 export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent"> & {
+  x?: number;
+  y?: number;
   textCards: Array<Pick<TextCardElement, "text" | "accent" | "link" | "order">>;
 };
 
-export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link">;
+export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link"> & {
+  x?: number;
+  y?: number;
+  containerId?: string;
+  order?: number;
+};
 
 export type CopiedImage = Pick<
   ImageElement,
   "imageId" | "format" | "width" | "height" | "naturalWidth" | "naturalHeight" | "accent" | "background"
->;
+> & {
+  x?: number;
+  y?: number;
+};
 
-export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent">;
+export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent"> & {
+  x?: number;
+  y?: number;
+};
 
 export type CopiedCanvasItem =
   | {
@@ -113,6 +126,15 @@ export type CopiedCanvasItem =
   | {
       type: "image";
       item: CopiedImage;
+    }
+  | {
+      type: "selection";
+      item: {
+        containers: CopiedContainer[];
+        textCards: CopiedTextCard[];
+        textBlocks: CopiedTextBlock[];
+        images: CopiedImage[];
+      };
     };
 
 export type CanvasGridStyle = "dots" | "lines";
@@ -252,6 +274,15 @@ export type DragState =
   | {
       type: "select";
       pointerId: number;
+      startX: number;
+      startY: number;
+      currentX: number;
+      currentY: number;
+    }
+  | {
+      type: "container-select";
+      pointerId: number;
+      containerId: string;
       startX: number;
       startY: number;
       currentX: number;

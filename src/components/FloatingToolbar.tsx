@@ -32,7 +32,7 @@ export function FloatingToolbar({
 
   return (
     <div className="fixed left-4 top-4 z-20 flex items-center gap-2">
-      <div className="flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-md">
+      <div className="frosted-glass-toolbar flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-sm">
       <button
         className={buttonClass(canvasesOpen)}
         onClick={onToggleCanvases}
@@ -55,7 +55,7 @@ export function FloatingToolbar({
         <IconSettings size={18} stroke={2} />
       </button>
       </div>
-      <div className="flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-md">
+      <div className="frosted-glass-toolbar flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-sm">
       <button className={buttonClass()} onClick={onUndo} disabled={!canUndo} title="Undo">
         <IconArrowBackUp size={18} stroke={2} />
       </button>

@@ -39,6 +39,7 @@ type ContainerNodeProps = {
   onSearchChange: (id: string, query: string) => void;
   onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
   onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
+  onStartContentSelection: (event: PointerEvent<HTMLElement>, element: ContainerElement) => void;
   children?: ReactNode;
 };
 
@@ -64,6 +65,7 @@ export function ContainerNode({
   onSearchChange,
   onOpenContentMenu,
   onWheelContent,
+  onStartContentSelection,
   children,
 }: ContainerNodeProps) {
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
@@ -315,6 +317,7 @@ export function ContainerNode({
 
             onOpenContentMenu(event, element);
           }}
+          onPointerDown={(event) => onStartContentSelection(event, element)}
           onWheelCapture={(event) => onWheelContent(event, element)}
         />
 
