@@ -9,7 +9,6 @@ import {
   IconLock,
   IconPencil,
   IconPlus,
-  IconPuzzle,
   IconNotes,
   IconPalette,
   IconPhoto,
@@ -25,19 +24,38 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ACCENT_PRESETS,
   ALL_ACCENT_PRESETS,
+  CONTEXT_MENU_PANEL_CLASS,
   getTextCardAccent,
+  MENU_DANGER_ITEM_CLASS,
   MENU_DIVIDER_CLASS,
   MENU_ITEM_CLASS,
 } from "../constants";
 import { ContainerElement, ContainerMenuState, ImageElement, TextBlockElement, TextCardElement } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
+const REMOVE_EXTENSIONS_TITLE_CLASS =
+  "px-2 pb-1 pt-0.5 text-[11px] font-semibold text-white/45";
+
 type ContainerContextMenuProps = {
   menu: ContainerMenuState;
   element: ContainerElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"privacy" | "search" | "sorting" | "lock" | "colors", boolean>>;
+  extensionState?: Partial<
+    Record<
+      | "privacy"
+      | "search"
+      | "sorting"
+      | "lock"
+      | "colors"
+      | "colorPicker"
+      | "dailyReset"
+      | "counter"
+      | "inheritCardColor"
+      | "pickCard",
+      boolean
+    >
+  >;
   onStartRename: (element: ContainerElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: ContainerElement) => void;
@@ -46,6 +64,11 @@ type ContainerContextMenuProps = {
   onRemoveSortingExtension: (id: string) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
+  onRemoveColorPickerExtension: (id: string) => void;
+  onRemoveDailyResetExtension: (id: string) => void;
+  onRemoveCounterExtension: (id: string) => void;
+  onRemoveInheritCardColorExtension: (id: string) => void;
+  onRemovePickCardExtension: (id: string) => void;
   onMoveLayer: (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
@@ -67,6 +90,11 @@ export function ContainerContextMenu({
   onRemoveSortingExtension,
   onRemoveLockExtension,
   onRemoveColorsExtension,
+  onRemoveColorPickerExtension,
+  onRemoveDailyResetExtension,
+  onRemoveCounterExtension,
+  onRemoveInheritCardColorExtension,
+  onRemovePickCardExtension,
   onMoveLayer,
   onDelete,
 }: ContainerContextMenuProps) {
@@ -78,6 +106,11 @@ export function ContainerContextMenu({
     sorting: Boolean(element.extensions?.sorting),
     lock: Boolean(element.extensions?.lock),
     colors: Boolean(element.extensions?.colors),
+    colorPicker: Boolean(element.extensions?.colorPicker),
+    dailyReset: Boolean(element.extensions?.dailyReset),
+    counter: Boolean(element.extensions?.counter),
+    inheritCardColor: Boolean(element.extensions?.inheritCardColor),
+    pickCard: Boolean(element.extensions?.pickCard),
   };
   const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
@@ -85,7 +118,7 @@ export function ContainerContextMenu({
     <div
       ref={menuRef}
       data-context-menu
-      className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+      className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
       style={position}
@@ -98,24 +131,24 @@ export function ContainerContextMenu({
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-1 pb-2 pt-1.5">
-        <div className="grid grid-cols-8 gap-1.5">
+        <div className="grid grid-cols-8 gap-1">
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-[2px] transition hover:ring-2 hover:ring-white/12"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
               title="Container accent color"
             >
               {element.accent === preset.accent && (
-                <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+                <span className="absolute inset-[4px] rounded-[1px] bg-white" />
               )}
             </button>
           ))}
         </div>
       </div>
       <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 py-1">
+      <div className="px-1 py-1">
         <div className="grid grid-cols-4 gap-1">
           <button
             className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
@@ -156,44 +189,80 @@ export function ContainerContextMenu({
         extensions.search ||
         extensions.sorting ||
         extensions.lock ||
-        extensions.colors) && (
+        extensions.colors ||
+        extensions.colorPicker ||
+        extensions.dailyReset ||
+        extensions.counter ||
+        extensions.inheritCardColor ||
+        extensions.pickCard) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
+          <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
           {extensions.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all privacy" : "Remove privacy"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Privacy</span>
           </button>
           )}
           {extensions.search && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSearchExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all search" : "Remove search"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Search</span>
           </button>
           )}
           {extensions.sorting && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSortingExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all sorting" : "Remove sorting"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Sorting</span>
           </button>
           )}
           {extensions.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>More Colors</span>
           </button>
           )}
           {extensions.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Lock</span>
+          </button>
+          )}
+          {extensions.colorPicker && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorPickerExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Color Picker</span>
+          </button>
+          )}
+          {extensions.dailyReset && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveDailyResetExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Daily Resets</span>
+          </button>
+          )}
+          {extensions.counter && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveCounterExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Counter</span>
+          </button>
+          )}
+          {extensions.inheritCardColor && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveInheritCardColorExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Inherit Card Color</span>
+          </button>
+          )}
+          {extensions.pickCard && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemovePickCardExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Pick a Card</span>
           </button>
           )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
       <button
-        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        className={MENU_DANGER_ITEM_CLASS}
         onClick={() => onDelete(element.id)}
       >
         <IconTrash size={17} stroke={2} />
@@ -237,7 +306,7 @@ export function ContainerContentContextMenu({
     <div
       ref={menuRef}
       data-context-menu
-      className={`context-menu-panel fixed z-30 w-52 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+      className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
       style={position}
@@ -282,7 +351,7 @@ export function CanvasContextMenu({
     <div
       ref={menuRef}
       data-context-menu
-      className={`context-menu-panel fixed z-30 w-52 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+      className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
       style={position}
@@ -319,7 +388,7 @@ export function CanvasContextMenu({
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <button
-        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        className={MENU_DANGER_ITEM_CLASS}
         onClick={onClear}
       >
         <IconTrash size={17} stroke={2} />
@@ -334,13 +403,14 @@ type TextBlockContextMenuProps = {
   element: TextBlockElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"privacy" | "lock" | "colors", boolean>>;
+  extensionState?: Partial<Record<"privacy" | "lock" | "colors" | "colorPicker", boolean>>;
   onStartEdit: (element: TextBlockElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onCopy: (element: TextBlockElement) => void;
   onRemovePrivacyExtension: (id: string) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
+  onRemoveColorPickerExtension: (id: string) => void;
   onMoveLayer: (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
@@ -360,6 +430,7 @@ export function TextBlockContextMenu({
   onRemovePrivacyExtension,
   onRemoveLockExtension,
   onRemoveColorsExtension,
+  onRemoveColorPickerExtension,
   onMoveLayer,
   onDelete,
 }: TextBlockContextMenuProps) {
@@ -369,6 +440,7 @@ export function TextBlockContextMenu({
     privacy: Boolean(element.extensions?.privacy),
     lock: Boolean(element.extensions?.lock),
     colors: Boolean(element.extensions?.colors),
+    colorPicker: Boolean(element.extensions?.colorPicker),
   };
   const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
 
@@ -376,7 +448,7 @@ export function TextBlockContextMenu({
     <div
       ref={menuRef}
       data-context-menu
-      className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+      className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
       style={position}
@@ -389,24 +461,24 @@ export function TextBlockContextMenu({
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-1 pb-2 pt-1.5">
-        <div className="grid grid-cols-8 gap-1.5">
+        <div className="grid grid-cols-8 gap-1">
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-[2px] transition hover:ring-2 hover:ring-white/12"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
               title="Text block color"
             >
               {element.accent === preset.accent && (
-                <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+                <span className="absolute inset-[4px] rounded-[1px] bg-white" />
               )}
             </button>
           ))}
         </div>
       </div>
       <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 py-1">
+      <div className="px-1 py-1">
         <div className="grid grid-cols-4 gap-1">
           <button
             className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
@@ -443,32 +515,39 @@ export function TextBlockContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
       </button>
-      {(extensions.privacy || extensions.lock || extensions.colors) && (
+      {(extensions.privacy || extensions.lock || extensions.colors || extensions.colorPicker) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
+          <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
           {extensions.privacy && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all privacy" : "Remove privacy"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Privacy</span>
           </button>
           )}
           {extensions.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Lock</span>
           </button>
           )}
           {extensions.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>More Colors</span>
+          </button>
+          )}
+          {extensions.colorPicker && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorPickerExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Color Picker</span>
           </button>
           )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
       <button
-        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        className={MENU_DANGER_ITEM_CLASS}
         onClick={() => onDelete(element.id)}
       >
         <IconTrash size={17} stroke={2} />
@@ -483,13 +562,15 @@ type TextCardContextMenuProps = {
   card: TextCardElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"lock" | "colors", boolean>>;
+  extensionState?: Partial<Record<"lock" | "colors" | "checkbox", boolean>>;
   onStartEdit: (card: TextCardElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
   onCopy: (card: TextCardElement) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
+  onRemoveCheckboxExtension: (id: string) => void;
+  onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onDelete: (id: string) => void;
 };
 
@@ -505,12 +586,15 @@ export function TextCardContextMenu({
   onCopy,
   onRemoveLockExtension,
   onRemoveColorsExtension,
+  onRemoveCheckboxExtension,
+  onMoveLayer,
   onDelete,
 }: TextCardContextMenuProps) {
   const activeAccent = getTextCardAccent(card.accent);
   const extensions = extensionState ?? {
     lock: Boolean(card.extensions?.lock),
     colors: Boolean(card.extensions?.colors),
+    checkbox: Boolean(card.extensions?.checkbox),
   };
   const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -554,7 +638,7 @@ export function TextCardContextMenu({
       <div
         ref={menuRef}
         data-context-menu
-        className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+        className={`${CONTEXT_MENU_PANEL_CLASS} ${
           closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
         }`}
         style={position}
@@ -567,23 +651,60 @@ export function TextCardContextMenu({
         </button>
         <div className={MENU_DIVIDER_CLASS} />
         <div className="px-1 pb-2 pt-1.5">
-          <div className="grid grid-cols-8 gap-1.5">
+          <div className="grid grid-cols-8 gap-1">
             {presets.map((preset) => (
               <button
                 key={preset.textCardAccent}
-                className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
+                className="relative aspect-square rounded-[2px] transition hover:ring-2 hover:ring-white/12"
                 style={{ backgroundColor: preset.swatch }}
                 onClick={() => onUpdateAccent(card.id, preset.textCardAccent)}
                 title="Text card color"
               >
                 {activeAccent === preset.textCardAccent && (
-                  <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+                  <span className="absolute inset-[4px] rounded-[1px] bg-white" />
                 )}
               </button>
             ))}
           </div>
         </div>
         <div className={MENU_DIVIDER_CLASS} />
+        {!card.containerId && (
+          <>
+            <div className="px-1 py-1">
+              <div className="grid grid-cols-4 gap-1">
+                <button
+                  className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+                  onClick={() => onMoveLayer(card.id, "back")}
+                  title="Send to back"
+                >
+                  <IconArrowAutofitDown size={20} stroke={2} />
+                </button>
+                <button
+                  className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+                  onClick={() => onMoveLayer(card.id, "backward")}
+                  title="Send one layer back"
+                >
+                  <IconArrowAutofitDownFilled size={20} />
+                </button>
+                <button
+                  className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+                  onClick={() => onMoveLayer(card.id, "forward")}
+                  title="Bring one layer forward"
+                >
+                  <IconArrowAutofitUpFilled size={20} />
+                </button>
+                <button
+                  className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+                  onClick={() => onMoveLayer(card.id, "front")}
+                  title="Bring to front"
+                >
+                  <IconArrowAutofitUp size={20} stroke={2} />
+                </button>
+              </div>
+            </div>
+            <div className={MENU_DIVIDER_CLASS} />
+          </>
+        )}
         <button
           ref={linkButtonRef}
           className={MENU_ITEM_CLASS}
@@ -597,26 +718,33 @@ export function TextCardContextMenu({
           <IconCopy size={17} stroke={2} />
           <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
         </button>
-        {(extensions.lock || extensions.colors) && (
+        {(extensions.lock || extensions.colors || extensions.checkbox) && (
           <>
             <div className={MENU_DIVIDER_CLASS} />
+            <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
             {extensions.lock && (
             <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(card.id)}>
-              <IconPuzzle size={17} stroke={2} />
-              <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
+              <IconTrash size={17} stroke={2} />
+              <span>Lock</span>
             </button>
             )}
             {extensions.colors && (
             <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(card.id)}>
-              <IconPuzzle size={17} stroke={2} />
-              <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
+              <IconTrash size={17} stroke={2} />
+              <span>More Colors</span>
+            </button>
+            )}
+            {extensions.checkbox && (
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveCheckboxExtension(card.id)}>
+              <IconTrash size={17} stroke={2} />
+              <span>Checkbox</span>
             </button>
             )}
           </>
         )}
         <div className={MENU_DIVIDER_CLASS} />
         <button
-          className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+          className={MENU_DANGER_ITEM_CLASS}
           onClick={() => onDelete(card.id)}
         >
           <IconTrash size={17} stroke={2} />
@@ -628,7 +756,7 @@ export function TextCardContextMenu({
         <div
           ref={linkMenuRef}
           data-context-menu
-          className="context-menu-panel context-menu-enter fixed z-30 w-72 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)]"
+          className="context-menu-panel context-menu-enter fixed z-30 w-[230px] rounded-[9px] border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-[12px] text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] [&_svg]:scale-[1.08]"
           style={linkMenuPosition}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
@@ -716,7 +844,7 @@ export function ImageContextMenu({
     <div
       ref={menuRef}
       data-context-menu
-      className={`context-menu-panel fixed z-30 w-56 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] ${
+      className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
       }`}
       style={position}
@@ -729,24 +857,24 @@ export function ImageContextMenu({
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-1 pb-2 pt-1.5">
-        <div className="grid grid-cols-8 gap-1.5">
+        <div className="grid grid-cols-8 gap-1">
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative aspect-square rounded-md transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-[2px] transition hover:ring-2 hover:ring-white/12"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(image.id, preset.accent)}
               title="Image frame color"
             >
               {image.accent === preset.accent && (
-                <span className="absolute inset-x-1.5 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-white" />
+                <span className="absolute inset-[4px] rounded-[1px] bg-white" />
               )}
             </button>
           ))}
         </div>
       </div>
       <div className={MENU_DIVIDER_CLASS} />
-      <div className="px-2 py-1">
+      <div className="px-1 py-1">
         <div className="grid grid-cols-4 gap-1">
           <button
             className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
@@ -791,23 +919,24 @@ export function ImageContextMenu({
       {(extensions.lock || extensions.colors) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
+          <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
           {extensions.lock && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(image.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all lock" : "Remove lock"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>Lock</span>
           </button>
           )}
           {extensions.colors && (
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(image.id)}>
-            <IconPuzzle size={17} stroke={2} />
-            <span>{isMultiTarget ? "Remove all more colors" : "Remove more colors"}</span>
+            <IconTrash size={17} stroke={2} />
+            <span>More Colors</span>
           </button>
           )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
       <button
-        className="flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300"
+        className={MENU_DANGER_ITEM_CLASS}
         onClick={() => onDelete(image.id)}
       >
         <IconTrash size={17} stroke={2} />

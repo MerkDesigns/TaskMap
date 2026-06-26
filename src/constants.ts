@@ -39,7 +39,7 @@ export const EXTENDED_ACCENT_PRESETS = [
 
 export const ALL_ACCENT_PRESETS = [...ACCENT_PRESETS, ...EXTENDED_ACCENT_PRESETS];
 
-export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[4].textCardAccent;
+export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[5].textCardAccent;
 export const DEFAULT_CONTAINER_ACCENT = DEFAULT_TEXT_CARD_ACCENT;
 
 export const getTextCardAccent = (accent: string) =>
@@ -47,5 +47,9 @@ export const getTextCardAccent = (accent: string) =>
     ?.textCardAccent ?? accent;
 
 export const MENU_ITEM_CLASS =
-  "flex h-[34px] w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-white/88 transition-colors hover:bg-white/[0.10] hover:text-white";
-export const MENU_DIVIDER_CLASS = "my-1 h-px bg-white/[0.18]";
+  "flex h-[29px] w-full items-center gap-2 rounded-md px-2 text-left text-[12px] text-white/88 transition-colors hover:bg-white/[0.10] hover:text-white";
+export const MENU_DIVIDER_CLASS = "mx-1 my-1 h-px bg-white/[0.10]";
+export const CONTEXT_MENU_PANEL_CLASS =
+  "context-menu-panel fixed z-30 w-[165px] rounded-[9px] border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-[12px] text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] [&_svg]:scale-[1.08]";
+export const MENU_DANGER_ITEM_CLASS =
+  "flex h-[29px] w-full items-center gap-2 rounded-md px-2 text-left text-[12px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300";

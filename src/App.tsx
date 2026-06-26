@@ -1,16 +1,22 @@
-import { PointerEvent, WheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, PointerEvent, WheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check as checkForUpdate, Update } from "@tauri-apps/plugin-updater";
 import {
+  IconArrowsShuffle,
+  IconArrowsSort,
+  IconCalendarRepeat,
+  IconCards,
+  IconCheckbox,
+  IconColorPicker,
+  IconColorSwatch,
   IconLock,
   IconPalette,
   IconRotateClockwise,
   IconSearch,
   IconShieldLock,
-  IconSortAZ,
 } from "@tabler/icons-react";
 import { CanvasManager } from "./components/CanvasManager";
 import {
@@ -22,8 +28,13 @@ import {
   TextCardContextMenu,
 } from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
-import { ExtensionsPanel } from "./components/ExtensionsPanel";
+import {
+  ExtensionsPanel,
+  QuickExtensionsMenu,
+  type ExtensionId,
+} from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
+import { FrostedGlassTuner, FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
 import { ImageNode } from "./components/ImageNode";
 import { Minimap } from "./components/Minimap";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
@@ -67,6 +78,10 @@ type SnapGuide = {
   pointerPosition: number;
 };
 
+type EyeDropperConstructor = new () => {
+  open: () => Promise<{ sRGBHex: string }>;
+};
+
 type ExtensionDropRipple = {
   id: string;
   extensionId: ExtensionId;
@@ -77,6 +92,13 @@ type ExtensionDropRipple = {
     | { type: "image"; id: string };
   offsetX: number;
   offsetY: number;
+  bounds: ExtensionRippleBounds;
+};
+
+type ExtensionIncompatibleHover = {
+  extensionId: ExtensionId;
+  target: ExtensionDropRipple["target"];
+  bounds: ExtensionRippleBounds;
 };
 
 type ExtensionRippleBounds = {
@@ -91,6 +113,15 @@ type ExtensionRippleBounds = {
   borderBottomLeftRadius?: number;
 };
 
+type TextCardReleaseAnimation = {
+  active: boolean;
+  cards: Array<{
+    card: TextCardElement;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+  }>;
+};
+
 type LegacyAppData = Partial<AppData> & {
   containers?: ContainerElement[];
   textBlocks?: TextBlockElement[];
@@ -99,23 +130,34 @@ type LegacyAppData = Partial<AppData> & {
 };
 
 type UpdateCheckSource = "startup" | "manual";
-type ExtensionId = "privacy" | "lock" | "colors" | "search" | "sorting";
 type ExtensionTargetType = "container" | "text-block" | "text-card" | "image";
 
 const EXTENSION_DROP_ICONS: Record<ExtensionId, typeof IconShieldLock> = {
   privacy: IconShieldLock,
   lock: IconLock,
   colors: IconPalette,
+  colorPicker: IconColorPicker,
   search: IconSearch,
-  sorting: IconSortAZ,
+  sorting: IconArrowsSort,
+  checkbox: IconCheckbox,
+  dailyReset: IconCalendarRepeat,
+  counter: IconCards,
+  inheritCardColor: IconColorSwatch,
+  pickCard: IconArrowsShuffle,
 };
 
 const EXTENSION_COMPATIBLE_TARGETS: Record<ExtensionId, ReadonlySet<ExtensionTargetType>> = {
   privacy: new Set<ExtensionTargetType>(["container", "text-block"]),
   lock: new Set<ExtensionTargetType>(["container", "text-block", "text-card", "image"]),
   colors: new Set<ExtensionTargetType>(["container", "text-block", "text-card", "image"]),
+  colorPicker: new Set<ExtensionTargetType>(["container", "text-block"]),
   search: new Set<ExtensionTargetType>(["container"]),
   sorting: new Set<ExtensionTargetType>(["container"]),
+  checkbox: new Set<ExtensionTargetType>(["text-card"]),
+  dailyReset: new Set<ExtensionTargetType>(["container"]),
+  counter: new Set<ExtensionTargetType>(["container"]),
+  inheritCardColor: new Set<ExtensionTargetType>(["container"]),
+  pickCard: new Set<ExtensionTargetType>(["container"]),
 };
 
 function ExtensionDropEffect({
@@ -334,6 +376,10 @@ const DEFAULT_GRID_OPACITY: Record<CanvasGridStyle, number> = {
   dots: 50,
   lines: 15,
 };
+const getLocalDateKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 const DEFAULT_ELEMENTS: ContainerElement[] = [
   {
     id: "container-1",
@@ -357,7 +403,7 @@ const DEFAULT_CANVAS: TaskCanvas = {
   pan: DEFAULT_PAN,
   zoom: 1,
 };
-const CANVAS_MANAGER_ANIMATION_MS = 160;
+const CANVAS_MANAGER_ANIMATION_MS = 120;
 
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
@@ -371,6 +417,19 @@ const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
 const CONTAINER_TEXT_CARD_GAP = 8;
 const HISTORY_LIMIT = 60;
 const HISTORY_DEBOUNCE_MS = 300;
+const DEFAULT_FROSTED_GLASS_VALUES: FrostedGlassValues = {
+  bgOpacity: 0,
+  bgBrightness: 0,
+  borderOpacity: 0.16,
+  blur: 4,
+  shadowOpacity: 0.55,
+  shadowY: 10,
+  shadowBlur: 32,
+};
+const DEFAULT_LEFT_PANEL_CARD_VALUES: LeftPanelCardValues = {
+  bgOpacity: 1,
+  outlineOpacity: 0.13,
+};
 
 const getWindowPreviewViewport = () => ({
   width: window.innerWidth,
@@ -380,8 +439,11 @@ const getWindowPreviewViewport = () => ({
 function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
+  const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const panelSwitchTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
+  const canvasCycleSessionRef = useRef<{ order: string[]; index: number } | null>(null);
   const pendingUpdateRef = useRef<Update | null>(null);
   const autoUpdateCheckRef = useRef(false);
   const textCardDropPreviewRef = useRef<{ containerId: string; index: number } | null>(null);
@@ -436,6 +498,7 @@ function App() {
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
+  const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [appVersion, setAppVersion] = useState("0.0.0");
@@ -450,8 +513,13 @@ function App() {
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
   const [canvasManagerMinimalView, setCanvasManagerMinimalView] = useState(false);
+  const [canvasCycleHighlightId, setCanvasCycleHighlightId] = useState<string | null>(null);
   const [extensionsOpen, setExtensionsOpen] = useState(false);
   const [extensionsClosing, setExtensionsClosing] = useState(false);
+  const [quickExtensionsMenu, setQuickExtensionsMenu] =
+    useState<{ left: number; top: number } | null>(null);
+  const [frostedGlassValues, setFrostedGlassValues] = useState(DEFAULT_FROSTED_GLASS_VALUES);
+  const [leftPanelCardValues, setLeftPanelCardValues] = useState(DEFAULT_LEFT_PANEL_CARD_VALUES);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
@@ -459,6 +527,7 @@ function App() {
   const [enteringTextCardIds, setEnteringTextCardIds] = useState<string[]>([]);
   const [deletingTextCardIds, setDeletingTextCardIds] = useState<string[]>([]);
   const [pulsingTextCardIds, setPulsingTextCardIds] = useState<string[]>([]);
+  const [glowingTextCardIds, setGlowingTextCardIds] = useState<string[]>([]);
   const [enteringImageIds, setEnteringImageIds] = useState<string[]>([]);
   const [deletingImageIds, setDeletingImageIds] = useState<string[]>([]);
   const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
@@ -467,6 +536,8 @@ function App() {
   const [pulsingTextBlockIds, setPulsingTextBlockIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
+  const [extensionIncompatibleHover, setExtensionIncompatibleHover] =
+    useState<ExtensionIncompatibleHover | null>(null);
   const [activeCanvas, setActiveCanvas] = useState<TaskCanvas>(DEFAULT_CANVAS);
   const [canvases, setCanvases] = useState<TaskCanvas[]>([DEFAULT_CANVAS]);
   const [elements, setElements] = useState<ContainerElement[]>(DEFAULT_ELEMENTS);
@@ -475,10 +546,68 @@ function App() {
   const [images, setImages] = useState<ImageElement[]>([]);
   const [textCardDropPreview, setTextCardDropPreview] =
     useState<{ containerId: string; index: number } | null>(null);
+
+  useEffect(() => {
+    const resetDailyCheckboxes = () => {
+      const today = getLocalDateKey();
+      const dueContainerIds = elements
+        .filter(
+          (element) =>
+            element.extensions?.dailyReset &&
+            element.extensions.dailyReset.lastResetDate !== today,
+        )
+        .map((element) => element.id);
+      if (dueContainerIds.length === 0) {
+        return;
+      }
+
+      const dueContainerIdSet = new Set(dueContainerIds);
+      setElements((current) =>
+        current.map((element) =>
+          dueContainerIdSet.has(element.id) && element.extensions?.dailyReset
+            ? {
+                ...element,
+                extensions: {
+                  ...element.extensions,
+                  dailyReset: { lastResetDate: today },
+                },
+              }
+            : element,
+        ),
+      );
+      setTextCards((current) =>
+        current.map((card) =>
+          card.containerId &&
+          dueContainerIdSet.has(card.containerId) &&
+          card.extensions?.checkbox?.checked
+            ? {
+                ...card,
+                extensions: {
+                  ...card.extensions,
+                  checkbox: { checked: false },
+                },
+              }
+            : card,
+        ),
+      );
+    };
+
+    resetDailyCheckboxes();
+    const interval = window.setInterval(resetDailyCheckboxes, 60_000);
+    return () => window.clearInterval(interval);
+  }, [elements]);
   const [textCardDetachedContainerId, setTextCardDetachedContainerId] = useState<string | null>(null);
-  const [settlingTextCardId, setSettlingTextCardId] = useState<string | null>(null);
+  const [settlingTextCardIds, setSettlingTextCardIds] = useState<string[]>([]);
+  const [textCardReleaseAnimation, setTextCardReleaseAnimation] =
+    useState<TextCardReleaseAnimation | null>(null);
   const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [colorPickerTargetId, setColorPickerTargetId] = useState<string | null>(null);
+  const [colorPickerPreview, setColorPickerPreview] = useState<{
+    clientX: number;
+    clientY: number;
+    color: string;
+  } | null>(null);
   const containersById = useMemo(
     () => new Map(elements.map((element) => [element.id, element])),
     [elements],
@@ -526,24 +655,16 @@ function App() {
     const extraCards: TextCardElement[] = [];
 
     if (dragState?.type === "text-card-move") {
-      const draggedCard = textCardsById.get(dragState.id);
-      if (draggedCard?.containerId) {
-        extraCards.push(draggedCard);
-      }
-    }
-
-    if (settlingTextCardId) {
-      const settlingCard = textCardsById.get(settlingTextCardId);
-      if (
-        settlingCard?.containerId &&
-        !extraCards.some((card) => card.id === settlingCard.id)
-      ) {
-        extraCards.push(settlingCard);
-      }
+      dragState.ids.forEach((id) => {
+        const draggedCard = textCardsById.get(id);
+        if (draggedCard?.containerId) {
+          extraCards.push(draggedCard);
+        }
+      });
     }
 
     return extraCards.length ? [...looseTextCards, ...extraCards] : looseTextCards;
-  }, [dragState, looseTextCards, settlingTextCardId, textCardsById]);
+  }, [dragState, looseTextCards, textCardsById]);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((current) =>
@@ -945,7 +1066,18 @@ function App() {
     const data = getCurrentAppData();
     latestAppDataRef.current = data;
     scheduleHistorySnapshot(data);
-  }, [activeCanvas, canvasGridOpacity, canvasGridStyle, canvases, elements, images, pan, textBlocks, textCards, zoom]);
+  }, [
+    activeCanvas,
+    canvasGridOpacity,
+    canvasGridStyle,
+    canvases,
+    elements,
+    images,
+    pan,
+    textBlocks,
+    textCards,
+    zoom,
+  ]);
 
   useEffect(() => {
     latestCameraRef.current = { pan, zoom };
@@ -1139,9 +1271,13 @@ function App() {
   const getContainerVisibleTextCards = (container: ContainerElement, cards = textCards) => {
     const orderedCards = getOrderedContainerTextCards(container.id, cards);
     const query = getContainerSearchQuery(container);
-    const filtered = query
+    const searchedCards = query
       ? orderedCards.filter((card) => card.text.toLowerCase().includes(query))
       : orderedCards;
+    const selectedCardId = container.extensions?.pickCard?.selectedCardId;
+    const filtered = selectedCardId
+      ? searchedCards.filter((card) => card.id === selectedCardId)
+      : searchedCards;
 
     // Match the render pipeline exactly (filter, then sort) so a card's index
     // in this list is the same slot it visually occupies. Drag math relies on
@@ -1173,8 +1309,16 @@ function App() {
     });
   };
 
-  const getContainerContentHeight = (container: ContainerElement) => {
-    const cardCount = getContainerVisibleTextCards(container).length;
+  const getContainerViewportHeight = (container: ContainerElement) =>
+    Math.max(
+      0,
+      container.height -
+        CONTAINER_HEADER_HEIGHT -
+        (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0),
+    );
+
+  const getContainerContentHeight = (container: ContainerElement, cards = textCards) => {
+    const cardCount = getContainerVisibleTextCards(container, cards).length;
 
     if (cardCount === 0) {
       return CONTAINER_TEXT_CARD_PADDING * 2;
@@ -1187,15 +1331,35 @@ function App() {
     );
   };
 
-  const getContainerMaxScroll = (container: ContainerElement) =>
-    Math.max(
-      0,
-      getContainerContentHeight(container) -
-        (container.height - CONTAINER_HEADER_HEIGHT - (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0)),
-    );
+  const getContainerMaxScroll = (container: ContainerElement, cards = textCards) =>
+    Math.max(0, getContainerContentHeight(container, cards) - getContainerViewportHeight(container));
 
   const getContainerScrollOffset = (container: ContainerElement) =>
     clamp(containerScrollOffsets[container.id] ?? 0, 0, getContainerMaxScroll(container));
+
+  const getScrollOffsetForVisibleCardIndex = (
+    container: ContainerElement,
+    visibleIndex: number,
+    cards: TextCardElement[],
+  ) => {
+    const currentOffset = getContainerScrollOffset(container);
+    const viewportHeight = getContainerViewportHeight(container);
+    const maxScroll = getContainerMaxScroll(container, cards);
+    const slotTop = CONTAINER_TEXT_CARD_PADDING + visibleIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
+    const slotBottom = slotTop + CONTAINER_TEXT_CARD_ROW_HEIGHT;
+    const visibleTop = currentOffset + CONTAINER_TEXT_CARD_PADDING;
+    const visibleBottom = currentOffset + viewportHeight - CONTAINER_TEXT_CARD_PADDING;
+
+    if (slotBottom > visibleBottom) {
+      return clamp(slotBottom - viewportHeight + CONTAINER_TEXT_CARD_PADDING, 0, maxScroll);
+    }
+
+    if (slotTop < visibleTop) {
+      return clamp(slotTop - CONTAINER_TEXT_CARD_PADDING, 0, maxScroll);
+    }
+
+    return currentOffset;
+  };
 
   const getContainerCardStackTop = (container: ContainerElement) =>
     container.y +
@@ -1296,7 +1460,7 @@ function App() {
       return undefined;
     }
 
-    const draggingTextCard = dragState?.type === "text-card-move" && dragState.id === card.id;
+    const draggingTextCard = dragState?.type === "text-card-move" && dragState.ids.includes(card.id);
     if (draggingTextCard) {
       return { x: card.x, y: card.y };
     }
@@ -1306,12 +1470,12 @@ function App() {
       return { x: card.x, y: card.y };
     }
 
-    const draggedId = dragState?.type === "text-card-move" ? dragState.id : null;
+    const draggedIds = dragState?.type === "text-card-move" ? new Set(dragState.ids) : null;
     const previewingThisContainer = textCardDropPreview?.containerId === container.id;
     const detachedFromThisContainer = textCardDetachedContainerId === container.id;
     const visibleCards = getContainerVisibleTextCards(container).filter(
       (currentCard) =>
-        !(previewingThisContainer || detachedFromThisContainer) || currentCard.id !== draggedId,
+        !(previewingThisContainer || detachedFromThisContainer) || !draggedIds?.has(currentCard.id),
     );
     let index = Math.max(
       visibleCards.findIndex((currentCard) => currentCard.id === card.id),
@@ -1319,7 +1483,7 @@ function App() {
     );
 
     if (previewingThisContainer && index >= textCardDropPreview.index) {
-      index += 1;
+      index += dragState?.type === "text-card-move" ? dragState.ids.length : 1;
     }
 
     return {
@@ -1559,33 +1723,45 @@ function App() {
   const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
     (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
 
-  const moveContainerLayer = (
+  const moveCanvasLayers = (
     id: string,
     direction: "back" | "backward" | "forward" | "front",
   ) => {
-    setElements((current) =>
-      moveLayerItems(current, getLayerActionIds(id, (actionId) => containersById.has(actionId)), direction),
-    );
+    const topLevelItems = [
+      ...elements,
+      ...textBlocks,
+      ...textCards.filter((card) => !card.containerId),
+      ...images.filter((image) => !image.containerId),
+    ].sort((left, right) => (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER));
+    const topLevelIds = new Set(topLevelItems.map((item) => item.id));
+    const actionIds = getLayerActionIds(id, (actionId) => topLevelIds.has(actionId));
+    const reordered = moveLayerItems(topLevelItems, actionIds, direction);
+    const layers = new Map(reordered.map((item, index) => [item.id, index]));
+    const applyLayer = <T extends { id: string; layer?: number }>(items: T[]) =>
+      items.map((item) => (layers.has(item.id) ? { ...item, layer: layers.get(item.id) } : item));
+
+    setElements((current) => applyLayer(current));
+    setTextBlocks((current) => applyLayer(current));
+    setTextCards((current) => applyLayer(current));
+    setImages((current) => applyLayer(current));
     setRenamingId(null);
   };
 
-  const moveTextBlockLayer = (
-    id: string,
-    direction: "back" | "backward" | "forward" | "front",
-  ) => {
-    setTextBlocks((current) =>
-      moveLayerItems(current, getLayerActionIds(id, (actionId) => textBlocksById.has(actionId)), direction),
-    );
-  };
+  const topLevelLayerMap = useMemo(() => {
+    const ordered = [
+      ...elements,
+      ...textBlocks,
+      ...textCards.filter((card) => !card.containerId),
+      ...images.filter((image) => !image.containerId),
+    ].sort((left, right) => (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER));
 
-  const moveImageLayer = (
-    id: string,
-    direction: "back" | "backward" | "forward" | "front",
-  ) => {
-    setImages((current) =>
-      moveLayerItems(current, getLayerActionIds(id, (actionId) => imagesById.has(actionId)), direction),
-    );
-  };
+    return new Map(ordered.map((item, index) => [item.id, index]));
+  }, [elements, images, textBlocks, textCards]);
+
+  const withCanvasLayer = <T extends { id: string; layer?: number }>(item: T): T => ({
+    ...item,
+    layer: topLevelLayerMap.get(item.id) ?? item.layer,
+  });
 
   const selectCanvasElement = (element: ContainerElement | TextBlockElement) => {
     setSelectedIds([element.id]);
@@ -1640,6 +1816,13 @@ function App() {
     window.setTimeout(() => {
       setPulsingTextCardIds((current) => current.filter((pulsingId) => pulsingId !== id));
     }, 260);
+  };
+
+  const glowTextCard = (id: string) => {
+    setGlowingTextCardIds((current) => [...current.filter((glowingId) => glowingId !== id), id]);
+    window.setTimeout(() => {
+      setGlowingTextCardIds((current) => current.filter((glowingId) => glowingId !== id));
+    }, 720);
   };
 
   const pulseTextBlock = (id: string) => {
@@ -1751,6 +1934,71 @@ function App() {
     }, CANVAS_MANAGER_ANIMATION_MS);
   }, [extensionsClosing, extensionsOpen]);
 
+  const switchLeftPanel = useCallback(
+    (target: "canvases" | "extensions") => {
+      if (canvasManagerClosing || extensionsClosing) {
+        return;
+      }
+
+      if (panelSwitchTimeoutRef.current !== null) {
+        window.clearTimeout(panelSwitchTimeoutRef.current);
+      }
+
+      const openTarget = () => {
+        if (target === "canvases") {
+          setCanvasManagerOpen(true);
+          setCanvasManagerClosing(false);
+        } else {
+          setExtensionsOpen(true);
+          setExtensionsClosing(false);
+        }
+      };
+
+      if (target === "canvases" && extensionsOpen) {
+        setExtensionsClosing(true);
+        panelSwitchTimeoutRef.current = window.setTimeout(() => {
+          setExtensionsOpen(false);
+          setExtensionsClosing(false);
+          openTarget();
+          panelSwitchTimeoutRef.current = null;
+        }, CANVAS_MANAGER_ANIMATION_MS);
+        return;
+      }
+
+      if (target === "extensions" && canvasManagerOpen) {
+        setCanvasManagerClosing(true);
+        panelSwitchTimeoutRef.current = window.setTimeout(() => {
+          setCanvasManagerOpen(false);
+          setCanvasManagerClosing(false);
+          openTarget();
+          panelSwitchTimeoutRef.current = null;
+        }, CANVAS_MANAGER_ANIMATION_MS);
+        return;
+      }
+
+      openTarget();
+    },
+    [canvasManagerClosing, canvasManagerOpen, extensionsClosing, extensionsOpen],
+  );
+
+  useEffect(
+    () => () => {
+      if (panelSwitchTimeoutRef.current !== null) {
+        window.clearTimeout(panelSwitchTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+
+  useEffect(() => {
+    const trackPointer = (event: globalThis.PointerEvent) => {
+      lastPointerPositionRef.current = { x: event.clientX, y: event.clientY };
+    };
+
+    window.addEventListener("pointermove", trackPointer, true);
+    return () => window.removeEventListener("pointermove", trackPointer, true);
+  }, []);
 
   useEffect(() => {
     const clearFocusedElement = () => {
@@ -1764,10 +2012,44 @@ function App() {
       const target = event.target as HTMLElement | null;
       const isEditingText = isEditableKeyboardTarget(target);
 
+      if (
+        event.shiftKey &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        event.key.toLowerCase() === "e" &&
+        !isEditingText
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        clearFocusedElement();
+        closeContextMenus();
+        setQuickExtensionsMenu({
+          left: lastPointerPositionRef.current.x,
+          top: lastPointerPositionRef.current.y,
+        });
+        return;
+      }
+
       if (event.key === "Tab" && !isEditingText && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         event.stopPropagation();
         clearFocusedElement();
+
+        if (event.shiftKey) {
+          if (canvasManagerOpen && !canvasManagerClosing) {
+            switchLeftPanel("extensions");
+            return;
+          }
+
+          if (extensionsOpen && !extensionsClosing) {
+            switchLeftPanel("canvases");
+            return;
+          }
+
+          switchLeftPanel("canvases");
+          return;
+        }
 
         if (canvasManagerOpen && !canvasManagerClosing) {
           closeCanvasManager();
@@ -1775,6 +2057,7 @@ function App() {
         }
 
         closeExtensionsPanel();
+        setQuickExtensionsMenu(null);
         setCanvasManagerOpen(true);
         setCanvasManagerClosing(false);
         return;
@@ -1804,6 +2087,8 @@ function App() {
         closeContextMenus();
         closeCanvasManager();
         closeExtensionsPanel();
+        setColorPickerTargetId(null);
+        setColorPickerPreview(null);
         setRenamingId(null);
         return;
       }
@@ -1838,9 +2123,12 @@ function App() {
     closeCanvasManager,
     closeExtensionsPanel,
     containersById,
+    extensionsClosing,
+    extensionsOpen,
     imagesById,
     selectedIds,
     settingsOpen,
+    switchLeftPanel,
     textBlocksById,
     textCardsById,
     updateModalOpen,
@@ -1883,6 +2171,10 @@ function App() {
     const container = containersById.get(card.containerId);
     const position = getTextCardRenderPosition(card);
     if (!container || !position) {
+      return null;
+    }
+    const visibleCards = getContainerVisibleTextCards(container);
+    if (!visibleCards.some((currentCard) => currentCard.id === card.id)) {
       return null;
     }
 
@@ -2650,19 +2942,28 @@ function App() {
       x: container.x + CONTAINER_TEXT_CARD_PADDING,
       y: getContainerCardStackTop(container) + order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
       accent: DEFAULT_TEXT_CARD_ACCENT,
+      ...(container.extensions?.inheritCardColor ? { accent: container.accent } : {}),
       containerId,
       order,
     };
     const cardsOutsideContainer = textCards.filter((currentCard) => currentCard.containerId !== containerId);
     const containerCards = getOrderedContainerTextCards(containerId);
     containerCards.splice(order, 0, card);
-
-    setTextCards(
-      normalizeTextCardOrders([
-        ...cardsOutsideContainer,
-        ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
-      ]),
+    const nextCards = normalizeTextCardOrders([
+      ...cardsOutsideContainer,
+      ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
+    ]);
+    const visibleIndex = getContainerVisibleTextCards(container, nextCards).findIndex(
+      (currentCard) => currentCard.id === id,
     );
+
+    setTextCards(nextCards);
+    if (visibleIndex >= 0) {
+      setContainerScrollOffsets((current) => ({
+        ...current,
+        [containerId]: getScrollOffsetForVisibleCardIndex(container, visibleIndex, nextCards),
+      }));
+    }
     animateTextCardIn(id);
     setEditingTextCardId(id);
     setTextCardDraft(card.text);
@@ -2704,6 +3005,10 @@ function App() {
   };
 
   const handleMainPointerDownCapture = (event: PointerEvent<HTMLElement>) => {
+    if (applyColorPickerSelection(event)) {
+      return;
+    }
+
     if (event.button !== 0) {
       return;
     }
@@ -2974,25 +3279,47 @@ function App() {
         y: pointerPoint.y - dragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
       };
       const currentPreview = textCardDropPreviewRef.current;
+      const cardsWithoutBundle = textCards.filter((card) => !dragState.ids.includes(card.id));
+      const originalDropIndex =
+        dropContainer && dropContainer.id === dragState.startContainerId
+          ? getContainerVisibleTextCards(dropContainer, textCards).findIndex(
+              (card) => card.id === dragState.id,
+            )
+          : -1;
       const dropIndex = dropContainer
         ? currentPreview?.containerId === dropContainer.id
           ? getDirectionalTextCardDropIndex(
               dropContainer,
               draggedCenterPoint.y,
-              textCards,
+              cardsWithoutBundle,
               dragState.id,
               currentPreview.index,
             )
-          : getTextCardDropIndex(dropContainer, draggedCenterPoint, textCards, dragState.id)
+          : getTextCardDropIndex(
+              dropContainer,
+              draggedCenterPoint,
+              cardsWithoutBundle,
+              dragState.id,
+              originalDropIndex >= 0 ? originalDropIndex : undefined,
+            )
         : null;
 
       if (!dropContainer || currentPreview?.containerId !== dropContainer.id) {
         textCardDragCenterYRef.current = draggedCenterPoint.y;
       }
 
-      if (dragState.snapping !== event.shiftKey) {
-        setDragState({ ...dragState, snapping: event.shiftKey });
-      }
+      const pointerDeltaX = event.clientX - dragState.lastClientX;
+      const pointerDeltaY = event.clientY - dragState.lastClientY;
+      const nextSwayX = clamp(dragState.swayX * 0.55 + pointerDeltaX * 0.45, -14, 14);
+      const nextSwayY = clamp(dragState.swayY * 0.55 + pointerDeltaY * 0.45, -10, 10);
+      setDragState({
+        ...dragState,
+        snapping: event.shiftKey,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+        swayX: nextSwayX,
+        swayY: nextSwayY,
+      });
 
       const nextX = dragState.startX + worldDeltaX;
       const nextY = dragState.startY + worldDeltaY;
@@ -3011,20 +3338,17 @@ function App() {
           : null,
       );
       setTextCards((current) => {
-        const draggedCard = current.find((card) => card.id === dragState.id);
-        if (!draggedCard) {
-          return current;
-        }
-
-        return current.map((card) =>
-          card.id === dragState.id
+        const offsets = new Map(dragState.cardOffsets.map((offset) => [offset.id, offset]));
+        return current.map((card) => {
+          const offset = offsets.get(card.id);
+          return offset
             ? {
                 ...card,
-                x: snapped.x,
-                y: snapped.y,
+                x: snapped.x + offset.x,
+                y: snapped.y + offset.y,
               }
-            : card,
-        );
+            : card;
+        });
       });
       setSnapGuides(event.shiftKey ? snapped.guides : []);
       return;
@@ -3136,7 +3460,13 @@ function App() {
     }
 
     if (dragState.type === "text-card-move") {
-      const droppedTextCardId = dragState.id;
+      const droppedTextCardIds = dragState.ids;
+      const droppedTextCardIdSet = new Set(droppedTextCardIds);
+      const movedDistance = Math.hypot(
+        event.clientX - dragState.startClientX,
+        event.clientY - dragState.startClientY,
+      );
+      const droppedWithoutMoving = movedDistance < 3;
       const endPoint = canvasPointFromEvent(event);
       const dropContainer = getTextCardDropContainer(endPoint);
       const draggedCenterPoint = {
@@ -3144,17 +3474,16 @@ function App() {
         y: endPoint.y - dragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
       };
       const currentPreview = textCardDropPreviewRef.current;
+      const draggedCards = textCards
+        .filter((card) => droppedTextCardIdSet.has(card.id))
+        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+      let nextTextCards = textCards;
 
-      setTextCards((current) => {
-        const draggedCard = current.find((card) => card.id === dragState.id);
-        if (!draggedCard) {
-          return current;
-        }
-
+      if (draggedCards.length > 0 && !droppedWithoutMoving) {
         if (!dropContainer) {
-          return normalizeTextCardOrders(
-            current.map((card) =>
-              card.id === dragState.id
+          nextTextCards = normalizeTextCardOrders(
+            textCards.map((card) =>
+              droppedTextCardIdSet.has(card.id)
                 ? {
                     ...card,
                     containerId: undefined,
@@ -3163,47 +3492,110 @@ function App() {
                 : card,
             ),
           );
+        } else {
+          const cardsWithoutBundle = textCards.filter((card) => !droppedTextCardIdSet.has(card.id));
+          const visibleDropIndex =
+            currentPreview?.containerId === dropContainer.id
+              ? currentPreview.index
+              : getTextCardDropIndex(
+                  dropContainer,
+                  draggedCenterPoint,
+                  cardsWithoutBundle,
+                  dragState.id,
+                );
+          const realDropIndex = resolveContainerInsertOrderIndex(
+            dropContainer,
+            visibleDropIndex,
+            cardsWithoutBundle,
+            dragState.id,
+          );
+          const targetCards = cardsWithoutBundle
+            .filter((card) => card.containerId === dropContainer.id)
+            .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+
+          targetCards.splice(
+            realDropIndex,
+            0,
+            ...draggedCards.map((draggedCard, index) => ({
+              ...draggedCard,
+              containerId: dropContainer.id,
+              order: realDropIndex + index,
+            })),
+          );
+
+          nextTextCards = normalizeTextCardOrders([
+            ...cardsWithoutBundle.filter((card) => card.containerId !== dropContainer.id),
+            ...targetCards.map((card, index) => ({
+              ...card,
+              containerId: dropContainer.id,
+              order: index,
+            })),
+          ]);
         }
 
-        const visibleDropIndex =
-          currentPreview?.containerId === dropContainer.id
-            ? currentPreview.index
-            : getTextCardDropIndex(dropContainer, draggedCenterPoint, current, dragState.id);
-        const realDropIndex = resolveContainerInsertOrderIndex(
-          dropContainer,
-          visibleDropIndex,
-          current,
-          dragState.id,
-        );
-        const withoutDraggedCard = current
-          .filter((card) => card.id !== dragState.id)
-          .map((card) => ({ ...card }));
-        const targetCards = withoutDraggedCard
-          .filter((card) => card.containerId === dropContainer.id)
-          .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+        const releaseCards = draggedCards.map((draggedCard) => {
+          const nextCard = nextTextCards.find((card) => card.id === draggedCard.id) ?? draggedCard;
+          const bundleIndex = dragState.ids.indexOf(draggedCard.id);
+          const swayFactor = 0.18 + Math.min(Math.max(bundleIndex, 0), 5) * 0.04;
+          const from = {
+            x: draggedCard.x + (bundleIndex > 0 ? dragState.swayX * swayFactor : 0),
+            y:
+              draggedCard.y +
+              (bundleIndex > 0
+                ? Math.abs(dragState.swayX) * 0.08 + dragState.swayY * 0.12
+                : 0),
+          };
+          if (!nextCard.containerId) {
+            return {
+              card: nextCard,
+              from,
+              to: { x: draggedCard.x, y: draggedCard.y },
+            };
+          }
 
-        targetCards.splice(realDropIndex, 0, {
-          ...draggedCard,
-          containerId: dropContainer.id,
-          order: realDropIndex,
+          const nextContainer = containersById.get(nextCard.containerId);
+          const visibleCards = nextContainer
+            ? getContainerVisibleTextCards(nextContainer, nextTextCards)
+            : [];
+          const visibleIndex = Math.max(
+            visibleCards.findIndex((card) => card.id === nextCard.id),
+            0,
+          );
+          return {
+            card: nextCard,
+            from,
+            to: nextContainer
+              ? {
+                  x: nextContainer.x + CONTAINER_TEXT_CARD_PADDING,
+                  y:
+                    getContainerCardStackTop(nextContainer) +
+                    visibleIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
+                    getContainerScrollOffset(nextContainer),
+                }
+              : { x: draggedCard.x, y: draggedCard.y },
+          };
         });
 
-        return normalizeTextCardOrders([
-          ...withoutDraggedCard.filter((card) => card.containerId !== dropContainer.id),
-          ...targetCards.map((card, index) => ({
-            ...card,
-            containerId: dropContainer.id,
-            order: index,
-          })),
-        ]);
-      });
+        setTextCards(nextTextCards);
+        setSettlingTextCardIds(droppedTextCardIds);
+        setTextCardReleaseAnimation({ active: false, cards: releaseCards });
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            setTextCardReleaseAnimation((current) =>
+              current ? { ...current, active: true } : current,
+            );
+          });
+        });
+        window.setTimeout(() => {
+          setTextCardReleaseAnimation(null);
+          setSettlingTextCardIds((current) =>
+            current.filter((id) => !droppedTextCardIdSet.has(id)),
+          );
+        }, 240);
+      }
       updateTextCardDropPreview(null);
       setTextCardDetachedContainerId(null);
       textCardDragCenterYRef.current = null;
-      setSettlingTextCardId(droppedTextCardId);
-      window.setTimeout(() => {
-        setSettlingTextCardId((current) => (current === droppedTextCardId ? null : current));
-      }, 120);
     }
 
     if (dragState.type === "select") {
@@ -3310,12 +3702,24 @@ function App() {
     const nextZoom = quantizeZoom(zoom + direction * ZOOM_STEP);
     const canvasX = (event.clientX - pan.x) / zoom;
     const canvasY = (event.clientY - pan.y) / zoom;
-
-    setZoom(nextZoom);
-    setPan({
+    const nextPan = {
       x: event.clientX - canvasX * nextZoom,
       y: event.clientY - canvasY * nextZoom,
-    });
+    };
+
+    setZoom(nextZoom);
+    setPan(nextPan);
+    setDragState((current) =>
+      current?.type === "pan"
+        ? {
+            ...current,
+            startClientX: event.clientX,
+            startClientY: event.clientY,
+            startPanX: nextPan.x,
+            startPanY: nextPan.y,
+          }
+        : current,
+    );
   };
 
   const isElementLocked = (id: string) =>
@@ -3510,15 +3914,41 @@ function App() {
     setRenamingId(null);
     setEditingTextCardId(null);
     setEditingTextBlockId(null);
-    setSelectedIds([]);
+    const bundleCards =
+      card.containerId && selectedIds.includes(card.id)
+        ? getOrderedContainerTextCards(card.containerId).filter((currentCard) =>
+            selectedIds.includes(currentCard.id),
+          )
+        : [card];
+    const movableBundleCards = bundleCards.filter((currentCard) => !isElementLocked(currentCard.id));
+    const draggedCards = movableBundleCards.length > 0 ? movableBundleCards : [card];
+    const draggedIds = draggedCards.map((currentCard) => currentCard.id);
+    if (draggedIds.length === 1) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(draggedIds);
+    }
     const startPosition = getTextCardStackPosition(card);
+    const stackedCards = [card, ...draggedCards.filter((currentCard) => currentCard.id !== card.id)];
+    const cardOffsets = stackedCards.map((currentCard, index) => {
+      const originalPosition = getTextCardStackPosition(currentCard);
+      const x = index === 0 ? 0 : ((index % 2 === 0 ? -1 : 1) * (5 + Math.min(index, 4) * 2));
+      const y = index === 0 ? 0 : Math.min(index, 5) * 4;
+      return {
+        id: currentCard.id,
+        x,
+        y,
+        pickupX: originalPosition.x - (startPosition.x + x),
+        pickupY: originalPosition.y - (startPosition.y + y),
+      };
+    });
     setTextCards((current) =>
       current.map((currentCard) =>
-        currentCard.id === card.id
+        draggedIds.includes(currentCard.id)
           ? {
               ...currentCard,
-              x: startPosition.x,
-              y: startPosition.y,
+              x: startPosition.x + (cardOffsets.find((offset) => offset.id === currentCard.id)?.x ?? 0),
+              y: startPosition.y + (cardOffsets.find((offset) => offset.id === currentCard.id)?.y ?? 0),
             }
           : currentCard,
       ),
@@ -3532,10 +3962,16 @@ function App() {
       type: "text-card-move",
       pointerId: event.pointerId,
       id: card.id,
+      ids: draggedIds,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startX: startPosition.x,
       startY: startPosition.y,
+      cardOffsets,
+      lastClientX: event.clientX,
+      lastClientY: event.clientY,
+      swayX: 0,
+      swayY: 0,
       startContainerId: card.containerId,
       pointerOffsetY,
       width: cardRect.width / zoom,
@@ -4081,13 +4517,21 @@ function App() {
           order,
         };
         containerCards.splice(order, 0, cardInContainer);
-
-        setTextCards(
-          normalizeTextCardOrders([
-            ...cardsOutsideContainer,
-            ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
-          ]),
+        const nextCards = normalizeTextCardOrders([
+          ...cardsOutsideContainer,
+          ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
+        ]);
+        const visibleIndex = getContainerVisibleTextCards(targetContainer, nextCards).findIndex(
+          (currentCard) => currentCard.id === id,
         );
+
+        setTextCards(nextCards);
+        if (visibleIndex >= 0) {
+          setContainerScrollOffsets((current) => ({
+            ...current,
+            [targetContainer.id]: getScrollOffsetForVisibleCardIndex(targetContainer, visibleIndex, nextCards),
+          }));
+        }
       } else {
         setTextCards((current) => [...current, duplicate]);
       }
@@ -4264,6 +4708,12 @@ function App() {
       sorting: ids.some((id) => hasExtension(id, "sorting")),
       lock: ids.some((id) => hasExtension(id, "lock")),
       colors: ids.some((id) => hasExtension(id, "colors")),
+      colorPicker: ids.some((id) => hasExtension(id, "colorPicker")),
+      checkbox: ids.some((id) => hasExtension(id, "checkbox")),
+      dailyReset: ids.some((id) => hasExtension(id, "dailyReset")),
+      counter: ids.some((id) => hasExtension(id, "counter")),
+      inheritCardColor: ids.some((id) => hasExtension(id, "inheritCardColor")),
+      pickCard: ids.some((id) => hasExtension(id, "pickCard")),
     };
   };
 
@@ -4628,6 +5078,236 @@ function App() {
     installColorsExtensions([id]);
   };
 
+  const installColorPickerExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    const withColorPicker = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
+      targetIds.has(item.id)
+        ? {
+            ...item,
+            extensions: {
+              ...item.extensions,
+              colorPicker: item.extensions?.colorPicker ?? { enabled: true },
+            },
+          }
+        : item;
+    setElements((current) => current.map(withColorPicker));
+    setTextBlocks((current) => current.map(withColorPicker));
+    closeContextMenus();
+  };
+
+  const getColorAtClientPoint = (clientX: number, clientY: number) => {
+    const transparent = new Set(["transparent", "rgba(0, 0, 0, 0)", "rgba(0,0,0,0)"]);
+    const elementsAtPoint = document.elementsFromPoint(clientX, clientY);
+
+    for (const node of elementsAtPoint) {
+      if (!(node instanceof HTMLElement) || node.closest("[data-color-picker-tool]")) {
+        continue;
+      }
+
+      const style = window.getComputedStyle(node);
+      const candidates = [style.backgroundColor, style.borderTopColor];
+      const color = candidates.find((candidate) => candidate && !transparent.has(candidate));
+      if (color) {
+        return color;
+      }
+    }
+
+    return "#111216";
+  };
+
+  const applyPickedColor = (id: string, color: string) => {
+    setElements((current) =>
+      current.map((element) => (element.id === id ? { ...element, accent: color } : element)),
+    );
+    setTextBlocks((current) =>
+      current.map((element) => (element.id === id ? { ...element, accent: color } : element)),
+    );
+  };
+
+  const pickElementColor = async (id: string) => {
+    const EyeDropperApi = (
+      window as typeof window & { EyeDropper?: EyeDropperConstructor }
+    ).EyeDropper;
+
+    if (EyeDropperApi) {
+      setColorPickerTargetId(null);
+      setColorPickerPreview(null);
+
+      try {
+        const { sRGBHex } = await new EyeDropperApi().open();
+        applyPickedColor(id, sRGBHex);
+      } catch (error) {
+        if (!(error instanceof DOMException) || error.name !== "AbortError") {
+          setColorPickerTargetId(id);
+        }
+      }
+      return;
+    }
+
+    setColorPickerTargetId(id);
+    setColorPickerPreview(null);
+  };
+
+  const handleColorPickerPointerMove = (event: PointerEvent<HTMLElement>) => {
+    if (!colorPickerTargetId) {
+      return;
+    }
+
+    setColorPickerPreview({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      color: getColorAtClientPoint(event.clientX, event.clientY),
+    });
+  };
+
+  const applyColorPickerSelection = (event: PointerEvent<HTMLElement>) => {
+    if (
+      !colorPickerTargetId ||
+      event.button !== 0
+    ) {
+      return false;
+    }
+
+    const color = getColorAtClientPoint(event.clientX, event.clientY);
+    const targetId = colorPickerTargetId;
+    event.preventDefault();
+    event.stopPropagation();
+    applyPickedColor(targetId, color);
+    setColorPickerTargetId(null);
+    setColorPickerPreview(null);
+    return true;
+  };
+
+  const installDailyResetExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    const today = getLocalDateKey();
+    setElements((current) =>
+      current.map((element) =>
+        targetIds.has(element.id)
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                dailyReset: element.extensions?.dailyReset ?? { lastResetDate: today },
+              },
+            }
+          : element,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const installCounterExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    setElements((current) =>
+      current.map((element) =>
+        targetIds.has(element.id)
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                counter: element.extensions?.counter ?? { enabled: true },
+              },
+            }
+          : element,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const installInheritCardColorExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    setElements((current) =>
+      current.map((element) =>
+        targetIds.has(element.id)
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                inheritCardColor: element.extensions?.inheritCardColor ?? { enabled: true },
+              },
+            }
+          : element,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const installPickCardExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    setElements((current) =>
+      current.map((element) =>
+        targetIds.has(element.id)
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                pickCard: element.extensions?.pickCard ?? {},
+              },
+            }
+          : element,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const togglePickedContainerCard = (id: string) => {
+    const container = containersById.get(id);
+    if (!container?.extensions?.pickCard) {
+      return;
+    }
+
+    const selectedCardId = container.extensions.pickCard.selectedCardId;
+    const lastCardId = container.extensions.pickCard.lastCardId;
+    const allCards = getOrderedContainerTextCards(id);
+    const availableCards = allCards.filter((card) => card.id !== lastCardId);
+    const randomPool = availableCards.length > 0 ? availableCards : allCards;
+    const nextSelectedCardId = selectedCardId
+      ? undefined
+      : randomPool[Math.floor(Math.random() * randomPool.length)]?.id;
+
+    setElements((current) =>
+      current.map((element) =>
+        element.id === id && element.extensions?.pickCard
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                pickCard: {
+                  selectedCardId: nextSelectedCardId,
+                  lastCardId: selectedCardId ?? nextSelectedCardId ?? lastCardId,
+                },
+              },
+            }
+          : element,
+      ),
+    );
+    setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
+    if (nextSelectedCardId) {
+      window.requestAnimationFrame(() => glowTextCard(nextSelectedCardId));
+    }
+  };
+
   const removeColorsExtension = (id: string) => {
     setElements((current) =>
       current.map((element) => {
@@ -4684,6 +5364,46 @@ function App() {
     closeContextMenus();
   };
 
+  const installCheckboxExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
+    }
+
+    setTextCards((current) =>
+      current.map((card) =>
+        targetIds.has(card.id)
+          ? {
+              ...card,
+              extensions: {
+                ...card.extensions,
+                checkbox: card.extensions?.checkbox ?? { checked: false },
+              },
+            }
+          : card,
+      ),
+    );
+    closeContextMenus();
+  };
+
+  const toggleTextCardCheckbox = (id: string) => {
+    setTextCards((current) =>
+      current.map((card) =>
+        card.id === id && card.extensions?.checkbox
+          ? {
+              ...card,
+              extensions: {
+                ...card.extensions,
+                checkbox: {
+                  checked: !card.extensions.checkbox.checked,
+                },
+              },
+            }
+          : card,
+      ),
+    );
+  };
+
   const updateContainerSearchQuery = (id: string, query: string) => {
     setElements((current) =>
       current.map((element) =>
@@ -4727,7 +5447,11 @@ function App() {
     closeContextMenus();
   };
 
-  const cycleContainerSort = (id: string, mode: "alphabet" | "color") => {
+  const setContainerSort = (
+    id: string,
+    mode: "alphabet" | "color" | null,
+    direction: "asc" | "desc" = "asc",
+  ) => {
     setElements((current) =>
       current.map((element) => {
         const sorting = element.extensions?.sorting;
@@ -4735,18 +5459,11 @@ function App() {
           return element;
         }
 
-        const nextSorting =
-          sorting.mode !== mode
-            ? { mode, direction: "asc" as const }
-            : sorting.direction === "asc"
-              ? { mode, direction: "desc" as const }
-              : { mode: null, direction: "asc" as const };
-
         return {
           ...element,
           extensions: {
             ...element.extensions,
-            sorting: nextSorting,
+            sorting: { mode, direction },
           },
         };
       }),
@@ -4793,6 +5510,7 @@ function App() {
         target,
         offsetX: point.x - bounds.left,
         offsetY: point.y - bounds.top,
+        bounds,
       },
     ]);
     window.setTimeout(() => {
@@ -4851,6 +5569,89 @@ function App() {
     return card ? getTextCardRippleBounds(card) : null;
   };
 
+  const getExtensionHoverTargetAtPoint = (
+    point: { x: number; y: number },
+  ): { target: ExtensionDropRipple["target"]; bounds: ExtensionRippleBounds } | null => {
+    const hitBounds = (bounds: ExtensionRippleBounds) =>
+      point.x >= bounds.left &&
+      point.x <= bounds.left + bounds.width &&
+      point.y >= bounds.top &&
+      point.y <= bounds.top + bounds.height;
+
+    for (const image of [...looseImages].reverse()) {
+      const bounds = { left: image.x, top: image.y, width: image.width, height: image.height };
+      if (hitBounds(bounds)) {
+        return { target: { type: "image", id: image.id }, bounds };
+      }
+    }
+
+    for (const card of [...looseTextCards].reverse()) {
+      const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
+      if (hitBounds(bounds)) {
+        return { target: { type: "text-card", id: card.id }, bounds };
+      }
+    }
+
+    for (const container of [...elements].reverse()) {
+      const contentTop =
+        container.y +
+        CONTAINER_HEADER_HEIGHT +
+        (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0);
+      const contentBottom = container.y + container.height;
+
+      for (const card of [...getContainerVisibleTextCards(container)].reverse()) {
+        const bounds = getTextCardRippleBounds(card);
+        if (
+          bounds &&
+          bounds.top < contentBottom &&
+          bounds.top + bounds.height > contentTop &&
+          hitBounds(bounds)
+        ) {
+          return { target: { type: "text-card", id: card.id }, bounds };
+        }
+      }
+    }
+
+    for (const element of [...textBlocks].reverse()) {
+      const bounds = { left: element.x, top: element.y, width: element.width, height: element.height };
+      if (hitBounds(bounds)) {
+        return { target: { type: "text-block", id: element.id }, bounds };
+      }
+    }
+
+    for (const element of [...elements].reverse()) {
+      const bounds = { left: element.x, top: element.y, width: element.width, height: element.height };
+      if (hitBounds(bounds)) {
+        return { target: { type: "container", id: element.id }, bounds };
+      }
+    }
+
+    return null;
+  };
+
+  const handleExtensionDragHover = (
+    extensionId: ExtensionId | null,
+    clientX?: number,
+    clientY?: number,
+  ) => {
+    if (!extensionId || clientX === undefined || clientY === undefined) {
+      setExtensionIncompatibleHover(null);
+      return;
+    }
+
+    const hoverTarget = getExtensionHoverTargetAtPoint(canvasPointFromEvent({ clientX, clientY }));
+    if (!hoverTarget || EXTENSION_COMPATIBLE_TARGETS[extensionId].has(hoverTarget.target.type)) {
+      setExtensionIncompatibleHover(null);
+      return;
+    }
+
+    setExtensionIncompatibleHover({
+      extensionId,
+      target: hoverTarget.target,
+      bounds: hoverTarget.bounds,
+    });
+  };
+
   const getExtensionDropTargetIds = (extensionId: ExtensionId, target: ExtensionDropRipple["target"]) => {
     if (!selectedIds.includes(target.id) || selectedIds.length <= 1) {
       return [target.id];
@@ -4872,8 +5673,20 @@ function App() {
       installLockExtensions(ids);
     } else if (extensionId === "colors") {
       installColorsExtensions(ids);
+    } else if (extensionId === "colorPicker") {
+      installColorPickerExtensions(ids);
     } else if (extensionId === "search") {
       installSearchExtensions(ids);
+    } else if (extensionId === "checkbox") {
+      installCheckboxExtensions(ids);
+    } else if (extensionId === "dailyReset") {
+      installDailyResetExtensions(ids);
+    } else if (extensionId === "counter") {
+      installCounterExtensions(ids);
+    } else if (extensionId === "inheritCardColor") {
+      installInheritCardColorExtensions(ids);
+    } else if (extensionId === "pickCard") {
+      installPickCardExtensions(ids);
     } else {
       installSortingExtensions(ids);
     }
@@ -4890,27 +5703,37 @@ function App() {
     if (!selectedIds.includes(target.id)) {
       setSelectedIds([target.id]);
     }
-    targetIds.forEach((targetId) => {
-      const rippleTarget = targetId === target.id ? target : getExtensionRippleTarget(targetId);
-      if (!rippleTarget) {
-        return;
-      }
 
-      const rippleBounds = targetId === target.id ? bounds : getExtensionTargetBounds(rippleTarget);
-      if (!rippleBounds) {
-        return;
-      }
+    const showDropRipples = () => {
+      targetIds.forEach((targetId) => {
+        const rippleTarget = targetId === target.id ? target : getExtensionRippleTarget(targetId);
+        if (!rippleTarget) {
+          return;
+        }
 
-      const ripplePoint =
-        targetId === target.id
-          ? point
-          : {
-              x: rippleBounds.left + rippleBounds.width / 2,
-              y: rippleBounds.top + rippleBounds.height / 2,
-            };
+        const rippleBounds =
+          getExtensionTargetBounds(rippleTarget) ?? (targetId === target.id ? bounds : null);
+        if (!rippleBounds) {
+          return;
+        }
 
-      showExtensionDropRipple(extensionId, ripplePoint, rippleTarget, rippleBounds);
-    });
+        const ripplePoint =
+          targetId === target.id
+            ? point
+            : {
+                x: rippleBounds.left + rippleBounds.width / 2,
+                y: rippleBounds.top + rippleBounds.height / 2,
+              };
+
+        showExtensionDropRipple(extensionId, ripplePoint, rippleTarget, rippleBounds);
+      });
+    };
+
+    if (extensionId === "checkbox") {
+      window.requestAnimationFrame(showDropRipples);
+    } else {
+      showDropRipples();
+    }
   };
 
   const dropExtensionOnCanvas = (
@@ -4918,6 +5741,7 @@ function App() {
     clientX: number,
     clientY: number,
   ) => {
+    setExtensionIncompatibleHover(null);
     const point = canvasPointFromEvent({ clientX, clientY });
     if (extensionId === "colors" || extensionId === "lock") {
       const targetImage = [...looseImages].reverse().find(
@@ -4944,7 +5768,7 @@ function App() {
       }
     }
 
-    if (extensionId === "colors" || extensionId === "lock") {
+    if (extensionId === "colors" || extensionId === "lock" || extensionId === "checkbox") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
         return (
@@ -5012,7 +5836,12 @@ function App() {
       }
     }
 
-    if (extensionId === "privacy" || extensionId === "colors" || extensionId === "lock") {
+    if (
+      extensionId === "privacy" ||
+      extensionId === "colors" ||
+      extensionId === "colorPicker" ||
+      extensionId === "lock"
+    ) {
       const targetTextBlock = [...textBlocks]
         .reverse()
         .find(
@@ -5049,7 +5878,7 @@ function App() {
           point.y <= element.y + element.height,
       );
 
-    if (targetContainer) {
+    if (targetContainer && EXTENSION_COMPATIBLE_TARGETS[extensionId].has("container")) {
       applyDroppedExtension(
         extensionId,
         point,
@@ -5437,7 +6266,8 @@ function App() {
       },
     };
 
-    setCanvases([...currentCanvases, canvas]);
+    const nextCanvases = [...currentCanvases, canvas];
+    setCanvases(nextCanvases);
     setActiveCanvas(canvas);
     setElements([]);
     setTextCards([]);
@@ -5576,15 +6406,97 @@ function App() {
     setCanvases(nextCanvases);
   };
 
+  const getCanvasCycleOrder = () => {
+    const currentCanvases = getPersistedCanvases();
+    return currentCanvases.map((canvas) => canvas.id);
+  };
+
+  const finishCanvasCycle = () => {
+    canvasCycleSessionRef.current = null;
+    setCanvasCycleHighlightId(null);
+  };
+
+  const cycleCanvases = (direction: 1 | -1) => {
+    const order = canvasCycleSessionRef.current?.order ?? getCanvasCycleOrder();
+    if (order.length <= 1) {
+      return;
+    }
+
+    const currentIndex =
+      canvasCycleSessionRef.current?.index ?? Math.max(0, order.indexOf(activeCanvas.id));
+    const nextIndex = (currentIndex + direction + order.length) % order.length;
+    const nextCanvasId = order[nextIndex];
+    if (!nextCanvasId) {
+      return;
+    }
+
+    canvasCycleSessionRef.current = { order, index: nextIndex };
+
+    if (panelSwitchTimeoutRef.current !== null) {
+      window.clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
+
+    setQuickExtensionsMenu(null);
+    setCanvasCycleHighlightId(nextCanvasId);
+    setExtensionsOpen(false);
+    setExtensionsClosing(false);
+    setCanvasManagerOpen(true);
+    setCanvasManagerClosing(false);
+    selectCanvas(nextCanvasId);
+  };
+
+  useEffect(() => {
+    const handleCtrlTab = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        event.key !== "Tab" ||
+        !event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        isEditableKeyboardTarget(target)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      cycleCanvases(event.shiftKey ? -1 : 1);
+    };
+    const handleCtrlRelease = (event: KeyboardEvent) => {
+      if (
+        (event.key === "Control" || event.key === "ControlLeft" || event.key === "ControlRight") &&
+        canvasCycleSessionRef.current
+      ) {
+        finishCanvasCycle();
+      }
+    };
+
+    window.addEventListener("keydown", handleCtrlTab, true);
+    window.addEventListener("keyup", handleCtrlRelease, true);
+    return () => {
+      window.removeEventListener("keydown", handleCtrlTab, true);
+      window.removeEventListener("keyup", handleCtrlRelease, true);
+    };
+  }, [
+    activeCanvas,
+    canvasCycleHighlightId,
+    canvases,
+    elements,
+    images,
+    pan,
+    textBlocks,
+    textCards,
+    zoom,
+  ]);
+
   const toggleCanvasManager = () => {
     if (canvasManagerOpen && !canvasManagerClosing) {
       closeCanvasManager();
       return;
     }
 
-    closeExtensionsPanel();
-    setCanvasManagerOpen(true);
-    setCanvasManagerClosing(false);
+    switchLeftPanel("canvases");
   };
 
   const toggleExtensionsPanel = () => {
@@ -5593,9 +6505,7 @@ function App() {
       return;
     }
 
-    closeCanvasManager();
-    setExtensionsOpen(true);
-    setExtensionsClosing(false);
+    switchLeftPanel("extensions");
   };
 
   const updateDiscordRpcEnabled = (enabled: boolean) => {
@@ -5666,19 +6576,62 @@ function App() {
   const closingImageContextElement = closingImageMenu ? imagesById.get(closingImageMenu.id) : null;
   const textCardDropPreviewPosition = getTextCardDropPreviewPosition();
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
-  const getExtensionRippleBounds = (ripple: ExtensionDropRipple): ExtensionRippleBounds | null =>
-    getExtensionTargetBounds(ripple.target);
-
+  const frostedGlassStyle = {
+    "--frosted-bg-opacity": frostedGlassValues.bgOpacity,
+    "--frosted-bg-brightness": frostedGlassValues.bgBrightness,
+    "--frosted-border-opacity": frostedGlassValues.borderOpacity,
+    "--frosted-blur": `${frostedGlassValues.blur}px`,
+    "--frosted-shadow-opacity": frostedGlassValues.shadowOpacity,
+    "--frosted-shadow-y": `${frostedGlassValues.shadowY}px`,
+    "--frosted-shadow-blur": `${frostedGlassValues.shadowBlur}px`,
+    "--left-panel-card-bg-opacity": leftPanelCardValues.bgOpacity,
+    "--left-panel-card-outline-opacity": leftPanelCardValues.outlineOpacity,
+  } as CSSProperties;
   return (
     <main
       data-theme="taskmap"
       spellCheck={false}
       className="h-full w-full bg-[color:var(--void-bg)] text-white"
+      style={frostedGlassStyle}
       onContextMenu={suppressContextMenu}
       onPointerDownCapture={handleMainPointerDownCapture}
+      onPointerMoveCapture={handleColorPickerPointerMove}
     >
       <div className="h-full">
         <section className="relative h-full overflow-hidden">
+          {colorPickerTargetId && (
+            <div
+              data-color-picker-tool
+              className="pointer-events-none fixed z-[1002] flex items-center gap-2 rounded-lg border border-white/[0.16] bg-[#18191d] px-2.5 py-2 text-sm font-medium text-white/82 shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
+              style={{
+                left: (colorPickerPreview?.clientX ?? 20) + 18,
+                top: (colorPickerPreview?.clientY ?? 60) + 18,
+              }}
+            >
+              <span
+                className="h-5 w-5 rounded border border-black/70 shadow-[0_0_0_1px_rgba(255,255,255,0.18)]"
+                style={{ backgroundColor: colorPickerPreview?.color ?? "#111216" }}
+              />
+              <IconColorPicker size={18} stroke={2} />
+              <span>Click to apply</span>
+            </div>
+          )}
+          {temporaryPanelsVisible && (
+            <>
+              <FrostedGlassTuner
+                frostedValues={frostedGlassValues}
+                cardValues={leftPanelCardValues}
+                onFrostedChange={setFrostedGlassValues}
+                onCardChange={setLeftPanelCardValues}
+              />
+              <div className="frosted-glass pointer-events-none fixed left-1/2 top-6 z-30 w-[640px] -translate-x-1/2 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-8 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm">
+                <div className="text-2xl font-semibold tracking-tight text-white/88">Frosted glass preview</div>
+                <div className="mt-3 text-base leading-6 text-white/58">
+                  Temporary example panel using the current slider values.
+                </div>
+              </div>
+            </>
+          )}
           <FloatingToolbar
             canRedo={historyState.canRedo}
             canUndo={historyState.canUndo}
@@ -5702,6 +6655,7 @@ function App() {
             <CanvasManager
               canvases={getPersistedCanvases()}
               activeCanvasId={activeCanvas.id}
+              cycleHighlightCanvasId={canvasCycleHighlightId}
               closing={canvasManagerClosing}
               minimalView={canvasManagerMinimalView}
               viewportWidth={stageWidth}
@@ -5715,7 +6669,22 @@ function App() {
             />
           )}
           {extensionsOpen && (
-            <ExtensionsPanel closing={extensionsClosing} onDropExtension={dropExtensionOnCanvas} />
+            <ExtensionsPanel
+              closing={extensionsClosing}
+              onDropExtension={dropExtensionOnCanvas}
+              onDragExtension={handleExtensionDragHover}
+              dragInvalid={Boolean(extensionIncompatibleHover)}
+            />
+          )}
+          {quickExtensionsMenu && (
+            <QuickExtensionsMenu
+              left={quickExtensionsMenu.left}
+              top={quickExtensionsMenu.top}
+              onClose={() => setQuickExtensionsMenu(null)}
+              onDropExtension={dropExtensionOnCanvas}
+              onDragExtension={handleExtensionDragHover}
+              dragInvalid={Boolean(extensionIncompatibleHover)}
+            />
           )}
           <div
             ref={stageRef}
@@ -5788,11 +6757,25 @@ function App() {
                   }
                 />
               ))}
+              {extensionIncompatibleHover && (
+                <div
+                  key={`${extensionIncompatibleHover.extensionId}-${extensionIncompatibleHover.target.type}-${extensionIncompatibleHover.target.id}`}
+                  className="extension-incompatible-hover-surface"
+                  style={{
+                    left: extensionIncompatibleHover.bounds.left,
+                    top: extensionIncompatibleHover.bounds.top,
+                    width: extensionIncompatibleHover.bounds.width,
+                    height: extensionIncompatibleHover.bounds.height,
+                    borderRadius: extensionIncompatibleHover.bounds.borderRadius,
+                    borderTopLeftRadius: extensionIncompatibleHover.bounds.borderTopLeftRadius,
+                    borderTopRightRadius: extensionIncompatibleHover.bounds.borderTopRightRadius,
+                    borderBottomRightRadius: extensionIncompatibleHover.bounds.borderBottomRightRadius,
+                    borderBottomLeftRadius: extensionIncompatibleHover.bounds.borderBottomLeftRadius,
+                  }}
+                />
+              )}
               {extensionDropRipples.map((ripple) => {
-                const bounds = getExtensionRippleBounds(ripple);
-                if (!bounds) {
-                  return null;
-                }
+                const bounds = ripple.bounds;
 
                 const rippleX = clamp(ripple.offsetX, 0, bounds.width);
                 const rippleY = clamp(ripple.offsetY, 0, bounds.height);
@@ -5832,13 +6815,10 @@ function App() {
                 const allContainedCards = (
                   orderedTextCardsByContainerId.get(element.id) ?? []
                 ).filter(
-                  (card) => !(dragState?.type === "text-card-move" && dragState.id === card.id),
+                  (card) => !(dragState?.type === "text-card-move" && dragState.ids.includes(card.id)),
                 );
                 const searchQuery = getContainerSearchQuery(element);
-                const searchedCards = searchQuery
-                  ? allContainedCards.filter((card) => card.text.toLowerCase().includes(searchQuery))
-                  : allContainedCards;
-                const containedCards = getSortedContainerTextCards(element, searchedCards);
+                const containedCards = getContainerVisibleTextCards(element, allContainedCards);
                 const sorted = Boolean(element.extensions?.sorting?.mode);
                 const relativeDropPreview =
                   textCardDropPreview?.containerId === element.id && textCardDropPreviewPosition
@@ -5850,7 +6830,7 @@ function App() {
                 return (
                   <ContainerNode
                     key={element.id}
-                    element={element}
+                    element={withCanvasLayer(element)}
                     selected={outlinedIds.includes(element.id)}
                     multiSelected={containerMultiSelected}
                     entering={enteringIds.includes(element.id)}
@@ -5867,11 +6847,14 @@ function App() {
                     onToggleMenu={toggleMenu}
                     onTogglePrivacy={togglePrivacyExtension}
                     onToggleLock={toggleLockExtension}
-                    onCycleSort={cycleContainerSort}
+                    onPickColor={pickElementColor}
+                    onTogglePickCard={togglePickedContainerCard}
+                    onSetSort={setContainerSort}
                     onSearchChange={updateContainerSearchQuery}
                     onOpenContentMenu={openContainerContentMenu}
                     onWheelContent={handleContainerWheel}
                     onStartContentSelection={startContainerContentSelection}
+                    cardCount={allContainedCards.length}
                   >
                     {relativeDropPreview && (
                       <div
@@ -5888,7 +6871,7 @@ function App() {
                       // The settling card occupies its slot here (so neighbours
                       // index correctly) but is drawn in the loose layer, which
                       // owns its settle animation. Skip emitting it twice.
-                      if (card.id === settlingTextCardId) {
+                      if (settlingTextCardIds.includes(card.id)) {
                         return null;
                       }
                       // While dropping into this container, cards at or after
@@ -5897,7 +6880,9 @@ function App() {
                       const previewShift =
                         textCardDropPreview?.containerId === element.id &&
                         visibleIndex >= textCardDropPreview.index
-                          ? 1
+                          ? dragState?.type === "text-card-move"
+                            ? dragState.ids.length
+                            : 1
                           : 0;
                       const compactSearchPosition = searchQuery || sorted
                         ? {
@@ -5924,8 +6909,9 @@ function App() {
                           entering={enteringTextCardIds.includes(card.id)}
                           deleting={deletingTextCardIds.includes(card.id)}
                           pulsing={pulsingTextCardIds.includes(card.id)}
+                          glowing={glowingTextCardIds.includes(card.id)}
                           moving={dragState?.type === "move" && selectedIds.includes(card.id)}
-                          settling={settlingTextCardId === card.id}
+                          settling={settlingTextCardIds.includes(card.id)}
                           selected={outlinedIds.includes(card.id)}
                           interactionDisabled={containerMultiSelected}
                           linksDisabled={selectedIds.length > 1}
@@ -5935,6 +6921,7 @@ function App() {
                           onCancel={cancelTextCardEdit}
                           onStartMove={startTextCardMove}
                           onOpenMenu={openTextCardMenu}
+                          onToggleCheckbox={toggleTextCardCheckbox}
                         />
                       );
                     })}
@@ -5947,7 +6934,7 @@ function App() {
                 return (
                   <TextBlockNode
                     key={element.id}
-                    element={element}
+                    element={withCanvasLayer(element)}
                     selected={outlinedIds.includes(element.id)}
                     multiSelected={textBlockMultiSelected}
                     entering={enteringTextBlockIds.includes(element.id)}
@@ -5971,12 +6958,26 @@ function App() {
                     onToggleMenu={openTextBlockMenu}
                     onTogglePrivacy={togglePrivacyExtension}
                     onToggleLock={toggleLockExtension}
+                    onPickColor={pickElementColor}
                   />
                 );
               })}
               {renderedLooseTextCards.map((card) => {
-                const draggingTextCard = dragState?.type === "text-card-move" && dragState.id === card.id;
-                const settlingTextCard = settlingTextCardId === card.id;
+                if (textCardReleaseAnimation && settlingTextCardIds.includes(card.id)) {
+                  return null;
+                }
+                const draggingTextCard =
+                  dragState?.type === "text-card-move" && dragState.ids.includes(card.id);
+                if (draggingTextCard) {
+                  return null;
+                }
+                const dragBundleIndex =
+                  dragState?.type === "text-card-move" ? dragState.ids.indexOf(card.id) : -1;
+                const dragBundleOffset =
+                  dragState?.type === "text-card-move"
+                    ? dragState.cardOffsets.find((offset) => offset.id === card.id)
+                    : undefined;
+                const settlingTextCard = settlingTextCardIds.includes(card.id);
                 const position = draggingTextCard
                   ? { x: card.x, y: card.y }
                   : settlingTextCard && card.containerId
@@ -5986,16 +6987,32 @@ function App() {
                 return (
                   <TextCardNode
                     key={card.id}
-                    card={card}
+                    card={withCanvasLayer(card)}
                     editing={editingTextCardId === card.id}
                     draft={textCardDraft}
                     position={position}
                     entering={enteringTextCardIds.includes(card.id)}
                     deleting={deletingTextCardIds.includes(card.id)}
                     pulsing={pulsingTextCardIds.includes(card.id)}
+                    glowing={glowingTextCardIds.includes(card.id)}
                     dragging={draggingTextCard}
+                    dragPrimary={
+                      dragState?.type === "text-card-move" && dragState.id === card.id
+                    }
+                    dragBundleIndex={dragBundleIndex}
+                    dragBundleSize={
+                      dragState?.type === "text-card-move" ? dragState.ids.length : 1
+                    }
+                    dragPickupX={dragBundleOffset?.pickupX ?? 0}
+                    dragPickupY={dragBundleOffset?.pickupY ?? 0}
+                    dragSwayX={
+                      dragState?.type === "text-card-move" ? dragState.swayX : 0
+                    }
+                    dragSwayY={
+                      dragState?.type === "text-card-move" ? dragState.swayY : 0
+                    }
                     moving={dragState?.type === "move" && selectedIds.includes(card.id)}
-                    settling={settlingTextCardId === card.id}
+                    settling={settlingTextCard}
                     selected={outlinedIds.includes(card.id)}
                     linksDisabled={selectedIds.length > 1}
                     onDraftChange={setTextCardDraft}
@@ -6003,13 +7020,14 @@ function App() {
                     onCancel={cancelTextCardEdit}
                     onStartMove={startTextCardMove}
                     onOpenMenu={openTextCardMenu}
+                    onToggleCheckbox={toggleTextCardCheckbox}
                   />
                 );
               })}
               {looseImages.map((image) => (
                 <ImageNode
                   key={image.id}
-                  image={image}
+                  image={withCanvasLayer(image)}
                   url={getImageUrl(image.imageId, image.format)}
                   loading={loadingImageIds.includes(image.id)}
                   entering={enteringImageIds.includes(image.id)}
@@ -6025,6 +7043,81 @@ function App() {
                 />
               ))}
             </div>
+            {dragState?.type === "text-card-move" && (
+              <div
+                className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                {dragState.ids.map((id, dragBundleIndex) => {
+                  const card = textCardsById.get(id);
+                  const dragBundleOffset = dragState.cardOffsets.find((offset) => offset.id === id);
+                  if (!card) {
+                    return null;
+                  }
+
+                  return (
+                    <TextCardNode
+                      key={`drag-overlay-${card.id}`}
+                      card={card}
+                      editing={false}
+                      draft={card.text}
+                      position={{ x: card.x, y: card.y }}
+                      dragging
+                      dragPrimary={dragState.id === card.id}
+                      dragBundleIndex={dragBundleIndex}
+                      dragBundleSize={dragState.ids.length}
+                      dragPickupX={dragBundleOffset?.pickupX ?? 0}
+                      dragPickupY={dragBundleOffset?.pickupY ?? 0}
+                      dragSwayX={dragState.swayX}
+                      dragSwayY={dragState.swayY}
+                      selected={outlinedIds.includes(card.id)}
+                      linksDisabled
+                      onDraftChange={setTextCardDraft}
+                      onSave={saveTextCardEdit}
+                      onCancel={cancelTextCardEdit}
+                      onStartMove={startTextCardMove}
+                      onOpenMenu={openTextCardMenu}
+                      onToggleCheckbox={toggleTextCardCheckbox}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            {textCardReleaseAnimation && (
+              <div
+                className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                {textCardReleaseAnimation.cards.map(({ card, from, to }) => (
+                  <TextCardNode
+                    key={`release-overlay-${card.id}`}
+                    card={card}
+                    editing={false}
+                    draft={card.text}
+                    position={textCardReleaseAnimation.active ? to : from}
+                    settling
+                    selected={outlinedIds.includes(card.id)}
+                    linksDisabled
+                    onDraftChange={setTextCardDraft}
+                    onSave={saveTextCardEdit}
+                    onCancel={cancelTextCardEdit}
+                    onStartMove={startTextCardMove}
+                    onOpenMenu={openTextCardMenu}
+                    onToggleCheckbox={toggleTextCardCheckbox}
+                  />
+                ))}
+              </div>
+            )}
             {selectionScreenBounds && (
               <div
                 className="pointer-events-none absolute z-30 rounded-md border border-dashed border-[#2dd8c8]/80 bg-[#2dd8c8]/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
@@ -6059,7 +7152,12 @@ function App() {
               onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
-              onMoveLayer={moveContainerLayer}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
+              onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
+              onRemoveInheritCardColorExtension={(id) => stripContextExtension(id, "inheritCardColor")}
+              onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
+              onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
           )}
@@ -6080,7 +7178,12 @@ function App() {
               onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
-              onMoveLayer={moveContainerLayer}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
+              onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
+              onRemoveInheritCardColorExtension={(id) => stripContextExtension(id, "inheritCardColor")}
+              onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
+              onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
           )}
@@ -6121,6 +7224,8 @@ function App() {
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
+              onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
+              onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
           )}
@@ -6139,6 +7244,8 @@ function App() {
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
+              onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
+              onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
           )}
@@ -6157,7 +7264,8 @@ function App() {
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
-              onMoveLayer={moveTextBlockLayer}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
           )}
@@ -6176,7 +7284,8 @@ function App() {
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
-              onMoveLayer={moveTextBlockLayer}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
           )}
@@ -6192,7 +7301,7 @@ function App() {
               onReplace={pickImageForElement}
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
-              onMoveLayer={moveImageLayer}
+              onMoveLayer={moveCanvasLayers}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
@@ -6211,7 +7320,7 @@ function App() {
               onReplace={pickImageForElement}
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
-              onMoveLayer={moveImageLayer}
+              onMoveLayer={moveCanvasLayers}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
@@ -6272,6 +7381,8 @@ function App() {
               appVersion={appVersion}
               fpsCounterVisible={fpsCounterVisible}
               onFpsCounterVisibleChange={setFpsCounterVisible}
+              temporaryPanelsVisible={temporaryPanelsVisible}
+              onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
               onCheckForUpdate={checkForAppUpdate}
               onInstallUpdate={installAppUpdate}
               onClose={() => setSettingsOpen(false)}

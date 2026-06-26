@@ -47,7 +47,7 @@ export function Minimap({
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-20 rounded-md border border-white/10 bg-[#15171c]/58 p-2 shadow-[0_12px_34px_rgba(0,0,0,0.32)] backdrop-blur-md transition-opacity duration-500 ${
+      className={`frosted-glass fixed bottom-4 right-4 z-20 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm transition-opacity duration-500 ${
         visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       }`}
     >

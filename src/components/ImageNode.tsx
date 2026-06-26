@@ -56,6 +56,7 @@ export function ImageNode({
         dragging && !chromeless ? "shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)]" : ""
       } ${entering ? "text-card-enter" : ""} ${deleting ? "text-card-exit pointer-events-none" : ""}`}
       style={{
+        zIndex: dragging ? 10000 : 20 + (image.layer ?? 0),
         left: image.x,
         top: image.y,
         width: image.width,

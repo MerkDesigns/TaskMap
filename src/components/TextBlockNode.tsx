@@ -3,6 +3,7 @@ import {
   IconBold,
   IconChevronLeft,
   IconChevronRight,
+  IconColorPicker,
   IconDotsVertical,
   IconEye,
   IconEyeOff,
@@ -10,12 +11,15 @@ import {
   IconLock,
   IconLockOpen,
   IconNotes,
+  IconPuzzle,
   IconUnderline,
 } from "@tabler/icons-react";
 import { MouseEvent, PointerEvent, WheelEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FormatMarker, isTextFormatActive, renderFormattedText, toggleTextFormat } from "../textFormatting";
 import { DragState, TextBlockElement } from "../types";
+
+type TextBlockHeaderExtensionKey = "lock" | "privacy" | "colorPicker";
 
 function getDisplayedTextOffset(root: HTMLElement, clientX: number, clientY: number) {
   const documentWithCaret = document as Document & {
@@ -116,6 +120,7 @@ type TextBlockNodeProps = {
   onToggleMenu: (event: MouseEvent<HTMLButtonElement>, element: TextBlockElement) => void;
   onTogglePrivacy: (id: string) => void;
   onToggleLock: (id: string) => void;
+  onPickColor: (id: string) => void;
 };
 
 export function TextBlockNode({
@@ -143,6 +148,7 @@ export function TextBlockNode({
   onToggleMenu,
   onTogglePrivacy,
   onToggleLock,
+  onPickColor,
 }: TextBlockNodeProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -238,16 +244,190 @@ export function TextBlockNode({
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
   const lockInstalled = Boolean(element.extensions?.lock);
   const lockEnabled = Boolean(element.extensions?.lock?.enabled);
+  const colorPickerInstalled = Boolean(element.extensions?.colorPicker);
   const [extensionButtonsVisible, setExtensionButtonsVisible] = useState(true);
-  const headerExtensionButtonCount = (lockInstalled ? 1 : 0) + (element.extensions?.privacy ? 1 : 0);
+  const headerExtensionItems: Array<{ key: TextBlockHeaderExtensionKey; width: number }> = [];
+  if (lockInstalled) headerExtensionItems.push({ key: "lock", width: 36 });
+  if (element.extensions?.privacy) headerExtensionItems.push({ key: "privacy", width: 36 });
+  if (colorPickerInstalled) headerExtensionItems.push({ key: "colorPicker", width: 36 });
+  const headerExtensionButtonCount = headerExtensionItems.length;
+  const headerExtensionWidth = headerExtensionItems.reduce((total, item) => total + item.width, 0);
+  const headerExtensionSignature = headerExtensionItems.map((item) => `${item.key}:${item.width}`).join("|");
   const collapsibleExtensions = headerExtensionButtonCount > 1;
+  const [visibleExtensionCount, setVisibleExtensionCount] = useState(headerExtensionButtonCount);
+  const [overflowMenuPosition, setOverflowMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const headerTitleRef = useRef<HTMLDivElement | null>(null);
+  const overflowButtonRef = useRef<HTMLButtonElement | null>(null);
+  const overflowMenuRef = useRef<HTMLDivElement | null>(null);
+  const visibleExtensionItems = headerExtensionItems.slice(0, visibleExtensionCount);
+  const overflowExtensionItems =
+    extensionButtonsVisible ? headerExtensionItems.slice(visibleExtensionCount) : [];
+  const hasOverflowExtensions = overflowExtensionItems.length > 0;
+
+  useEffect(() => {
+    const header = headerRef.current;
+    const title = headerTitleRef.current;
+    if (!header || !title) {
+      return;
+    }
+
+    const measure = () => {
+      const innerWidth = Math.max(0, header.clientWidth - 24);
+      const titleReserve = Math.min(title.scrollWidth, Math.max(56, innerWidth * 0.38));
+      const fixedControlsWidth = 28 + (collapsibleExtensions ? 24 : 0);
+      const availableWithoutOverflow = Math.max(0, innerWidth - titleReserve - fixedControlsWidth - 10);
+
+      if (headerExtensionWidth <= availableWithoutOverflow) {
+        setVisibleExtensionCount(headerExtensionButtonCount);
+        return;
+      }
+
+      const availableWithOverflow = Math.max(0, availableWithoutOverflow - 32);
+      let usedWidth = 0;
+      let nextVisibleCount = 0;
+      for (const item of headerExtensionItems) {
+        if (usedWidth + item.width > availableWithOverflow) {
+          break;
+        }
+        usedWidth += item.width;
+        nextVisibleCount += 1;
+      }
+
+      setVisibleExtensionCount(nextVisibleCount);
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    observer.observe(title);
+    measure();
+
+    return () => observer.disconnect();
+  }, [
+    collapsibleExtensions,
+    element.name,
+    headerExtensionButtonCount,
+    headerExtensionSignature,
+    headerExtensionWidth,
+    renaming,
+  ]);
+
+  useEffect(() => {
+    if (!hasOverflowExtensions) {
+      setOverflowMenuPosition(null);
+    }
+  }, [hasOverflowExtensions]);
+
+  useEffect(() => {
+    if (!overflowMenuPosition) {
+      return;
+    }
+
+    const closeOverflowMenu = (event: globalThis.PointerEvent | globalThis.MouseEvent) => {
+      if ("button" in event && event.button === 1) {
+        return;
+      }
+
+      const target = event.target as Node;
+      if (!overflowButtonRef.current?.contains(target) && !overflowMenuRef.current?.contains(target)) {
+        setOverflowMenuPosition(null);
+      }
+    };
+
+    window.addEventListener("pointerdown", closeOverflowMenu, true);
+    window.addEventListener("contextmenu", closeOverflowMenu, true);
+    return () => {
+      window.removeEventListener("pointerdown", closeOverflowMenu, true);
+      window.removeEventListener("contextmenu", closeOverflowMenu, true);
+    };
+  }, [overflowMenuPosition]);
+
+  const getExtensionButtonClass = (active: boolean) =>
+    `grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
+      active ? "bg-white/10 text-white" : "text-white/70"
+    }`;
+
+  const renderExtensionButton = (key: TextBlockHeaderExtensionKey) => {
+    if (key === "lock") {
+      return (
+        <button
+          key={key}
+          className={getExtensionButtonClass(lockEnabled)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleLock(element.id);
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          title={lockEnabled ? "Unlock" : "Lock"}
+        >
+          {lockEnabled ? <IconLock size={18} stroke={2} /> : <IconLockOpen size={18} stroke={2} />}
+        </button>
+      );
+    }
+
+    if (key === "privacy") {
+      return (
+        <button
+          key={key}
+          className={getExtensionButtonClass(privacyEnabled)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onTogglePrivacy(element.id);
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          title={privacyEnabled ? "Show content" : "Hide content"}
+        >
+          {privacyEnabled ? <IconEyeOff size={18} stroke={2} /> : <IconEye size={18} stroke={2} />}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        key={key}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
+        onClick={(event) => {
+          event.stopPropagation();
+          onPickColor(element.id);
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        title="Pick a color from the app"
+      >
+        <IconColorPicker size={18} stroke={2} />
+      </button>
+    );
+  };
+
+  const toggleOverflowMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (overflowMenuPosition) {
+      setOverflowMenuPosition(null);
+      return;
+    }
+
+    const article = articleRef.current;
+    if (!article) {
+      return;
+    }
+
+    const articleRect = article.getBoundingClientRect();
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const scale = articleRect.width / Math.max(element.width, 1) || 1;
+    setOverflowMenuPosition({
+      left: (buttonRect.left + buttonRect.width / 2 - articleRect.left) / scale,
+      top: (buttonRect.top - articleRect.top) / scale - 10,
+    });
+  };
 
   return (
     <article
+      ref={articleRef}
       className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl ${
         entering ? "container-enter" : ""
       } ${deleting ? "container-exit pointer-events-none" : ""} ${pulsing ? "text-card-pulse" : ""}`}
       style={{
+        zIndex: 20 + (element.layer ?? 0),
         left: element.x,
         top: element.y,
         width: element.width,
@@ -280,6 +460,7 @@ export function TextBlockNode({
       />
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
+          ref={headerRef}
           className={`relative z-30 flex h-10 items-center justify-between px-3 text-white ${
             dragState?.type === "move" && dragState.ids.includes(element.id)
               ? "cursor-grabbing"
@@ -288,7 +469,7 @@ export function TextBlockNode({
           style={{ backgroundColor: element.accent }}
           onPointerDown={(event) => onStartMove(event, element)}
         >
-          <div className="flex min-w-0 items-center gap-2">
+          <div ref={headerTitleRef} className="flex min-w-0 items-center gap-2">
             <IconNotes size={18} stroke={2} className="shrink-0 text-white/80" />
             {renaming ? (
               <input
@@ -319,7 +500,7 @@ export function TextBlockNode({
           <div className="flex shrink-0 items-center gap-1">
             {collapsibleExtensions && (
               <button
-                className="grid h-8 w-6 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
+                className="grid h-8 w-5 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
                 onClick={(event) => {
                   event.stopPropagation();
                   setExtensionButtonsVisible((current) => !current);
@@ -337,43 +518,31 @@ export function TextBlockNode({
             <div
               className={`flex items-center gap-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out ${
                 !collapsibleExtensions || extensionButtonsVisible
-                  ? "max-w-[76px] translate-x-0 opacity-100"
+                  ? "translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 translate-x-2 opacity-0"
               }`}
+              style={{
+                maxWidth:
+                  !collapsibleExtensions || extensionButtonsVisible
+                    ? visibleExtensionItems.reduce((total, item) => total + item.width, 0)
+                    : 0,
+              }}
             >
-              {lockInstalled && (
-                <button
-                  className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
-                    lockEnabled ? "bg-white/10 text-white" : "text-white/70"
-                  }`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggleLock(element.id);
-                  }}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  title={lockEnabled ? "Unlock" : "Lock"}
-                >
-                  {lockEnabled ? <IconLock size={18} stroke={2} /> : <IconLockOpen size={18} stroke={2} />}
-                </button>
-              )}
-              {element.extensions?.privacy && (
-                <button
-                  className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
-                    privacyEnabled ? "bg-white/10 text-white" : "text-white/70"
-                  }`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onTogglePrivacy(element.id);
-                  }}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  title={privacyEnabled ? "Show content" : "Hide content"}
-                >
-                  {privacyEnabled ? <IconEyeOff size={18} stroke={2} /> : <IconEye size={18} stroke={2} />}
-                </button>
-              )}
+              {visibleExtensionItems.map((item) => renderExtensionButton(item.key))}
             </div>
+            {hasOverflowExtensions && (
+              <button
+                ref={overflowButtonRef}
+                className="grid h-8 w-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
+                onClick={toggleOverflowMenu}
+                onPointerDown={(event) => event.stopPropagation()}
+                title="More extensions"
+              >
+                <IconPuzzle size={18} stroke={2} />
+              </button>
+            )}
             <button
-              className="grid h-8 w-8 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
+              className="grid h-8 w-7 place-items-center rounded-md text-white/75 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
               onClick={(event) => onToggleMenu(event, element)}
               onPointerDown={(event) => event.stopPropagation()}
               title="Text block menu"
@@ -504,6 +673,21 @@ export function TextBlockNode({
           <IconArrowDownRight size={18} stroke={2} />
         </button>
       </div>
+      {overflowMenuPosition &&
+        (
+          <div
+            ref={overflowMenuRef}
+            className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+            style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
+            <span className="relative z-10 flex items-center gap-1">
+              {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
+            </span>
+          </div>
+        )}
     </article>
   );
 }

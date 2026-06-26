@@ -13,7 +13,12 @@ import {
 } from "@tabler/icons-react";
 import { PointerEvent as ReactPointerEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MENU_DIVIDER_CLASS, MENU_ITEM_CLASS } from "../constants";
+import {
+  CONTEXT_MENU_PANEL_CLASS,
+  MENU_DANGER_ITEM_CLASS,
+  MENU_DIVIDER_CLASS,
+  MENU_ITEM_CLASS,
+} from "../constants";
 import { TaskCanvas } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
@@ -22,7 +27,9 @@ type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
 type CanvasManagerProps = {
   canvases: TaskCanvas[];
   activeCanvasId: string;
+  cycleHighlightCanvasId?: string | null;
   closing: boolean;
+  embedded?: boolean;
   minimalView: boolean;
   viewportWidth: number;
   viewportHeight: number;
@@ -79,7 +86,9 @@ function clampDraftSize(value: number) {
 export function CanvasManager({
   canvases,
   activeCanvasId,
+  cycleHighlightCanvasId = null,
   closing,
+  embedded = false,
   minimalView,
   viewportWidth,
   viewportHeight,
@@ -163,6 +172,16 @@ export function CanvasManager({
       nameInputRef.current?.select();
     });
   }, [editingId]);
+
+  useEffect(() => {
+    if (!cycleHighlightCanvasId) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      cardRefs.current[cycleHighlightCanvasId]?.scrollIntoView({ block: "nearest" });
+    });
+  }, [cycleHighlightCanvasId]);
 
   useEffect(() => {
     if (!menu) {
@@ -558,9 +577,13 @@ export function CanvasManager({
 
   return (
     <div
-      className={`frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
-        closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
-      }`}
+      className={
+        embedded
+          ? "flex h-full min-h-0 flex-col"
+          : `frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
+              closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
+            }`
+      }
       onPointerDownCapture={(event) => {
         if (
           menu &&
@@ -573,7 +596,7 @@ export function CanvasManager({
       <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
         <div className="flex items-center gap-2 text-white/80">
           <IconStack2 size={17} stroke={2} className="text-white/55" />
-          <span className="text-[13px] font-semibold tracking-tight text-white/85">Canvases</span>
+          <span className="text-base font-semibold tracking-tight text-white/85">Canvases</span>
           <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-white/45">
             {canvases.length}
           </span>
@@ -606,10 +629,11 @@ export function CanvasManager({
       <div className="relative min-h-0 flex-1">
         <div
           ref={listRef}
-          className="canvas-browser-scroll min-h-0 h-full space-y-2.5 overflow-y-auto pr-0.5"
+          className="canvas-browser-scroll h-full min-h-0 space-y-2.5 overflow-y-auto pr-0.5"
         >
           {orderedCanvases.map((canvas) => {
           const active = canvas.id === activeCanvasId;
+          const cycleHighlighted = canvas.id === cycleHighlightCanvasId;
           previewViewportSizesRef.current[canvas.id] ??= canvas.previewViewport ?? {
             width: viewportWidth,
             height: viewportHeight,
@@ -641,7 +665,9 @@ export function CanvasManager({
                 ref={(node) => {
                   cardRefs.current[canvas.id] = node;
                 }}
-                className="relative flex w-full select-none flex-col gap-3 rounded-xl border border-[#2dd8c8]/40 bg-[#1c1d22] p-3 text-left"
+                className={`relative flex w-full select-none flex-col gap-3 rounded-xl border border-[#2dd8c8]/40 bg-[#1c1d22] p-3 text-left ${
+                  cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""
+                }`}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/45">
@@ -749,11 +775,13 @@ export function CanvasManager({
                 ref={(node) => {
                   cardRefs.current[canvas.id] = node;
                 }}
-                className={`group relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border pl-3 pr-2 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+                className={`left-panel-card group relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border pl-3 pr-2 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
                   active
                     ? "border-white/[0.16] bg-[#1c1d22]"
                     : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
-                } ${dragging ? "scale-[0.985] opacity-20" : ""}`}
+                } ${cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""} ${
+                  dragging ? "scale-[0.985] opacity-20" : ""
+                }`}
                 onPointerDown={(event) => startCanvasDrag(event, canvas)}
                 onClick={() => {
                   if (suppressClickRef.current) {
@@ -803,11 +831,13 @@ export function CanvasManager({
               ref={(node) => {
                 cardRefs.current[canvas.id] = node;
               }}
-              className={`group relative flex w-full touch-none select-none gap-3 overflow-clip rounded-xl border p-2 pl-3 text-left transition-[border-color,background-color,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+              className={`left-panel-card group relative flex w-full touch-none select-none gap-3 overflow-clip rounded-xl border p-2 pl-3 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
                 active
                   ? "border-white/[0.16] bg-[#1c1d22]"
                   : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
-              } ${dragging ? "scale-[0.985] opacity-20" : ""}`}
+              } ${cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""} ${
+                dragging ? "scale-[0.985] opacity-20" : ""
+              }`}
               onPointerDown={(event) => startCanvasDrag(event, canvas)}
               onClick={() => {
                 if (suppressClickRef.current) {
@@ -929,7 +959,7 @@ export function CanvasManager({
         <div
           ref={menuRef}
           data-context-menu
-          className="context-menu-panel context-menu-enter fixed z-40 w-36 rounded-xl border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-sm text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)]"
+          className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter z-40`}
           style={menuPosition}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
@@ -948,7 +978,7 @@ export function CanvasManager({
           </button>
           <div className={MENU_DIVIDER_CLASS} />
           <button
-            className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-[14px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-35"
+            className={`${MENU_DANGER_ITEM_CLASS} disabled:cursor-not-allowed disabled:opacity-35`}
             onClick={() => {
               setMenu(null);
               onDeleteCanvas(menu.id);

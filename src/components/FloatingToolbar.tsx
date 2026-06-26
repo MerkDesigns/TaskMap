@@ -1,4 +1,10 @@
-import { IconArrowBackUp, IconArrowForwardUp, IconMenu2, IconPuzzle, IconSettings } from "@tabler/icons-react";
+import {
+  IconArrowBackUp,
+  IconArrowForwardUp,
+  IconMenu2,
+  IconPuzzle,
+  IconSettings,
+} from "@tabler/icons-react";
 
 type FloatingToolbarProps = {
   canRedo: boolean;

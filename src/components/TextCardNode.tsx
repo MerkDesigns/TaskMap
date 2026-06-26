@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IconBold, IconItalic, IconLink, IconUnderline } from "@tabler/icons-react";
+import { IconBold, IconCheck, IconItalic, IconLink, IconUnderline } from "@tabler/icons-react";
 import { MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getTextCardAccent } from "../constants";
@@ -19,7 +19,15 @@ type TextCardNodeProps = {
   entering?: boolean;
   deleting?: boolean;
   pulsing?: boolean;
+  glowing?: boolean;
   dragging?: boolean;
+  dragPrimary?: boolean;
+  dragBundleIndex?: number;
+  dragBundleSize?: number;
+  dragPickupX?: number;
+  dragPickupY?: number;
+  dragSwayX?: number;
+  dragSwayY?: number;
   moving?: boolean;
   settling?: boolean;
   selected?: boolean;
@@ -31,6 +39,7 @@ type TextCardNodeProps = {
   onCancel: () => void;
   onStartMove: (event: PointerEvent<HTMLElement>, card: TextCardElement) => void;
   onOpenMenu: (event: MouseEvent<HTMLElement>, card: TextCardElement) => void;
+  onToggleCheckbox: (id: string) => void;
 };
 
 function tintTowardWhite(hexColor: string, amount = 0.61) {
@@ -65,7 +74,15 @@ export function TextCardNode({
   entering = false,
   deleting = false,
   pulsing = false,
+  glowing = false,
   dragging = false,
+  dragPrimary = false,
+  dragBundleIndex = -1,
+  dragBundleSize = 1,
+  dragPickupX = 0,
+  dragPickupY = 0,
+  dragSwayX = 0,
+  dragSwayY = 0,
   moving = false,
   settling = false,
   selected = false,
@@ -77,6 +94,7 @@ export function TextCardNode({
   onCancel,
   onStartMove,
   onOpenMenu,
+  onToggleCheckbox,
 }: TextCardNodeProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [formatMenu, setFormatMenu] = useState<{
@@ -87,6 +105,9 @@ export function TextCardNode({
   } | null>(null);
   const accent = getTextCardAccent(card.accent);
   const linkedTextColor = tintTowardWhite(accent);
+  const checkboxInstalled = Boolean(card.extensions?.checkbox);
+  const checkboxChecked = Boolean(card.extensions?.checkbox?.checked);
+  const checkedTextClass = checkboxChecked ? "opacity-55 line-through" : "";
 
   useEffect(() => {
     if (!editing) {
@@ -168,20 +189,29 @@ export function TextCardNode({
       data-text-card-id={card.id}
       className={`absolute inline-flex cursor-grab select-none items-center rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
         dragging
-          ? "z-30 scale-[1.035] cursor-grabbing opacity-95 shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)] transition-none"
+          ? `z-30 cursor-grabbing opacity-95 shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)] transition-none ${
+              dragPrimary ? "scale-[1.035]" : "text-card-bundle-pickup"
+            }`
           : `z-20 shadow-[0_6px_14px_rgba(0,0,0,0.22)] ${
               moving
                 ? "transition-none"
                 : settling
-                  ? "transition-[top,left,width,transform,box-shadow,opacity] duration-100 ease-in"
+                  ? "transition-[top,left,width,transform,box-shadow,opacity] duration-[180ms] ease-in"
                   : "transition-[top,left,width,transform,box-shadow,opacity] duration-150 ease-out"
             }`
       } ${dragging ? "" : "scale-100"} ${entering ? "text-card-enter" : ""} ${
         deleting ? "text-card-exit pointer-events-none" : ""
       } ${pulsing ? "text-card-pulse" : ""} ${
+        glowing ? "text-card-picked-glow" : ""
+      } ${
         interactionDisabled ? "pointer-events-none" : ""
       } ${privacyHidden ? "select-none blur-[5px]" : ""} ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
       style={{
+        zIndex: dragging
+          ? dragPrimary
+            ? 10000
+            : 9999 - Math.max(0, dragBundleIndex)
+          : 20 + (card.layer ?? 0),
         left: position?.x ?? card.x,
         top: position?.y ?? card.y,
         width: position?.width,
@@ -190,10 +220,49 @@ export function TextCardNode({
         backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
         outline: selected ? "2px solid rgba(45, 216, 200, 0.78)" : undefined,
         outlineOffset: selected ? 4 : undefined,
-      }}
+        transform:
+          dragging && !dragPrimary
+            ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
+                Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
+              }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
+            : undefined,
+        "--bundle-pickup-x": `${dragPickupX}px`,
+        "--bundle-pickup-y": `${dragPickupY}px`,
+        "--bundle-rest-transform":
+          dragging && !dragPrimary
+            ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
+                Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
+              }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
+            : "none",
+      } as React.CSSProperties}
       onPointerDown={(event) => onStartMove(event, card)}
       onContextMenu={(event) => onOpenMenu(event, card)}
     >
+      {checkboxInstalled && (
+        <button
+          type="button"
+          className={`-my-[7px] -ml-[10px] mr-[3px] grid h-[32px] w-[30px] shrink-0 place-items-center rounded transition-colors ${
+            checkboxChecked
+              ? "text-emerald-400"
+              : "text-transparent hover:text-white/18"
+          }`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleCheckbox(card.id);
+          }}
+          aria-pressed={checkboxChecked}
+        >
+          <span
+            className={`grid h-[22px] w-[22px] place-items-center rounded border ${
+              checkboxChecked ? "bg-white/18" : "bg-black/10"
+            }`}
+            style={{ borderColor: accent }}
+          >
+            <IconCheck size={16} stroke={2} />
+          </span>
+        </button>
+      )}
       {editing ? (
         <span className={`relative grid ${position?.width ? "w-full" : "max-w-[480px]"}`}>
           {formatMenu &&
@@ -289,7 +358,7 @@ export function TextCardNode({
           }}
         >
           <span
-            className={`min-w-0 ${
+            className={`min-w-0 ${checkedTextClass} ${
               position?.width || position?.maxWidth ? "block truncate" : "whitespace-pre-wrap break-words"
             }`}
           >
@@ -299,7 +368,7 @@ export function TextCardNode({
         </button>
       ) : (
         <span
-          className={`min-w-0 ${
+          className={`min-w-0 ${checkedTextClass} ${
             position?.width || position?.maxWidth ? "block truncate" : "whitespace-pre-wrap break-words"
           }`}
         >

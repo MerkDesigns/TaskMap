@@ -8,6 +8,25 @@ export type ElementExtensions = {
   colors?: {
     enabled: boolean;
   };
+  colorPicker?: {
+    enabled: boolean;
+  };
+  checkbox?: {
+    checked: boolean;
+  };
+  dailyReset?: {
+    lastResetDate: string;
+  };
+  counter?: {
+    enabled: boolean;
+  };
+  inheritCardColor?: {
+    enabled: boolean;
+  };
+  pickCard?: {
+    selectedCardId?: string;
+    lastCardId?: string;
+  };
   search?: {
     query: string;
   };
@@ -19,6 +38,7 @@ export type ElementExtensions = {
 
 export type ContainerElement = {
   id: string;
+  layer?: number;
   name: string;
   x: number;
   y: number;
@@ -37,6 +57,7 @@ export type ImageMeta = {
 
 export type ImageElement = {
   id: string;
+  layer?: number;
   imageId?: string;
   format?: string;
   x: number;
@@ -56,6 +77,7 @@ export type ImageElement = {
 
 export type TextCardElement = {
   id: string;
+  layer?: number;
   text: string;
   x: number;
   y: number;
@@ -68,6 +90,7 @@ export type TextCardElement = {
 
 export type TextBlockElement = {
   id: string;
+  layer?: number;
   name: string;
   text: string;
   x: number;
@@ -239,10 +262,22 @@ export type DragState =
       type: "text-card-move";
       pointerId: number;
       id: string;
+      ids: string[];
       startClientX: number;
       startClientY: number;
       startX: number;
       startY: number;
+      cardOffsets: Array<{
+        id: string;
+        x: number;
+        y: number;
+        pickupX: number;
+        pickupY: number;
+      }>;
+      lastClientX: number;
+      lastClientY: number;
+      swayX: number;
+      swayY: number;
       startContainerId?: string;
       pointerOffsetY: number;
       width: number;
