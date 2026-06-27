@@ -789,7 +789,7 @@ fn reset_local_database(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 /// Enable or disable Discord Rich Presence. When enabled, the presence shows
-/// only the elapsed time since the app started — no other information.
+/// the active canvas name and elapsed time since the app started.
 /// Connecting is best-effort: if Discord is not running the call still
 /// succeeds so the app keeps working.
 ///
@@ -885,8 +885,9 @@ fn reconcile_discord_rpc(
 
     let details = canvas_name
         .as_deref()
-        .filter(|name| !name.trim().is_empty())
-        .map(|name| format!("Working on {name}"));
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(|name| format!("Working on \"{name}\""));
     let result = catch_ipc(move || {
         let mut activity = Activity::new().timestamps(Timestamps::new().start(started_at));
         if let Some(details) = details.as_deref() {

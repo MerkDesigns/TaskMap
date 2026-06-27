@@ -131,6 +131,7 @@ type LegacyAppData = Partial<AppData> & {
 
 type UpdateCheckSource = "startup" | "manual";
 type ExtensionTargetType = "container" | "text-block" | "text-card" | "image";
+type LeftPanelState = "closed" | "canvases" | "extensions";
 
 const EXTENSION_DROP_ICONS: Record<ExtensionId, typeof IconShieldLock> = {
   privacy: IconShieldLock,
@@ -404,6 +405,7 @@ const DEFAULT_CANVAS: TaskCanvas = {
   zoom: 1,
 };
 const CANVAS_MANAGER_ANIMATION_MS = 120;
+const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
@@ -436,14 +438,45 @@ const getWindowPreviewViewport = () => ({
   height: window.innerHeight,
 });
 
+const cloneExtensions = (extensions?: ElementExtensions) =>
+  extensions ? JSON.parse(JSON.stringify(extensions)) as ElementExtensions : undefined;
+
+const remapContainerExtensions = (
+  extensions: ElementExtensions | undefined,
+  textCardIdMap: Map<string, string>,
+) => {
+  const cloned = cloneExtensions(extensions);
+  if (!cloned?.pickCard) {
+    return cloned;
+  }
+
+  return {
+    ...cloned,
+    pickCard: {
+      ...cloned.pickCard,
+      selectedCardId: cloned.pickCard.selectedCardId
+        ? textCardIdMap.get(cloned.pickCard.selectedCardId)
+        : undefined,
+      lastCardId: cloned.pickCard.lastCardId
+        ? textCardIdMap.get(cloned.pickCard.lastCardId)
+        : undefined,
+    },
+  };
+};
+
 function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const panelSwitchTimeoutRef = useRef<number | null>(null);
+  const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
-  const canvasCycleSessionRef = useRef<{ order: string[]; index: number } | null>(null);
+  const canvasCycleSessionRef = useRef<{
+    order: string[];
+    index: number;
+    previousPanelState: LeftPanelState;
+  } | null>(null);
   const pendingUpdateRef = useRef<Update | null>(null);
   const autoUpdateCheckRef = useRef(false);
   const textCardDropPreviewRef = useRef<{ containerId: string; index: number } | null>(null);
@@ -1986,6 +2019,9 @@ function App() {
       if (panelSwitchTimeoutRef.current !== null) {
         window.clearTimeout(panelSwitchTimeoutRef.current);
       }
+      if (canvasCycleRestoreTimeoutRef.current !== null) {
+        window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
+      }
     },
     [],
   );
@@ -2870,6 +2906,7 @@ function App() {
         naturalHeight: image.naturalHeight,
         accent: image.accent,
         background: image.background,
+        extensions: cloneExtensions(image.extensions),
       },
     });
     closeContextMenus();
@@ -4345,11 +4382,14 @@ function App() {
             width: element.width,
             height: element.height,
             accent: element.accent,
+            extensions: cloneExtensions(element.extensions),
             textCards: getOrderedContainerTextCards(element.id).map((card) => ({
               text: card.text,
               accent: card.accent,
               link: card.link,
               order: card.order,
+              extensions: cloneExtensions(card.extensions),
+              sourceId: card.id,
             })),
           })),
         textCards: textCards
@@ -4363,6 +4403,7 @@ function App() {
               x: position.x,
               y: position.y,
               order: card.order,
+              extensions: cloneExtensions(card.extensions),
             };
           }),
         textBlocks: textBlocks
@@ -4375,6 +4416,7 @@ function App() {
             width: element.width,
             height: element.height,
             accent: element.accent,
+            extensions: cloneExtensions(element.extensions),
           })),
         images: images
           .filter((image) => actionSet.has(image.id) && (!image.containerId || !selectedContainerIds.has(image.containerId)))
@@ -4389,6 +4431,7 @@ function App() {
             naturalHeight: image.naturalHeight,
             accent: image.accent,
             background: image.background,
+            extensions: cloneExtensions(image.extensions),
           })),
       },
     });
@@ -4410,11 +4453,14 @@ function App() {
         width: element.width,
         height: element.height,
         accent: element.accent,
+        extensions: cloneExtensions(element.extensions),
         textCards: getOrderedContainerTextCards(element.id).map((card) => ({
           text: card.text,
           accent: card.accent,
           link: card.link,
           order: card.order,
+          extensions: cloneExtensions(card.extensions),
+          sourceId: card.id,
         })),
       },
     });
@@ -4435,6 +4481,7 @@ function App() {
         link: card.link,
         x: position.x,
         y: position.y,
+        extensions: cloneExtensions(card.extensions),
       },
     });
     closeContextMenus();
@@ -4455,6 +4502,7 @@ function App() {
         width: element.width,
         height: element.height,
         accent: element.accent,
+        extensions: cloneExtensions(element.extensions),
       },
     });
     closeContextMenus();
@@ -4469,18 +4517,28 @@ function App() {
 
     if (copiedItem.type === "container") {
       const copiedContainer = copiedItem.item;
-      const id = `container-${Date.now()}`;
+      const pasteSeed = Date.now();
+      const id = `container-${pasteSeed}`;
+      const textCardIdMap = new Map<string, string>(
+        copiedContainer.textCards
+          .filter((card) => card.sourceId)
+          .map((card, index): [string, string] => [
+            card.sourceId as string,
+            `text-card-${pasteSeed}-${index}`,
+          ]),
+      );
       const duplicate = {
         ...copiedContainer,
         id,
         name: `${copiedContainer.name} copy`,
         x: clamp(point.x - copiedContainer.width / 2, 0, canvasWidth - copiedContainer.width),
         y: clamp(point.y - 28, 0, canvasHeight - copiedContainer.height),
+        extensions: remapContainerExtensions(copiedContainer.extensions, textCardIdMap),
       };
 
       setElements((current) => [...current, duplicate]);
       const pastedTextCards = copiedContainer.textCards.map((card, index) => ({
-        id: `text-card-${Date.now()}-${index}`,
+        id: card.sourceId ? textCardIdMap.get(card.sourceId) ?? `text-card-${pasteSeed}-${index}` : `text-card-${pasteSeed}-${index}`,
         text: card.text,
         x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
         y:
@@ -4490,6 +4548,7 @@ function App() {
         link: card.link,
         containerId: id,
         order: card.order ?? index,
+        extensions: cloneExtensions(card.extensions),
       }));
 
       setTextCards((current) => [...current, ...pastedTextCards]);
@@ -4505,6 +4564,7 @@ function App() {
         x: targetContainer ? targetContainer.x + CONTAINER_TEXT_CARD_PADDING : point.x,
         y: targetContainer ? getContainerCardStackTop(targetContainer) : point.y,
         containerId: targetContainer?.id,
+        extensions: cloneExtensions(copiedItem.item.extensions),
       };
 
       if (targetContainer) {
@@ -4546,6 +4606,7 @@ function App() {
         name: `${copiedTextBlock.name} copy`,
         x: clamp(point.x - copiedTextBlock.width / 2, 0, canvasWidth - copiedTextBlock.width),
         y: clamp(point.y - 28, 0, canvasHeight - copiedTextBlock.height),
+        extensions: cloneExtensions(copiedTextBlock.extensions),
       };
 
       setTextBlocks((current) => [...current, duplicate]);
@@ -4559,6 +4620,7 @@ function App() {
         id,
         x: clamp(point.x - copiedImage.width / 2, 0, canvasWidth - copiedImage.width),
         y: clamp(point.y - copiedImage.height / 2, 0, canvasHeight - copiedImage.height),
+        extensions: cloneExtensions(copiedImage.extensions),
       };
 
       setImages((current) => [...current, duplicate]);
@@ -4580,9 +4642,21 @@ function App() {
       const offsetX = point.x - originX;
       const offsetY = point.y - originY;
       const nextSelectedIds: string[] = [];
+      const pasteSeed = Date.now();
+      const containerTextCardIdMaps = copiedSelection.containers.map(
+        (container, containerIndex) =>
+          new Map<string, string>(
+            container.textCards
+              .filter((card) => card.sourceId)
+              .map((card, cardIndex): [string, string] => [
+                card.sourceId as string,
+                `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`,
+              ]),
+          ),
+      );
 
       const pastedContainers = copiedSelection.containers.map((container, index) => {
-        const id = `container-${Date.now()}-${index}`;
+        const id = `container-${pasteSeed}-${index}`;
         nextSelectedIds.push(id);
         return {
           ...container,
@@ -4590,11 +4664,15 @@ function App() {
           name: `${container.name} copy`,
           x: clamp((container.x ?? point.x) + offsetX, 0, canvasWidth - container.width),
           y: clamp((container.y ?? point.y) + offsetY, 0, canvasHeight - container.height),
+          extensions: remapContainerExtensions(container.extensions, containerTextCardIdMaps[index]),
         };
       });
       const pastedContainerCards = pastedContainers.flatMap((container, containerIndex) =>
         copiedSelection.containers[containerIndex].textCards.map((card, cardIndex) => ({
-          id: `text-card-${Date.now()}-${containerIndex}-${cardIndex}`,
+          id: card.sourceId
+            ? containerTextCardIdMaps[containerIndex].get(card.sourceId) ??
+              `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`
+            : `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`,
           text: card.text,
           x: container.x + CONTAINER_TEXT_CARD_PADDING,
           y:
@@ -4604,10 +4682,11 @@ function App() {
           link: card.link,
           containerId: container.id,
           order: card.order ?? cardIndex,
+          extensions: cloneExtensions(card.extensions),
         })),
       );
       const pastedTextCards = copiedSelection.textCards.map((card, index) => {
-        const id = `text-card-${Date.now()}-selection-${index}`;
+        const id = `text-card-${pasteSeed}-selection-${index}`;
         nextSelectedIds.push(id);
         return {
           text: card.text,
@@ -4616,10 +4695,12 @@ function App() {
           id,
           x: clamp((card.x ?? point.x) + offsetX, 0, canvasWidth),
           y: clamp((card.y ?? point.y) + offsetY, 0, canvasHeight),
+          order: card.order,
+          extensions: cloneExtensions(card.extensions),
         };
       });
       const pastedTextBlocks = copiedSelection.textBlocks.map((block, index) => {
-        const id = `text-block-${Date.now()}-${index}`;
+        const id = `text-block-${pasteSeed}-${index}`;
         nextSelectedIds.push(id);
         return {
           ...block,
@@ -4627,16 +4708,18 @@ function App() {
           name: `${block.name} copy`,
           x: clamp((block.x ?? point.x) + offsetX, 0, canvasWidth - block.width),
           y: clamp((block.y ?? point.y) + offsetY, 0, canvasHeight - block.height),
+          extensions: cloneExtensions(block.extensions),
         };
       });
       const pastedImages = copiedSelection.images.map((image, index) => {
-        const id = `image-${Date.now()}-${index}`;
+        const id = `image-${pasteSeed}-${index}`;
         nextSelectedIds.push(id);
         return {
           ...image,
           id,
           x: clamp((image.x ?? point.x) + offsetX, 0, canvasWidth - image.width),
           y: clamp((image.y ?? point.y) + offsetY, 0, canvasHeight - image.height),
+          extensions: cloneExtensions(image.extensions),
         };
       });
 
@@ -6411,30 +6494,91 @@ function App() {
     return currentCanvases.map((canvas) => canvas.id);
   };
 
+  const getCurrentLeftPanelState = (): LeftPanelState => {
+    if (canvasManagerOpen && !canvasManagerClosing) {
+      return "canvases";
+    }
+
+    if (extensionsOpen && !extensionsClosing) {
+      return "extensions";
+    }
+
+    return "closed";
+  };
+
+  const restoreLeftPanelState = (state: LeftPanelState) => {
+    if (panelSwitchTimeoutRef.current !== null) {
+      window.clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
+
+    if (state === "canvases") {
+      setExtensionsOpen(false);
+      setExtensionsClosing(false);
+      setCanvasManagerOpen(true);
+      setCanvasManagerClosing(false);
+      return;
+    }
+
+    if (state === "extensions") {
+      setCanvasManagerOpen(false);
+      setCanvasManagerClosing(false);
+      setExtensionsOpen(true);
+      setExtensionsClosing(false);
+      return;
+    }
+
+    setExtensionsOpen(false);
+    setExtensionsClosing(false);
+    setCanvasManagerClosing(true);
+    window.setTimeout(() => {
+      setCanvasManagerOpen(false);
+      setCanvasManagerClosing(false);
+    }, CANVAS_MANAGER_ANIMATION_MS);
+  };
+
   const finishCanvasCycle = () => {
+    const restorePanelState = canvasCycleSessionRef.current?.previousPanelState ?? "closed";
     canvasCycleSessionRef.current = null;
     setCanvasCycleHighlightId(null);
+
+    if (canvasCycleRestoreTimeoutRef.current !== null) {
+      window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
+    }
+
+    canvasCycleRestoreTimeoutRef.current = window.setTimeout(() => {
+      restoreLeftPanelState(restorePanelState);
+      canvasCycleRestoreTimeoutRef.current = null;
+    }, CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS);
   };
 
   const cycleCanvases = (direction: 1 | -1) => {
-    const order = canvasCycleSessionRef.current?.order ?? getCanvasCycleOrder();
+    const session = canvasCycleSessionRef.current;
+    const order = session?.order ?? getCanvasCycleOrder();
     if (order.length <= 1) {
       return;
     }
 
-    const currentIndex =
-      canvasCycleSessionRef.current?.index ?? Math.max(0, order.indexOf(activeCanvas.id));
+    const currentIndex = session?.index ?? Math.max(0, order.indexOf(activeCanvas.id));
     const nextIndex = (currentIndex + direction + order.length) % order.length;
     const nextCanvasId = order[nextIndex];
     if (!nextCanvasId) {
       return;
     }
 
-    canvasCycleSessionRef.current = { order, index: nextIndex };
+    canvasCycleSessionRef.current = {
+      order,
+      index: nextIndex,
+      previousPanelState: session?.previousPanelState ?? getCurrentLeftPanelState(),
+    };
 
     if (panelSwitchTimeoutRef.current !== null) {
       window.clearTimeout(panelSwitchTimeoutRef.current);
       panelSwitchTimeoutRef.current = null;
+    }
+    if (canvasCycleRestoreTimeoutRef.current !== null) {
+      window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
+      canvasCycleRestoreTimeoutRef.current = null;
     }
 
     setQuickExtensionsMenu(null);
@@ -6481,8 +6625,12 @@ function App() {
   }, [
     activeCanvas,
     canvasCycleHighlightId,
+    canvasManagerClosing,
+    canvasManagerOpen,
     canvases,
     elements,
+    extensionsClosing,
+    extensionsOpen,
     images,
     pan,
     textBlocks,

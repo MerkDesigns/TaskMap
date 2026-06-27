@@ -107,13 +107,17 @@ export type ContainerMenuState = {
   top: number;
 };
 
-export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent"> & {
+export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent" | "extensions"> & {
   x?: number;
   y?: number;
-  textCards: Array<Pick<TextCardElement, "text" | "accent" | "link" | "order">>;
+  textCards: Array<
+    Pick<TextCardElement, "text" | "accent" | "link" | "order" | "extensions"> & {
+      sourceId?: string;
+    }
+  >;
 };
 
-export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link"> & {
+export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link" | "extensions"> & {
   x?: number;
   y?: number;
   containerId?: string;
@@ -122,13 +126,21 @@ export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link"> &
 
 export type CopiedImage = Pick<
   ImageElement,
-  "imageId" | "format" | "width" | "height" | "naturalWidth" | "naturalHeight" | "accent" | "background"
+  | "imageId"
+  | "format"
+  | "width"
+  | "height"
+  | "naturalWidth"
+  | "naturalHeight"
+  | "accent"
+  | "background"
+  | "extensions"
 > & {
   x?: number;
   y?: number;
 };
 
-export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent"> & {
+export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent" | "extensions"> & {
   x?: number;
   y?: number;
 };
