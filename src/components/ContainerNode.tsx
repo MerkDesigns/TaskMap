@@ -45,7 +45,7 @@ type ContainerNodeProps = {
   onRenameDraftChange: (value: string) => void;
   onSaveRename: (id: string) => void;
   onCancelRename: () => void;
-  onSelect: (element: ContainerElement) => void;
+  onSelect: (element: ContainerElement, additive?: boolean) => void;
   onStartMove: (event: PointerEvent<HTMLElement>, element: ContainerElement) => void;
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
@@ -105,6 +105,9 @@ export function ContainerNode({
   const counterInstalled = Boolean(element.extensions?.counter);
   const pickCardInstalled = Boolean(element.extensions?.pickCard);
   const pickedCardActive = Boolean(element.extensions?.pickCard?.selectedCardId);
+  const selectedAccent = selected
+    ? `color-mix(in srgb, ${element.accent} 72%, white 28%)`
+    : element.accent;
   const alphabetSortActive = sorting?.mode === "alphabet";
   const colorSortActive = sorting?.mode === "color";
   const sortActive = Boolean(sorting?.mode);
@@ -396,7 +399,7 @@ export function ContainerNode({
   return (
     <article
       ref={articleRef}
-      className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl ${
+      className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
         entering ? "container-enter" : ""
       } ${deleting ? "container-exit pointer-events-none" : ""}`}
       style={{
@@ -406,7 +409,7 @@ export function ContainerNode({
         width: element.width,
         height: element.height,
         backgroundColor: element.accent,
-        borderColor: element.accent,
+        borderColor: selectedAccent,
         boxShadow: "0 18px 42px rgba(0, 0, 0, 0.42)",
       }}
       onPointerDown={(event) => {
@@ -420,18 +423,11 @@ export function ContainerNode({
         }
 
         if (event.button === 0) {
-          onSelect(element);
+          onSelect(element, event.shiftKey);
         }
       }}
       onWheelCapture={(event) => onWheelContent(event, element)}
     >
-      <div
-        className="pointer-events-none absolute -inset-[6px] rounded-[15px] border-2 border-[#2dd8c8]/75 transition-opacity duration-100 ease-out"
-        style={{
-          opacity: selected ? 1 : 0,
-          boxShadow: "0 0 14px rgba(45, 216, 200, 0.10)",
-        }}
-      />
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
           className={`relative z-30 flex flex-col text-white ${
@@ -594,6 +590,11 @@ export function ContainerNode({
         >
           <IconArrowDownRight size={18} stroke={2} />
         </button>
+        <div
+          className={`selection-overlay pointer-events-none z-50 rounded-[10px] ${
+            selected ? "selection-overlay-active" : ""
+          }`}
+        />
       </div>
       {overflowMenuPosition &&
         (

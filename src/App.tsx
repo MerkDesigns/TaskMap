@@ -1,22 +1,10 @@
 import { CSSProperties, PointerEvent, WheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { relaunch } from "@tauri-apps/plugin-process";
-import { check as checkForUpdate, Update } from "@tauri-apps/plugin-updater";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
-  IconArrowsShuffle,
-  IconArrowsSort,
-  IconCalendarRepeat,
-  IconCards,
-  IconCheckbox,
   IconColorPicker,
-  IconColorSwatch,
-  IconLock,
-  IconPalette,
   IconRotateClockwise,
-  IconSearch,
-  IconShieldLock,
 } from "@tabler/icons-react";
 import { CanvasManager } from "./components/CanvasManager";
 import {
@@ -35,6 +23,7 @@ import {
 } from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { FrostedGlassTuner, FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
+import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
 import { Minimap } from "./components/Minimap";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
@@ -42,7 +31,6 @@ import { TextCardNode } from "./components/TextCardNode";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
 import {
-  CANVAS_HEIGHT,
   CANVAS_WIDTH,
   ALIGN_SNAP_DISTANCE,
   ALL_ACCENT_PRESETS,
@@ -52,12 +40,10 @@ import {
   MIN_IMAGE_SIZE,
   MIN_WIDTH,
   MINIMAP_MAX_SIZE,
-  ZOOM_STEP,
 } from "./constants";
-import { clamp, quantizeZoom } from "./canvasMath";
+import { clamp, getWheelZoom, quantizeZoom } from "./canvasMath";
 import {
   AppData,
-  AppUpdateInfo,
   CanvasGridStyle,
   ContainerElement,
   ContainerMenuState,
@@ -71,6 +57,36 @@ import {
   TextCardElement,
   ToastMessage,
 } from "./types";
+import {
+  cloneExtensions,
+  getLocalDateKey,
+  normalizeAppData,
+  remapContainerExtensions,
+} from "./app/appData";
+import {
+  DEFAULT_CANVAS,
+  DEFAULT_ELEMENTS,
+  DEFAULT_GRID_OPACITY,
+  DEFAULT_PAN,
+} from "./app/defaultData";
+import { useFrameStats } from "./hooks/useFrameStats";
+import { useAutosave } from "./hooks/useAutosave";
+import { useDiscordRpc } from "./hooks/useDiscordRpc";
+import { useImageCache } from "./hooks/useImageCache";
+import { useAppUpdates } from "./hooks/useAppUpdates";
+import {
+  EXTENSION_COMPATIBLE_TARGETS,
+  EXTENSION_DROP_ICONS,
+  ExtensionTargetType,
+} from "./components/extensionMetadata";
+import {
+  cloneCanvas,
+  createInitialCanvasHistory,
+  getCanvasHistoryState,
+  HISTORY_DEBOUNCE_MS,
+  omitCameraFromHistory,
+  pushCanvasHistorySnapshot,
+} from "./app/history";
 
 type SnapGuide = {
   axis: "x" | "y";
@@ -95,12 +111,6 @@ type ExtensionDropRipple = {
   bounds: ExtensionRippleBounds;
 };
 
-type ExtensionIncompatibleHover = {
-  extensionId: ExtensionId;
-  target: ExtensionDropRipple["target"];
-  bounds: ExtensionRippleBounds;
-};
-
 type ExtensionRippleBounds = {
   left: number;
   top: number;
@@ -122,288 +132,8 @@ type TextCardReleaseAnimation = {
   }>;
 };
 
-type LegacyAppData = Partial<AppData> & {
-  containers?: ContainerElement[];
-  textBlocks?: TextBlockElement[];
-  pan?: { x: number; y: number };
-  zoom?: number;
-};
-
-type UpdateCheckSource = "startup" | "manual";
-type ExtensionTargetType = "container" | "text-block" | "text-card" | "image";
 type LeftPanelState = "closed" | "canvases" | "extensions";
 
-const EXTENSION_DROP_ICONS: Record<ExtensionId, typeof IconShieldLock> = {
-  privacy: IconShieldLock,
-  lock: IconLock,
-  colors: IconPalette,
-  colorPicker: IconColorPicker,
-  search: IconSearch,
-  sorting: IconArrowsSort,
-  checkbox: IconCheckbox,
-  dailyReset: IconCalendarRepeat,
-  counter: IconCards,
-  inheritCardColor: IconColorSwatch,
-  pickCard: IconArrowsShuffle,
-};
-
-const EXTENSION_COMPATIBLE_TARGETS: Record<ExtensionId, ReadonlySet<ExtensionTargetType>> = {
-  privacy: new Set<ExtensionTargetType>(["container", "text-block"]),
-  lock: new Set<ExtensionTargetType>(["container", "text-block", "text-card", "image"]),
-  colors: new Set<ExtensionTargetType>(["container", "text-block", "text-card", "image"]),
-  colorPicker: new Set<ExtensionTargetType>(["container", "text-block"]),
-  search: new Set<ExtensionTargetType>(["container"]),
-  sorting: new Set<ExtensionTargetType>(["container"]),
-  checkbox: new Set<ExtensionTargetType>(["text-card"]),
-  dailyReset: new Set<ExtensionTargetType>(["container"]),
-  counter: new Set<ExtensionTargetType>(["container"]),
-  inheritCardColor: new Set<ExtensionTargetType>(["container"]),
-  pickCard: new Set<ExtensionTargetType>(["container"]),
-};
-
-function ExtensionDropEffect({
-  originX,
-  originY,
-  width,
-  height,
-}: {
-  originX: number;
-  originY: number;
-  width: number;
-  height: number;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || width <= 0 || height <= 0) {
-      return;
-    }
-
-    const gl = canvas.getContext("webgl", {
-      alpha: true,
-      antialias: true,
-      premultipliedAlpha: true,
-      preserveDrawingBuffer: false,
-      powerPreference: "high-performance",
-    });
-    if (!gl) {
-      return;
-    }
-
-    const vertexSource = `
-      attribute vec2 a_position;
-      varying vec2 v_uv;
-
-      void main() {
-        v_uv = a_position * 0.5 + 0.5;
-        gl_Position = vec4(a_position, 0.0, 1.0);
-      }
-    `;
-    const fragmentSource = `
-      precision highp float;
-
-      varying vec2 v_uv;
-      uniform vec2 u_resolution;
-      uniform vec2 u_origin;
-      uniform float u_progress;
-
-      float gaussian(float x, float sigma) {
-        return exp(-0.5 * (x * x) / (sigma * sigma));
-      }
-
-      float easeOutCubic(float x) {
-        x = clamp(x, 0.0, 1.0);
-        return 1.0 - pow(1.0 - x, 3.0);
-      }
-
-      float softDisk(float d, float radius, float blur) {
-        return 1.0 - smoothstep(radius - blur, radius + blur, d);
-      }
-
-      void main() {
-        float t = clamp(u_progress, 0.0, 1.0);
-        if (t <= 0.0001 || t >= 0.9999) {
-          gl_FragColor = vec4(0.0);
-          return;
-        }
-
-        vec2 currentPx = v_uv * u_resolution;
-        vec2 originPx = u_origin * u_resolution;
-        float normalizer = max(u_resolution.x, u_resolution.y);
-        float d = length(currentPx - originPx) / normalizer;
-
-        float travel = easeOutCubic(t);
-        float r = mix(0.025, 1.16, travel);
-        float ring = gaussian(d - r, 0.110 + 0.026 * t);
-        float circle = softDisk(d, r * 0.92 + 0.040, 0.245 + 0.075 * t);
-        float appear = smoothstep(0.00, 0.050, t);
-        float leave = 1.0 - smoothstep(0.34, 0.68, t);
-        float active = appear * leave;
-        float circleFade = 1.0 - smoothstep(0.16, 0.68, t);
-        float gray = 0.50;
-        gray += ring * 0.102;
-        gray += circle * 0.094 * circleFade;
-        gray = clamp(gray, 0.0, 1.0);
-
-        float alpha = active * (
-          ring * 0.28 +
-          circle * 0.368 * circleFade
-        );
-        alpha *= 0.76;
-
-        gl_FragColor = vec4(vec3(gray), alpha);
-      }
-    `;
-
-    const createShader = (type: number, source: string) => {
-      const shader = gl.createShader(type);
-      if (!shader) {
-        return null;
-      }
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        gl.deleteShader(shader);
-        return null;
-      }
-      return shader;
-    };
-
-    const vertexShader = createShader(gl.VERTEX_SHADER, vertexSource);
-    const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentSource);
-    if (!vertexShader || !fragmentShader) {
-      return;
-    }
-
-    const program = gl.createProgram();
-    if (!program) {
-      return;
-    }
-
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      gl.deleteProgram(program);
-      return;
-    }
-
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-      gl.STATIC_DRAW,
-    );
-
-    const positionLocation = gl.getAttribLocation(program, "a_position");
-    const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
-    const originLocation = gl.getUniformLocation(program, "u_origin");
-    const progressLocation = gl.getUniformLocation(program, "u_progress");
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const duration = 540;
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    let animationFrame = 0;
-    let animationStart = 0;
-
-    const resize = () => {
-      canvas.width = Math.max(1, Math.floor(width * dpr));
-      canvas.height = Math.max(1, Math.floor(height * dpr));
-      gl.viewport(0, 0, canvas.width, canvas.height);
-    };
-
-    const clear = () => {
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-    };
-
-    const draw = (progress: number) => {
-      resize();
-      clear();
-      gl.useProgram(program);
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.enableVertexAttribArray(positionLocation);
-      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-      gl.uniform2f(originLocation, clamp(originX / width, 0, 1), 1 - clamp(originY / height, 0, 1));
-      gl.uniform1f(progressLocation, progress);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-    };
-
-    const frame = (now: number) => {
-      const progress = Math.min((now - animationStart) / duration, 1);
-      draw(progress);
-      if (progress < 1) {
-        animationFrame = window.requestAnimationFrame(frame);
-      } else {
-        clear();
-      }
-    };
-
-    resize();
-    clear();
-    if (!reduceMotion.matches) {
-      animationStart = performance.now();
-      animationFrame = window.requestAnimationFrame(frame);
-    }
-
-    return () => {
-      window.cancelAnimationFrame(animationFrame);
-    };
-  }, [height, originX, originY, width]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="pointer-events-none absolute inset-0 h-full w-full mix-blend-overlay"
-      aria-hidden="true"
-    />
-  );
-}
-
-type FrameStats = {
-  fps: number;
-  averageMs: number;
-  p95Ms: number;
-  maxMs: number;
-  samples: number;
-};
-
-const DEFAULT_PAN = { x: -520, y: -420 };
-const DEFAULT_GRID_OPACITY: Record<CanvasGridStyle, number> = {
-  dots: 50,
-  lines: 15,
-};
-const getLocalDateKey = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
-const DEFAULT_ELEMENTS: ContainerElement[] = [
-  {
-    id: "container-1",
-    name: "Container 1",
-    x: 520,
-    y: 460,
-    width: 380,
-    height: 260,
-    accent: DEFAULT_CONTAINER_ACCENT,
-  },
-];
-const DEFAULT_CANVAS: TaskCanvas = {
-  id: "canvas-1",
-  name: "Canvas 1",
-  width: CANVAS_WIDTH,
-  height: CANVAS_HEIGHT,
-  containers: DEFAULT_ELEMENTS,
-  textCards: [],
-  textBlocks: [],
-  images: [],
-  pan: DEFAULT_PAN,
-  zoom: 1,
-};
 const CANVAS_MANAGER_ANIMATION_MS = 120;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 
@@ -417,8 +147,6 @@ const CONTAINER_SEARCH_HEIGHT = 42;
 const CONTAINER_TEXT_CARD_PADDING = 17;
 const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
 const CONTAINER_TEXT_CARD_GAP = 8;
-const HISTORY_LIMIT = 60;
-const HISTORY_DEBOUNCE_MS = 300;
 const DEFAULT_FROSTED_GLASS_VALUES: FrostedGlassValues = {
   bgOpacity: 0,
   bgBrightness: 0,
@@ -438,32 +166,6 @@ const getWindowPreviewViewport = () => ({
   height: window.innerHeight,
 });
 
-const cloneExtensions = (extensions?: ElementExtensions) =>
-  extensions ? JSON.parse(JSON.stringify(extensions)) as ElementExtensions : undefined;
-
-const remapContainerExtensions = (
-  extensions: ElementExtensions | undefined,
-  textCardIdMap: Map<string, string>,
-) => {
-  const cloned = cloneExtensions(extensions);
-  if (!cloned?.pickCard) {
-    return cloned;
-  }
-
-  return {
-    ...cloned,
-    pickCard: {
-      ...cloned.pickCard,
-      selectedCardId: cloned.pickCard.selectedCardId
-        ? textCardIdMap.get(cloned.pickCard.selectedCardId)
-        : undefined,
-      lastCardId: cloned.pickCard.lastCardId
-        ? textCardIdMap.get(cloned.pickCard.lastCardId)
-        : undefined,
-    },
-  };
-};
-
 function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -471,14 +173,11 @@ function App() {
   const panelSwitchTimeoutRef = useRef<number | null>(null);
   const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
-  const saveTimeoutRef = useRef<number | null>(null);
   const canvasCycleSessionRef = useRef<{
     order: string[];
     index: number;
     previousPanelState: LeftPanelState;
   } | null>(null);
-  const pendingUpdateRef = useRef<Update | null>(null);
-  const autoUpdateCheckRef = useRef(false);
   const textCardDropPreviewRef = useRef<{ containerId: string; index: number } | null>(null);
   const textCardDragCenterYRef = useRef<number | null>(null);
   const historyRef = useRef<Record<string, TaskCanvas[]>>({});
@@ -491,6 +190,7 @@ function App() {
     canvasGridStyle: "dots",
     canvasGridOpacity: DEFAULT_GRID_OPACITY,
     discordRpcEnabled: false,
+    privacyModeEnabled: false,
   });
   const appDataLoadedRef = useRef(false);
   const [appDataLoaded, setAppDataLoaded] = useState(false);
@@ -527,21 +227,13 @@ function App() {
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
+  const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(undefined);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
-  const [availableUpdate, setAvailableUpdate] = useState<AppUpdateInfo | null>(null);
-  const [updateModalOpen, setUpdateModalOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState("0.0.0");
-  const [frameStats, setFrameStats] = useState<FrameStats>({
-    fps: 0,
-    averageMs: 0,
-    p95Ms: 0,
-    maxMs: 0,
-    samples: 0,
-  });
+  const frameStats = useFrameStats();
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
@@ -569,8 +261,6 @@ function App() {
   const [pulsingTextBlockIds, setPulsingTextBlockIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
-  const [extensionIncompatibleHover, setExtensionIncompatibleHover] =
-    useState<ExtensionIncompatibleHover | null>(null);
   const [activeCanvas, setActiveCanvas] = useState<TaskCanvas>(DEFAULT_CANVAS);
   const [canvases, setCanvases] = useState<TaskCanvas[]>([DEFAULT_CANVAS]);
   const [elements, setElements] = useState<ContainerElement[]>(DEFAULT_ELEMENTS);
@@ -729,12 +419,11 @@ function App() {
     await invoke("save_app_data", { data });
   };
 
-  // Object-URL cache keyed by image hash. Image bytes never live in React state
-  // (that would bloat autosave/history); they are fetched once on demand and
-  // turned into a stable object URL that the <img> tags reuse.
-  const imageUrlCacheRef = useRef<Map<string, string>>(new Map());
-  const imageUrlPendingRef = useRef<Map<string, Promise<string | null>>>(new Map());
-  const [imageUrlVersion, setImageUrlVersion] = useState(0);
+  const { imageUrlVersion, getImageUrl, storeImageFromBytes } = useImageCache({
+    onStoreError: (error) => {
+      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+    },
+  });
   // Latest image drop/paste handlers, refreshed each render so the once-mounted
   // OS drag-drop and clipboard listeners never call stale closures.
   const imageDropOpsRef = useRef<{
@@ -744,79 +433,6 @@ function App() {
     importImageFromPath: (path: string, clientX: number, clientY: number, offset?: number) => void;
     addImageFromBuffer: (buffer: ArrayBuffer, clientX: number, clientY: number) => void;
   } | null>(null);
-
-  const imageFormatToMime = (format: string) =>
-    format === "svg" ? "image/svg+xml" : format === "gif" ? "image/gif" : "image/webp";
-
-  const base64ToBlob = (data: string, mime: string) => {
-    const binary = atob(data);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return new Blob([bytes], { type: mime });
-  };
-
-  const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    const chunk = 0x8000;
-    for (let index = 0; index < bytes.length; index += chunk) {
-      binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
-    }
-    return btoa(binary);
-  };
-
-  // Returns a cached object URL for an image hash, or null until the bytes have
-  // been fetched. Triggers a re-render via imageUrlVersion once ready.
-  const getImageUrl = (hash: string | undefined, format?: string): string | null => {
-    if (!hash) {
-      return null;
-    }
-    const resolvedFormat = format ?? "webp";
-
-    const cached = imageUrlCacheRef.current.get(hash);
-    if (cached) {
-      return cached;
-    }
-
-    if (!imageUrlPendingRef.current.has(hash)) {
-      const pending = invoke<string>("load_image", { hash })
-        .then((data) => {
-          const url = URL.createObjectURL(base64ToBlob(data, imageFormatToMime(resolvedFormat)));
-          imageUrlCacheRef.current.set(hash, url);
-          imageUrlPendingRef.current.delete(hash);
-          setImageUrlVersion((version) => version + 1);
-          return url;
-        })
-        .catch((error) => {
-          console.error("Failed to load image", error);
-          imageUrlPendingRef.current.delete(hash);
-          return null;
-        });
-      imageUrlPendingRef.current.set(hash, pending);
-    }
-
-    return null;
-  };
-
-  useEffect(
-    () => () => {
-      imageUrlCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
-      imageUrlCacheRef.current.clear();
-    },
-    [],
-  );
-
-  const storeImageFromBytes = async (buffer: ArrayBuffer): Promise<ImageMeta | null> => {
-    try {
-      return await invoke<ImageMeta>("store_image", { data: arrayBufferToBase64(buffer) });
-    } catch (error) {
-      console.error("Failed to store image", error);
-      showToast({ tone: "error", title: "Could not add image", message: String(error) });
-      return null;
-    }
-  };
 
   const collectAllImageIds = (data: AppData): string[] => {
     const ids = new Set<string>();
@@ -834,108 +450,6 @@ function App() {
     invoke("gc_images", { used: collectAllImageIds(data) }).catch((error) => {
       console.error("Image garbage collection failed", error);
     });
-  };
-
-  useEffect(() => {
-    getVersion()
-      .then(setAppVersion)
-      .catch((error) => {
-        console.error("Failed to read app version", error);
-      });
-  }, []);
-
-  useEffect(() => {
-    let frameId = 0;
-    let lastFrameTime = window.performance.now();
-    let lastPublishTime = lastFrameTime;
-    const samples: number[] = [];
-
-    const tick = (time: number) => {
-      const delta = time - lastFrameTime;
-      lastFrameTime = time;
-
-      if (delta > 0 && delta < 1000) {
-        samples.push(delta);
-        if (samples.length > 720) {
-          samples.shift();
-        }
-      }
-
-      if (time - lastPublishTime >= 250 && samples.length > 0) {
-        const sorted = [...samples].sort((left, right) => left - right);
-        const total = samples.reduce((sum, sample) => sum + sample, 0);
-        const averageMs = total / samples.length;
-        const p95Ms = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))];
-        const maxMs = sorted[sorted.length - 1];
-
-        setFrameStats({
-          fps: 1000 / averageMs,
-          averageMs,
-          p95Ms,
-          maxMs,
-          samples: samples.length,
-        });
-        lastPublishTime = time;
-      }
-
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, []);
-
-  const normalizeAppData = (data: AppData | LegacyAppData): AppData => {
-    if (Array.isArray(data.canvases) && data.activeCanvasId) {
-      return {
-        ...(data as AppData),
-        discordRpcEnabled: (data as AppData).discordRpcEnabled ?? false,
-        canvases: (data as AppData).canvases.map((canvas) => ({
-          ...canvas,
-          containers: canvas.containers.map((element) => ({
-            ...element,
-            extensions: element.extensions ?? {},
-          })),
-          textCards: canvas.textCards ?? [],
-          textBlocks: (canvas.textBlocks ?? []).map((element, index) => ({
-            ...element,
-            name: element.name ?? `Text block ${index + 1}`,
-            extensions: element.extensions ?? {},
-          })),
-          images: canvas.images ?? [],
-          previewViewport: canvas.previewViewport ?? getWindowPreviewViewport(),
-        })),
-      };
-    }
-
-    const legacy = data as LegacyAppData;
-
-    return {
-      activeCanvasId: DEFAULT_CANVAS.id,
-      canvases: [
-        {
-          ...DEFAULT_CANVAS,
-          containers: (legacy.containers ?? DEFAULT_ELEMENTS).map((element) => ({
-            ...element,
-            extensions: element.extensions ?? {},
-          })),
-          textCards: [],
-          textBlocks: (legacy.textBlocks ?? []).map((element, index) => ({
-            ...element,
-            name: element.name ?? `Text block ${index + 1}`,
-            extensions: element.extensions ?? {},
-          })),
-          images: [],
-          pan: legacy.pan ?? DEFAULT_PAN,
-          zoom: legacy.zoom ?? 1,
-          previewViewport: getWindowPreviewViewport(),
-        },
-      ],
-      canvasGridStyle: data.canvasGridStyle ?? "dots",
-      canvasGridOpacity: data.canvasGridOpacity ?? DEFAULT_GRID_OPACITY,
-      discordRpcEnabled: data.discordRpcEnabled ?? false,
-      dismissedUpdateVersion: data.dismissedUpdateVersion,
-    };
   };
 
   const clampCanvasSize = (value: number) => clamp(Number.isFinite(value) ? value : CANVAS_WIDTH, 600, 10000);
@@ -965,60 +479,23 @@ function App() {
     canvasGridStyle,
     canvasGridOpacity,
     discordRpcEnabled,
+    privacyModeEnabled,
     dismissedUpdateVersion,
   });
 
-  const cloneAppData = (data: AppData): AppData => JSON.parse(JSON.stringify(data));
-  const cloneCanvas = (canvas: TaskCanvas): TaskCanvas => JSON.parse(JSON.stringify(canvas));
-
-  const omitCameraFromHistory = (canvas: TaskCanvas): TaskCanvas => ({
-    ...canvas,
-    pan: { x: 0, y: 0 },
-    zoom: 1,
-    previewViewport: undefined,
-  });
-
   const updateHistoryState = (canvasId = activeCanvas.id) => {
-    const history = historyRef.current[canvasId] ?? [];
-    const historyIndex = historyIndexRef.current[canvasId] ?? -1;
-
-    setHistoryState({
-      canUndo: historyIndex > 0,
-      canRedo: historyIndex >= 0 && historyIndex < history.length - 1,
-    });
+    setHistoryState(getCanvasHistoryState(historyRef.current, historyIndexRef.current, canvasId));
   };
 
   const pushHistorySnapshot = (data: AppData) => {
-    const canvas = data.canvases.find((currentCanvas) => currentCanvas.id === data.activeCanvasId);
-    if (!canvas) {
+    const nextHistory = pushCanvasHistorySnapshot(historyRef.current, historyIndexRef.current, data);
+    if (!nextHistory) {
       return;
     }
 
-    const snapshot = omitCameraFromHistory(cloneCanvas(canvas));
-    const currentHistory = historyRef.current[canvas.id] ?? [];
-    const currentHistoryIndex = historyIndexRef.current[canvas.id] ?? -1;
-    const previous = currentHistory[currentHistoryIndex];
-
-    if (previous && JSON.stringify(previous) === JSON.stringify(snapshot)) {
-      return;
-    }
-
-    const nextHistory = currentHistory.slice(0, currentHistoryIndex + 1);
-    nextHistory.push(snapshot);
-
-    if (nextHistory.length > HISTORY_LIMIT) {
-      nextHistory.shift();
-    }
-
-    historyRef.current = {
-      ...historyRef.current,
-      [canvas.id]: nextHistory,
-    };
-    historyIndexRef.current = {
-      ...historyIndexRef.current,
-      [canvas.id]: nextHistory.length - 1,
-    };
-    updateHistoryState(canvas.id);
+    historyRef.current = nextHistory.historyByCanvasId;
+    historyIndexRef.current = nextHistory.historyIndexByCanvasId;
+    updateHistoryState(nextHistory.canvasId);
   };
 
   const scheduleHistorySnapshot = (data: AppData) => {
@@ -1046,7 +523,7 @@ function App() {
         }
 
         if (data) {
-          const normalized = normalizeAppData(data);
+          const normalized = normalizeAppData(data, getWindowPreviewViewport);
           const selectedCanvas =
             normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ??
             normalized.canvases[0] ??
@@ -1064,19 +541,16 @@ function App() {
           setCanvasGridStyle(normalized.canvasGridStyle);
           setCanvasGridOpacity(normalized.canvasGridOpacity);
           setDiscordRpcEnabled(normalized.discordRpcEnabled);
+          setPrivacyModeEnabled(normalized.privacyModeEnabled);
           setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
-          historyRef.current = Object.fromEntries(
-            normalized.canvases.map((canvas) => [canvas.id, [omitCameraFromHistory(cloneCanvas(canvas))]]),
-          );
-          historyIndexRef.current = Object.fromEntries(normalized.canvases.map((canvas) => [canvas.id, 0]));
+          const initialHistory = createInitialCanvasHistory(normalized.canvases);
+          historyRef.current = initialHistory.historyByCanvasId;
+          historyIndexRef.current = initialHistory.historyIndexByCanvasId;
           updateHistoryState(selectedCanvas.id);
         } else {
-          historyRef.current = {
-            [DEFAULT_CANVAS.id]: [omitCameraFromHistory(cloneCanvas(DEFAULT_CANVAS))],
-          };
-          historyIndexRef.current = {
-            [DEFAULT_CANVAS.id]: 0,
-          };
+          const initialHistory = createInitialCanvasHistory([DEFAULT_CANVAS]);
+          historyRef.current = initialHistory.historyByCanvasId;
+          historyIndexRef.current = initialHistory.historyIndexByCanvasId;
           updateHistoryState(DEFAULT_CANVAS.id);
         }
 
@@ -1104,9 +578,12 @@ function App() {
     canvasGridOpacity,
     canvasGridStyle,
     canvases,
+    dismissedUpdateVersion,
+    discordRpcEnabled,
     elements,
     images,
     pan,
+    privacyModeEnabled,
     textBlocks,
     textCards,
     zoom,
@@ -1133,69 +610,84 @@ function App() {
     updateHistoryState(activeCanvas.id);
   }, [activeCanvas.id]);
 
-  useEffect(() => {
-    if (!appDataLoaded) {
-      return;
-    }
+  const cancelAutosave = useAutosave({
+    enabled: appDataLoaded,
+    dataRef: latestAppDataRef,
+    dependencies: [
+      activeCanvas,
+      canvasGridOpacity,
+      canvasGridStyle,
+      canvases,
+      discordRpcEnabled,
+      dismissedUpdateVersion,
+      elements,
+      images,
+      pan,
+      privacyModeEnabled,
+      textBlocks,
+      textCards,
+      zoom,
+    ],
+    save: persistAppData,
+    onSaved: () => {
+      setStorageError(null);
+      collectImageGarbage(latestAppDataRef.current);
+    },
+    onError: (error) => {
+      const message = `Failed to save app data: ${String(error)}`;
+      setStorageError(message);
+      console.error(message);
+    },
+  });
 
-    if (saveTimeoutRef.current) {
-      window.clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = window.setTimeout(() => {
-      persistAppData(latestAppDataRef.current)
-        .then(() => {
-          setStorageError(null);
-          collectImageGarbage(latestAppDataRef.current);
-        })
-        .catch((error) => {
-          const message = `Failed to save app data: ${String(error)}`;
-          setStorageError(message);
-          console.error(message);
-        });
-    }, 350);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        window.clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [
+  useDiscordRpc({
     appDataLoaded,
-    activeCanvas,
-    canvasGridOpacity,
-    canvasGridStyle,
-    canvases,
     discordRpcEnabled,
-    dismissedUpdateVersion,
-    elements,
-    images,
-    pan,
-    textBlocks,
-    textCards,
-    zoom,
-  ]);
+    canvasName: activeCanvas.name,
+  });
 
   useEffect(() => {
     if (!appDataLoaded) {
       return;
     }
 
-    // Debounce the backend call so the Discord IPC connection is not touched
-    // during the same render tick as the UI state update.
-    const handle = window.setTimeout(() => {
-      invoke("set_discord_rpc", {
-        enabled: discordRpcEnabled,
-        canvasName: activeCanvas.name,
-      }).catch((error) => {
-        console.error(`Failed to update Discord Rich Presence: ${String(error)}`);
+    let cancelled = false;
+
+    getCurrentWindow().setContentProtected(privacyModeEnabled).catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (privacyModeEnabled) {
+        setPrivacyModeEnabled(false);
+      }
+      showToast({
+        tone: "error",
+        title: "Privacy mode unavailable",
+        message: String(error),
       });
-    }, 250);
+    });
 
     return () => {
-      window.clearTimeout(handle);
+      cancelled = true;
     };
-  }, [appDataLoaded, discordRpcEnabled, activeCanvas.name]);
+  }, [appDataLoaded, privacyModeEnabled, showToast]);
+
+  const {
+    appVersion,
+    availableUpdate,
+    updateModalOpen,
+    checkForAppUpdate,
+    installAppUpdate,
+    dismissUpdateModal,
+  } = useAppUpdates({
+    appDataLoaded,
+    dismissedUpdateVersion,
+    onDismissUpdateVersion: setDismissedUpdateVersion,
+    cancelAutosave,
+    saveCurrentData: () => persistAppData(getCurrentAppData()),
+    showToast,
+  });
 
   useEffect(() => {
     return () => {
@@ -1796,8 +1288,21 @@ function App() {
     layer: topLevelLayerMap.get(item.id) ?? item.layer,
   });
 
-  const selectCanvasElement = (element: ContainerElement | TextBlockElement) => {
-    setSelectedIds([element.id]);
+  const addIdsToSelection = (ids: string[]) => {
+    setSelectedIds((current) => Array.from(new Set([...current, ...ids])));
+  };
+
+  const applySelection = (ids: string[], additive = false) => {
+    if (additive) {
+      addIdsToSelection(ids);
+      return;
+    }
+
+    setSelectedIds(ids);
+  };
+
+  const selectCanvasElement = (element: ContainerElement | TextBlockElement, additive = false) => {
+    applySelection([element.id], additive);
   };
 
   const animateContainerIn = (id: string) => {
@@ -2328,7 +1833,7 @@ function App() {
     : [];
   const outlinedIds =
     dragState?.type === "select" || dragState?.type === "container-select"
-      ? selectionPreviewIds
+      ? Array.from(new Set([...(dragState.additive ? selectedIds : []), ...selectionPreviewIds]))
       : selectedIds.length > 1
         ? selectedIds
         : [];
@@ -3041,6 +2546,36 @@ function App() {
     event.preventDefault();
   };
 
+  const shouldStartPan = (event: PointerEvent<HTMLElement>) => {
+    if (event.button === 1) {
+      return true;
+    }
+
+    if (event.button !== 0 || !event.ctrlKey) {
+      return false;
+    }
+
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    return !isEditableKeyboardTarget(target);
+  };
+
+  const startPan = (event: PointerEvent<HTMLElement>, stage: HTMLElement) => {
+    event.preventDefault();
+    event.stopPropagation();
+    stage.setPointerCapture(event.pointerId);
+    closeContextMenus();
+    setRenamingId(null);
+    showMinimap();
+    setDragState({
+      type: "pan",
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPanX: pan.x,
+      startPanY: pan.y,
+    });
+  };
+
   const handleMainPointerDownCapture = (event: PointerEvent<HTMLElement>) => {
     if (applyColorPickerSelection(event)) {
       return;
@@ -3051,6 +2586,10 @@ function App() {
     }
 
     const target = event.target as HTMLElement | null;
+    if (quickExtensionsMenu && !target?.closest("[data-quick-extensions-menu]")) {
+      setQuickExtensionsMenu(null);
+    }
+
     if (!target?.closest("[data-text-block-content]") && !isEditableKeyboardTarget(target)) {
       window.getSelection()?.removeAllRanges();
     }
@@ -3071,24 +2610,20 @@ function App() {
     closeContextMenus();
   };
 
-  const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 1) {
+  const handleStagePointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !event.ctrlKey || !shouldStartPan(event)) {
       return;
     }
 
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    closeContextMenus();
-    setRenamingId(null);
-    showMinimap();
-    setDragState({
-      type: "pan",
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startPanX: pan.x,
-      startPanY: pan.y,
-    });
+    startPan(event, event.currentTarget);
+  };
+
+  const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!shouldStartPan(event)) {
+      return;
+    }
+
+    startPan(event, event.currentTarget);
   };
 
   const handleWorldPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -3112,6 +2647,7 @@ function App() {
     setDragState({
       type: "select",
       pointerId: event.pointerId,
+      additive: event.shiftKey,
       startX: point.x,
       startY: point.y,
       currentX: point.x,
@@ -3142,6 +2678,7 @@ function App() {
       type: "container-select",
       pointerId: event.pointerId,
       containerId: container.id,
+      additive: event.shiftKey,
       startX: point.x,
       startY: point.y,
       currentX: point.x,
@@ -3642,61 +3179,62 @@ function App() {
       const right = Math.max(dragState.startX, endPoint.x);
       const bottom = Math.max(dragState.startY, endPoint.y);
       const tinySelection = right - left < 4 && bottom - top < 4;
+      const selectedDuringDrag = [
+        ...elements
+          .filter((element) =>
+            rectsOverlap(
+              { left, top, width: right - left, height: bottom - top },
+              {
+                left: element.x,
+                top: element.y,
+                width: element.width,
+                height: element.height,
+              },
+            ),
+          )
+          .map((element) => element.id),
+        ...textCards
+          .filter((card) =>
+            !card.containerId &&
+            rectsOverlap(
+              { left, top, width: right - left, height: bottom - top },
+              getLooseTextCardSelectionBounds(card),
+            ),
+          )
+          .map((card) => card.id),
+        ...textBlocks
+          .filter((element) =>
+            rectsOverlap(
+              { left, top, width: right - left, height: bottom - top },
+              {
+                left: element.x,
+                top: element.y,
+                width: element.width,
+                height: element.height,
+              },
+            ),
+          )
+          .map((element) => element.id),
+        ...looseImages
+          .filter((image) =>
+            rectsOverlap(
+              { left, top, width: right - left, height: bottom - top },
+              {
+                left: image.x,
+                top: image.y,
+                width: image.width,
+                height: image.height,
+              },
+            ),
+          )
+          .map((image) => image.id),
+      ];
 
-      setSelectedIds(
-        tinySelection
-          ? []
-          : [
-              ...elements
-                .filter((element) =>
-                  rectsOverlap(
-                    { left, top, width: right - left, height: bottom - top },
-                    {
-                      left: element.x,
-                      top: element.y,
-                      width: element.width,
-                      height: element.height,
-                    },
-                  ),
-                )
-                .map((element) => element.id),
-              ...textCards
-                .filter((card) =>
-                  !card.containerId &&
-                  rectsOverlap(
-                    { left, top, width: right - left, height: bottom - top },
-                    getLooseTextCardSelectionBounds(card),
-                  ),
-                )
-                .map((card) => card.id),
-              ...textBlocks
-                .filter((element) =>
-                  rectsOverlap(
-                    { left, top, width: right - left, height: bottom - top },
-                    {
-                      left: element.x,
-                      top: element.y,
-                      width: element.width,
-                      height: element.height,
-                    },
-                  ),
-                )
-                .map((element) => element.id),
-              ...looseImages
-                .filter((image) =>
-                  rectsOverlap(
-                    { left, top, width: right - left, height: bottom - top },
-                    {
-                      left: image.x,
-                      top: image.y,
-                      width: image.width,
-                      height: image.height,
-                    },
-                  ),
-                )
-                .map((image) => image.id),
-            ],
-      );
+      if (!tinySelection) {
+        applySelection(selectedDuringDrag, dragState.additive);
+      } else if (!dragState.additive) {
+        setSelectedIds([]);
+      }
     }
 
     if (dragState.type === "container-select") {
@@ -3707,19 +3245,23 @@ function App() {
       const bottom = Math.max(dragState.startY, endPoint.y);
       const tinySelection = right - left < 4 && bottom - top < 4;
       const container = containersById.get(dragState.containerId);
-
-      setSelectedIds(
-        tinySelection || !container
-          ? []
-          : getContainerVisibleTextCards(container)
+      const selectedDuringDrag =
+        container && !tinySelection
+          ? getContainerVisibleTextCards(container)
               .filter((card) => {
                 const bounds = getTextCardRippleBounds(card);
                 return bounds
                   ? rectsOverlap({ left, top, width: right - left, height: bottom - top }, bounds)
                   : false;
               })
-              .map((card) => card.id),
-      );
+              .map((card) => card.id)
+          : [];
+
+      if (!tinySelection && container) {
+        applySelection(selectedDuringDrag, dragState.additive);
+      } else if (!dragState.additive) {
+        setSelectedIds([]);
+      }
     }
 
     setDragState(null);
@@ -3735,8 +3277,7 @@ function App() {
     setRenamingId(null);
     showMinimap();
 
-    const direction = event.deltaY < 0 ? 1 : -1;
-    const nextZoom = quantizeZoom(zoom + direction * ZOOM_STEP);
+    const nextZoom = getWheelZoom(zoom, event.deltaY);
     const canvasX = (event.clientX - pan.x) / zoom;
     const canvasY = (event.clientY - pan.y) / zoom;
     const nextPan = {
@@ -3746,17 +3287,83 @@ function App() {
 
     setZoom(nextZoom);
     setPan(nextPan);
-    setDragState((current) =>
-      current?.type === "pan"
-        ? {
-            ...current,
-            startClientX: event.clientX,
-            startClientY: event.clientY,
-            startPanX: nextPan.x,
-            startPanY: nextPan.y,
-          }
-        : current,
-    );
+    setDragState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      if (current.type === "pan") {
+        return {
+          ...current,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startPanX: nextPan.x,
+          startPanY: nextPan.y,
+        };
+      }
+
+      if (current.type === "move") {
+        const movingContainerIds = new Set(current.startPositions.map((position) => position.id));
+        const movingTextCardIds = new Set(current.textCardStartPositions.map((position) => position.id));
+        const movingTextBlockIds = new Set(current.textBlockStartPositions.map((position) => position.id));
+        const movingImageIds = new Set(current.imageStartPositions.map((position) => position.id));
+
+        return {
+          ...current,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startPositions: elements
+            .filter((element) => movingContainerIds.has(element.id))
+            .map((element) => ({ id: element.id, x: element.x, y: element.y })),
+          textCardStartPositions: textCards
+            .filter((card) => movingTextCardIds.has(card.id))
+            .map((card) => ({ id: card.id, x: card.x, y: card.y })),
+          textBlockStartPositions: textBlocks
+            .filter((element) => movingTextBlockIds.has(element.id))
+            .map((element) => ({ id: element.id, x: element.x, y: element.y })),
+          imageStartPositions: images
+            .filter((image) => movingImageIds.has(image.id))
+            .map((image) => ({ id: image.id, x: image.x, y: image.y })),
+        };
+      }
+
+      if (current.type === "text-card-move") {
+        const activeCard = textCards.find((card) => card.id === current.id);
+        const activeOffset = current.cardOffsets.find((offset) => offset.id === current.id);
+        if (!activeCard) {
+          return current;
+        }
+
+        return {
+          ...current,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startX: activeCard.x - (activeOffset?.x ?? 0),
+          startY: activeCard.y - (activeOffset?.y ?? 0),
+          lastClientX: event.clientX,
+          lastClientY: event.clientY,
+          swayX: 0,
+          swayY: 0,
+        };
+      }
+
+      if (current.type === "image-move") {
+        const activeImage = images.find((image) => image.id === current.id);
+        if (!activeImage) {
+          return current;
+        }
+
+        return {
+          ...current,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startX: activeImage.x,
+          startY: activeImage.y,
+        };
+      }
+
+      return current;
+    });
   };
 
   const isElementLocked = (id: string) =>
@@ -3771,6 +3378,13 @@ function App() {
 
   const startMove = (event: PointerEvent<HTMLElement>, element: ContainerElement | TextBlockElement) => {
     if (event.button !== 0) {
+      return;
+    }
+
+    if (event.shiftKey) {
+      event.stopPropagation();
+      selectCanvasElement(element, true);
+      closeContextMenus();
       return;
     }
 
@@ -3872,6 +3486,13 @@ function App() {
 
   const startTextCardMove = (event: PointerEvent<HTMLElement>, card: TextCardElement) => {
     if (event.button !== 0 || editingTextCardId === card.id) {
+      return;
+    }
+
+    if (event.shiftKey) {
+      event.stopPropagation();
+      addIdsToSelection([card.id]);
+      closeContextMenus();
       return;
     }
 
@@ -4019,6 +3640,13 @@ function App() {
 
   const startImageMove = (event: PointerEvent<HTMLElement>, image: ImageElement) => {
     if (event.button !== 0) {
+      return;
+    }
+
+    if (event.shiftKey) {
+      event.stopPropagation();
+      addIdsToSelection([image.id]);
+      closeContextMenus();
       return;
     }
 
@@ -5713,26 +5341,10 @@ function App() {
   };
 
   const handleExtensionDragHover = (
-    extensionId: ExtensionId | null,
-    clientX?: number,
-    clientY?: number,
+    _extensionId: ExtensionId | null,
+    _clientX?: number,
+    _clientY?: number,
   ) => {
-    if (!extensionId || clientX === undefined || clientY === undefined) {
-      setExtensionIncompatibleHover(null);
-      return;
-    }
-
-    const hoverTarget = getExtensionHoverTargetAtPoint(canvasPointFromEvent({ clientX, clientY }));
-    if (!hoverTarget || EXTENSION_COMPATIBLE_TARGETS[extensionId].has(hoverTarget.target.type)) {
-      setExtensionIncompatibleHover(null);
-      return;
-    }
-
-    setExtensionIncompatibleHover({
-      extensionId,
-      target: hoverTarget.target,
-      bounds: hoverTarget.bounds,
-    });
   };
 
   const getExtensionDropTargetIds = (extensionId: ExtensionId, target: ExtensionDropRipple["target"]) => {
@@ -5824,7 +5436,6 @@ function App() {
     clientX: number,
     clientY: number,
   ) => {
-    setExtensionIncompatibleHover(null);
     const point = canvasPointFromEvent({ clientX, clientY });
     if (extensionId === "colors" || extensionId === "lock") {
       const targetImage = [...looseImages].reverse().find(
@@ -5997,7 +5608,7 @@ function App() {
       historyTimeoutRef.current = null;
     }
 
-    const normalized = normalizeAppData(data);
+    const normalized = normalizeAppData(data, getWindowPreviewViewport);
     const selectedCanvas =
       normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ??
       normalized.canvases[0] ??
@@ -6042,6 +5653,7 @@ function App() {
     setCanvasGridStyle(normalized.canvasGridStyle);
     setCanvasGridOpacity(normalized.canvasGridOpacity);
     setDiscordRpcEnabled(normalized.discordRpcEnabled);
+    setPrivacyModeEnabled(normalized.privacyModeEnabled);
     setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
     setSelectedIds([]);
     setRenamingId(null);
@@ -6180,136 +5792,6 @@ function App() {
     setStorageError(null);
   };
 
-  const checkForAppUpdate = async (source: UpdateCheckSource = "manual") => {
-    try {
-      const update = await checkForUpdate();
-      pendingUpdateRef.current = update;
-
-      if (!update) {
-        setAvailableUpdate(null);
-
-        if (source === "manual") {
-          showToast({
-            tone: "success",
-            title: "TaskMap is up to date",
-            message: "You are already running the newest version.",
-          });
-        }
-
-        return null;
-      }
-
-      const info = {
-        version: update.version,
-        currentVersion: update.currentVersion,
-        date: update.date,
-        body: update.body,
-      };
-
-      setAvailableUpdate(info);
-
-      if (source === "startup") {
-        // Show the modal once per version: respect a prior "Not now" for this
-        // same version, but always prompt for a newer one.
-        if (latestAppDataRef.current.dismissedUpdateVersion !== info.version) {
-          setUpdateModalOpen(true);
-        }
-      } else {
-        showToast({
-          tone: "info",
-          title: "Update available",
-          message: `TaskMap ${info.version} is ready to download.`,
-          duration: 5200,
-        });
-      }
-
-      return info;
-    } catch (error) {
-      if (source === "manual") {
-        showToast({
-          tone: "error",
-          title: "Update check failed",
-          message: error instanceof Error ? error.message : String(error),
-          duration: 7000,
-        });
-      }
-
-      throw error;
-    }
-  };
-
-  const installAppUpdate = async () => {
-    let update = pendingUpdateRef.current;
-
-    if (!update) {
-      update = await checkForUpdate();
-      pendingUpdateRef.current = update;
-    }
-
-    if (!update) {
-      setAvailableUpdate(null);
-      showToast({
-        tone: "warning",
-        title: "No update to install",
-        message: "Check for updates again before installing.",
-      });
-      return;
-    }
-
-    if (saveTimeoutRef.current) {
-      window.clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-
-    try {
-      showToast({
-        tone: "info",
-        title: "Installing update",
-        message: "Saving your data before downloading the update.",
-        duration: 3600,
-      });
-
-      await persistAppData(getCurrentAppData());
-      await update.downloadAndInstall();
-      showToast({
-        tone: "success",
-        title: "Update installed",
-        message: "Restarting TaskMap to finish applying it.",
-        duration: 2400,
-      });
-      await relaunch();
-    } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Update failed",
-        message: error instanceof Error ? error.message : String(error),
-        duration: 7000,
-      });
-      throw error;
-    }
-  };
-
-  useEffect(() => {
-    if (!appDataLoaded || autoUpdateCheckRef.current) {
-      return;
-    }
-
-    autoUpdateCheckRef.current = true;
-
-    checkForAppUpdate("startup").catch((error) => {
-      console.error("Automatic update check failed", error);
-    });
-  }, [appDataLoaded]);
-
-  const dismissUpdateModal = () => {
-    setUpdateModalOpen(false);
-    // Remember this version so the startup modal stays closed for it; a newer
-    // version will still prompt. Persisted via the normal app-data save.
-    if (availableUpdate) {
-      setDismissedUpdateVersion(availableUpdate.version);
-    }
-  };
-
   const resetLocalDatabase = async () => {
     await invoke("reset_local_database");
     const data: AppData = {
@@ -6318,6 +5800,7 @@ function App() {
       canvasGridStyle: "dots",
       canvasGridOpacity: DEFAULT_GRID_OPACITY,
       discordRpcEnabled: false,
+      privacyModeEnabled: false,
     };
 
     latestAppDataRef.current = data;
@@ -6821,7 +6304,6 @@ function App() {
               closing={extensionsClosing}
               onDropExtension={dropExtensionOnCanvas}
               onDragExtension={handleExtensionDragHover}
-              dragInvalid={Boolean(extensionIncompatibleHover)}
             />
           )}
           {quickExtensionsMenu && (
@@ -6831,7 +6313,6 @@ function App() {
               onClose={() => setQuickExtensionsMenu(null)}
               onDropExtension={dropExtensionOnCanvas}
               onDragExtension={handleExtensionDragHover}
-              dragInvalid={Boolean(extensionIncompatibleHover)}
             />
           )}
           <div
@@ -6840,6 +6321,7 @@ function App() {
             className={`absolute inset-0 overflow-hidden ${
               dragState?.type === "pan" || dragState?.type === "move" ? "cursor-grabbing" : "cursor-default"
             }`}
+            onPointerDownCapture={handleStagePointerDownCapture}
             onPointerDown={handleStagePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={stopDrag}
@@ -6905,23 +6387,6 @@ function App() {
                   }
                 />
               ))}
-              {extensionIncompatibleHover && (
-                <div
-                  key={`${extensionIncompatibleHover.extensionId}-${extensionIncompatibleHover.target.type}-${extensionIncompatibleHover.target.id}`}
-                  className="extension-incompatible-hover-surface"
-                  style={{
-                    left: extensionIncompatibleHover.bounds.left,
-                    top: extensionIncompatibleHover.bounds.top,
-                    width: extensionIncompatibleHover.bounds.width,
-                    height: extensionIncompatibleHover.bounds.height,
-                    borderRadius: extensionIncompatibleHover.bounds.borderRadius,
-                    borderTopLeftRadius: extensionIncompatibleHover.bounds.borderTopLeftRadius,
-                    borderTopRightRadius: extensionIncompatibleHover.bounds.borderTopRightRadius,
-                    borderBottomRightRadius: extensionIncompatibleHover.bounds.borderBottomRightRadius,
-                    borderBottomLeftRadius: extensionIncompatibleHover.bounds.borderBottomLeftRadius,
-                  }}
-                />
-              )}
               {extensionDropRipples.map((ripple) => {
                 const bounds = ripple.bounds;
 
@@ -7529,6 +6994,8 @@ function App() {
               appVersion={appVersion}
               fpsCounterVisible={fpsCounterVisible}
               onFpsCounterVisibleChange={setFpsCounterVisible}
+              privacyModeEnabled={privacyModeEnabled}
+              onPrivacyModeEnabledChange={setPrivacyModeEnabled}
               temporaryPanelsVisible={temporaryPanelsVisible}
               onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
               onCheckForUpdate={checkForAppUpdate}

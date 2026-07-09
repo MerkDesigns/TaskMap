@@ -104,6 +104,7 @@ export function TextCardNode({
     end: number;
   } | null>(null);
   const accent = getTextCardAccent(card.accent);
+  const selectedAccent = selected ? `color-mix(in srgb, ${accent} 72%, white 28%)` : accent;
   const linkedTextColor = tintTowardWhite(accent);
   const checkboxInstalled = Boolean(card.extensions?.checkbox);
   const checkboxChecked = Boolean(card.extensions?.checkbox?.checked);
@@ -187,7 +188,7 @@ export function TextCardNode({
   return (
     <article
       data-text-card-id={card.id}
-      className={`absolute inline-flex cursor-grab select-none items-center rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
+      className={`absolute inline-flex cursor-grab select-none items-center overflow-hidden rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
         dragging
           ? `z-30 cursor-grabbing opacity-95 shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)] transition-none ${
               dragPrimary ? "scale-[1.035]" : "text-card-bundle-pickup"
@@ -196,8 +197,8 @@ export function TextCardNode({
               moving
                 ? "transition-none"
                 : settling
-                  ? "transition-[top,left,width,transform,box-shadow,opacity] duration-[180ms] ease-in"
-                  : "transition-[top,left,width,transform,box-shadow,opacity] duration-150 ease-out"
+                  ? "transition-[top,left,width,transform,box-shadow,opacity,border-color] duration-[180ms] ease-in"
+                  : "transition-[top,left,width,transform,box-shadow,opacity,border-color] duration-150 ease-out"
             }`
       } ${dragging ? "" : "scale-100"} ${entering ? "text-card-enter" : ""} ${
         deleting ? "text-card-exit pointer-events-none" : ""
@@ -216,10 +217,8 @@ export function TextCardNode({
         top: position?.y ?? card.y,
         width: position?.width,
         maxWidth: position?.maxWidth,
-        borderColor: accent,
+        borderColor: selectedAccent,
         backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
-        outline: selected ? "2px solid rgba(45, 216, 200, 0.78)" : undefined,
-        outlineOffset: selected ? 4 : undefined,
         transform:
           dragging && !dragPrimary
             ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
@@ -375,6 +374,17 @@ export function TextCardNode({
           {renderFormattedText(card.text)}
         </span>
       )}
+      <div
+        className={`selection-overlay pointer-events-none z-10 rounded-[inherit] ${
+          selected ? "selection-overlay-active" : ""
+        }`}
+        style={{
+          "--selection-overlay-top": "-1px",
+          "--selection-overlay-right": "-1px",
+          "--selection-overlay-bottom": "-1px",
+          "--selection-overlay-left": "-6px",
+        } as React.CSSProperties}
+      />
     </article>
   );
 }

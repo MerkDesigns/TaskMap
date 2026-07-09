@@ -114,7 +114,7 @@ type TextBlockNodeProps = {
   onSaveRename: (id: string) => void;
   onCancelRename: () => void;
   onStartEdit: (element: TextBlockElement, caretPosition?: number) => void;
-  onSelect: (element: TextBlockElement) => void;
+  onSelect: (element: TextBlockElement, additive?: boolean) => void;
   onStartMove: (event: PointerEvent<HTMLElement>, element: TextBlockElement) => void;
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: TextBlockElement) => void;
   onToggleMenu: (event: MouseEvent<HTMLButtonElement>, element: TextBlockElement) => void;
@@ -160,6 +160,9 @@ export function TextBlockNode({
     start: number;
     end: number;
   } | null>(null);
+  const selectedAccent = selected
+    ? `color-mix(in srgb, ${element.accent} 72%, white 28%)`
+    : element.accent;
 
   useEffect(() => {
     if (!editing) {
@@ -423,7 +426,7 @@ export function TextBlockNode({
   return (
     <article
       ref={articleRef}
-      className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl ${
+      className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
         entering ? "container-enter" : ""
       } ${deleting ? "container-exit pointer-events-none" : ""} ${pulsing ? "text-card-pulse" : ""}`}
       style={{
@@ -433,7 +436,7 @@ export function TextBlockNode({
         width: element.width,
         height: element.height,
         backgroundColor: element.accent,
-        borderColor: element.accent,
+        borderColor: selectedAccent,
         boxShadow: "0 18px 42px rgba(0, 0, 0, 0.42)",
       }}
       onPointerDown={(event) => {
@@ -447,17 +450,10 @@ export function TextBlockNode({
         }
 
         if (event.button === 0) {
-          onSelect(element);
+          onSelect(element, event.shiftKey);
         }
       }}
     >
-      <div
-        className="pointer-events-none absolute -inset-[6px] rounded-[15px] border-2 border-[#2dd8c8]/75 transition-opacity duration-100 ease-out"
-        style={{
-          opacity: selected ? 1 : 0,
-          boxShadow: "0 0 14px rgba(45, 216, 200, 0.10)",
-        }}
-      />
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
           ref={headerRef}
@@ -574,7 +570,7 @@ export function TextBlockNode({
               return;
             }
 
-            onSelect(element);
+            onSelect(element, event.shiftKey);
           }}
           onDoubleClick={(event) => {
             event.stopPropagation();
@@ -672,6 +668,11 @@ export function TextBlockNode({
         >
           <IconArrowDownRight size={18} stroke={2} />
         </button>
+        <div
+          className={`selection-overlay pointer-events-none z-50 rounded-[10px] ${
+            selected ? "selection-overlay-active" : ""
+          }`}
+        />
       </div>
       {overflowMenuPosition &&
         (

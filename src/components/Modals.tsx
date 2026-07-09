@@ -1,5 +1,7 @@
 import {
   IconDownload,
+  IconEye,
+  IconEyeOff,
   IconGrid3x3,
   IconGridDots,
   IconKeyboard,
@@ -129,6 +131,8 @@ type SettingsModalProps = {
   appVersion: string;
   fpsCounterVisible: boolean;
   onFpsCounterVisibleChange: (visible: boolean) => void;
+  privacyModeEnabled: boolean;
+  onPrivacyModeEnabledChange: (enabled: boolean) => void;
   temporaryPanelsVisible: boolean;
   onTemporaryPanelsVisibleChange: (visible: boolean) => void;
   onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
@@ -173,6 +177,8 @@ export function SettingsModal({
   appVersion,
   fpsCounterVisible,
   onFpsCounterVisibleChange,
+  privacyModeEnabled,
+  onPrivacyModeEnabledChange,
   temporaryPanelsVisible,
   onTemporaryPanelsVisibleChange,
   onCheckForUpdate,
@@ -389,6 +395,30 @@ export function SettingsModal({
                     title="Grid opacity"
                   />
                 </div>
+                <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
+                  <span className="flex items-center gap-3">
+                    {privacyModeEnabled ? (
+                      <IconEyeOff size={18} stroke={2} className="text-white/72" />
+                    ) : (
+                      <IconEye size={18} stroke={2} className="text-white/48" />
+                    )}
+                    <span className="flex flex-col">
+                      <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
+                        Privacy mode
+                      </span>
+                      <span className="mt-0.5 text-[12px] text-white/45">
+                        Hide TaskMap from screenshots and screen capture.
+                      </span>
+                    </span>
+                  </span>
+                  <input
+                    className="peer sr-only"
+                    type="checkbox"
+                    checked={privacyModeEnabled}
+                    onChange={(event) => onPrivacyModeEnabledChange(event.target.checked)}
+                  />
+                  <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" aria-hidden="true" />
+                </label>
               </>
             )}
             {activeTab === "data" && (

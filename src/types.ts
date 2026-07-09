@@ -200,6 +200,7 @@ export type AppData = {
   canvasGridStyle: CanvasGridStyle;
   canvasGridOpacity: Record<CanvasGridStyle, number>;
   discordRpcEnabled: boolean;
+  privacyModeEnabled: boolean;
   /** Update version the user dismissed with "Not now"; suppresses the startup
    *  modal for that version only. A newer version still prompts. */
   dismissedUpdateVersion?: string;
@@ -318,20 +319,22 @@ export type DragState =
       startHeight: number;
       aspectRatio: number;
     }
+    | {
+        type: "select";
+        pointerId: number;
+        additive: boolean;
+        startX: number;
+        startY: number;
+        currentX: number;
+        currentY: number;
+      }
   | {
-      type: "select";
-      pointerId: number;
-      startX: number;
-      startY: number;
-      currentX: number;
-      currentY: number;
-    }
-  | {
-      type: "container-select";
-      pointerId: number;
-      containerId: string;
-      startX: number;
-      startY: number;
-      currentX: number;
-      currentY: number;
-    };
+        type: "container-select";
+        pointerId: number;
+        containerId: string;
+        additive: boolean;
+        startX: number;
+        startY: number;
+        currentX: number;
+        currentY: number;
+      };

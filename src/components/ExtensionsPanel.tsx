@@ -2,7 +2,6 @@ import {
   IconBox,
   IconArrowsShuffle,
   IconArrowsSort,
-  IconBan,
   IconCalendarRepeat,
   IconCards,
   IconCheckbox,
@@ -43,7 +42,6 @@ type ExtensionsPanelProps = {
   closing: boolean;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
-  dragInvalid?: boolean;
   embedded?: boolean;
   panelRef?: RefObject<HTMLDivElement>;
 };
@@ -253,7 +251,6 @@ type QuickExtensionsMenuProps = {
   onClose: () => void;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
-  dragInvalid?: boolean;
 };
 
 export function QuickExtensionsMenu({
@@ -262,7 +259,6 @@ export function QuickExtensionsMenu({
   onClose,
   onDropExtension,
   onDragExtension,
-  dragInvalid = false,
 }: QuickExtensionsMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ extensionId: ExtensionId; clientX: number; clientY: number } | null>(null);
@@ -396,11 +392,6 @@ export function QuickExtensionsMenu({
             className="pointer-events-none fixed z-[1001] grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.16] bg-[#15161a] text-white/78 shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
             style={{ left: drag.clientX, top: drag.clientY }}
           >
-            {dragInvalid && (
-              <span className="absolute -left-3.5 -top-3.5 grid h-[29px] w-[29px] place-items-center text-red-400 [filter:drop-shadow(0_3px_8px_rgba(0,0,0,0.55))]">
-                <IconBan size={29} stroke={2} />
-              </span>
-            )}
             <DragIcon size={26} stroke={2} />
           </div>,
           document.body,
@@ -413,7 +404,6 @@ export function ExtensionsPanel({
   closing,
   onDropExtension,
   onDragExtension,
-  dragInvalid = false,
   embedded = false,
   panelRef,
 }: ExtensionsPanelProps) {
@@ -727,11 +717,6 @@ export function ExtensionsPanel({
       className="pointer-events-none fixed z-[1000] grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.16] bg-[#15161a] text-white/78 shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
       style={{ left: drag.clientX, top: drag.clientY }}
     >
-      {dragInvalid && (
-        <span className="absolute -left-3.5 -top-3.5 grid h-[29px] w-[29px] place-items-center text-red-400 [filter:drop-shadow(0_3px_8px_rgba(0,0,0,0.55))]">
-          <IconBan size={29} stroke={2} />
-        </span>
-      )}
       <DragIcon size={26} stroke={2} />
     </div>
   );

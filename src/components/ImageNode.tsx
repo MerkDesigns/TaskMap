@@ -39,6 +39,9 @@ export function ImageNode({
   // Background extension off: only show the image, no frame/border/shell, so a
   // transparent PNG reads as its real shape.
   const chromeless = loaded && image.background === false;
+  const selectedAccent = selected
+    ? `color-mix(in srgb, ${image.accent} 72%, white 28%)`
+    : image.accent;
 
   return (
     <div
@@ -50,7 +53,7 @@ export function ImageNode({
           : `z-20 cursor-grab ${
               moving || resizing
                 ? "transition-none"
-                : "transition-[top,left,width,height,box-shadow,opacity] duration-150 ease-out"
+                : "transition-[top,left,width,height,box-shadow,opacity,border-color] duration-150 ease-out"
             }`
       } ${chromeless || dragging ? "" : "shadow-[0_6px_14px_rgba(0,0,0,0.22)]"} ${
         dragging && !chromeless ? "shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)]" : ""
@@ -61,9 +64,7 @@ export function ImageNode({
         top: image.y,
         width: image.width,
         height: image.height,
-        borderColor: chromeless ? undefined : image.accent,
-        outline: selected ? "2px solid rgba(45, 216, 200, 0.78)" : undefined,
-        outlineOffset: selected ? 4 : undefined,
+        borderColor: chromeless ? undefined : selectedAccent,
       }}
       onPointerDown={(event) => {
         if (empty && event.button === 0) {
@@ -124,6 +125,11 @@ export function ImageNode({
       >
         <IconArrowDownRight size={16} stroke={2} />
       </button>
+      <div
+        className={`selection-overlay pointer-events-none z-10 ${
+          chromeless ? "" : "rounded-[inherit]"
+        } ${selected ? "selection-overlay-active" : ""}`}
+      />
     </div>
   );
 }
