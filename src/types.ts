@@ -14,6 +14,9 @@ export type ElementExtensions = {
   checkbox?: {
     checked: boolean;
   };
+  autoCheckbox?: {
+    enabled: boolean;
+  };
   dailyReset?: {
     lastResetDate: string;
   };

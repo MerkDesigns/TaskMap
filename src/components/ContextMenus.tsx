@@ -49,6 +49,7 @@ type ContainerContextMenuProps = {
       | "lock"
       | "colors"
       | "colorPicker"
+      | "autoCheckbox"
       | "dailyReset"
       | "counter"
       | "inheritCardColor"
@@ -65,6 +66,7 @@ type ContainerContextMenuProps = {
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
   onRemoveColorPickerExtension: (id: string) => void;
+  onRemoveAutoCheckboxExtension: (id: string) => void;
   onRemoveDailyResetExtension: (id: string) => void;
   onRemoveCounterExtension: (id: string) => void;
   onRemoveInheritCardColorExtension: (id: string) => void;
@@ -91,6 +93,7 @@ export function ContainerContextMenu({
   onRemoveLockExtension,
   onRemoveColorsExtension,
   onRemoveColorPickerExtension,
+  onRemoveAutoCheckboxExtension,
   onRemoveDailyResetExtension,
   onRemoveCounterExtension,
   onRemoveInheritCardColorExtension,
@@ -107,6 +110,7 @@ export function ContainerContextMenu({
     lock: Boolean(element.extensions?.lock),
     colors: Boolean(element.extensions?.colors),
     colorPicker: Boolean(element.extensions?.colorPicker),
+    autoCheckbox: Boolean(element.extensions?.autoCheckbox),
     dailyReset: Boolean(element.extensions?.dailyReset),
     counter: Boolean(element.extensions?.counter),
     inheritCardColor: Boolean(element.extensions?.inheritCardColor),
@@ -191,6 +195,7 @@ export function ContainerContextMenu({
         extensions.lock ||
         extensions.colors ||
         extensions.colorPicker ||
+        extensions.autoCheckbox ||
         extensions.dailyReset ||
         extensions.counter ||
         extensions.inheritCardColor ||
@@ -232,6 +237,12 @@ export function ContainerContextMenu({
           <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorPickerExtension(element.id)}>
             <IconTrash size={17} stroke={2} />
             <span>Color Picker</span>
+          </button>
+          )}
+          {extensions.autoCheckbox && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveAutoCheckboxExtension(element.id)}>
+            <IconTrash size={17} stroke={2} />
+            <span>Auto checkboxes</span>
           </button>
           )}
           {extensions.dailyReset && (

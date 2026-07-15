@@ -2,10 +2,7 @@ import { CSSProperties, PointerEvent, WheelEvent, useCallback, useEffect, useMem
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import {
-  IconColorPicker,
-  IconRotateClockwise,
-} from "@tabler/icons-react";
+import { IconRotateClockwise } from "@tabler/icons-react";
 import { CanvasManager } from "./components/CanvasManager";
 import {
   CanvasContextMenu,
@@ -92,10 +89,6 @@ type SnapGuide = {
   axis: "x" | "y";
   position: number;
   pointerPosition: number;
-};
-
-type EyeDropperConstructor = new () => {
-  open: () => Promise<{ sRGBHex: string }>;
 };
 
 type ExtensionDropRipple = {
@@ -325,12 +318,6 @@ function App() {
     useState<TextCardReleaseAnimation | null>(null);
   const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [colorPickerTargetId, setColorPickerTargetId] = useState<string | null>(null);
-  const [colorPickerPreview, setColorPickerPreview] = useState<{
-    clientX: number;
-    clientY: number;
-    color: string;
-  } | null>(null);
   const containersById = useMemo(
     () => new Map(elements.map((element) => [element.id, element])),
     [elements],
@@ -1628,8 +1615,6 @@ function App() {
         closeContextMenus();
         closeCanvasManager();
         closeExtensionsPanel();
-        setColorPickerTargetId(null);
-        setColorPickerPreview(null);
         setRenamingId(null);
         return;
       }
@@ -2485,6 +2470,9 @@ function App() {
       y: getContainerCardStackTop(container) + order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
       accent: DEFAULT_TEXT_CARD_ACCENT,
       ...(container.extensions?.inheritCardColor ? { accent: container.accent } : {}),
+      ...(container.extensions?.autoCheckbox
+        ? { extensions: { checkbox: { checked: false } } }
+        : {}),
       containerId,
       order,
     };
@@ -2577,10 +2565,6 @@ function App() {
   };
 
   const handleMainPointerDownCapture = (event: PointerEvent<HTMLElement>) => {
-    if (applyColorPickerSelection(event)) {
-      return;
-    }
-
     if (event.button !== 0) {
       return;
     }
@@ -4192,7 +4176,12 @@ function App() {
         x: targetContainer ? targetContainer.x + CONTAINER_TEXT_CARD_PADDING : point.x,
         y: targetContainer ? getContainerCardStackTop(targetContainer) : point.y,
         containerId: targetContainer?.id,
-        extensions: cloneExtensions(copiedItem.item.extensions),
+        extensions: targetContainer?.extensions?.autoCheckbox
+          ? {
+              ...cloneExtensions(copiedItem.item.extensions),
+              checkbox: cloneExtensions(copiedItem.item.extensions)?.checkbox ?? { checked: false },
+            }
+          : cloneExtensions(copiedItem.item.extensions),
       };
 
       if (targetContainer) {
@@ -4421,6 +4410,7 @@ function App() {
       colors: ids.some((id) => hasExtension(id, "colors")),
       colorPicker: ids.some((id) => hasExtension(id, "colorPicker")),
       checkbox: ids.some((id) => hasExtension(id, "checkbox")),
+      autoCheckbox: ids.some((id) => hasExtension(id, "autoCheckbox")),
       dailyReset: ids.some((id) => hasExtension(id, "dailyReset")),
       counter: ids.some((id) => hasExtension(id, "counter")),
       inheritCardColor: ids.some((id) => hasExtension(id, "inheritCardColor")),
@@ -4810,87 +4800,26 @@ function App() {
     closeContextMenus();
   };
 
-  const getColorAtClientPoint = (clientX: number, clientY: number) => {
-    const transparent = new Set(["transparent", "rgba(0, 0, 0, 0)", "rgba(0,0,0,0)"]);
-    const elementsAtPoint = document.elementsFromPoint(clientX, clientY);
-
-    for (const node of elementsAtPoint) {
-      if (!(node instanceof HTMLElement) || node.closest("[data-color-picker-tool]")) {
-        continue;
-      }
-
-      const style = window.getComputedStyle(node);
-      const candidates = [style.backgroundColor, style.borderTopColor];
-      const color = candidates.find((candidate) => candidate && !transparent.has(candidate));
-      if (color) {
-        return color;
-      }
+  const installAutoCheckboxExtensions = (ids: string[]) => {
+    const targetIds = new Set(ids);
+    if (targetIds.size === 0) {
+      return;
     }
 
-    return "#111216";
-  };
-
-  const applyPickedColor = (id: string, color: string) => {
     setElements((current) =>
-      current.map((element) => (element.id === id ? { ...element, accent: color } : element)),
+      current.map((element) =>
+        targetIds.has(element.id)
+          ? {
+              ...element,
+              extensions: {
+                ...element.extensions,
+                autoCheckbox: element.extensions?.autoCheckbox ?? { enabled: true },
+              },
+            }
+          : element,
+      ),
     );
-    setTextBlocks((current) =>
-      current.map((element) => (element.id === id ? { ...element, accent: color } : element)),
-    );
-  };
-
-  const pickElementColor = async (id: string) => {
-    const EyeDropperApi = (
-      window as typeof window & { EyeDropper?: EyeDropperConstructor }
-    ).EyeDropper;
-
-    if (EyeDropperApi) {
-      setColorPickerTargetId(null);
-      setColorPickerPreview(null);
-
-      try {
-        const { sRGBHex } = await new EyeDropperApi().open();
-        applyPickedColor(id, sRGBHex);
-      } catch (error) {
-        if (!(error instanceof DOMException) || error.name !== "AbortError") {
-          setColorPickerTargetId(id);
-        }
-      }
-      return;
-    }
-
-    setColorPickerTargetId(id);
-    setColorPickerPreview(null);
-  };
-
-  const handleColorPickerPointerMove = (event: PointerEvent<HTMLElement>) => {
-    if (!colorPickerTargetId) {
-      return;
-    }
-
-    setColorPickerPreview({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      color: getColorAtClientPoint(event.clientX, event.clientY),
-    });
-  };
-
-  const applyColorPickerSelection = (event: PointerEvent<HTMLElement>) => {
-    if (
-      !colorPickerTargetId ||
-      event.button !== 0
-    ) {
-      return false;
-    }
-
-    const color = getColorAtClientPoint(event.clientX, event.clientY);
-    const targetId = colorPickerTargetId;
-    event.preventDefault();
-    event.stopPropagation();
-    applyPickedColor(targetId, color);
-    setColorPickerTargetId(null);
-    setColorPickerPreview(null);
-    return true;
+    closeContextMenus();
   };
 
   const installDailyResetExtensions = (ids: string[]) => {
@@ -5374,6 +5303,8 @@ function App() {
       installSearchExtensions(ids);
     } else if (extensionId === "checkbox") {
       installCheckboxExtensions(ids);
+    } else if (extensionId === "autoCheckbox") {
+      installAutoCheckboxExtensions(ids);
     } else if (extensionId === "dailyReset") {
       installDailyResetExtensions(ids);
     } else if (extensionId === "counter") {
@@ -6226,27 +6157,9 @@ function App() {
       style={frostedGlassStyle}
       onContextMenu={suppressContextMenu}
       onPointerDownCapture={handleMainPointerDownCapture}
-      onPointerMoveCapture={handleColorPickerPointerMove}
     >
       <div className="h-full">
         <section className="relative h-full overflow-hidden">
-          {colorPickerTargetId && (
-            <div
-              data-color-picker-tool
-              className="pointer-events-none fixed z-[1002] flex items-center gap-2 rounded-lg border border-white/[0.16] bg-[#18191d] px-2.5 py-2 text-sm font-medium text-white/82 shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
-              style={{
-                left: (colorPickerPreview?.clientX ?? 20) + 18,
-                top: (colorPickerPreview?.clientY ?? 60) + 18,
-              }}
-            >
-              <span
-                className="h-5 w-5 rounded border border-black/70 shadow-[0_0_0_1px_rgba(255,255,255,0.18)]"
-                style={{ backgroundColor: colorPickerPreview?.color ?? "#111216" }}
-              />
-              <IconColorPicker size={18} stroke={2} />
-              <span>Click to apply</span>
-            </div>
-          )}
           {temporaryPanelsVisible && (
             <>
               <FrostedGlassTuner
@@ -6460,7 +6373,7 @@ function App() {
                     onToggleMenu={toggleMenu}
                     onTogglePrivacy={togglePrivacyExtension}
                     onToggleLock={toggleLockExtension}
-                    onPickColor={pickElementColor}
+                    onUpdateAccent={updateContainerAccent}
                     onTogglePickCard={togglePickedContainerCard}
                     onSetSort={setContainerSort}
                     onSearchChange={updateContainerSearchQuery}
@@ -6571,7 +6484,7 @@ function App() {
                     onToggleMenu={openTextBlockMenu}
                     onTogglePrivacy={togglePrivacyExtension}
                     onToggleLock={toggleLockExtension}
-                    onPickColor={pickElementColor}
+                    onUpdateAccent={updateTextBlockAccent}
                   />
                 );
               })}
@@ -6766,6 +6679,7 @@ function App() {
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
               onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
               onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
               onRemoveInheritCardColorExtension={(id) => stripContextExtension(id, "inheritCardColor")}
@@ -6792,6 +6706,7 @@ function App() {
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
               onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
               onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
               onRemoveInheritCardColorExtension={(id) => stripContextExtension(id, "inheritCardColor")}

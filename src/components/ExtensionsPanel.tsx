@@ -5,6 +5,7 @@ import {
   IconCalendarRepeat,
   IconCards,
   IconCheckbox,
+  IconChecklist,
   IconCheck,
   IconColorPicker,
   IconColorSwatch,
@@ -32,6 +33,7 @@ export type ExtensionId =
   | "search"
   | "sorting"
   | "checkbox"
+  | "autoCheckbox"
   | "dailyReset"
   | "counter"
   | "inheritCardColor"
@@ -165,7 +167,7 @@ export const EXTENSIONS: Array<{
   {
     id: "colorPicker",
     label: "Color picker",
-    description: "Sample any canvas color",
+    description: "Fine-tune any accent color",
     Icon: IconColorPicker,
     targets: ["container", "textblock"],
   },
@@ -189,6 +191,13 @@ export const EXTENSIONS: Array<{
     description: "Add checkable text cards",
     Icon: IconCheckbox,
     targets: ["textcard"],
+  },
+  {
+    id: "autoCheckbox",
+    label: "Auto checkboxes",
+    description: "Checkboxes on new cards",
+    Icon: IconChecklist,
+    targets: ["container"],
   },
   {
     id: "dailyReset",

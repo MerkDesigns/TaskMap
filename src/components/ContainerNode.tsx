@@ -23,6 +23,7 @@ import {
 import { PointerEvent, ReactNode, WheelEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ContainerElement, DragState } from "../types";
+import { ColorPickerMenu } from "./ColorPickerMenu";
 
 type ContainerHeaderExtensionKey =
   | "lock"
@@ -51,7 +52,7 @@ type ContainerNodeProps = {
   onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
   onTogglePrivacy: (id: string) => void;
   onToggleLock: (id: string) => void;
-  onPickColor: (id: string) => void;
+  onUpdateAccent: (id: string, accent: string) => void;
   onTogglePickCard: (id: string) => void;
   onSetSort: (
     id: string,
@@ -84,7 +85,7 @@ export function ContainerNode({
   onToggleMenu,
   onTogglePrivacy,
   onToggleLock,
-  onPickColor,
+  onUpdateAccent,
   onTogglePickCard,
   onSetSort,
   onSearchChange,
@@ -129,6 +130,7 @@ export function ContainerNode({
   const [visibleExtensionCount, setVisibleExtensionCount] = useState(headerExtensionButtonCount);
   const [overflowMenuPosition, setOverflowMenuPosition] = useState<{ left: number; top: number } | null>(null);
   const [sortMenuPosition, setSortMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const headerTitleRef = useRef<HTMLDivElement | null>(null);
@@ -343,10 +345,14 @@ export function ContainerNode({
           className={getSortButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
-            onPickColor(element.id);
+            const rect = event.currentTarget.getBoundingClientRect();
+            setColorMenuPosition((current) =>
+              current ? null : { left: rect.right + 8, top: rect.top },
+            );
+            setOverflowMenuPosition(null);
           }}
           onPointerDown={(event) => event.stopPropagation()}
-          title="Pick a color from the app"
+          title="Open color picker"
         >
           <IconColorPicker size={22} stroke={2} />
         </button>
@@ -658,6 +664,15 @@ export function ContainerNode({
           </div>,
           document.body,
         )}
+      {colorMenuPosition && (
+        <ColorPickerMenu
+          color={element.accent}
+          left={colorMenuPosition.left}
+          top={colorMenuPosition.top}
+          onChange={(accent) => onUpdateAccent(element.id, accent)}
+          onClose={() => setColorMenuPosition(null)}
+        />
+      )}
     </article>
   );
 }

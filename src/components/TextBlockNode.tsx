@@ -18,6 +18,7 @@ import { MouseEvent, PointerEvent, WheelEvent, useEffect, useRef, useState } fro
 import { createPortal } from "react-dom";
 import { FormatMarker, isTextFormatActive, renderFormattedText, toggleTextFormat } from "../textFormatting";
 import { DragState, TextBlockElement } from "../types";
+import { ColorPickerMenu } from "./ColorPickerMenu";
 
 type TextBlockHeaderExtensionKey = "lock" | "privacy" | "colorPicker";
 
@@ -120,7 +121,7 @@ type TextBlockNodeProps = {
   onToggleMenu: (event: MouseEvent<HTMLButtonElement>, element: TextBlockElement) => void;
   onTogglePrivacy: (id: string) => void;
   onToggleLock: (id: string) => void;
-  onPickColor: (id: string) => void;
+  onUpdateAccent: (id: string, accent: string) => void;
 };
 
 export function TextBlockNode({
@@ -148,7 +149,7 @@ export function TextBlockNode({
   onToggleMenu,
   onTogglePrivacy,
   onToggleLock,
-  onPickColor,
+  onUpdateAccent,
 }: TextBlockNodeProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -259,6 +260,7 @@ export function TextBlockNode({
   const collapsibleExtensions = headerExtensionButtonCount > 1;
   const [visibleExtensionCount, setVisibleExtensionCount] = useState(headerExtensionButtonCount);
   const [overflowMenuPosition, setOverflowMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const headerTitleRef = useRef<HTMLDivElement | null>(null);
@@ -392,10 +394,14 @@ export function TextBlockNode({
         className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
         onClick={(event) => {
           event.stopPropagation();
-          onPickColor(element.id);
+          const rect = event.currentTarget.getBoundingClientRect();
+          setColorMenuPosition((current) =>
+            current ? null : { left: rect.right + 8, top: rect.top },
+          );
+          setOverflowMenuPosition(null);
         }}
         onPointerDown={(event) => event.stopPropagation()}
-        title="Pick a color from the app"
+        title="Open color picker"
       >
         <IconColorPicker size={18} stroke={2} />
       </button>
@@ -689,6 +695,15 @@ export function TextBlockNode({
             </span>
           </div>
         )}
+      {colorMenuPosition && (
+        <ColorPickerMenu
+          color={element.accent}
+          left={colorMenuPosition.left}
+          top={colorMenuPosition.top}
+          onChange={(accent) => onUpdateAccent(element.id, accent)}
+          onClose={() => setColorMenuPosition(null)}
+        />
+      )}
     </article>
   );
 }
