@@ -47,7 +47,10 @@ export const normalizeAppData = (
     return {
       ...(data as AppData),
       discordRpcEnabled: (data as AppData).discordRpcEnabled ?? false,
+      discordRpcShowCanvas: (data as AppData).discordRpcShowCanvas ?? true,
+      minimapEnabled: (data as AppData).minimapEnabled ?? true,
       privacyModeEnabled: (data as AppData).privacyModeEnabled ?? false,
+      toolbarButtonsVisible: (data as AppData).toolbarButtonsVisible ?? false,
       canvases: (data as AppData).canvases.map((canvas) => ({
         ...canvas,
         containers: canvas.containers.map((element) => ({
@@ -92,7 +95,10 @@ export const normalizeAppData = (
     canvasGridStyle: data.canvasGridStyle ?? "dots",
     canvasGridOpacity: data.canvasGridOpacity ?? DEFAULT_GRID_OPACITY,
     discordRpcEnabled: data.discordRpcEnabled ?? false,
+    discordRpcShowCanvas: data.discordRpcShowCanvas ?? true,
+    minimapEnabled: data.minimapEnabled ?? true,
     privacyModeEnabled: data.privacyModeEnabled ?? false,
+    toolbarButtonsVisible: data.toolbarButtonsVisible ?? false,
     dismissedUpdateVersion: data.dismissedUpdateVersion,
   };
 };

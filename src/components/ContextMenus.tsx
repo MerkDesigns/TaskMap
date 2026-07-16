@@ -4,6 +4,7 @@ import {
   IconArrowAutofitUp,
   IconArrowAutofitUpFilled,
   IconCopy,
+  IconCut,
   IconCheck,
   IconLink,
   IconLock,
@@ -59,6 +60,7 @@ type ContainerContextMenuProps = {
   >;
   onStartRename: (element: ContainerElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  onCut: (element: ContainerElement) => void;
   onCopy: (element: ContainerElement) => void;
   onRemovePrivacyExtension: (id: string) => void;
   onRemoveSearchExtension: (id: string) => void;
@@ -86,6 +88,7 @@ export function ContainerContextMenu({
   extensionState,
   onStartRename,
   onUpdateAccent,
+  onCut,
   onCopy,
   onRemovePrivacyExtension,
   onRemoveSearchExtension,
@@ -185,6 +188,10 @@ export function ContainerContextMenu({
         </div>
       </div>
       <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCut(element)}>
+        <IconCut size={17} stroke={2} />
+        <span>{isMultiTarget ? "Cut selected" : "Cut"}</span>
+      </button>
       <button className={MENU_ITEM_CLASS} onClick={() => onCopy(element)}>
         <IconCopy size={17} stroke={2} />
         <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
@@ -417,6 +424,7 @@ type TextBlockContextMenuProps = {
   extensionState?: Partial<Record<"privacy" | "lock" | "colors" | "colorPicker", boolean>>;
   onStartEdit: (element: TextBlockElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  onCut: (element: TextBlockElement) => void;
   onCopy: (element: TextBlockElement) => void;
   onRemovePrivacyExtension: (id: string) => void;
   onRemoveLockExtension: (id: string) => void;
@@ -437,6 +445,7 @@ export function TextBlockContextMenu({
   extensionState,
   onStartEdit,
   onUpdateAccent,
+  onCut,
   onCopy,
   onRemovePrivacyExtension,
   onRemoveLockExtension,
@@ -522,6 +531,10 @@ export function TextBlockContextMenu({
         </div>
       </div>
       <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCut(element)}>
+        <IconCut size={17} stroke={2} />
+        <span>{isMultiTarget ? "Cut selected" : "Cut"}</span>
+      </button>
       <button className={MENU_ITEM_CLASS} onClick={() => onCopy(element)}>
         <IconCopy size={17} stroke={2} />
         <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
@@ -577,6 +590,7 @@ type TextCardContextMenuProps = {
   onStartEdit: (card: TextCardElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
+  onCut: (card: TextCardElement) => void;
   onCopy: (card: TextCardElement) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
@@ -594,6 +608,7 @@ export function TextCardContextMenu({
   onStartEdit,
   onUpdateAccent,
   onUpdateLink,
+  onCut,
   onCopy,
   onRemoveLockExtension,
   onRemoveColorsExtension,
@@ -725,6 +740,10 @@ export function TextCardContextMenu({
           <span>Hyperlink</span>
         </button>
         <div className={MENU_DIVIDER_CLASS} />
+        <button className={MENU_ITEM_CLASS} onClick={() => onCut(card)}>
+          <IconCut size={17} stroke={2} />
+          <span>{isMultiTarget ? "Cut selected" : "Cut"}</span>
+        </button>
         <button className={MENU_ITEM_CLASS} onClick={() => onCopy(card)}>
           <IconCopy size={17} stroke={2} />
           <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
@@ -822,6 +841,7 @@ type ImageContextMenuProps = {
   onUpdateAccent: (id: string, accent: string) => void;
   onToggleBackground: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
+  onCut: (image: ImageElement) => void;
   onCopy: (image: ImageElement) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveColorsExtension: (id: string) => void;
@@ -838,6 +858,7 @@ export function ImageContextMenu({
   onUpdateAccent,
   onToggleBackground,
   onMoveLayer,
+  onCut,
   onCopy,
   onRemoveLockExtension,
   onRemoveColorsExtension,
@@ -923,6 +944,10 @@ export function ImageContextMenu({
         <span>{image.background === false ? "Show background" : "Hide background"}</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
+      <button className={MENU_ITEM_CLASS} onClick={() => onCut(image)}>
+        <IconCut size={17} stroke={2} />
+        <span>{isMultiTarget ? "Cut selected" : "Cut"}</span>
+      </button>
       <button className={MENU_ITEM_CLASS} onClick={() => onCopy(image)}>
         <IconCopy size={17} stroke={2} />
         <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>

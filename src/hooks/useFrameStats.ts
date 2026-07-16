@@ -31,12 +31,12 @@ export function useFrameStats() {
 
       if (delta > 0 && delta < 1000) {
         samples.push(delta);
-        if (samples.length > 720) {
+        if (samples.length > 180) {
           samples.shift();
         }
       }
 
-      if (time - lastPublishTime >= 250 && samples.length > 0) {
+      if (time - lastPublishTime >= 500 && samples.length > 0) {
         const sorted = [...samples].sort((left, right) => left - right);
         const total = samples.reduce((sum, sample) => sum + sample, 0);
         const averageMs = total / samples.length;

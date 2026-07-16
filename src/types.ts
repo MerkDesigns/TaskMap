@@ -42,6 +42,7 @@ export type ElementExtensions = {
 export type ContainerElement = {
   id: string;
   layer?: number;
+  headerButtonsVisible?: boolean;
   name: string;
   x: number;
   y: number;
@@ -94,6 +95,7 @@ export type TextCardElement = {
 export type TextBlockElement = {
   id: string;
   layer?: number;
+  headerButtonsVisible?: boolean;
   name: string;
   text: string;
   x: number;
@@ -110,7 +112,10 @@ export type ContainerMenuState = {
   top: number;
 };
 
-export type CopiedContainer = Pick<ContainerElement, "name" | "width" | "height" | "accent" | "extensions"> & {
+export type CopiedContainer = Pick<
+  ContainerElement,
+  "name" | "width" | "height" | "accent" | "extensions" | "headerButtonsVisible"
+> & {
   x?: number;
   y?: number;
   textCards: Array<
@@ -143,7 +148,10 @@ export type CopiedImage = Pick<
   y?: number;
 };
 
-export type CopiedTextBlock = Pick<TextBlockElement, "name" | "text" | "width" | "height" | "accent" | "extensions"> & {
+export type CopiedTextBlock = Pick<
+  TextBlockElement,
+  "name" | "text" | "width" | "height" | "accent" | "extensions" | "headerButtonsVisible"
+> & {
   x?: number;
   y?: number;
 };
@@ -203,7 +211,10 @@ export type AppData = {
   canvasGridStyle: CanvasGridStyle;
   canvasGridOpacity: Record<CanvasGridStyle, number>;
   discordRpcEnabled: boolean;
+  discordRpcShowCanvas: boolean;
+  minimapEnabled: boolean;
   privacyModeEnabled: boolean;
+  toolbarButtonsVisible: boolean;
   /** Update version the user dismissed with "Not now"; suppresses the startup
    *  modal for that version only. A newer version still prompts. */
   dismissedUpdateVersion?: string;
@@ -283,6 +294,8 @@ export type DragState =
       startClientY: number;
       startX: number;
       startY: number;
+      currentX: number;
+      currentY: number;
       cardOffsets: Array<{
         id: string;
         x: number;

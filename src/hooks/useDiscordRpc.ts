@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 type UseDiscordRpcOptions = {
   appDataLoaded: boolean;
   discordRpcEnabled: boolean;
-  canvasName: string;
+  canvasName: string | null;
 };
 
 export function useDiscordRpc({

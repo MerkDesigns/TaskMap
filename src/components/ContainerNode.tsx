@@ -20,9 +20,9 @@ import {
   IconPalette,
   IconX,
 } from "@tabler/icons-react";
-import { PointerEvent, ReactNode, WheelEvent, useEffect, useRef, useState } from "react";
+import { PointerEvent, ReactNode, WheelEvent, memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ContainerElement, DragState } from "../types";
+import { ContainerElement } from "../types";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 type ContainerHeaderExtensionKey =
@@ -40,7 +40,7 @@ type ContainerNodeProps = {
   multiSelected: boolean;
   entering: boolean;
   deleting: boolean;
-  dragState: DragState | null;
+  moving: boolean;
   renaming: boolean;
   renameDraft: string;
   onRenameDraftChange: (value: string) => void;
@@ -54,6 +54,7 @@ type ContainerNodeProps = {
   onToggleLock: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onTogglePickCard: (id: string) => void;
+  onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
   onSetSort: (
     id: string,
     mode: "alphabet" | "color" | null,
@@ -64,16 +65,18 @@ type ContainerNodeProps = {
   onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
   onStartContentSelection: (event: PointerEvent<HTMLElement>, element: ContainerElement) => void;
   cardCount: number;
+  contentRevision: object;
+  contentEditRevision: string;
   children?: ReactNode;
 };
 
-export function ContainerNode({
+function ContainerNodeComponent({
   element,
   selected,
   multiSelected,
   entering,
   deleting,
-  dragState,
+  moving,
   renaming,
   renameDraft,
   onRenameDraftChange,
@@ -87,6 +90,7 @@ export function ContainerNode({
   onToggleLock,
   onUpdateAccent,
   onTogglePickCard,
+  onHeaderButtonsVisibleChange,
   onSetSort,
   onSearchChange,
   onOpenContentMenu,
@@ -126,7 +130,7 @@ export function ContainerNode({
   const headerExtensionButtonCount =
     headerExtensionItems.length;
   const collapsibleExtensions = headerExtensionButtonCount > 1;
-  const [extensionButtonsVisible, setExtensionButtonsVisible] = useState(true);
+  const extensionButtonsVisible = element.headerButtonsVisible ?? true;
   const [visibleExtensionCount, setVisibleExtensionCount] = useState(headerExtensionButtonCount);
   const [overflowMenuPosition, setOverflowMenuPosition] = useState<{ left: number; top: number } | null>(null);
   const [sortMenuPosition, setSortMenuPosition] = useState<{ left: number; top: number } | null>(null);
@@ -287,7 +291,7 @@ export function ContainerNode({
       return (
         <button
           key={key}
-          className={getSortButtonClass(lockEnabled)}
+          className={getSortButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             onToggleLock(element.id);
@@ -304,7 +308,7 @@ export function ContainerNode({
       return (
         <button
           key={key}
-          className={getSortButtonClass(privacyEnabled)}
+          className={getSortButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             onTogglePrivacy(element.id);
@@ -405,7 +409,7 @@ export function ContainerNode({
   return (
     <article
       ref={articleRef}
-      className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
+      className={`group/container absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
         entering ? "container-enter" : ""
       } ${deleting ? "container-exit pointer-events-none" : ""}`}
       style={{
@@ -437,7 +441,7 @@ export function ContainerNode({
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
           className={`relative z-30 flex flex-col text-white ${
-            dragState?.type === "move" && dragState.ids.includes(element.id)
+            moving
               ? "cursor-grabbing"
               : "cursor-grab"
           } ${searchInstalled ? "h-[90px]" : "h-12"}`}
@@ -481,7 +485,7 @@ export function ContainerNode({
                   className="grid h-8 w-5 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
                   onClick={(event) => {
                     event.stopPropagation();
-                    setExtensionButtonsVisible((current) => !current);
+                    onHeaderButtonsVisibleChange(element.id, !extensionButtonsVisible);
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
                   title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
@@ -566,7 +570,7 @@ export function ContainerNode({
             privacyEnabled ? "select-none blur-[5px]" : ""
           } ${
             multiSelected
-              ? dragState?.type === "move" && dragState.ids.includes(element.id)
+              ? moving
                 ? "cursor-grabbing"
                 : "cursor-grab"
               : ""
@@ -587,7 +591,7 @@ export function ContainerNode({
         {children}
 
         <button
-          className="absolute bottom-1.5 right-1.5 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-md text-white/45 transition-colors hover:bg-white/10 hover:text-white/80 active:bg-white/15 active:text-white focus:outline-none"
+          className="pointer-events-none absolute bottom-1.5 right-1.5 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-md text-white/45 opacity-0 transition-[opacity,background-color,color] duration-150 ease-out group-hover/container:pointer-events-auto group-hover/container:opacity-100 hover:bg-white/10 hover:text-white/80 active:bg-white/15 active:text-white focus-visible:pointer-events-auto focus-visible:opacity-100 focus:outline-none"
           onPointerDown={(event) => {
             event.currentTarget.blur();
             onStartResize(event, element);
@@ -676,3 +680,13 @@ export function ContainerNode({
     </article>
   );
 }
+
+const areContainerPropsEqual = (previous: ContainerNodeProps, next: ContainerNodeProps) => {
+  const previousValues = previous as unknown as Record<string, unknown>;
+  const nextValues = next as unknown as Record<string, unknown>;
+  const keys = new Set([...Object.keys(previousValues), ...Object.keys(nextValues)]);
+  keys.delete("children");
+  return Array.from(keys).every((key) => previousValues[key] === nextValues[key]);
+};
+
+export const ContainerNode = memo(ContainerNodeComponent, areContainerPropsEqual);

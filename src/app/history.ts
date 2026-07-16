@@ -34,11 +34,13 @@ export const getCanvasHistoryState = (
   };
 };
 
-export const createInitialCanvasHistory = (canvases: TaskCanvas[]) => ({
-  historyByCanvasId: Object.fromEntries(
-    canvases.map((canvas) => [canvas.id, [omitCameraFromHistory(cloneCanvas(canvas))]]),
-  ) as CanvasHistory,
-  historyIndexByCanvasId: Object.fromEntries(canvases.map((canvas) => [canvas.id, 0])) as CanvasHistoryIndex,
+export const createInitialCanvasHistory = (canvas: TaskCanvas) => ({
+  historyByCanvasId: {
+    [canvas.id]: [omitCameraFromHistory(cloneCanvas(canvas))],
+  } as CanvasHistory,
+  historyIndexByCanvasId: {
+    [canvas.id]: 0,
+  } as CanvasHistoryIndex,
 });
 
 export const pushCanvasHistorySnapshot = (

@@ -1,9 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IconBold, IconCheck, IconItalic, IconLink, IconUnderline } from "@tabler/icons-react";
-import { MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { IconCheck, IconLink } from "@tabler/icons-react";
+import { MouseEvent, PointerEvent, memo, useEffect, useRef } from "react";
 import { getTextCardAccent } from "../constants";
-import { FormatMarker, isTextFormatActive, renderFormattedText, toggleTextFormat } from "../textFormatting";
 import { TextCardElement } from "../types";
 
 type TextCardNodeProps = {
@@ -58,15 +56,7 @@ function tintTowardWhite(hexColor: string, amount = 0.61) {
   return `rgb(${mix(red)}, ${mix(green)}, ${mix(blue)})`;
 }
 
-function getFormatButtonClass(active: boolean) {
-  return `grid h-7 w-7 place-items-center rounded-md transition-colors ${
-    active
-      ? "bg-white/[0.16] text-white ring-1 ring-white/20"
-      : "text-white/75 hover:bg-white/[0.10] hover:text-white"
-  }`;
-}
-
-export function TextCardNode({
+function TextCardNodeComponent({
   card,
   editing,
   draft,
@@ -97,12 +87,6 @@ export function TextCardNode({
   onToggleCheckbox,
 }: TextCardNodeProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [formatMenu, setFormatMenu] = useState<{
-    left: number;
-    top: number;
-    start: number;
-    end: number;
-  } | null>(null);
   const accent = getTextCardAccent(card.accent);
   const selectedAccent = selected ? `color-mix(in srgb, ${accent} 72%, white 28%)` : accent;
   const linkedTextColor = tintTowardWhite(accent);
@@ -136,54 +120,6 @@ export function TextCardNode({
       console.error("Failed to open text card link", error);
     });
   };
-
-  const updateFormatMenu = () => {
-    const input = inputRef.current;
-    if (!input) {
-      return;
-    }
-
-    const start = input.selectionStart ?? 0;
-    const end = input.selectionEnd ?? 0;
-    if (start === end) {
-      setFormatMenu(null);
-      return;
-    }
-
-    const rect = input.getBoundingClientRect();
-    const selectionCenter = ((start + end) / 2 / Math.max(input.value.length, 1)) * rect.width;
-    setFormatMenu({
-      left: rect.left + selectionCenter,
-      top: rect.top - 38,
-      start,
-      end,
-    });
-  };
-
-  const updateFormatMenuAfterSelection = () => {
-    window.setTimeout(updateFormatMenu, 0);
-  };
-
-  const applyFormat = (marker: FormatMarker) => {
-    if (!formatMenu) {
-      return;
-    }
-
-    const formatted = toggleTextFormat(draft, formatMenu.start, formatMenu.end, marker);
-    const nextDraft = formatted.text;
-    const selectionStart = formatted.start;
-    const selectionEnd = formatted.end;
-
-    onDraftChange(nextDraft);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.setSelectionRange(selectionStart, selectionEnd);
-      updateFormatMenu();
-    });
-  };
-
-  const isFormatActive = (marker: FormatMarker) =>
-    formatMenu ? isTextFormatActive(draft, formatMenu.start, formatMenu.end, marker) : false;
 
   return (
     <article
@@ -264,43 +200,6 @@ export function TextCardNode({
       )}
       {editing ? (
         <span className={`relative grid ${position?.width ? "w-full" : "max-w-[480px]"}`}>
-          {formatMenu &&
-            createPortal(
-            <span
-              className="fixed z-[1000] flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-white/[0.14] bg-[#1b1b1e] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
-              style={{ left: formatMenu.left, top: formatMenu.top }}
-              onPointerDown={(event) => event.preventDefault()}
-            >
-              <button
-                type="button"
-                className={getFormatButtonClass(isFormatActive("**"))}
-                aria-pressed={isFormatActive("**")}
-                onClick={() => applyFormat("**")}
-                title="Bold"
-              >
-                <IconBold size={20} stroke={2} />
-              </button>
-              <button
-                type="button"
-                className={getFormatButtonClass(isFormatActive("*"))}
-                aria-pressed={isFormatActive("*")}
-                onClick={() => applyFormat("*")}
-                title="Italic"
-              >
-                <IconItalic size={20} stroke={2} />
-              </button>
-              <button
-                type="button"
-                className={getFormatButtonClass(isFormatActive("__"))}
-                aria-pressed={isFormatActive("__")}
-                onClick={() => applyFormat("__")}
-                title="Underline"
-              >
-                <IconUnderline size={20} stroke={2} />
-              </button>
-            </span>,
-              document.body,
-            )}
           <span className="invisible col-start-1 row-start-1 min-w-[1ch] whitespace-pre" aria-hidden>
             {draft || " "}
           </span>
@@ -310,20 +209,9 @@ export function TextCardNode({
             value={draft}
             spellCheck={false}
             onChange={(event) => onDraftChange(event.target.value)}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              setFormatMenu(null);
-            }}
-            onPointerUp={updateFormatMenuAfterSelection}
-            onClick={(event) => {
-              event.stopPropagation();
-              setFormatMenu(null);
-            }}
-            onBlur={() => {
-              setFormatMenu(null);
-              onSave(card.id);
-            }}
-            onKeyUp={updateFormatMenu}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onBlur={() => onSave(card.id)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 onSave(card.id);
@@ -361,7 +249,7 @@ export function TextCardNode({
               position?.width || position?.maxWidth ? "block truncate" : "whitespace-pre-wrap break-words"
             }`}
           >
-            {renderFormattedText(card.text)}
+            {card.text}
           </span>
           <IconLink size={15} stroke={2} className="shrink-0 opacity-70" />
         </button>
@@ -371,7 +259,7 @@ export function TextCardNode({
             position?.width || position?.maxWidth ? "block truncate" : "whitespace-pre-wrap break-words"
           }`}
         >
-          {renderFormattedText(card.text)}
+          {card.text}
         </span>
       )}
       <div
@@ -388,3 +276,25 @@ export function TextCardNode({
     </article>
   );
 }
+
+const areTextCardPropsEqual = (previous: TextCardNodeProps, next: TextCardNodeProps) => {
+  const previousPosition = previous.position;
+  const nextPosition = next.position;
+  if (
+    previousPosition?.x !== nextPosition?.x ||
+    previousPosition?.y !== nextPosition?.y ||
+    previousPosition?.width !== nextPosition?.width ||
+    previousPosition?.maxWidth !== nextPosition?.maxWidth
+  ) {
+    return false;
+  }
+
+  const previousValues = previous as unknown as Record<string, unknown>;
+  const nextValues = next as unknown as Record<string, unknown>;
+  const keys = new Set([...Object.keys(previousValues), ...Object.keys(nextValues)]);
+  keys.delete("position");
+
+  return Array.from(keys).every((key) => previousValues[key] === nextValues[key]);
+};
+
+export const TextCardNode = memo(TextCardNodeComponent, areTextCardPropsEqual);

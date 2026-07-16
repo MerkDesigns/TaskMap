@@ -1,5 +1,5 @@
 import { IconArrowDownRight, IconLoader2, IconPhotoPlus } from "@tabler/icons-react";
-import { MouseEvent, PointerEvent, useRef } from "react";
+import { MouseEvent, PointerEvent, memo, useRef } from "react";
 import { ImageElement } from "../types";
 
 type ImageNodeProps = {
@@ -18,7 +18,7 @@ type ImageNodeProps = {
   onPick: (id: string) => void;
 };
 
-export function ImageNode({
+function ImageNodeComponent({
   image,
   url,
   loading = false,
@@ -45,7 +45,7 @@ export function ImageNode({
 
   return (
     <div
-      className={`group absolute select-none overflow-hidden ${
+      className={`group/image absolute select-none overflow-hidden ${
         chromeless ? "border-0 bg-transparent shadow-none" : "rounded-xl border bg-[color:var(--container-bg)]"
       } ${
         dragging
@@ -118,7 +118,7 @@ export function ImageNode({
       <button
         type="button"
         aria-label="Resize image"
-        className="absolute bottom-0 right-0 grid h-6 w-6 cursor-nwse-resize place-items-center rounded-tl-md text-white/55 opacity-0 transition-opacity hover:bg-white/[0.12] hover:text-white group-hover:opacity-100"
+        className="pointer-events-none absolute bottom-0 right-0 grid h-6 w-6 cursor-nwse-resize place-items-center rounded-tl-md text-white/55 opacity-0 transition-[opacity,background-color,color] duration-150 ease-out group-hover/image:pointer-events-auto group-hover/image:opacity-100 hover:bg-white/[0.12] hover:text-white focus-visible:pointer-events-auto focus-visible:opacity-100 focus:outline-none"
         onPointerDown={(event) => onStartResize(event, image)}
         onClick={(event) => event.stopPropagation()}
         onContextMenu={(event) => event.stopPropagation()}
@@ -133,3 +133,5 @@ export function ImageNode({
     </div>
   );
 }
+
+export const ImageNode = memo(ImageNodeComponent);

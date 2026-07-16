@@ -21,10 +21,14 @@ use tauri::{Manager, PhysicalPosition, PhysicalSize};
 use tauri_plugin_dialog::DialogExt;
 
 const APP_STATE_KEY: &str = "app_state";
+const APP_METADATA_KEY: &str = "app_metadata_v2";
+const CANVAS_KEY_PREFIX: &str = "canvas_v2:";
+const CANVAS_CONTENT_FIELDS: [&str; 4] = ["containers", "textCards", "textBlocks", "images"];
 const KEYRING_SERVICE: &str = "TaskMap";
 const KEYRING_USER: &str = "app-data-key";
 const EXPORT_VERSION: u8 = 1;
 const EXPORT_KDF_ITERATIONS: u32 = 210_000;
+const EXPORT_FILE_EXTENSION: &str = "tmap";
 const DISCORD_CLIENT_ID: &str = "1513214503297486898";
 /// Longest edge (px) a raster image is downscaled to on import. Matches the
 /// canvas size so nothing loses detail at full zoom.
@@ -450,13 +454,35 @@ fn collect_image_ids(value: &serde_json::Value, out: &mut HashSet<String>) {
     }
 }
 
-fn save_app_data_to_database(app: &tauri::AppHandle, data: &AppData) -> Result<(), String> {
-    let connection = open_database(app)?;
-    let key = get_database_key(true)?;
-    let plaintext = serde_json::to_string(data).map_err(|error| error.to_string())?;
-    let encrypted = encrypt_with_key(plaintext.as_bytes(), &key)?;
-    let value = serde_json::to_string(&encrypted).map_err(|error| error.to_string())?;
+fn encrypt_database_value(data: &AppData, key: &[u8; 32]) -> Result<String, String> {
+    let plaintext = serde_json::to_vec(data).map_err(|error| error.to_string())?;
+    let encrypted = encrypt_with_key(&plaintext, key)?;
+    serde_json::to_string(&encrypted).map_err(|error| error.to_string())
+}
 
+fn decrypt_database_value(value: &str, key: &[u8; 32]) -> Result<AppData, String> {
+    let encrypted: EncryptedPayload = serde_json::from_str(value)
+        .map_err(|error| format!("Stored app data is invalid: {error}"))?;
+    let plaintext = decrypt_with_key(&encrypted, key)?;
+    serde_json::from_slice(&plaintext).map_err(|error| error.to_string())
+}
+
+fn query_app_data_value(connection: &Connection, key: &str) -> Result<Option<String>, String> {
+    connection
+        .query_row(
+            "SELECT value FROM app_data WHERE key = ?1",
+            [key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn upsert_app_data_value(
+    connection: &Connection,
+    key: &str,
+    value: &str,
+) -> Result<(), String> {
     connection
         .execute(
             "INSERT INTO app_data (key, value, updated_at)
@@ -464,37 +490,185 @@ fn save_app_data_to_database(app: &tauri::AppHandle, data: &AppData) -> Result<(
              ON CONFLICT(key) DO UPDATE SET
                 value = excluded.value,
                 updated_at = CURRENT_TIMESTAMP",
-            params![APP_STATE_KEY, value],
+            params![key, value],
         )
         .map_err(|error| error.to_string())?;
+    Ok(())
+}
 
+fn canvas_id(canvas: &AppData) -> Option<&str> {
+    canvas.get("id").and_then(serde_json::Value::as_str)
+}
+
+fn canvas_storage_key(id: &str) -> String {
+    format!("{CANVAS_KEY_PREFIX}{id}")
+}
+
+fn canvas_shell(canvas: &AppData) -> AppData {
+    let mut shell = canvas.clone();
+    if let Some(object) = shell.as_object_mut() {
+        for field in CANVAS_CONTENT_FIELDS {
+            object.insert(field.to_string(), serde_json::Value::Array(Vec::new()));
+        }
+    }
+    shell
+}
+
+fn canvas_content(canvas: &AppData) -> Option<AppData> {
+    let id = canvas_id(canvas)?;
+    let mut content = serde_json::Map::new();
+    content.insert("id".to_string(), serde_json::Value::String(id.to_string()));
+    for field in CANVAS_CONTENT_FIELDS {
+        content.insert(
+            field.to_string(),
+            canvas
+                .get(field)
+                .cloned()
+                .unwrap_or_else(|| serde_json::Value::Array(Vec::new())),
+        );
+    }
+    Some(serde_json::Value::Object(content))
+}
+
+fn split_app_data(data: &AppData) -> (AppData, Vec<AppData>) {
+    let mut metadata = data.clone();
+    let canvases = data
+        .get("canvases")
+        .and_then(serde_json::Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    if let Some(metadata_canvases) = metadata
+        .get_mut("canvases")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        *metadata_canvases = canvases.iter().map(canvas_shell).collect();
+    }
+
+    let contents = canvases.iter().filter_map(canvas_content).collect();
+    (metadata, contents)
+}
+
+fn merge_canvas_content(shell: &mut AppData, content: &AppData) {
+    let Some(shell_object) = shell.as_object_mut() else {
+        return;
+    };
+    for field in CANVAS_CONTENT_FIELDS {
+        if let Some(value) = content.get(field) {
+            shell_object.insert(field.to_string(), value.clone());
+        }
+    }
+}
+
+fn save_split_app_data_to_database(
+    app: &tauri::AppHandle,
+    metadata: &AppData,
+    canvases: &[AppData],
+) -> Result<(), String> {
+    let (metadata, _) = split_app_data(metadata);
+    let valid_canvas_keys: HashSet<String> = metadata
+        .get("canvases")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(canvas_id)
+        .map(canvas_storage_key)
+        .collect();
+    let key = get_database_key(true)?;
+    let encrypted_metadata = encrypt_database_value(&metadata, &key)?;
+    let encrypted_canvases = canvases
+        .iter()
+        .filter_map(canvas_content)
+        .filter_map(|canvas| {
+            let storage_key = canvas_id(&canvas).map(canvas_storage_key)?;
+            valid_canvas_keys
+                .contains(&storage_key)
+                .then_some((storage_key, canvas))
+        })
+        .map(|(storage_key, canvas)| {
+            encrypt_database_value(&canvas, &key).map(|value| (storage_key, value))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut connection = open_database(app)?;
+    let transaction = connection.transaction().map_err(|error| error.to_string())?;
+    upsert_app_data_value(&transaction, APP_METADATA_KEY, &encrypted_metadata)?;
+    for (storage_key, value) in encrypted_canvases {
+        upsert_app_data_value(&transaction, &storage_key, &value)?;
+    }
+
+    let stored_canvas_keys: Vec<String> = {
+        let mut statement = transaction
+            .prepare("SELECT key FROM app_data WHERE key LIKE ?1")
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map([format!("{CANVAS_KEY_PREFIX}%")], |row| row.get(0))
+            .map_err(|error| error.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?
+    };
+    for stored_key in stored_canvas_keys {
+        if !valid_canvas_keys.contains(&stored_key) {
+            transaction
+                .execute("DELETE FROM app_data WHERE key = ?1", [&stored_key])
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    transaction
+        .execute("DELETE FROM app_data WHERE key = ?1", [APP_STATE_KEY])
+        .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn save_app_data_to_database(app: &tauri::AppHandle, data: &AppData) -> Result<(), String> {
+    let (metadata, canvases) = split_app_data(data);
+    save_split_app_data_to_database(app, &metadata, &canvases)
+}
+
+fn hydrate_canvas_content(
+    connection: &Connection,
+    key: &[u8; 32],
+    metadata: &mut AppData,
+) -> Result<(), String> {
+    let Some(canvases) = metadata
+        .get_mut("canvases")
+        .and_then(serde_json::Value::as_array_mut)
+    else {
+        return Ok(());
+    };
+
+    for canvas in canvases {
+        let Some(id) = canvas_id(canvas).map(str::to_string) else {
+            continue;
+        };
+        let Some(value) = query_app_data_value(connection, &canvas_storage_key(&id))? else {
+            continue;
+        };
+        let content = decrypt_database_value(&value, key)?;
+        merge_canvas_content(canvas, &content);
+    }
     Ok(())
 }
 
 #[tauri::command]
 fn load_app_data(app: tauri::AppHandle) -> Result<Option<AppData>, String> {
     let connection = open_database(&app)?;
-    let value: Option<String> = connection
-        .query_row(
-            "SELECT value FROM app_data WHERE key = ?1",
-            [APP_STATE_KEY],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|error| error.to_string())?;
+    if let Some(value) = query_app_data_value(&connection, APP_METADATA_KEY)? {
+        let key = get_database_key(false)?;
+        let mut metadata = decrypt_database_value(&value, &key)?;
+        hydrate_canvas_content(&connection, &key, &mut metadata)?;
+        return Ok(Some(metadata));
+    }
 
-    let Some(value) = value else {
+    let Some(value) = query_app_data_value(&connection, APP_STATE_KEY)? else {
         return Ok(None);
     };
-
-    let encrypted: EncryptedPayload =
-        serde_json::from_str(&value).map_err(|error| format!("Stored app data is invalid: {error}"))?;
     let key = get_database_key(false)?;
-    let plaintext = decrypt_with_key(&encrypted, &key)?;
-
-    serde_json::from_slice(&plaintext)
-        .map(Some)
-        .map_err(|error| error.to_string())
+    let data = decrypt_database_value(&value, &key)?;
+    drop(connection);
+    save_app_data_to_database(&app, &data)?;
+    Ok(Some(data))
 }
 
 #[tauri::command]
@@ -503,29 +677,69 @@ fn save_app_data(app: tauri::AppHandle, data: AppData) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn export_app_data(app: tauri::AppHandle, data: AppData, password: String) -> Result<String, String> {
-    let mut hashes = HashSet::new();
-    collect_image_ids(&data, &mut hashes);
+fn save_app_data_incremental(
+    app: tauri::AppHandle,
+    metadata: AppData,
+    canvases: Vec<AppData>,
+) -> Result<(), String> {
+    save_split_app_data_to_database(&app, &metadata, &canvases)
+}
 
-    let mut images = Vec::new();
-    if !hashes.is_empty() {
-        let connection = open_database(&app)?;
-        let key = get_database_key(false)?;
-        for hash in &hashes {
-            if let Some(meta) = image_meta_by_hash(&connection, hash)? {
-                let bytes = read_image_bytes(&connection, &key, hash)?;
-                images.push(BundledImage {
-                    hash: meta.hash,
-                    format: meta.format,
-                    width: meta.width,
-                    height: meta.height,
-                    data: BASE64.encode(bytes),
-                });
+#[tauri::command]
+async fn export_app_data(
+    app: tauri::AppHandle,
+    data: AppData,
+    password: String,
+) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut hashes = HashSet::new();
+        collect_image_ids(&data, &mut hashes);
+
+        let mut images = Vec::new();
+        if !hashes.is_empty() {
+            let connection = open_database(&app)?;
+            let key = get_database_key(false)?;
+            for hash in &hashes {
+                if let Some(meta) = image_meta_by_hash(&connection, hash)? {
+                    let bytes = read_image_bytes(&connection, &key, hash)?;
+                    images.push(BundledImage {
+                        hash: meta.hash,
+                        format: meta.format,
+                        width: meta.width,
+                        height: meta.height,
+                        data: BASE64.encode(bytes),
+                    });
+                }
             }
         }
-    }
 
-    encrypt_export(&data, &images, &password)
+        let payload = encrypt_export(&data, &images, &password)?;
+        let Some(file) = app
+            .dialog()
+            .file()
+            .add_filter("TaskMap files", &[EXPORT_FILE_EXTENSION])
+            .blocking_save_file()
+        else {
+            return Ok(false);
+        };
+        let mut path = file
+            .into_path()
+            .map_err(|error| format!("Could not resolve export path: {error}"))?;
+        let has_tmap_extension = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| extension.eq_ignore_ascii_case(EXPORT_FILE_EXTENSION))
+            .unwrap_or(false);
+        if !has_tmap_extension {
+            path.set_extension(EXPORT_FILE_EXTENSION);
+        }
+
+        fs::write(&path, payload.as_bytes())
+            .map_err(|error| format!("Could not save TaskMap export: {error}"))?;
+        Ok(true)
+    })
+    .await
+    .map_err(|error| format!("Export failed: {error}"))?
 }
 
 #[tauri::command]
@@ -954,6 +1168,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             load_app_data,
             save_app_data,
+            save_app_data_incremental,
             export_app_data,
             import_app_data,
             reset_local_database,

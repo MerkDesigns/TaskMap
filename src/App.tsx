@@ -19,6 +19,7 @@ import {
   type ExtensionId,
 } from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
+import { FpsCounter } from "./components/FpsCounter";
 import { FrostedGlassTuner, FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
@@ -66,7 +67,6 @@ import {
   DEFAULT_GRID_OPACITY,
   DEFAULT_PAN,
 } from "./app/defaultData";
-import { useFrameStats } from "./hooks/useFrameStats";
 import { useAutosave } from "./hooks/useAutosave";
 import { useDiscordRpc } from "./hooks/useDiscordRpc";
 import { useImageCache } from "./hooks/useImageCache";
@@ -125,10 +125,20 @@ type TextCardReleaseAnimation = {
   }>;
 };
 
+type TextCardMoveDragState = Extract<DragState, { type: "text-card-move" }>;
+
+type TextCardPointerSample = {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  shiftKey: boolean;
+};
+
 type LeftPanelState = "closed" | "canvases" | "extensions";
 
 const CANVAS_MANAGER_ANIMATION_MS = 120;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
+const MINIMAP_FADE_MS = 500;
 
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
@@ -140,6 +150,18 @@ const CONTAINER_SEARCH_HEIGHT = 42;
 const CONTAINER_TEXT_CARD_PADDING = 17;
 const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
 const CONTAINER_TEXT_CARD_GAP = 8;
+const EMPTY_IDS: string[] = [];
+const CANVAS_RENDER_OVERSCAN_PX = 480;
+const LOOSE_TEXT_CARD_RENDER_WIDTH = 540;
+const LOOSE_TEXT_CARD_RENDER_HEIGHT = 320;
+
+type Rectangle = { left: number; top: number; width: number; height: number };
+
+const rectanglesOverlap = (left: Rectangle, right: Rectangle) =>
+  left.left < right.left + right.width &&
+  left.left + left.width > right.left &&
+  left.top < right.top + right.height &&
+  left.top + left.height > right.top;
 const DEFAULT_FROSTED_GLASS_VALUES: FrostedGlassValues = {
   bgOpacity: 0,
   bgBrightness: 0,
@@ -159,13 +181,78 @@ const getWindowPreviewViewport = () => ({
   height: window.innerHeight,
 });
 
+const createAppMetadata = (data: AppData): AppData => ({
+  ...data,
+  canvases: data.canvases.map((canvas) => ({
+    ...canvas,
+    containers: [],
+    textCards: [],
+    textBlocks: [],
+    images: [],
+  })),
+});
+
+type CallbackMap = Record<string, (...args: any[]) => any>;
+
+const useStableCallbacks = <T extends CallbackMap>(callbacks: T): T => {
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
+
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        Object.keys(callbacks).map((name) => [
+          name,
+          (...args: any[]) => callbacksRef.current[name](...args),
+        ]),
+      ) as T,
+    [],
+  );
+};
+
+const useCanvasLayers = <T extends { id: string; layer?: number }>(
+  items: T[],
+  layerMap: Map<string, number>,
+): T[] => {
+  const cacheRef = useRef(new Map<string, { source: T; layer?: number; result: T }>());
+
+  return useMemo(() => {
+    const activeIds = new Set(items.map((item) => item.id));
+    cacheRef.current.forEach((_, id) => {
+      if (!activeIds.has(id)) cacheRef.current.delete(id);
+    });
+
+    return items.map((item) => {
+      const layer = layerMap.get(item.id) ?? item.layer;
+      if (layer === item.layer) {
+        cacheRef.current.delete(item.id);
+        return item;
+      }
+
+      const cached = cacheRef.current.get(item.id);
+      if (cached?.source === item && cached.layer === layer) {
+        return cached.result;
+      }
+
+      const result = { ...item, layer };
+      cacheRef.current.set(item.id, { source: item, layer, result });
+      return result;
+    });
+  }, [items, layerMap]);
+};
+
 function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const panelSwitchTimeoutRef = useRef<number | null>(null);
   const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
+  const minimapUnmountTimeoutRef = useRef<number | null>(null);
   const canvasCycleSessionRef = useRef<{
     order: string[];
     index: number;
@@ -173,17 +260,26 @@ function App() {
   } | null>(null);
   const textCardDropPreviewRef = useRef<{ containerId: string; index: number } | null>(null);
   const textCardDragCenterYRef = useRef<number | null>(null);
+  const textCardDragStateRef = useRef<TextCardMoveDragState | null>(null);
+  const pendingTextCardPointerRef = useRef<TextCardPointerSample | null>(null);
+  const textCardDragFrameRef = useRef<number | null>(null);
   const historyRef = useRef<Record<string, TaskCanvas[]>>({});
   const historyIndexRef = useRef<Record<string, number>>({});
   const historyTimeoutRef = useRef<number | null>(null);
   const applyingHistoryRef = useRef(false);
+  const dirtyCanvasVersionsRef = useRef<Map<string, number>>(new Map());
+  const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const imageGarbageCollectionNeededRef = useRef(false);
   const latestAppDataRef = useRef<AppData>({
     activeCanvasId: DEFAULT_CANVAS.id,
     canvases: [DEFAULT_CANVAS],
     canvasGridStyle: "dots",
     canvasGridOpacity: DEFAULT_GRID_OPACITY,
     discordRpcEnabled: false,
+    discordRpcShowCanvas: true,
+    minimapEnabled: true,
     privacyModeEnabled: false,
+    toolbarButtonsVisible: false,
   });
   const appDataLoadedRef = useRef(false);
   const [appDataLoaded, setAppDataLoaded] = useState(false);
@@ -191,6 +287,7 @@ function App() {
   const [zoom, setZoom] = useState(1);
   const latestCameraRef = useRef({ pan: DEFAULT_PAN, zoom: 1 });
   const [minimapVisible, setMinimapVisible] = useState(false);
+  const [minimapMounted, setMinimapMounted] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [containerMenu, setContainerMenu] = useState<ContainerMenuState | null>(null);
   const [closingContainerMenu, setClosingContainerMenu] = useState<ContainerMenuState | null>(null);
@@ -220,13 +317,15 @@ function App() {
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
+  const [discordRpcShowCanvas, setDiscordRpcShowCanvas] = useState(true);
+  const [minimapEnabled, setMinimapEnabled] = useState(true);
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
+  const [toolbarButtonsVisible, setToolbarButtonsVisible] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(undefined);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
-  const frameStats = useFrameStats();
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
@@ -318,6 +417,35 @@ function App() {
     useState<TextCardReleaseAnimation | null>(null);
   const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
   const [dragState, setDragState] = useState<DragState | null>(null);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) {
+      return;
+    }
+
+    const updateStageSize = () => {
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
+      setStageSize((current) =>
+        current.width === width && current.height === height ? current : { width, height },
+      );
+    };
+    updateStageSize();
+    const observer = new ResizeObserver(updateStageSize);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (textCardDragFrameRef.current !== null) {
+        window.cancelAnimationFrame(textCardDragFrameRef.current);
+      }
+    },
+    [],
+  );
+
   const containersById = useMemo(
     () => new Map(elements.map((element) => [element.id, element])),
     [elements],
@@ -361,11 +489,12 @@ function App() {
     () => images.filter((image) => !image.containerId),
     [images],
   );
+  const draggedTextCardIds = dragState?.type === "text-card-move" ? dragState.ids : EMPTY_IDS;
   const renderedLooseTextCards = useMemo(() => {
     const extraCards: TextCardElement[] = [];
 
-    if (dragState?.type === "text-card-move") {
-      dragState.ids.forEach((id) => {
+    if (draggedTextCardIds.length) {
+      draggedTextCardIds.forEach((id) => {
         const draggedCard = textCardsById.get(id);
         if (draggedCard?.containerId) {
           extraCards.push(draggedCard);
@@ -374,7 +503,7 @@ function App() {
     }
 
     return extraCards.length ? [...looseTextCards, ...extraCards] : looseTextCards;
-  }, [dragState, looseTextCards, textCardsById]);
+  }, [draggedTextCardIds, looseTextCards, textCardsById]);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((current) =>
@@ -402,8 +531,27 @@ function App() {
     [dismissToast],
   );
 
-  const persistAppData = async (data: AppData) => {
-    await invoke("save_app_data", { data });
+  const persistAppData = (data: AppData, forceAllCanvases = false): Promise<void> => {
+    const capturedVersions = new Map(dirtyCanvasVersionsRef.current);
+    const canvasIdsToSave = forceAllCanvases
+      ? new Set(data.canvases.map((canvas) => canvas.id))
+      : new Set(capturedVersions.keys());
+    const canvasesToSave = data.canvases.filter((canvas) => canvasIdsToSave.has(canvas.id));
+    const metadata = createAppMetadata(data);
+    const save = async () => {
+      await invoke("save_app_data_incremental", {
+        metadata,
+        canvases: canvasesToSave,
+      });
+      capturedVersions.forEach((version, canvasId) => {
+        if (dirtyCanvasVersionsRef.current.get(canvasId) === version) {
+          dirtyCanvasVersionsRef.current.delete(canvasId);
+        }
+      });
+    };
+    const queuedSave = persistenceQueueRef.current.then(save, save);
+    persistenceQueueRef.current = queuedSave.catch(() => undefined);
+    return queuedSave;
   };
 
   const { imageUrlVersion, getImageUrl, storeImageFromBytes } = useImageCache({
@@ -466,7 +614,10 @@ function App() {
     canvasGridStyle,
     canvasGridOpacity,
     discordRpcEnabled,
+    discordRpcShowCanvas,
+    minimapEnabled,
     privacyModeEnabled,
+    toolbarButtonsVisible,
     dismissedUpdateVersion,
   });
 
@@ -528,14 +679,17 @@ function App() {
           setCanvasGridStyle(normalized.canvasGridStyle);
           setCanvasGridOpacity(normalized.canvasGridOpacity);
           setDiscordRpcEnabled(normalized.discordRpcEnabled);
+          setDiscordRpcShowCanvas(normalized.discordRpcShowCanvas);
+          setMinimapEnabled(normalized.minimapEnabled);
           setPrivacyModeEnabled(normalized.privacyModeEnabled);
+          setToolbarButtonsVisible(normalized.toolbarButtonsVisible);
           setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
-          const initialHistory = createInitialCanvasHistory(normalized.canvases);
+          const initialHistory = createInitialCanvasHistory(selectedCanvas);
           historyRef.current = initialHistory.historyByCanvasId;
           historyIndexRef.current = initialHistory.historyIndexByCanvasId;
           updateHistoryState(selectedCanvas.id);
         } else {
-          const initialHistory = createInitialCanvasHistory([DEFAULT_CANVAS]);
+          const initialHistory = createInitialCanvasHistory(DEFAULT_CANVAS);
           historyRef.current = initialHistory.historyByCanvasId;
           historyIndexRef.current = initialHistory.historyIndexByCanvasId;
           updateHistoryState(DEFAULT_CANVAS.id);
@@ -567,14 +721,31 @@ function App() {
     canvases,
     dismissedUpdateVersion,
     discordRpcEnabled,
+    discordRpcShowCanvas,
     elements,
     images,
+    minimapEnabled,
     pan,
     privacyModeEnabled,
     textBlocks,
     textCards,
+    toolbarButtonsVisible,
     zoom,
   ]);
+
+  useEffect(() => {
+    if (!appDataLoadedRef.current) {
+      return;
+    }
+    const currentVersion = dirtyCanvasVersionsRef.current.get(activeCanvas.id) ?? 0;
+    dirtyCanvasVersionsRef.current.set(activeCanvas.id, currentVersion + 1);
+  }, [activeCanvas.id, elements, images, textBlocks, textCards]);
+
+  useEffect(() => {
+    if (appDataLoadedRef.current) {
+      imageGarbageCollectionNeededRef.current = true;
+    }
+  }, [canvases.length, images]);
 
   useEffect(() => {
     latestCameraRef.current = { pan, zoom };
@@ -606,19 +777,25 @@ function App() {
       canvasGridStyle,
       canvases,
       discordRpcEnabled,
+      discordRpcShowCanvas,
       dismissedUpdateVersion,
       elements,
       images,
+      minimapEnabled,
       pan,
       privacyModeEnabled,
       textBlocks,
       textCards,
+      toolbarButtonsVisible,
       zoom,
     ],
     save: persistAppData,
     onSaved: () => {
       setStorageError(null);
-      collectImageGarbage(latestAppDataRef.current);
+      if (imageGarbageCollectionNeededRef.current) {
+        imageGarbageCollectionNeededRef.current = false;
+        collectImageGarbage(latestAppDataRef.current);
+      }
     },
     onError: (error) => {
       const message = `Failed to save app data: ${String(error)}`;
@@ -630,7 +807,7 @@ function App() {
   useDiscordRpc({
     appDataLoaded,
     discordRpcEnabled,
-    canvasName: activeCanvas.name,
+    canvasName: discordRpcShowCanvas ? activeCanvas.name : null,
   });
 
   useEffect(() => {
@@ -672,7 +849,7 @@ function App() {
     dismissedUpdateVersion,
     onDismissUpdateVersion: setDismissedUpdateVersion,
     cancelAutosave,
-    saveCurrentData: () => persistAppData(getCurrentAppData()),
+    saveCurrentData: () => persistAppData(getCurrentAppData(), true),
     showToast,
   });
 
@@ -681,11 +858,31 @@ function App() {
       if (minimapTimeoutRef.current) {
         window.clearTimeout(minimapTimeoutRef.current);
       }
+      if (minimapUnmountTimeoutRef.current) {
+        window.clearTimeout(minimapUnmountTimeoutRef.current);
+      }
       if (historyTimeoutRef.current) {
         window.clearTimeout(historyTimeoutRef.current);
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (minimapEnabled) {
+      return;
+    }
+
+    if (minimapTimeoutRef.current) {
+      window.clearTimeout(minimapTimeoutRef.current);
+      minimapTimeoutRef.current = null;
+    }
+    if (minimapUnmountTimeoutRef.current) {
+      window.clearTimeout(minimapUnmountTimeoutRef.current);
+      minimapUnmountTimeoutRef.current = null;
+    }
+    setMinimapVisible(false);
+    setMinimapMounted(false);
+  }, [minimapEnabled]);
 
   useEffect(() => {
     const htmlSpellCheck = document.documentElement.getAttribute("spellcheck");
@@ -761,19 +958,40 @@ function App() {
   };
 
   const updateTextCardDropPreview = (preview: { containerId: string; index: number } | null) => {
+    const current = textCardDropPreviewRef.current;
+    if (
+      current === preview ||
+      (current && preview && current.containerId === preview.containerId && current.index === preview.index)
+    ) {
+      return;
+    }
+
     textCardDropPreviewRef.current = preview;
     setTextCardDropPreview(preview);
   };
 
   const showMinimap = () => {
+    if (!minimapEnabled) {
+      return;
+    }
+
+    setMinimapMounted(true);
     setMinimapVisible(true);
 
     if (minimapTimeoutRef.current) {
       window.clearTimeout(minimapTimeoutRef.current);
     }
+    if (minimapUnmountTimeoutRef.current) {
+      window.clearTimeout(minimapUnmountTimeoutRef.current);
+      minimapUnmountTimeoutRef.current = null;
+    }
 
     minimapTimeoutRef.current = window.setTimeout(() => {
       setMinimapVisible(false);
+      minimapUnmountTimeoutRef.current = window.setTimeout(() => {
+        setMinimapMounted(false);
+        minimapUnmountTimeoutRef.current = null;
+      }, MINIMAP_FADE_MS);
     }, 2200);
   };
 
@@ -1259,6 +1477,12 @@ function App() {
     setRenamingId(null);
   };
 
+  const topLevelLayerSignature = JSON.stringify([
+    ...elements.map((item) => ["container", item.id, item.layer]),
+    ...textBlocks.map((item) => ["text-block", item.id, item.layer]),
+    ...textCards.filter((item) => !item.containerId).map((item) => ["text-card", item.id, item.layer]),
+    ...images.filter((item) => !item.containerId).map((item) => ["image", item.id, item.layer]),
+  ]);
   const topLevelLayerMap = useMemo(() => {
     const ordered = [
       ...elements,
@@ -1268,12 +1492,12 @@ function App() {
     ].sort((left, right) => (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER));
 
     return new Map(ordered.map((item, index) => [item.id, index]));
-  }, [elements, images, textBlocks, textCards]);
+  }, [topLevelLayerSignature]);
 
-  const withCanvasLayer = <T extends { id: string; layer?: number }>(item: T): T => ({
-    ...item,
-    layer: topLevelLayerMap.get(item.id) ?? item.layer,
-  });
+  const layeredElements = useCanvasLayers(elements, topLevelLayerMap);
+  const layeredTextBlocks = useCanvasLayers(textBlocks, topLevelLayerMap);
+  const layeredLooseTextCards = useCanvasLayers(renderedLooseTextCards, topLevelLayerMap);
+  const layeredLooseImages = useCanvasLayers(looseImages, topLevelLayerMap);
 
   const addIdsToSelection = (ids: string[]) => {
     setSelectedIds((current) => Array.from(new Set([...current, ...ids])));
@@ -2670,8 +2894,125 @@ function App() {
     });
   };
 
+  const applyTextCardDragFrame = (
+    sample: TextCardPointerSample,
+    render = true,
+  ): TextCardMoveDragState | null => {
+    const currentDrag = textCardDragStateRef.current;
+    if (!currentDrag || sample.pointerId !== currentDrag.pointerId) {
+      return null;
+    }
+
+    const pointerPoint = canvasPointFromEvent(sample);
+    const dropContainer = getTextCardDropContainer(pointerPoint);
+    const draggedCenterPoint = {
+      ...pointerPoint,
+      y: pointerPoint.y - currentDrag.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
+    };
+    const currentPreview = textCardDropPreviewRef.current;
+    const draggedIdSet = new Set(currentDrag.ids);
+    const cardsWithoutBundle = textCards.filter((card) => !draggedIdSet.has(card.id));
+    const originalDropIndex =
+      dropContainer && dropContainer.id === currentDrag.startContainerId
+        ? getContainerVisibleTextCards(dropContainer, textCards).findIndex(
+            (card) => card.id === currentDrag.id,
+          )
+        : -1;
+    const dropIndex = dropContainer
+      ? currentPreview?.containerId === dropContainer.id
+        ? getDirectionalTextCardDropIndex(
+            dropContainer,
+            draggedCenterPoint.y,
+            cardsWithoutBundle,
+            currentDrag.id,
+            currentPreview.index,
+          )
+        : getTextCardDropIndex(
+            dropContainer,
+            draggedCenterPoint,
+            cardsWithoutBundle,
+            currentDrag.id,
+            originalDropIndex >= 0 ? originalDropIndex : undefined,
+          )
+      : null;
+
+    if (!dropContainer || currentPreview?.containerId !== dropContainer.id) {
+      textCardDragCenterYRef.current = draggedCenterPoint.y;
+    }
+
+    const pointerDeltaX = sample.clientX - currentDrag.lastClientX;
+    const pointerDeltaY = sample.clientY - currentDrag.lastClientY;
+    const nextSwayX = clamp(currentDrag.swayX * 0.55 + pointerDeltaX * 0.45, -14, 14);
+    const nextSwayY = clamp(currentDrag.swayY * 0.55 + pointerDeltaY * 0.45, -10, 10);
+    const nextX = currentDrag.startX + (sample.clientX - currentDrag.startClientX) / zoom;
+    const nextY = currentDrag.startY + (sample.clientY - currentDrag.startClientY) / zoom;
+    const snapped = sample.shiftKey
+      ? snapMovedTextCard(
+          currentDrag.id,
+          currentDrag.width,
+          currentDrag.height,
+          nextX,
+          nextY,
+          pointerPoint,
+        )
+      : { x: nextX, y: nextY, guides: [] };
+    const nextDrag: TextCardMoveDragState = {
+      ...currentDrag,
+      currentX: snapped.x,
+      currentY: snapped.y,
+      snapping: sample.shiftKey,
+      lastClientX: sample.clientX,
+      lastClientY: sample.clientY,
+      swayX: nextSwayX,
+      swayY: nextSwayY,
+    };
+
+    textCardDragStateRef.current = nextDrag;
+    if (render) {
+      setDragState(nextDrag);
+    }
+    setTextCardDetachedContainerId(
+      currentDrag.startContainerId && dropContainer?.id !== currentDrag.startContainerId
+        ? currentDrag.startContainerId
+        : null,
+    );
+    updateTextCardDropPreview(
+      dropContainer && dropIndex !== null
+        ? { containerId: dropContainer.id, index: dropIndex }
+        : null,
+    );
+    setSnapGuides(sample.shiftKey ? snapped.guides : []);
+    return nextDrag;
+  };
+
+  const runTextCardDragFrame = () => {
+    textCardDragFrameRef.current = null;
+    const sample = pendingTextCardPointerRef.current;
+    pendingTextCardPointerRef.current = null;
+    if (sample) {
+      applyTextCardDragFrame(sample);
+    }
+  };
+
+  const scheduleTextCardDragFrame = (sample: TextCardPointerSample) => {
+    pendingTextCardPointerRef.current = sample;
+    if (textCardDragFrameRef.current === null) {
+      textCardDragFrameRef.current = window.requestAnimationFrame(runTextCardDragFrame);
+    }
+  };
+
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
+      return;
+    }
+
+    if (dragState.type === "text-card-move") {
+      scheduleTextCardDragFrame({
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        shiftKey: event.shiftKey,
+      });
       return;
     }
 
@@ -2830,88 +3171,6 @@ function App() {
       return;
     }
 
-    if (dragState.type === "text-card-move") {
-      const dropContainer = getTextCardDropContainer(pointerPoint);
-      const draggedCenterPoint = {
-        ...pointerPoint,
-        y: pointerPoint.y - dragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
-      };
-      const currentPreview = textCardDropPreviewRef.current;
-      const cardsWithoutBundle = textCards.filter((card) => !dragState.ids.includes(card.id));
-      const originalDropIndex =
-        dropContainer && dropContainer.id === dragState.startContainerId
-          ? getContainerVisibleTextCards(dropContainer, textCards).findIndex(
-              (card) => card.id === dragState.id,
-            )
-          : -1;
-      const dropIndex = dropContainer
-        ? currentPreview?.containerId === dropContainer.id
-          ? getDirectionalTextCardDropIndex(
-              dropContainer,
-              draggedCenterPoint.y,
-              cardsWithoutBundle,
-              dragState.id,
-              currentPreview.index,
-            )
-          : getTextCardDropIndex(
-              dropContainer,
-              draggedCenterPoint,
-              cardsWithoutBundle,
-              dragState.id,
-              originalDropIndex >= 0 ? originalDropIndex : undefined,
-            )
-        : null;
-
-      if (!dropContainer || currentPreview?.containerId !== dropContainer.id) {
-        textCardDragCenterYRef.current = draggedCenterPoint.y;
-      }
-
-      const pointerDeltaX = event.clientX - dragState.lastClientX;
-      const pointerDeltaY = event.clientY - dragState.lastClientY;
-      const nextSwayX = clamp(dragState.swayX * 0.55 + pointerDeltaX * 0.45, -14, 14);
-      const nextSwayY = clamp(dragState.swayY * 0.55 + pointerDeltaY * 0.45, -10, 10);
-      setDragState({
-        ...dragState,
-        snapping: event.shiftKey,
-        lastClientX: event.clientX,
-        lastClientY: event.clientY,
-        swayX: nextSwayX,
-        swayY: nextSwayY,
-      });
-
-      const nextX = dragState.startX + worldDeltaX;
-      const nextY = dragState.startY + worldDeltaY;
-      const snapped = event.shiftKey
-        ? snapMovedTextCard(dragState.id, dragState.width, dragState.height, nextX, nextY, pointerPoint)
-        : { x: nextX, y: nextY, guides: [] };
-
-      setTextCardDetachedContainerId(
-        dragState.startContainerId && dropContainer?.id !== dragState.startContainerId
-          ? dragState.startContainerId
-          : null,
-      );
-      updateTextCardDropPreview(
-        dropContainer && dropIndex !== null
-          ? { containerId: dropContainer.id, index: dropIndex }
-          : null,
-      );
-      setTextCards((current) => {
-        const offsets = new Map(dragState.cardOffsets.map((offset) => [offset.id, offset]));
-        return current.map((card) => {
-          const offset = offsets.get(card.id);
-          return offset
-            ? {
-                ...card,
-                x: snapped.x + offset.x,
-                y: snapped.y + offset.y,
-              }
-            : card;
-        });
-      });
-      setSnapGuides(event.shiftKey ? snapped.guides : []);
-      return;
-    }
-
     if (dragState.type === "image-move") {
       const nextX = dragState.startX + worldDeltaX;
       const nextY = dragState.startY + worldDeltaY;
@@ -3018,23 +3277,55 @@ function App() {
     }
 
     if (dragState.type === "text-card-move") {
-      const droppedTextCardIds = dragState.ids;
+      if (textCardDragFrameRef.current !== null) {
+        window.cancelAnimationFrame(textCardDragFrameRef.current);
+        textCardDragFrameRef.current = null;
+      }
+      pendingTextCardPointerRef.current = null;
+      const liveDragState = textCardDragStateRef.current ?? dragState;
+      const stoppedDragState =
+        liveDragState.lastClientX !== event.clientX ||
+        liveDragState.lastClientY !== event.clientY ||
+        liveDragState.snapping !== event.shiftKey
+          ? applyTextCardDragFrame(
+              {
+                pointerId: event.pointerId,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                shiftKey: event.shiftKey,
+              },
+              false,
+            ) ?? liveDragState
+          : liveDragState;
+      const droppedTextCardIds = stoppedDragState.ids;
       const droppedTextCardIdSet = new Set(droppedTextCardIds);
       const movedDistance = Math.hypot(
-        event.clientX - dragState.startClientX,
-        event.clientY - dragState.startClientY,
+        event.clientX - stoppedDragState.startClientX,
+        event.clientY - stoppedDragState.startClientY,
       );
       const droppedWithoutMoving = movedDistance < 3;
       const endPoint = canvasPointFromEvent(event);
       const dropContainer = getTextCardDropContainer(endPoint);
       const draggedCenterPoint = {
         ...endPoint,
-        y: endPoint.y - dragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
+        y: endPoint.y - stoppedDragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
       };
       const currentPreview = textCardDropPreviewRef.current;
+      const dragOffsetsById = new Map(
+        stoppedDragState.cardOffsets.map((offset) => [offset.id, offset]),
+      );
       const draggedCards = textCards
         .filter((card) => droppedTextCardIdSet.has(card.id))
-        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+        .map((card) => {
+          const offset = dragOffsetsById.get(card.id);
+          return {
+            ...card,
+            x: stoppedDragState.currentX + (offset?.x ?? 0),
+            y: stoppedDragState.currentY + (offset?.y ?? 0),
+          };
+        });
+      const draggedCardsById = new Map(draggedCards.map((card) => [card.id, card]));
       let nextTextCards = textCards;
 
       if (draggedCards.length > 0 && !droppedWithoutMoving) {
@@ -3043,7 +3334,7 @@ function App() {
             textCards.map((card) =>
               droppedTextCardIdSet.has(card.id)
                 ? {
-                    ...card,
+                    ...(draggedCardsById.get(card.id) ?? card),
                     containerId: undefined,
                     order: undefined,
                   }
@@ -3059,13 +3350,13 @@ function App() {
                   dropContainer,
                   draggedCenterPoint,
                   cardsWithoutBundle,
-                  dragState.id,
+                  stoppedDragState.id,
                 );
           const realDropIndex = resolveContainerInsertOrderIndex(
             dropContainer,
             visibleDropIndex,
             cardsWithoutBundle,
-            dragState.id,
+            stoppedDragState.id,
           );
           const targetCards = cardsWithoutBundle
             .filter((card) => card.containerId === dropContainer.id)
@@ -3093,14 +3384,14 @@ function App() {
 
         const releaseCards = draggedCards.map((draggedCard) => {
           const nextCard = nextTextCards.find((card) => card.id === draggedCard.id) ?? draggedCard;
-          const bundleIndex = dragState.ids.indexOf(draggedCard.id);
+          const bundleIndex = stoppedDragState.ids.indexOf(draggedCard.id);
           const swayFactor = 0.18 + Math.min(Math.max(bundleIndex, 0), 5) * 0.04;
           const from = {
-            x: draggedCard.x + (bundleIndex > 0 ? dragState.swayX * swayFactor : 0),
+            x: draggedCard.x + (bundleIndex > 0 ? stoppedDragState.swayX * swayFactor : 0),
             y:
               draggedCard.y +
               (bundleIndex > 0
-                ? Math.abs(dragState.swayX) * 0.08 + dragState.swayY * 0.12
+                ? Math.abs(stoppedDragState.swayX) * 0.08 + stoppedDragState.swayY * 0.12
                 : 0),
           };
           if (!nextCard.containerId) {
@@ -3154,6 +3445,7 @@ function App() {
       updateTextCardDropPreview(null);
       setTextCardDetachedContainerId(null);
       textCardDragCenterYRef.current = null;
+      textCardDragStateRef.current = null;
     }
 
     if (dragState.type === "select") {
@@ -3269,6 +3561,12 @@ function App() {
       y: event.clientY - canvasY * nextZoom,
     };
 
+    if (dragState?.type === "text-card-move" && textCardDragFrameRef.current !== null) {
+      window.cancelAnimationFrame(textCardDragFrameRef.current);
+      textCardDragFrameRef.current = null;
+      pendingTextCardPointerRef.current = null;
+    }
+
     setZoom(nextZoom);
     setPan(nextPan);
     setDragState((current) => {
@@ -3312,23 +3610,19 @@ function App() {
       }
 
       if (current.type === "text-card-move") {
-        const activeCard = textCards.find((card) => card.id === current.id);
-        const activeOffset = current.cardOffsets.find((offset) => offset.id === current.id);
-        if (!activeCard) {
-          return current;
-        }
-
-        return {
+        const nextDragState: TextCardMoveDragState = {
           ...current,
           startClientX: event.clientX,
           startClientY: event.clientY,
-          startX: activeCard.x - (activeOffset?.x ?? 0),
-          startY: activeCard.y - (activeOffset?.y ?? 0),
+          startX: current.currentX,
+          startY: current.currentY,
           lastClientX: event.clientX,
           lastClientY: event.clientY,
           swayX: 0,
           swayY: 0,
         };
+        textCardDragStateRef.current = nextDragState;
+        return nextDragState;
       }
 
       if (current.type === "image-move") {
@@ -3584,23 +3878,12 @@ function App() {
         pickupY: originalPosition.y - (startPosition.y + y),
       };
     });
-    setTextCards((current) =>
-      current.map((currentCard) =>
-        draggedIds.includes(currentCard.id)
-          ? {
-              ...currentCard,
-              x: startPosition.x + (cardOffsets.find((offset) => offset.id === currentCard.id)?.x ?? 0),
-              y: startPosition.y + (cardOffsets.find((offset) => offset.id === currentCard.id)?.y ?? 0),
-            }
-          : currentCard,
-      ),
-    );
     const pointerPoint = canvasPointFromEvent(event);
     const pointerOffsetY = pointerPoint.y - startPosition.y;
     const cardRect = event.currentTarget.getBoundingClientRect();
     textCardDragCenterYRef.current =
       pointerPoint.y - pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
-    setDragState({
+    const nextDragState: TextCardMoveDragState = {
       type: "text-card-move",
       pointerId: event.pointerId,
       id: card.id,
@@ -3609,6 +3892,8 @@ function App() {
       startClientY: event.clientY,
       startX: startPosition.x,
       startY: startPosition.y,
+      currentX: startPosition.x,
+      currentY: startPosition.y,
       cardOffsets,
       lastClientX: event.clientX,
       lastClientY: event.clientY,
@@ -3619,7 +3904,14 @@ function App() {
       width: cardRect.width / zoom,
       height: cardRect.height / zoom,
       snapping: false,
-    });
+    };
+    textCardDragStateRef.current = nextDragState;
+    pendingTextCardPointerRef.current = null;
+    if (textCardDragFrameRef.current !== null) {
+      window.cancelAnimationFrame(textCardDragFrameRef.current);
+      textCardDragFrameRef.current = null;
+    }
+    setDragState(nextDragState);
   };
 
   const startImageMove = (event: PointerEvent<HTMLElement>, image: ImageElement) => {
@@ -3873,7 +4165,7 @@ function App() {
     });
   };
 
-  const startTextBlockEdit = (element: TextBlockElement, _caretPosition?: number) => {
+  const startTextBlockEdit = (element: TextBlockElement) => {
     setTextBlockDraft(element.text);
     setEditingTextBlockId(element.id);
     setSelectedIds([element.id]);
@@ -3904,6 +4196,14 @@ function App() {
   const updateTextBlockAccent = (id: string, accent: string) => {
     setTextBlocks((current) =>
       current.map((element) => (element.id === id ? { ...element, accent } : element)),
+    );
+  };
+
+  const updateTextBlockHeaderButtonsVisible = (id: string, visible: boolean) => {
+    setTextBlocks((current) =>
+      current.map((element) =>
+        element.id === id ? { ...element, headerButtonsVisible: visible } : element,
+      ),
     );
   };
 
@@ -3994,6 +4294,7 @@ function App() {
             width: element.width,
             height: element.height,
             accent: element.accent,
+            headerButtonsVisible: element.headerButtonsVisible,
             extensions: cloneExtensions(element.extensions),
             textCards: getOrderedContainerTextCards(element.id).map((card) => ({
               text: card.text,
@@ -4028,6 +4329,7 @@ function App() {
             width: element.width,
             height: element.height,
             accent: element.accent,
+            headerButtonsVisible: element.headerButtonsVisible,
             extensions: cloneExtensions(element.extensions),
           })),
         images: images
@@ -4065,6 +4367,7 @@ function App() {
         width: element.width,
         height: element.height,
         accent: element.accent,
+        headerButtonsVisible: element.headerButtonsVisible,
         extensions: cloneExtensions(element.extensions),
         textCards: getOrderedContainerTextCards(element.id).map((card) => ({
           text: card.text,
@@ -4114,6 +4417,7 @@ function App() {
         width: element.width,
         height: element.height,
         accent: element.accent,
+        headerButtonsVisible: element.headerButtonsVisible,
         extensions: cloneExtensions(element.extensions),
       },
     });
@@ -4386,6 +4690,14 @@ function App() {
     );
   };
 
+  const updateContainerHeaderButtonsVisible = (id: string, visible: boolean) => {
+    setElements((current) =>
+      current.map((element) =>
+        element.id === id ? { ...element, headerButtonsVisible: visible } : element,
+      ),
+    );
+  };
+
   const getContextActionIds = (id: string) =>
     selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id];
 
@@ -4499,6 +4811,26 @@ function App() {
     );
     closeContextMenus();
     setRenamingId(null);
+  };
+
+  const cutContainer = (element: ContainerElement) => {
+    copyContainer(element);
+    deleteContextSelection(element.id);
+  };
+
+  const cutTextCard = (card: TextCardElement) => {
+    copyTextCard(card);
+    deleteContextSelection(card.id);
+  };
+
+  const cutTextBlock = (element: TextBlockElement) => {
+    copyTextBlock(element);
+    deleteContextSelection(element.id);
+  };
+
+  const cutImage = (image: ImageElement) => {
+    copyImage(image);
+    deleteContextSelection(image.id);
   };
 
   const installPrivacyExtensions = (ids: string[]) => {
@@ -4683,13 +5015,26 @@ function App() {
   };
 
   const toggleLockExtension = (id: string) => {
+    const source =
+      containersById.get(id) ??
+      textBlocksById.get(id) ??
+      textCardsById.get(id) ??
+      imagesById.get(id);
+    if (!source?.extensions?.lock) {
+      return;
+    }
+
+    const targetIds = new Set(
+      selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id],
+    );
+    const nextEnabled = !source.extensions.lock.enabled;
     const toggle = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
-      item.id === id && item.extensions?.lock
+      targetIds.has(item.id) && item.extensions?.lock
         ? {
             ...item,
             extensions: {
               ...item.extensions,
-              lock: { enabled: !item.extensions.lock.enabled },
+              lock: { enabled: nextEnabled },
             },
           }
         : item;
@@ -5584,7 +5929,10 @@ function App() {
     setCanvasGridStyle(normalized.canvasGridStyle);
     setCanvasGridOpacity(normalized.canvasGridOpacity);
     setDiscordRpcEnabled(normalized.discordRpcEnabled);
+    setDiscordRpcShowCanvas(normalized.discordRpcShowCanvas);
+    setMinimapEnabled(normalized.minimapEnabled);
     setPrivacyModeEnabled(normalized.privacyModeEnabled);
+    setToolbarButtonsVisible(normalized.toolbarButtonsVisible);
     setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
     setSelectedIds([]);
     setRenamingId(null);
@@ -5594,7 +5942,10 @@ function App() {
     closeContextMenus();
 
     if (recordHistory) {
-      pushHistorySnapshot(normalized);
+      const initialHistory = createInitialCanvasHistory(selectedCanvas);
+      historyRef.current = initialHistory.historyByCanvasId;
+      historyIndexRef.current = initialHistory.historyIndexByCanvasId;
+      updateHistoryState(selectedCanvas.id);
     } else {
       window.setTimeout(() => {
         applyingHistoryRef.current = false;
@@ -5698,32 +6049,25 @@ function App() {
     return () => window.removeEventListener("keydown", handleHistoryKeyDown);
   }, [redo, undo]);
 
-  const exportData = async (password: string) => {
-    const payload = await invoke<string>("export_app_data", {
+  const exportData = (password: string) =>
+    invoke<boolean>("export_app_data", {
       data: getCurrentAppData(),
       password,
     });
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const date = new Date().toISOString().slice(0, 10);
-
-    link.href = url;
-    link.download = `taskmap-export-${date}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
 
   const importData = async (file: File, password: string) => {
+    cancelAutosave();
+    await persistenceQueueRef.current.catch(() => undefined);
     const payload = await file.text();
     const data = await invoke<AppData>("import_app_data", { payload, password });
+    dirtyCanvasVersionsRef.current.clear();
     applyAppData(data);
     setStorageError(null);
   };
 
   const resetLocalDatabase = async () => {
+    cancelAutosave();
+    await persistenceQueueRef.current.catch(() => undefined);
     await invoke("reset_local_database");
     const data: AppData = {
       activeCanvasId: DEFAULT_CANVAS.id,
@@ -5731,15 +6075,19 @@ function App() {
       canvasGridStyle: "dots",
       canvasGridOpacity: DEFAULT_GRID_OPACITY,
       discordRpcEnabled: false,
+      discordRpcShowCanvas: true,
+      minimapEnabled: true,
       privacyModeEnabled: false,
+      toolbarButtonsVisible: false,
     };
 
     latestAppDataRef.current = data;
+    dirtyCanvasVersionsRef.current.clear();
     applyAppData(data);
     setStorageError(null);
     setAppDataLoaded(true);
     appDataLoadedRef.current = true;
-    await persistAppData(data);
+    await persistAppData(data, true);
   };
 
   const createCanvas = (draft: Pick<TaskCanvas, "name" | "width" | "height">) => {
@@ -5871,6 +6219,9 @@ function App() {
     const nextCanvases = currentCanvases.filter((canvas) => canvas.id !== id);
     const nextActiveCanvas =
       id === activeCanvas.id ? nextCanvases[Math.max(currentCanvases.findIndex((canvas) => canvas.id === id) - 1, 0)] : activeCanvas;
+
+    delete historyRef.current[id];
+    delete historyIndexRef.current[id];
 
     setCanvases(nextCanvases);
 
@@ -6074,10 +6425,147 @@ function App() {
     setDiscordRpcEnabled(enabled);
   };
 
-  const stageWidth = stageRef.current?.clientWidth ?? window.innerWidth;
-  const stageHeight = stageRef.current?.clientHeight ?? window.innerHeight;
+  const canvasNodeActions = useStableCallbacks({
+    cancelRename,
+    cancelTextBlockEdit,
+    cancelTextCardEdit,
+    handleContainerWheel,
+    openContainerContentMenu,
+    openImageMenu,
+    openTextBlockMenu,
+    openTextCardMenu,
+    pickImageForElement,
+    saveRename,
+    saveTextBlockEdit,
+    saveTextCardEdit,
+    selectCanvasElement,
+    setContainerSort,
+    startContainerContentSelection,
+    startImageMove,
+    startImageResize,
+    startMove,
+    startResize,
+    startTextBlockEdit,
+    startTextCardMove,
+    toggleLockExtension,
+    toggleMenu,
+    togglePickedContainerCard,
+    togglePrivacyExtension,
+    toggleTextCardCheckbox,
+    updateContainerAccent,
+    updateContainerHeaderButtonsVisible,
+    updateContainerSearchQuery,
+    updateTextBlockAccent,
+    updateTextBlockHeaderButtonsVisible,
+  });
+  const outlinedIdsSignature = outlinedIds.join("|");
+  const draggedTextCardIdsSignature = draggedTextCardIds.join("|");
+  const editingTextCardContainerId = editingTextCardId
+    ? textCardsById.get(editingTextCardId)?.containerId
+    : undefined;
+  const containerContentRevision = useMemo(
+    () => ({}),
+    [
+      containerScrollOffsets,
+      deletingTextCardIds,
+      draggedTextCardIdsSignature,
+      dragState?.type === "move",
+      dragState?.type === "text-card-move",
+      enteringTextCardIds,
+      glowingTextCardIds,
+      outlinedIdsSignature,
+      pulsingTextCardIds,
+      selectedIds.length,
+      settlingTextCardIds,
+      textCardDetachedContainerId,
+      textCardDropPreview,
+      textCards,
+    ],
+  );
+
+  const stageWidth = stageSize.width;
+  const stageHeight = stageSize.height;
   const canvasWidth = activeCanvas.width;
   const canvasHeight = activeCanvas.height;
+  const renderBounds = useMemo(() => {
+    const overscan = CANVAS_RENDER_OVERSCAN_PX / zoom;
+    return {
+      left: -pan.x / zoom - overscan,
+      top: -pan.y / zoom - overscan,
+      width: stageWidth / zoom + overscan * 2,
+      height: stageHeight / zoom + overscan * 2,
+    };
+  }, [pan.x, pan.y, stageHeight, stageWidth, zoom]);
+  const dragPinnedIds = dragState && "ids" in dragState
+    ? dragState.ids
+    : dragState && "id" in dragState
+      ? [dragState.id]
+      : EMPTY_IDS;
+  const dragPinnedSignature = dragPinnedIds.join("|");
+  const pinnedRenderIds = useMemo(() => {
+    const ids = new Set(selectedIds);
+    [renamingId, editingTextBlockId, editingTextCardId].forEach((id) => {
+      if (id) ids.add(id);
+    });
+    dragPinnedIds.forEach((id) => ids.add(id));
+    return ids;
+  }, [dragPinnedSignature, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
+  const renderedElements = useMemo(
+    () =>
+      layeredElements.filter(
+        (element) =>
+          pinnedRenderIds.has(element.id) ||
+          rectanglesOverlap(renderBounds, {
+            left: element.x,
+            top: element.y,
+            width: element.width,
+            height: element.height,
+          }),
+      ),
+    [layeredElements, pinnedRenderIds, renderBounds],
+  );
+  const renderedTextBlocks = useMemo(
+    () =>
+      layeredTextBlocks.filter(
+        (element) =>
+          pinnedRenderIds.has(element.id) ||
+          rectanglesOverlap(renderBounds, {
+            left: element.x,
+            top: element.y,
+            width: element.width,
+            height: element.height,
+          }),
+      ),
+    [layeredTextBlocks, pinnedRenderIds, renderBounds],
+  );
+  const renderedTextCards = useMemo(
+    () =>
+      layeredLooseTextCards.filter(
+        (card) =>
+          pinnedRenderIds.has(card.id) ||
+          rectanglesOverlap(renderBounds, {
+            left: card.x,
+            top: card.y,
+            width: LOOSE_TEXT_CARD_RENDER_WIDTH,
+            height: LOOSE_TEXT_CARD_RENDER_HEIGHT,
+          }),
+      ),
+    [layeredLooseTextCards, pinnedRenderIds, renderBounds],
+  );
+  const renderedImages = useMemo(
+    () =>
+      layeredLooseImages.filter(
+        (image) =>
+          pinnedRenderIds.has(image.id) ||
+          rectanglesOverlap(renderBounds, {
+            left: image.x,
+            top: image.y,
+            width: image.width,
+            height: image.height,
+          }),
+      ),
+    [layeredLooseImages, pinnedRenderIds, renderBounds],
+  );
   const canvasAspect = canvasWidth / canvasHeight;
   const minimapWidth =
     canvasAspect >= 1
@@ -6181,19 +6669,20 @@ function App() {
             canUndo={historyState.canUndo}
             canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
             extensionsOpen={extensionsOpen && !extensionsClosing}
+            minimapEnabled={minimapEnabled}
+            privacyModeEnabled={privacyModeEnabled}
+            toolbarButtonsVisible={toolbarButtonsVisible}
+            onMinimapEnabledChange={setMinimapEnabled}
+            onPrivacyModeEnabledChange={setPrivacyModeEnabled}
             onRedo={redo}
+            onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
             onToggleExtensions={toggleExtensionsPanel}
             onToggleCanvases={toggleCanvasManager}
             onUndo={undo}
             onOpenSettings={() => setSettingsOpen(true)}
           />
           {fpsCounterVisible && (
-            <div className="pointer-events-none fixed right-4 top-4 z-50 rounded-lg border border-white/[0.14] bg-[#111216]/88 px-4 py-3 font-mono text-[22px] leading-8 text-white/78 shadow-[0_12px_32px_rgba(0,0,0,0.34)] backdrop-blur-md">
-              <div className="text-white/92">{frameStats.samples ? `${Math.round(frameStats.fps)} fps` : "-- fps"}</div>
-              <div>avg {frameStats.averageMs.toFixed(2)} ms</div>
-              <div>p95 {frameStats.p95Ms.toFixed(2)} ms</div>
-              <div>max {frameStats.maxMs.toFixed(2)} ms</div>
-            </div>
+            <FpsCounter />
           )}
           {canvasManagerOpen && (
             <CanvasManager
@@ -6331,7 +6820,7 @@ function App() {
                   </div>
                 );
               })}
-              {elements.map((element) => {
+              {renderedElements.map((element) => {
                 // Keep the settling card in the index list so neighbours keep
                 // their correct visible slots; it is rendered in the loose
                 // layer (for its free-flying settle animation) and merely
@@ -6356,31 +6845,40 @@ function App() {
                 return (
                   <ContainerNode
                     key={element.id}
-                    element={withCanvasLayer(element)}
+                    element={element}
                     selected={outlinedIds.includes(element.id)}
                     multiSelected={containerMultiSelected}
                     entering={enteringIds.includes(element.id)}
                     deleting={deletingIds.includes(element.id)}
-                    dragState={dragState}
+                    moving={dragState?.type === "move" && dragState.ids.includes(element.id)}
                     renaming={renamingId === element.id}
-                    renameDraft={renameDraft}
+                    renameDraft={renamingId === element.id ? renameDraft : ""}
                     onRenameDraftChange={setRenameDraft}
-                    onSaveRename={saveRename}
-                    onCancelRename={cancelRename}
-                    onSelect={selectCanvasElement}
-                    onStartMove={startMove}
-                    onStartResize={startResize}
-                    onToggleMenu={toggleMenu}
-                    onTogglePrivacy={togglePrivacyExtension}
-                    onToggleLock={toggleLockExtension}
-                    onUpdateAccent={updateContainerAccent}
-                    onTogglePickCard={togglePickedContainerCard}
-                    onSetSort={setContainerSort}
-                    onSearchChange={updateContainerSearchQuery}
-                    onOpenContentMenu={openContainerContentMenu}
-                    onWheelContent={handleContainerWheel}
-                    onStartContentSelection={startContainerContentSelection}
+                    onSaveRename={canvasNodeActions.saveRename}
+                    onCancelRename={canvasNodeActions.cancelRename}
+                    onSelect={canvasNodeActions.selectCanvasElement}
+                    onStartMove={canvasNodeActions.startMove}
+                    onStartResize={canvasNodeActions.startResize}
+                    onToggleMenu={canvasNodeActions.toggleMenu}
+                    onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
+                    onToggleLock={canvasNodeActions.toggleLockExtension}
+                    onUpdateAccent={canvasNodeActions.updateContainerAccent}
+                    onTogglePickCard={canvasNodeActions.togglePickedContainerCard}
+                    onHeaderButtonsVisibleChange={
+                      canvasNodeActions.updateContainerHeaderButtonsVisible
+                    }
+                    onSetSort={canvasNodeActions.setContainerSort}
+                    onSearchChange={canvasNodeActions.updateContainerSearchQuery}
+                    onOpenContentMenu={canvasNodeActions.openContainerContentMenu}
+                    onWheelContent={canvasNodeActions.handleContainerWheel}
+                    onStartContentSelection={canvasNodeActions.startContainerContentSelection}
                     cardCount={allContainedCards.length}
+                    contentRevision={containerContentRevision}
+                    contentEditRevision={
+                      editingTextCardContainerId === element.id
+                        ? `${editingTextCardId}\u0000${textCardDraft}`
+                        : ""
+                    }
                   >
                     {relativeDropPreview && (
                       <div
@@ -6430,7 +6928,7 @@ function App() {
                           key={card.id}
                           card={card}
                           editing={editingTextCardId === card.id}
-                          draft={textCardDraft}
+                          draft={editingTextCardId === card.id ? textCardDraft : ""}
                           position={position}
                           entering={enteringTextCardIds.includes(card.id)}
                           deleting={deletingTextCardIds.includes(card.id)}
@@ -6443,52 +6941,55 @@ function App() {
                           linksDisabled={selectedIds.length > 1}
                           privacyHidden={Boolean(element.extensions?.privacy?.enabled)}
                           onDraftChange={setTextCardDraft}
-                          onSave={saveTextCardEdit}
-                          onCancel={cancelTextCardEdit}
-                          onStartMove={startTextCardMove}
-                          onOpenMenu={openTextCardMenu}
-                          onToggleCheckbox={toggleTextCardCheckbox}
+                          onSave={canvasNodeActions.saveTextCardEdit}
+                          onCancel={canvasNodeActions.cancelTextCardEdit}
+                          onStartMove={canvasNodeActions.startTextCardMove}
+                          onOpenMenu={canvasNodeActions.openTextCardMenu}
+                          onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
                         />
                       );
                     })}
                   </ContainerNode>
                 );
               })}
-              {textBlocks.map((element) => {
+              {renderedTextBlocks.map((element) => {
                 const textBlockMultiSelected = selectedIds.length > 1 && selectedIds.includes(element.id);
 
                 return (
                   <TextBlockNode
                     key={element.id}
-                    element={withCanvasLayer(element)}
+                    element={element}
                     selected={outlinedIds.includes(element.id)}
                     multiSelected={textBlockMultiSelected}
                     entering={enteringTextBlockIds.includes(element.id)}
                     deleting={deletingTextBlockIds.includes(element.id)}
                     pulsing={pulsingTextBlockIds.includes(element.id)}
-                    dragState={dragState}
+                    moving={dragState?.type === "move" && dragState.ids.includes(element.id)}
                     editing={editingTextBlockId === element.id}
-                    draft={textBlockDraft}
+                    draft={editingTextBlockId === element.id ? textBlockDraft : ""}
                     renaming={renamingId === element.id}
-                    renameDraft={renameDraft}
+                    renameDraft={renamingId === element.id ? renameDraft : ""}
                     onDraftChange={setTextBlockDraft}
-                    onSave={saveTextBlockEdit}
-                    onCancel={cancelTextBlockEdit}
+                    onSave={canvasNodeActions.saveTextBlockEdit}
+                    onCancel={canvasNodeActions.cancelTextBlockEdit}
                     onRenameDraftChange={setRenameDraft}
-                    onSaveRename={saveRename}
-                    onCancelRename={cancelRename}
-                    onStartEdit={startTextBlockEdit}
-                    onSelect={selectCanvasElement}
-                    onStartMove={startMove}
-                    onStartResize={startResize}
-                    onToggleMenu={openTextBlockMenu}
-                    onTogglePrivacy={togglePrivacyExtension}
-                    onToggleLock={toggleLockExtension}
-                    onUpdateAccent={updateTextBlockAccent}
+                    onSaveRename={canvasNodeActions.saveRename}
+                    onCancelRename={canvasNodeActions.cancelRename}
+                    onStartEdit={canvasNodeActions.startTextBlockEdit}
+                    onSelect={canvasNodeActions.selectCanvasElement}
+                    onStartMove={canvasNodeActions.startMove}
+                    onStartResize={canvasNodeActions.startResize}
+                    onToggleMenu={canvasNodeActions.openTextBlockMenu}
+                    onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
+                    onToggleLock={canvasNodeActions.toggleLockExtension}
+                    onUpdateAccent={canvasNodeActions.updateTextBlockAccent}
+                    onHeaderButtonsVisibleChange={
+                      canvasNodeActions.updateTextBlockHeaderButtonsVisible
+                    }
                   />
                 );
               })}
-              {renderedLooseTextCards.map((card) => {
+              {renderedTextCards.map((card) => {
                 if (textCardReleaseAnimation && settlingTextCardIds.includes(card.id)) {
                   return null;
                 }
@@ -6513,9 +7014,9 @@ function App() {
                 return (
                   <TextCardNode
                     key={card.id}
-                    card={withCanvasLayer(card)}
+                    card={card}
                     editing={editingTextCardId === card.id}
-                    draft={textCardDraft}
+                    draft={editingTextCardId === card.id ? textCardDraft : ""}
                     position={position}
                     entering={enteringTextCardIds.includes(card.id)}
                     deleting={deletingTextCardIds.includes(card.id)}
@@ -6542,18 +7043,18 @@ function App() {
                     selected={outlinedIds.includes(card.id)}
                     linksDisabled={selectedIds.length > 1}
                     onDraftChange={setTextCardDraft}
-                    onSave={saveTextCardEdit}
-                    onCancel={cancelTextCardEdit}
-                    onStartMove={startTextCardMove}
-                    onOpenMenu={openTextCardMenu}
-                    onToggleCheckbox={toggleTextCardCheckbox}
+                    onSave={canvasNodeActions.saveTextCardEdit}
+                    onCancel={canvasNodeActions.cancelTextCardEdit}
+                    onStartMove={canvasNodeActions.startTextCardMove}
+                    onOpenMenu={canvasNodeActions.openTextCardMenu}
+                    onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
                   />
                 );
               })}
-              {looseImages.map((image) => (
+              {renderedImages.map((image) => (
                 <ImageNode
                   key={image.id}
-                  image={withCanvasLayer(image)}
+                  image={image}
                   url={getImageUrl(image.imageId, image.format)}
                   loading={loadingImageIds.includes(image.id)}
                   entering={enteringImageIds.includes(image.id)}
@@ -6562,10 +7063,10 @@ function App() {
                   moving={dragState?.type === "move" && selectedIds.includes(image.id)}
                   resizing={dragState?.type === "image-resize" && dragState.id === image.id}
                   selected={outlinedIds.includes(image.id)}
-                  onStartMove={startImageMove}
-                  onStartResize={startImageResize}
-                  onOpenMenu={openImageMenu}
-                  onPick={pickImageForElement}
+                  onStartMove={canvasNodeActions.startImageMove}
+                  onStartResize={canvasNodeActions.startImageResize}
+                  onOpenMenu={canvasNodeActions.openImageMenu}
+                  onPick={canvasNodeActions.pickImageForElement}
                 />
               ))}
             </div>
@@ -6579,39 +7080,52 @@ function App() {
                   transformOrigin: "0 0",
                 }}
               >
-                {dragState.ids.map((id, dragBundleIndex) => {
-                  const card = textCardsById.get(id);
-                  const dragBundleOffset = dragState.cardOffsets.find((offset) => offset.id === id);
-                  if (!card) {
-                    return null;
-                  }
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    transform: `translate3d(${dragState.currentX - dragState.startX}px, ${
+                      dragState.currentY - dragState.startY
+                    }px, 0)`,
+                    willChange: "transform",
+                  }}
+                >
+                  {dragState.ids.map((id, dragBundleIndex) => {
+                    const card = textCardsById.get(id);
+                    const dragBundleOffset = dragState.cardOffsets.find((offset) => offset.id === id);
+                    if (!card) {
+                      return null;
+                    }
 
-                  return (
-                    <TextCardNode
-                      key={`drag-overlay-${card.id}`}
-                      card={card}
-                      editing={false}
-                      draft={card.text}
-                      position={{ x: card.x, y: card.y }}
-                      dragging
-                      dragPrimary={dragState.id === card.id}
-                      dragBundleIndex={dragBundleIndex}
-                      dragBundleSize={dragState.ids.length}
-                      dragPickupX={dragBundleOffset?.pickupX ?? 0}
-                      dragPickupY={dragBundleOffset?.pickupY ?? 0}
-                      dragSwayX={dragState.swayX}
-                      dragSwayY={dragState.swayY}
-                      selected={outlinedIds.includes(card.id)}
-                      linksDisabled
-                      onDraftChange={setTextCardDraft}
-                      onSave={saveTextCardEdit}
-                      onCancel={cancelTextCardEdit}
-                      onStartMove={startTextCardMove}
-                      onOpenMenu={openTextCardMenu}
-                      onToggleCheckbox={toggleTextCardCheckbox}
-                    />
-                  );
-                })}
+                    return (
+                      <TextCardNode
+                        key={`drag-overlay-${card.id}`}
+                        card={card}
+                        editing={false}
+                        draft={card.text}
+                        position={{
+                          x: dragState.startX + (dragBundleOffset?.x ?? 0),
+                          y: dragState.startY + (dragBundleOffset?.y ?? 0),
+                        }}
+                        dragging
+                        dragPrimary={dragState.id === card.id}
+                        dragBundleIndex={dragBundleIndex}
+                        dragBundleSize={dragState.ids.length}
+                        dragPickupX={dragBundleOffset?.pickupX ?? 0}
+                        dragPickupY={dragBundleOffset?.pickupY ?? 0}
+                        dragSwayX={dragState.swayX}
+                        dragSwayY={dragState.swayY}
+                        selected={outlinedIds.includes(card.id)}
+                        linksDisabled
+                        onDraftChange={setTextCardDraft}
+                        onSave={canvasNodeActions.saveTextCardEdit}
+                        onCancel={canvasNodeActions.cancelTextCardEdit}
+                        onStartMove={canvasNodeActions.startTextCardMove}
+                        onOpenMenu={canvasNodeActions.openTextCardMenu}
+                        onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             )}
             {textCardReleaseAnimation && (
@@ -6635,11 +7149,11 @@ function App() {
                     selected={outlinedIds.includes(card.id)}
                     linksDisabled
                     onDraftChange={setTextCardDraft}
-                    onSave={saveTextCardEdit}
-                    onCancel={cancelTextCardEdit}
-                    onStartMove={startTextCardMove}
-                    onOpenMenu={openTextCardMenu}
-                    onToggleCheckbox={toggleTextCardCheckbox}
+                    onSave={canvasNodeActions.saveTextCardEdit}
+                    onCancel={canvasNodeActions.cancelTextCardEdit}
+                    onStartMove={canvasNodeActions.startTextCardMove}
+                    onOpenMenu={canvasNodeActions.openTextCardMenu}
+                    onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
                   />
                 ))}
               </div>
@@ -6672,6 +7186,7 @@ function App() {
               extensionState={getSelectedExtensionState(getContextActionIds(contextMenuElement.id))}
               onStartRename={startRename}
               onUpdateAccent={updateContextAccent}
+              onCut={cutContainer}
               onCopy={copyContainer}
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
@@ -6699,6 +7214,7 @@ function App() {
               extensionState={getSelectedExtensionState(getContextActionIds(closingContextMenuElement.id))}
               onStartRename={startRename}
               onUpdateAccent={updateContextAccent}
+              onCut={cutContainer}
               onCopy={copyContainer}
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
@@ -6749,6 +7265,7 @@ function App() {
               onStartEdit={startTextCardEdit}
               onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
+              onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
@@ -6769,6 +7286,7 @@ function App() {
               onStartEdit={startTextCardEdit}
               onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
+              onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
@@ -6788,6 +7306,7 @@ function App() {
               extensionState={getSelectedExtensionState(getContextActionIds(textBlockContextElement.id))}
               onStartEdit={startRename}
               onUpdateAccent={updateContextAccent}
+              onCut={cutTextBlock}
               onCopy={copyTextBlock}
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
@@ -6808,6 +7327,7 @@ function App() {
               extensionState={getSelectedExtensionState(getContextActionIds(closingTextBlockContextElement.id))}
               onStartEdit={startRename}
               onUpdateAccent={updateContextAccent}
+              onCut={cutTextBlock}
               onCopy={copyTextBlock}
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
@@ -6830,6 +7350,7 @@ function App() {
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
               onMoveLayer={moveCanvasLayers}
+              onCut={cutImage}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
@@ -6849,6 +7370,7 @@ function App() {
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
               onMoveLayer={moveCanvasLayers}
+              onCut={cutImage}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
@@ -6905,6 +7427,8 @@ function App() {
               onImportData={importData}
               discordRpcEnabled={discordRpcEnabled}
               onDiscordRpcEnabledChange={updateDiscordRpcEnabled}
+              discordRpcShowCanvas={discordRpcShowCanvas}
+              onDiscordRpcShowCanvasChange={setDiscordRpcShowCanvas}
               availableUpdate={availableUpdate}
               appVersion={appVersion}
               fpsCounterVisible={fpsCounterVisible}
@@ -6952,18 +7476,20 @@ function App() {
 
           <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-          <Minimap
-            elements={elements}
-            textBlocks={textBlocks}
-            textCards={looseTextCards}
-            images={looseImages}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-            visible={minimapVisible}
-            zoom={zoom}
-            viewport={minimapViewport}
-            onResetZoom={resetZoom}
-          />
+          {minimapEnabled && minimapMounted && (
+            <Minimap
+              elements={elements}
+              textBlocks={textBlocks}
+              textCards={looseTextCards}
+              images={looseImages}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              visible={minimapVisible}
+              zoom={zoom}
+              viewport={minimapViewport}
+              onResetZoom={resetZoom}
+            />
+          )}
         </section>
       </div>
     </main>

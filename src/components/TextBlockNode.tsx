@@ -1,100 +1,22 @@
 import {
   IconArrowDownRight,
-  IconBold,
   IconChevronLeft,
   IconChevronRight,
   IconColorPicker,
   IconDotsVertical,
   IconEye,
   IconEyeOff,
-  IconItalic,
   IconLock,
   IconLockOpen,
   IconNotes,
   IconPuzzle,
-  IconUnderline,
 } from "@tabler/icons-react";
-import { MouseEvent, PointerEvent, WheelEvent, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { FormatMarker, isTextFormatActive, renderFormattedText, toggleTextFormat } from "../textFormatting";
-import { DragState, TextBlockElement } from "../types";
+import { MouseEvent, PointerEvent, WheelEvent, memo, useEffect, useRef, useState } from "react";
+import { TextBlockElement } from "../types";
 import { ColorPickerMenu } from "./ColorPickerMenu";
+import { MarkdownContent } from "./MarkdownContent";
 
 type TextBlockHeaderExtensionKey = "lock" | "privacy" | "colorPicker";
-
-function getDisplayedTextOffset(root: HTMLElement, clientX: number, clientY: number) {
-  const documentWithCaret = document as Document & {
-    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
-    caretRangeFromPoint?: (x: number, y: number) => Range | null;
-  };
-  const caret =
-    documentWithCaret.caretPositionFromPoint?.(clientX, clientY) ??
-    (() => {
-      const range = documentWithCaret.caretRangeFromPoint?.(clientX, clientY);
-      return range ? { offsetNode: range.startContainer, offset: range.startOffset } : null;
-    })();
-
-  if (!caret || !root.contains(caret.offsetNode)) {
-    return null;
-  }
-
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let offset = 0;
-  let node = walker.nextNode();
-
-  while (node) {
-    if (node === caret.offsetNode) {
-      return offset + caret.offset;
-    }
-
-    offset += node.textContent?.length ?? 0;
-    node = walker.nextNode();
-  }
-
-  return offset;
-}
-
-function rawIndexFromDisplayedOffset(text: string, targetOffset: number) {
-  const formattedPartPattern = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*)/g;
-  let displayedOffset = 0;
-  let rawIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = formattedPartPattern.exec(text))) {
-    const plainText = text.slice(rawIndex, match.index);
-    if (targetOffset <= displayedOffset + plainText.length) {
-      return rawIndex + targetOffset - displayedOffset;
-    }
-
-    displayedOffset += plainText.length;
-
-    const part = match[0];
-    const markerLength = part.startsWith("**") || part.startsWith("__") ? 2 : 1;
-    const contentLength = part.length - markerLength * 2;
-
-    if (targetOffset <= displayedOffset + contentLength) {
-      return match.index + markerLength + targetOffset - displayedOffset;
-    }
-
-    displayedOffset += contentLength;
-    rawIndex = match.index + part.length;
-  }
-
-  const remainingText = text.slice(rawIndex);
-  if (targetOffset <= displayedOffset + remainingText.length) {
-    return rawIndex + targetOffset - displayedOffset;
-  }
-
-  return text.length;
-}
-
-function getFormatButtonClass(active: boolean) {
-  return `grid h-7 w-7 place-items-center rounded-md transition-colors ${
-    active
-      ? "bg-white/[0.16] text-white ring-1 ring-white/20"
-      : "text-white/75 hover:bg-white/[0.10] hover:text-white"
-  }`;
-}
 
 type TextBlockNodeProps = {
   element: TextBlockElement;
@@ -103,7 +25,7 @@ type TextBlockNodeProps = {
   entering: boolean;
   deleting: boolean;
   pulsing: boolean;
-  dragState: DragState | null;
+  moving: boolean;
   editing: boolean;
   draft: string;
   renaming: boolean;
@@ -114,7 +36,7 @@ type TextBlockNodeProps = {
   onRenameDraftChange: (value: string) => void;
   onSaveRename: (id: string) => void;
   onCancelRename: () => void;
-  onStartEdit: (element: TextBlockElement, caretPosition?: number) => void;
+  onStartEdit: (element: TextBlockElement) => void;
   onSelect: (element: TextBlockElement, additive?: boolean) => void;
   onStartMove: (event: PointerEvent<HTMLElement>, element: TextBlockElement) => void;
   onStartResize: (event: PointerEvent<HTMLButtonElement>, element: TextBlockElement) => void;
@@ -122,16 +44,17 @@ type TextBlockNodeProps = {
   onTogglePrivacy: (id: string) => void;
   onToggleLock: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
 };
 
-export function TextBlockNode({
+function TextBlockNodeComponent({
   element,
   selected,
   multiSelected,
   entering,
   deleting,
   pulsing,
-  dragState,
+  moving,
   editing,
   draft,
   renaming,
@@ -150,17 +73,10 @@ export function TextBlockNode({
   onTogglePrivacy,
   onToggleLock,
   onUpdateAccent,
+  onHeaderButtonsVisibleChange,
 }: TextBlockNodeProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const pendingCaretPositionRef = useRef<number | null>(null);
-  const pendingScrollTopRef = useRef(0);
-  const [formatMenu, setFormatMenu] = useState<{
-    left: number;
-    top: number;
-    start: number;
-    end: number;
-  } | null>(null);
   const selectedAccent = selected
     ? `color-mix(in srgb, ${element.accent} 72%, white 28%)`
     : element.accent;
@@ -172,84 +88,30 @@ export function TextBlockNode({
 
     requestAnimationFrame(() => {
       const textarea = textareaRef.current;
-      textarea?.focus();
-
-      if (textarea && pendingCaretPositionRef.current !== null) {
-        const caretPosition = pendingCaretPositionRef.current;
-        textarea.scrollTop = pendingScrollTopRef.current;
-        textarea.setSelectionRange(caretPosition, caretPosition);
-        pendingCaretPositionRef.current = null;
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       }
     });
   }, [editing]);
 
   const handleTextBlockWheel = (event: WheelEvent<HTMLElement>) => {
-    // While editing, keep the wheel for scrolling the textarea. Otherwise let it
-    // bubble to the canvas so zooming works with the pointer over a text block.
-    if (editing) {
+    const content = editing ? textareaRef.current : contentRef.current;
+    const scrollable = Boolean(
+      content &&
+        (content.scrollHeight > content.clientHeight || content.scrollWidth > content.clientWidth),
+    );
+
+    if (editing || scrollable) {
       event.stopPropagation();
     }
   };
 
-  const updateFormatMenu = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    const start = textarea.selectionStart ?? 0;
-    const end = textarea.selectionEnd ?? 0;
-    if (start === end) {
-      setFormatMenu(null);
-      return;
-    }
-
-    const rect = textarea.getBoundingClientRect();
-    setFormatMenu({
-      left: rect.left + rect.width / 2,
-      top: rect.top - 38,
-      start,
-      end,
-    });
-  };
-
-  const updateFormatMenuAfterSelection = () => {
-    window.setTimeout(updateFormatMenu, 0);
-  };
-
-  const applyFormat = (marker: FormatMarker) => {
-    if (!formatMenu) {
-      return;
-    }
-
-    const formatted = toggleTextFormat(draft, formatMenu.start, formatMenu.end, marker);
-    const nextDraft = formatted.text;
-    const selectionStart = formatted.start;
-    const selectionEnd = formatted.end;
-
-    onDraftChange(nextDraft);
-    setFormatMenu((current) =>
-      current ? { ...current, start: selectionStart, end: selectionEnd } : current,
-    );
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(selectionStart, selectionEnd);
-    });
-  };
-
-  const handleFormatPointerDown = (event: PointerEvent<HTMLButtonElement>, marker: FormatMarker) => {
-    event.preventDefault();
-    event.stopPropagation();
-    applyFormat(marker);
-  };
-
-  const isFormatActive = (marker: FormatMarker) =>
-    formatMenu ? isTextFormatActive(draft, formatMenu.start, formatMenu.end, marker) : false;
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
   const lockInstalled = Boolean(element.extensions?.lock);
   const lockEnabled = Boolean(element.extensions?.lock?.enabled);
   const colorPickerInstalled = Boolean(element.extensions?.colorPicker);
-  const [extensionButtonsVisible, setExtensionButtonsVisible] = useState(true);
+  const extensionButtonsVisible = element.headerButtonsVisible ?? true;
   const headerExtensionItems: Array<{ key: TextBlockHeaderExtensionKey; width: number }> = [];
   if (lockInstalled) headerExtensionItems.push({ key: "lock", width: 36 });
   if (element.extensions?.privacy) headerExtensionItems.push({ key: "privacy", width: 36 });
@@ -358,7 +220,7 @@ export function TextBlockNode({
       return (
         <button
           key={key}
-          className={getExtensionButtonClass(lockEnabled)}
+          className={getExtensionButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             onToggleLock(element.id);
@@ -375,7 +237,7 @@ export function TextBlockNode({
       return (
         <button
           key={key}
-          className={getExtensionButtonClass(privacyEnabled)}
+          className={getExtensionButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             onTogglePrivacy(element.id);
@@ -432,7 +294,7 @@ export function TextBlockNode({
   return (
     <article
       ref={articleRef}
-      className={`absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
+      className={`group/text-block absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
         entering ? "container-enter" : ""
       } ${deleting ? "container-exit pointer-events-none" : ""} ${pulsing ? "text-card-pulse" : ""}`}
       style={{
@@ -464,7 +326,7 @@ export function TextBlockNode({
         <div
           ref={headerRef}
           className={`relative z-30 flex h-10 items-center justify-between px-3 text-white ${
-            dragState?.type === "move" && dragState.ids.includes(element.id)
+            moving
               ? "cursor-grabbing"
               : "cursor-grab"
           }`}
@@ -505,7 +367,7 @@ export function TextBlockNode({
                 className="grid h-8 w-5 place-items-center rounded-md text-white/65 transition-colors hover:bg-white/10 hover:text-white active:bg-white/15"
                 onClick={(event) => {
                   event.stopPropagation();
-                  setExtensionButtonsVisible((current) => !current);
+                  onHeaderButtonsVisibleChange(element.id, !extensionButtonsVisible);
                 }}
                 onPointerDown={(event) => event.stopPropagation()}
                 title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
@@ -559,7 +421,7 @@ export function TextBlockNode({
             privacyEnabled ? "select-none blur-[5px]" : ""
           } ${
             multiSelected
-              ? dragState?.type === "move" && dragState.ids.includes(element.id)
+              ? moving
                 ? "cursor-grabbing"
                 : "cursor-grab"
               : ""
@@ -580,72 +442,20 @@ export function TextBlockNode({
           }}
           onDoubleClick={(event) => {
             event.stopPropagation();
-            const displayOffset = getDisplayedTextOffset(event.currentTarget, event.clientX, event.clientY);
-            const caretPosition = rawIndexFromDisplayedOffset(element.text, displayOffset ?? element.text.length);
-            pendingCaretPositionRef.current = caretPosition;
-            pendingScrollTopRef.current = contentRef.current?.scrollTop ?? 0;
-            onStartEdit(element, caretPosition);
+            onStartEdit(element);
           }}
         >
           {editing ? (
             <div className="relative h-full">
-              {formatMenu &&
-                createPortal(
-                  <span
-                    className="fixed z-[1000] flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-white/[0.14] bg-[#1b1b1e] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.42)]"
-                    style={{ left: formatMenu.left, top: formatMenu.top }}
-                    onPointerDown={(event) => event.preventDefault()}
-                  >
-                    <button
-                      type="button"
-                      className={getFormatButtonClass(isFormatActive("**"))}
-                      aria-pressed={isFormatActive("**")}
-                      onPointerDown={(event) => handleFormatPointerDown(event, "**")}
-                      title="Bold"
-                    >
-                      <IconBold size={20} stroke={2} />
-                    </button>
-                    <button
-                      type="button"
-                      className={getFormatButtonClass(isFormatActive("*"))}
-                      aria-pressed={isFormatActive("*")}
-                      onPointerDown={(event) => handleFormatPointerDown(event, "*")}
-                      title="Italic"
-                    >
-                      <IconItalic size={20} stroke={2} />
-                    </button>
-                    <button
-                      type="button"
-                      className={getFormatButtonClass(isFormatActive("__"))}
-                      aria-pressed={isFormatActive("__")}
-                      onPointerDown={(event) => handleFormatPointerDown(event, "__")}
-                      title="Underline"
-                    >
-                      <IconUnderline size={20} stroke={2} />
-                    </button>
-                  </span>,
-                  document.body,
-                )}
               <textarea
                 ref={textareaRef}
                 className="hidden-scrollbar h-full w-full resize-none overflow-auto bg-transparent px-4 py-3 text-[16px] leading-6 text-white outline-none selection:bg-white/25"
                 value={draft}
                 spellCheck={false}
                 onChange={(event) => onDraftChange(event.target.value)}
-                onPointerDown={(event) => {
-                  event.stopPropagation();
-                  setFormatMenu(null);
-                }}
-                onPointerUp={updateFormatMenuAfterSelection}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setFormatMenu(null);
-                }}
-                onBlur={() => {
-                  setFormatMenu(null);
-                  onSave(element.id);
-                }}
-                onKeyUp={updateFormatMenu}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                onBlur={() => onSave(element.id)}
                 onKeyDown={(event) => {
                   if (event.key === "Escape") {
                     onCancel();
@@ -657,15 +467,15 @@ export function TextBlockNode({
             <div
               ref={contentRef}
               data-text-block-content
-              className="hidden-scrollbar h-full select-text overflow-auto whitespace-pre-wrap break-words px-4 py-3 text-[16px] leading-6 text-white/92"
+              className="markdown-content hidden-scrollbar h-full select-text overflow-auto break-words px-4 py-3 text-[16px] leading-6 text-white/92"
             >
-              {renderFormattedText(element.text)}
+              <MarkdownContent>{element.text}</MarkdownContent>
             </div>
           )}
         </div>
 
         <button
-          className="absolute bottom-1.5 right-1.5 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-md text-white/45 transition-colors hover:bg-white/10 hover:text-white/80 active:bg-white/15 active:text-white focus:outline-none"
+          className="pointer-events-none absolute bottom-1.5 right-1.5 z-30 grid h-7 w-7 cursor-nwse-resize place-items-center rounded-md text-white/45 opacity-0 transition-[opacity,background-color,color] duration-150 ease-out group-hover/text-block:pointer-events-auto group-hover/text-block:opacity-100 hover:bg-white/10 hover:text-white/80 active:bg-white/15 active:text-white focus-visible:pointer-events-auto focus-visible:opacity-100 focus:outline-none"
           onPointerDown={(event) => {
             event.currentTarget.blur();
             onStartResize(event, element);
@@ -707,3 +517,5 @@ export function TextBlockNode({
     </article>
   );
 }
+
+export const TextBlockNode = memo(TextBlockNodeComponent);

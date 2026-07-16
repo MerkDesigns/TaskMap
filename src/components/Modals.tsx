@@ -123,10 +123,12 @@ type SettingsModalProps = {
   onCanvasGridStyleChange: (style: CanvasGridStyle) => void;
   canvasGridOpacity: number;
   onCanvasGridOpacityChange: (opacity: number) => void;
-  onExportData: (password: string) => Promise<void>;
+  onExportData: (password: string) => Promise<boolean>;
   onImportData: (file: File, password: string) => Promise<void>;
   discordRpcEnabled: boolean;
   onDiscordRpcEnabledChange: (enabled: boolean) => void;
+  discordRpcShowCanvas: boolean;
+  onDiscordRpcShowCanvasChange: (enabled: boolean) => void;
   availableUpdate: AppUpdateInfo | null;
   appVersion: string;
   fpsCounterVisible: boolean;
@@ -173,6 +175,8 @@ export function SettingsModal({
   onImportData,
   discordRpcEnabled,
   onDiscordRpcEnabledChange,
+  discordRpcShowCanvas,
+  onDiscordRpcShowCanvasChange,
   availableUpdate,
   appVersion,
   fpsCounterVisible,
@@ -230,7 +234,7 @@ export function SettingsModal({
 
   const runDataAction = async (
     password: string,
-    action: (password: string) => Promise<void>,
+    action: (password: string) => Promise<boolean | void>,
     successMessage: string,
   ) => {
     setDataStatus("");
@@ -242,7 +246,10 @@ export function SettingsModal({
 
     setBusy(true);
     try {
-      await action(password);
+      const completed = await action(password);
+      if (completed === false) {
+        return;
+      }
       setDataStatus(successMessage);
       setPasswordModal(null);
       setPasswordDraft("");
@@ -427,7 +434,7 @@ export function SettingsModal({
                   ref={importInputRef}
                   className="hidden"
                   type="file"
-                  accept="application/json,.json"
+                  accept=".tmap,.json,application/json"
                   spellCheck={false}
                   onChange={handleImportFile}
                 />
@@ -468,6 +475,28 @@ export function SettingsModal({
                     onChange={(event) => onDiscordRpcEnabledChange(event.target.checked)}
                   />
                   <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" aria-hidden="true" />
+                </label>
+                <label
+                  className={`settings-island left-panel-card left-panel-card-static mt-2 flex items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3 transition-opacity ${
+                    discordRpcEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-45"
+                  }`}
+                >
+                  <span className="flex flex-col">
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
+                      Show active canvas
+                    </span>
+                    <span className="mt-0.5 text-[12px] text-white/45">
+                      Include the current canvas name in your Discord status.
+                    </span>
+                  </span>
+                  <input
+                    className="peer sr-only"
+                    type="checkbox"
+                    checked={discordRpcShowCanvas}
+                    disabled={!discordRpcEnabled}
+                    onChange={(event) => onDiscordRpcShowCanvasChange(event.target.checked)}
+                  />
+                  <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] peer-disabled:opacity-60 after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" aria-hidden="true" />
                 </label>
                 <button
                   className="mt-auto flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/[0.10] bg-white/[0.06] text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
