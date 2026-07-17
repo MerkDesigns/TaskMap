@@ -21,7 +21,6 @@ type TextCardNodeProps = {
   dragging?: boolean;
   dragPrimary?: boolean;
   dragBundleIndex?: number;
-  dragBundleSize?: number;
   dragPickupX?: number;
   dragPickupY?: number;
   dragSwayX?: number;
@@ -32,6 +31,7 @@ type TextCardNodeProps = {
   interactionDisabled?: boolean;
   linksDisabled?: boolean;
   privacyHidden?: boolean;
+  shadowsUnderElements: boolean;
   onDraftChange: (value: string) => void;
   onSave: (id: string) => void;
   onCancel: () => void;
@@ -42,7 +42,10 @@ type TextCardNodeProps = {
 
 function tintTowardWhite(hexColor: string, amount = 0.61) {
   const hex = hexColor.replace("#", "");
-  const value = Number.parseInt(hex.length === 3 ? hex.replace(/./g, (char) => `${char}${char}`) : hex, 16);
+  const value = Number.parseInt(
+    hex.length === 3 ? hex.replace(/./g, (char) => `${char}${char}`) : hex,
+    16,
+  );
 
   if (!Number.isFinite(value)) {
     return "#ffffff";
@@ -68,7 +71,6 @@ function TextCardNodeComponent({
   dragging = false,
   dragPrimary = false,
   dragBundleIndex = -1,
-  dragBundleSize = 1,
   dragPickupX = 0,
   dragPickupY = 0,
   dragSwayX = 0,
@@ -79,6 +81,7 @@ function TextCardNodeComponent({
   interactionDisabled = false,
   linksDisabled = false,
   privacyHidden = false,
+  shadowsUnderElements,
   onDraftChange,
   onSave,
   onCancel,
@@ -126,50 +129,54 @@ function TextCardNodeComponent({
       data-text-card-id={card.id}
       className={`absolute inline-flex cursor-grab select-none items-center overflow-hidden rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
         dragging
-          ? `z-30 cursor-grabbing opacity-95 shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)] transition-none ${
+          ? `z-30 cursor-grabbing opacity-95 transition-none ${
               dragPrimary ? "scale-[1.035]" : "text-card-bundle-pickup"
             }`
-          : `z-20 shadow-[0_6px_14px_rgba(0,0,0,0.22)] ${
+          : `z-20 ${
               moving
                 ? "transition-none"
                 : settling
-                  ? "transition-[top,left,width,transform,box-shadow,opacity,border-color] duration-[180ms] ease-in"
+                  ? "transition-[top,left,width,transform,opacity,border-color] duration-[180ms] ease-in"
                   : "transition-[top,left,width,transform,box-shadow,opacity,border-color] duration-150 ease-out"
             }`
       } ${dragging ? "" : "scale-100"} ${entering ? "text-card-enter" : ""} ${
         deleting ? "text-card-exit pointer-events-none" : ""
-      } ${pulsing ? "text-card-pulse" : ""} ${
-        glowing ? "text-card-picked-glow" : ""
-      } ${
+      } ${pulsing ? "text-card-pulse" : ""} ${glowing ? "text-card-picked-glow" : ""} ${
         interactionDisabled ? "pointer-events-none" : ""
-      } ${privacyHidden ? "select-none blur-[5px]" : ""} ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
-      style={{
-        zIndex: dragging
-          ? dragPrimary
-            ? 10000
-            : 9999 - Math.max(0, dragBundleIndex)
-          : 20 + (card.layer ?? 0),
-        left: position?.x ?? card.x,
-        top: position?.y ?? card.y,
-        width: position?.width,
-        maxWidth: position?.maxWidth,
-        borderColor: selectedAccent,
-        backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
-        transform:
-          dragging && !dragPrimary
-            ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
-                Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
-              }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
-            : undefined,
-        "--bundle-pickup-x": `${dragPickupX}px`,
-        "--bundle-pickup-y": `${dragPickupY}px`,
-        "--bundle-rest-transform":
-          dragging && !dragPrimary
-            ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
-                Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
-              }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
-            : "none",
-      } as React.CSSProperties}
+      } ${privacyHidden ? "select-none blur-[5px]" : ""} ${
+        shadowsUnderElements
+          ? ""
+          : `canvas-attached-shadow-card ${dragging || moving ? "canvas-attached-drag-shadow" : ""}`
+      } ${position?.width || position?.maxWidth ? "" : "max-w-[520px]"}`}
+      style={
+        {
+          zIndex: dragging
+            ? dragPrimary
+              ? 10000
+              : 9999 - Math.max(0, dragBundleIndex)
+            : 20 + (card.layer ?? 0),
+          left: position?.x ?? card.x,
+          top: position?.y ?? card.y,
+          width: position?.width,
+          maxWidth: position?.maxWidth,
+          borderColor: selectedAccent,
+          backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
+          transform:
+            dragging && !dragPrimary
+              ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
+                  Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
+                }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
+              : undefined,
+          "--bundle-pickup-x": `${dragPickupX}px`,
+          "--bundle-pickup-y": `${dragPickupY}px`,
+          "--bundle-rest-transform":
+            dragging && !dragPrimary
+              ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
+                  Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
+                }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
+              : "none",
+        } as React.CSSProperties
+      }
       onPointerDown={(event) => onStartMove(event, card)}
       onContextMenu={(event) => onOpenMenu(event, card)}
     >
@@ -177,9 +184,7 @@ function TextCardNodeComponent({
         <button
           type="button"
           className={`-my-[7px] -ml-[10px] mr-[3px] grid h-[32px] w-[30px] shrink-0 place-items-center rounded transition-colors ${
-            checkboxChecked
-              ? "text-emerald-400"
-              : "text-transparent hover:text-white/18"
+            checkboxChecked ? "text-emerald-400" : "text-transparent hover:text-white/18"
           }`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -200,7 +205,10 @@ function TextCardNodeComponent({
       )}
       {editing ? (
         <span className={`relative grid ${position?.width ? "w-full" : "max-w-[480px]"}`}>
-          <span className="invisible col-start-1 row-start-1 min-w-[1ch] whitespace-pre" aria-hidden>
+          <span
+            className="invisible col-start-1 row-start-1 min-w-[1ch] whitespace-pre"
+            aria-hidden
+          >
             {draft || " "}
           </span>
           <input
@@ -246,7 +254,9 @@ function TextCardNodeComponent({
         >
           <span
             className={`min-w-0 ${checkedTextClass} ${
-              position?.width || position?.maxWidth ? "block truncate" : "whitespace-pre-wrap break-words"
+              position?.width || position?.maxWidth
+                ? "block truncate"
+                : "whitespace-pre-wrap break-words"
             }`}
           >
             {card.text}
@@ -256,7 +266,9 @@ function TextCardNodeComponent({
       ) : (
         <span
           className={`min-w-0 ${checkedTextClass} ${
-            position?.width || position?.maxWidth ? "block truncate" : "whitespace-pre-wrap break-words"
+            position?.width || position?.maxWidth
+              ? "block truncate"
+              : "whitespace-pre-wrap break-words"
           }`}
         >
           {card.text}
@@ -266,12 +278,14 @@ function TextCardNodeComponent({
         className={`selection-overlay pointer-events-none z-10 rounded-[inherit] ${
           selected ? "selection-overlay-active" : ""
         }`}
-        style={{
-          "--selection-overlay-top": "-1px",
-          "--selection-overlay-right": "-1px",
-          "--selection-overlay-bottom": "-1px",
-          "--selection-overlay-left": "-6px",
-        } as React.CSSProperties}
+        style={
+          {
+            "--selection-overlay-top": "-1px",
+            "--selection-overlay-right": "-1px",
+            "--selection-overlay-bottom": "-1px",
+            "--selection-overlay-left": "-6px",
+          } as React.CSSProperties
+        }
       />
     </article>
   );

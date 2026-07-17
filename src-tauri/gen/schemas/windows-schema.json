@@ -345,6 +345,126 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the export_app_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-export-app-data",
+          "markdownDescription": "Enables the export_app_data command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the import_app_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-import-app-data",
+          "markdownDescription": "Enables the import_app_data command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the load_app_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-load-app-data",
+          "markdownDescription": "Enables the load_app_data command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the load_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-load-image",
+          "markdownDescription": "Enables the load_image command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pick_image_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pick-image-path",
+          "markdownDescription": "Enables the pick_image_path command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reset_local_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reset-local-database",
+          "markdownDescription": "Enables the reset_local_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save_app_data_incremental command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-save-app-data-incremental",
+          "markdownDescription": "Enables the save_app_data_incremental command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_discord_rpc command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-discord-rpc",
+          "markdownDescription": "Enables the set_discord_rpc command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the store_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-store-image",
+          "markdownDescription": "Enables the store_image command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the store_image_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-store-image-path",
+          "markdownDescription": "Enables the store_image_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the export_app_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-export-app-data",
+          "markdownDescription": "Denies the export_app_data command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the import_app_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-import-app-data",
+          "markdownDescription": "Denies the import_app_data command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the load_app_data command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-load-app-data",
+          "markdownDescription": "Denies the load_app_data command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the load_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-load-image",
+          "markdownDescription": "Denies the load_image command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pick_image_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pick-image-path",
+          "markdownDescription": "Denies the pick_image_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reset_local_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reset-local-database",
+          "markdownDescription": "Denies the reset_local_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save_app_data_incremental command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-save-app-data-incremental",
+          "markdownDescription": "Denies the save_app_data_incremental command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_discord_rpc command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-discord-rpc",
+          "markdownDescription": "Denies the set_discord_rpc command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the store_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-store-image",
+          "markdownDescription": "Denies the store_image command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the store_image_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-store-image-path",
+          "markdownDescription": "Denies the store_image_path command without any pre-configured scope."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

@@ -9,9 +9,8 @@ export type HistoryAvailability = {
 };
 
 const HISTORY_LIMIT = 60;
-export const HISTORY_DEBOUNCE_MS = 300;
 
-export const cloneCanvas = (canvas: TaskCanvas): TaskCanvas => JSON.parse(JSON.stringify(canvas));
+export const cloneCanvas = (canvas: TaskCanvas): TaskCanvas => structuredClone(canvas);
 
 export const omitCameraFromHistory = (canvas: TaskCanvas): TaskCanvas => ({
   ...canvas,
@@ -47,8 +46,9 @@ export const pushCanvasHistorySnapshot = (
   historyByCanvasId: CanvasHistory,
   historyIndexByCanvasId: CanvasHistoryIndex,
   data: AppData,
+  canvasId = data.activeCanvasId,
 ) => {
-  const canvas = data.canvases.find((currentCanvas) => currentCanvas.id === data.activeCanvasId);
+  const canvas = data.canvases.find((currentCanvas) => currentCanvas.id === canvasId);
   if (!canvas) {
     return null;
   }

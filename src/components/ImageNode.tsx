@@ -12,6 +12,7 @@ type ImageNodeProps = {
   moving?: boolean;
   resizing?: boolean;
   selected?: boolean;
+  shadowsUnderElements: boolean;
   onStartMove: (event: PointerEvent<HTMLElement>, image: ImageElement) => void;
   onStartResize: (event: PointerEvent<HTMLButtonElement>, image: ImageElement) => void;
   onOpenMenu: (event: MouseEvent<HTMLElement>, image: ImageElement) => void;
@@ -28,6 +29,7 @@ function ImageNodeComponent({
   moving = false,
   resizing = false,
   selected = false,
+  shadowsUnderElements,
   onStartMove,
   onStartResize,
   onOpenMenu,
@@ -46,7 +48,7 @@ function ImageNodeComponent({
   return (
     <div
       className={`group/image absolute select-none overflow-hidden ${
-        chromeless ? "border-0 bg-transparent shadow-none" : "rounded-xl border bg-[color:var(--container-bg)]"
+        chromeless ? "border-0 bg-transparent" : "rounded-xl border bg-[color:var(--container-bg)]"
       } ${
         dragging
           ? "z-30 cursor-grabbing opacity-95 transition-none"
@@ -55,8 +57,10 @@ function ImageNodeComponent({
                 ? "transition-none"
                 : "transition-[top,left,width,height,box-shadow,opacity,border-color] duration-150 ease-out"
             }`
-      } ${chromeless || dragging ? "" : "shadow-[0_6px_14px_rgba(0,0,0,0.22)]"} ${
-        dragging && !chromeless ? "shadow-[0_18px_34px_rgba(0,0,0,0.29),0_8px_14px_rgba(0,0,0,0.20)]" : ""
+      } ${
+        chromeless || shadowsUnderElements
+          ? ""
+          : `canvas-attached-shadow-card ${dragging || moving ? "canvas-attached-drag-shadow" : ""}`
       } ${entering ? "text-card-enter" : ""} ${deleting ? "text-card-exit pointer-events-none" : ""}`}
       style={{
         zIndex: dragging ? 10000 : 20 + (image.layer ?? 0),

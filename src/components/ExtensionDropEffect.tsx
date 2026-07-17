@@ -8,12 +8,7 @@ type ExtensionDropEffectProps = {
   height: number;
 };
 
-export function ExtensionDropEffect({
-  originX,
-  originY,
-  width,
-  height,
-}: ExtensionDropEffectProps) {
+export function ExtensionDropEffect({ originX, originY, width, height }: ExtensionDropEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-store-image"
+description = "Enables the store_image command without any pre-configured scope."
+commands.allow = ["store_image"]
+
+[[permission]]
+identifier = "deny-store-image"
+description = "Denies the store_image command without any pre-configured scope."
+commands.deny = ["store_image"]

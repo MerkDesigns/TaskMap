@@ -20,19 +20,22 @@ import {
   IconPalette,
   IconX,
 } from "@tabler/icons-react";
-import { PointerEvent, ReactNode, WheelEvent, memo, useEffect, useRef, useState } from "react";
+import {
+  PointerEvent,
+  ReactNode,
+  WheelEvent,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { ContainerElement } from "../types";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 type ContainerHeaderExtensionKey =
-  | "lock"
-  | "privacy"
-  | "sorting"
-  | "colorPicker"
-  | "dailyReset"
-  | "counter"
-  | "pickCard";
+  "lock" | "privacy" | "sorting" | "colorPicker" | "dailyReset" | "counter" | "pickCard";
 
 type ContainerNodeProps = {
   element: ContainerElement;
@@ -41,6 +44,8 @@ type ContainerNodeProps = {
   entering: boolean;
   deleting: boolean;
   moving: boolean;
+  shadowsUnderElements: boolean;
+  recentColors: string[];
   renaming: boolean;
   renameDraft: string;
   onRenameDraftChange: (value: string) => void;
@@ -53,13 +58,10 @@ type ContainerNodeProps = {
   onTogglePrivacy: (id: string) => void;
   onToggleLock: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  onRememberRecentColor: (color?: string) => void;
   onTogglePickCard: (id: string) => void;
   onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
-  onSetSort: (
-    id: string,
-    mode: "alphabet" | "color" | null,
-    direction?: "asc" | "desc",
-  ) => void;
+  onSetSort: (id: string, mode: "alphabet" | "color" | null, direction?: "asc" | "desc") => void;
   onSearchChange: (id: string, query: string) => void;
   onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
   onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
@@ -77,6 +79,8 @@ function ContainerNodeComponent({
   entering,
   deleting,
   moving,
+  shadowsUnderElements,
+  recentColors,
   renaming,
   renameDraft,
   onRenameDraftChange,
@@ -89,6 +93,7 @@ function ContainerNodeComponent({
   onTogglePrivacy,
   onToggleLock,
   onUpdateAccent,
+  onRememberRecentColor,
   onTogglePickCard,
   onHeaderButtonsVisibleChange,
   onSetSort,
@@ -100,11 +105,13 @@ function ContainerNodeComponent({
   children,
 }: ContainerNodeProps) {
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
+  const privacyInstalled = Boolean(element.extensions?.privacy);
   const lockInstalled = Boolean(element.extensions?.lock);
   const lockEnabled = Boolean(element.extensions?.lock?.enabled);
   const searchInstalled = Boolean(element.extensions?.search);
   const searchQuery = element.extensions?.search?.query ?? "";
   const sorting = element.extensions?.sorting;
+  const sortingInstalled = Boolean(sorting);
   const colorPickerInstalled = Boolean(element.extensions?.colorPicker);
   const dailyResetInstalled = Boolean(element.extensions?.dailyReset);
   const counterInstalled = Boolean(element.extensions?.counter);
@@ -117,24 +124,41 @@ function ContainerNodeComponent({
   const colorSortActive = sorting?.mode === "color";
   const sortActive = Boolean(sorting?.mode);
   const counterHeaderWidth = counterInstalled ? Math.max(36, String(cardCount).length * 8 + 26) : 0;
-  const headerExtensionItems: Array<{ key: ContainerHeaderExtensionKey; width: number }> = [];
-  if (lockInstalled) headerExtensionItems.push({ key: "lock", width: 36 });
-  if (element.extensions?.privacy) headerExtensionItems.push({ key: "privacy", width: 36 });
-  if (element.extensions?.sorting) headerExtensionItems.push({ key: "sorting", width: 36 });
-  if (colorPickerInstalled) headerExtensionItems.push({ key: "colorPicker", width: 36 });
-  if (dailyResetInstalled) headerExtensionItems.push({ key: "dailyReset", width: 36 });
-  if (counterInstalled) headerExtensionItems.push({ key: "counter", width: counterHeaderWidth });
-  if (pickCardInstalled) headerExtensionItems.push({ key: "pickCard", width: 36 });
+  const headerExtensionItems = useMemo(() => {
+    const items: Array<{ key: ContainerHeaderExtensionKey; width: number }> = [];
+    if (lockInstalled) items.push({ key: "lock", width: 36 });
+    if (privacyInstalled) items.push({ key: "privacy", width: 36 });
+    if (sortingInstalled) items.push({ key: "sorting", width: 36 });
+    if (colorPickerInstalled) items.push({ key: "colorPicker", width: 36 });
+    if (dailyResetInstalled) items.push({ key: "dailyReset", width: 36 });
+    if (counterInstalled) items.push({ key: "counter", width: counterHeaderWidth });
+    if (pickCardInstalled) items.push({ key: "pickCard", width: 36 });
+    return items;
+  }, [
+    colorPickerInstalled,
+    counterHeaderWidth,
+    counterInstalled,
+    dailyResetInstalled,
+    lockInstalled,
+    pickCardInstalled,
+    privacyInstalled,
+    sortingInstalled,
+  ]);
   const headerExtensionWidth = headerExtensionItems.reduce((total, item) => total + item.width, 0);
-  const headerExtensionSignature = headerExtensionItems.map((item) => `${item.key}:${item.width}`).join("|");
-  const headerExtensionButtonCount =
-    headerExtensionItems.length;
+  const headerExtensionButtonCount = headerExtensionItems.length;
   const collapsibleExtensions = headerExtensionButtonCount > 1;
   const extensionButtonsVisible = element.headerButtonsVisible ?? true;
   const [visibleExtensionCount, setVisibleExtensionCount] = useState(headerExtensionButtonCount);
-  const [overflowMenuPosition, setOverflowMenuPosition] = useState<{ left: number; top: number } | null>(null);
-  const [sortMenuPosition, setSortMenuPosition] = useState<{ left: number; top: number } | null>(null);
-  const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const [overflowMenuPosition, setOverflowMenuPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const [sortMenuPosition, setSortMenuPosition] = useState<{ left: number; top: number } | null>(
+    null,
+  );
+  const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const articleRef = useRef<HTMLElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const headerTitleRef = useRef<HTMLDivElement | null>(null);
@@ -143,8 +167,9 @@ function ContainerNodeComponent({
   const sortButtonRef = useRef<HTMLButtonElement | null>(null);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const visibleExtensionItems = headerExtensionItems.slice(0, visibleExtensionCount);
-  const overflowExtensionItems =
-    extensionButtonsVisible ? headerExtensionItems.slice(visibleExtensionCount) : [];
+  const overflowExtensionItems = extensionButtonsVisible
+    ? headerExtensionItems.slice(visibleExtensionCount)
+    : [];
   const hasOverflowExtensions = overflowExtensionItems.length > 0;
 
   useEffect(() => {
@@ -158,7 +183,10 @@ function ContainerNodeComponent({
       const innerWidth = Math.max(0, header.clientWidth - 32);
       const titleReserve = Math.min(title.scrollWidth, Math.max(76, innerWidth * 0.42));
       const fixedControlsWidth = 28 + (collapsibleExtensions ? 24 : 0);
-      const availableWithoutOverflow = Math.max(0, innerWidth - titleReserve - fixedControlsWidth - 12);
+      const availableWithoutOverflow = Math.max(
+        0,
+        innerWidth - titleReserve - fixedControlsWidth - 12,
+      );
 
       if (headerExtensionWidth <= availableWithoutOverflow) {
         setVisibleExtensionCount(headerExtensionButtonCount);
@@ -188,7 +216,7 @@ function ContainerNodeComponent({
     collapsibleExtensions,
     element.name,
     headerExtensionButtonCount,
-    headerExtensionSignature,
+    headerExtensionItems,
     headerExtensionWidth,
     renaming,
   ]);
@@ -210,7 +238,10 @@ function ContainerNodeComponent({
       }
 
       const target = event.target as Node;
-      if (!overflowButtonRef.current?.contains(target) && !overflowMenuRef.current?.contains(target)) {
+      if (
+        !overflowButtonRef.current?.contains(target) &&
+        !overflowMenuRef.current?.contains(target)
+      ) {
         setOverflowMenuPosition(null);
       }
     };
@@ -409,9 +440,13 @@ function ContainerNodeComponent({
   return (
     <article
       ref={articleRef}
-      className={`group/container absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
+      className={`group/container absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] transition-[border-color] duration-150 ease-out ${
         entering ? "container-enter" : ""
-      } ${deleting ? "container-exit pointer-events-none" : ""}`}
+      } ${deleting ? "container-exit pointer-events-none" : ""} ${
+        shadowsUnderElements
+          ? ""
+          : `canvas-attached-shadow-shell ${moving ? "canvas-attached-drag-shadow" : ""}`
+      }`}
       style={{
         zIndex: 20 + (element.layer ?? 0),
         left: element.x,
@@ -420,7 +455,6 @@ function ContainerNodeComponent({
         height: element.height,
         backgroundColor: element.accent,
         borderColor: selectedAccent,
-        boxShadow: "0 18px 42px rgba(0, 0, 0, 0.42)",
       }}
       onPointerDown={(event) => {
         if (event.button !== 1) {
@@ -441,9 +475,7 @@ function ContainerNodeComponent({
       <div className="relative h-full overflow-hidden rounded-[10px]">
         <div
           className={`relative z-30 flex flex-col text-white ${
-            moving
-              ? "cursor-grabbing"
-              : "cursor-grab"
+            moving ? "cursor-grabbing" : "cursor-grab"
           } ${searchInstalled ? "h-[90px]" : "h-12"}`}
           style={{ backgroundColor: element.accent }}
           onPointerDown={(event) => onStartMove(event, element)}
@@ -488,7 +520,9 @@ function ContainerNodeComponent({
                     onHeaderButtonsVisibleChange(element.id, !extensionButtonsVisible);
                   }}
                   onPointerDown={(event) => event.stopPropagation()}
-                  title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
+                  title={
+                    extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"
+                  }
                 >
                   {extensionButtonsVisible ? (
                     <IconChevronRight size={18} stroke={2} />
@@ -568,13 +602,7 @@ function ContainerNodeComponent({
             searchInstalled ? "h-[calc(100%-90px)]" : "h-[calc(100%-48px)]"
           } rounded-t-lg bg-[color:var(--container-bg)] transition-[filter] ${
             privacyEnabled ? "select-none blur-[5px]" : ""
-          } ${
-            multiSelected
-              ? moving
-                ? "cursor-grabbing"
-                : "cursor-grab"
-              : ""
-          }`}
+          } ${multiSelected ? (moving ? "cursor-grabbing" : "cursor-grab") : ""}`}
           onContextMenu={(event) => {
             if (multiSelected) {
               event.preventDefault();
@@ -606,21 +634,20 @@ function ContainerNodeComponent({
           }`}
         />
       </div>
-      {overflowMenuPosition &&
-        (
-          <div
-            ref={overflowMenuRef}
-            className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
-            style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
-            onPointerDown={(event) => event.stopPropagation()}
-            onContextMenu={(event) => event.preventDefault()}
-          >
-            <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
-            <span className="relative z-10 flex items-center gap-1">
-              {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
-            </span>
-          </div>
-        )}
+      {overflowMenuPosition && (
+        <div
+          ref={overflowMenuRef}
+          className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+          style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
+          <span className="relative z-10 flex items-center gap-1">
+            {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
+          </span>
+        </div>
+      )}
       {sortMenuPosition &&
         createPortal(
           <div
@@ -632,12 +659,33 @@ function ContainerNodeComponent({
             onContextMenu={(event) => event.preventDefault()}
           >
             {[
-              { label: "Alphabet: A to Z", mode: "alphabet" as const, direction: "asc" as const, icon: IconSortAZ },
-              { label: "Alphabet: Z to A", mode: "alphabet" as const, direction: "desc" as const, icon: IconSortZA },
-              { label: "Color: ascending", mode: "color" as const, direction: "asc" as const, icon: IconPalette },
-              { label: "Color: descending", mode: "color" as const, direction: "desc" as const, icon: IconPalette },
+              {
+                label: "Alphabet: A to Z",
+                mode: "alphabet" as const,
+                direction: "asc" as const,
+                icon: IconSortAZ,
+              },
+              {
+                label: "Alphabet: Z to A",
+                mode: "alphabet" as const,
+                direction: "desc" as const,
+                icon: IconSortZA,
+              },
+              {
+                label: "Color: ascending",
+                mode: "color" as const,
+                direction: "asc" as const,
+                icon: IconPalette,
+              },
+              {
+                label: "Color: descending",
+                mode: "color" as const,
+                direction: "desc" as const,
+                icon: IconPalette,
+              },
             ].map((option) => {
-              const selected = sorting?.mode === option.mode && sorting.direction === option.direction;
+              const selected =
+                sorting?.mode === option.mode && sorting.direction === option.direction;
               const OptionIcon = option.icon;
               return (
                 <button
@@ -673,8 +721,12 @@ function ContainerNodeComponent({
           color={element.accent}
           left={colorMenuPosition.left}
           top={colorMenuPosition.top}
+          recentColors={recentColors}
           onChange={(accent) => onUpdateAccent(element.id, accent)}
-          onClose={() => setColorMenuPosition(null)}
+          onClose={(recentColor) => {
+            onRememberRecentColor(recentColor);
+            setColorMenuPosition(null);
+          }}
         />
       )}
     </article>

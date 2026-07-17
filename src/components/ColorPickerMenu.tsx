@@ -1,5 +1,5 @@
 import { IconX } from "@tabler/icons-react";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ACCENT_PRESETS } from "../constants";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
@@ -11,8 +11,9 @@ type ColorPickerMenuProps = {
   color: string;
   left: number;
   top: number;
+  recentColors: string[];
   onChange: (color: string) => void;
-  onClose: () => void;
+  onClose: (recentColor?: string) => void;
 };
 
 const clampChannel = (value: number, max = 255) =>
@@ -25,7 +26,13 @@ const rgbToHex = ({ r, g, b }: Rgb) =>
 
 const hexToRgb = (value: string): Rgb | null => {
   const hex = value.trim().replace(/^#/, "");
-  const expanded = hex.length === 3 ? hex.split("").map((part) => part + part).join("") : hex;
+  const expanded =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((part) => part + part)
+          .join("")
+      : hex;
   if (!/^[0-9a-f]{6}$/i.test(expanded)) {
     return null;
   }
@@ -59,7 +66,11 @@ const colorToRgb = (color: string): Rgb => {
 
   const match = normalized.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
   return match
-    ? { r: clampChannel(Number(match[1])), g: clampChannel(Number(match[2])), b: clampChannel(Number(match[3])) }
+    ? {
+        r: clampChannel(Number(match[1])),
+        g: clampChannel(Number(match[2])),
+        b: clampChannel(Number(match[3])),
+      }
     : { r: 71, g: 111, b: 168 };
 };
 
@@ -115,12 +126,25 @@ const hslToRgb = ({ h, s, l }: Hsl): Rgb => {
 const NUMBER_INPUT_CLASS =
   "h-8 w-full rounded-md border border-white/[0.12] bg-black/[0.20] px-2 text-center text-xs text-white outline-none focus:border-white/30";
 
-export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPickerMenuProps) {
+export function ColorPickerMenu({
+  color,
+  left,
+  top,
+  recentColors,
+  onChange,
+  onClose,
+}: ColorPickerMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const initialColorRef = useRef(rgbToHex(colorToRgb(color)));
+  const currentColorRef = useRef(initialColorRef.current);
   const [rgb, setRgb] = useState(() => colorToRgb(color));
-  const [hexDraft, setHexDraft] = useState(() => rgbToHex(colorToRgb(color)));
+  const [hexDraft, setHexDraft] = useState(initialColorRef.current);
   const hsl = useMemo(() => rgbToHsl(rgb), [rgb]);
   const position = useClampedFixedPosition(menuRef, { left, top });
+  const closePicker = useCallback(() => {
+    const finalColor = currentColorRef.current;
+    onClose(finalColor === initialColorRef.current ? undefined : finalColor);
+  }, [onClose]);
 
   useEffect(() => {
     const nextRgb = colorToRgb(color);
@@ -131,12 +155,12 @@ export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPi
   useEffect(() => {
     const closeOnOutsidePointer = (event: PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) {
-        onClose();
+        closePicker();
       }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        closePicker();
       }
     };
 
@@ -146,7 +170,7 @@ export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPi
       window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [onClose]);
+  }, [closePicker]);
 
   const commitRgb = (nextRgb: Rgb) => {
     const normalized = {
@@ -155,8 +179,10 @@ export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPi
       b: clampChannel(nextRgb.b),
     };
     setRgb(normalized);
-    setHexDraft(rgbToHex(normalized));
-    onChange(rgbToHex(normalized));
+    const hex = rgbToHex(normalized);
+    currentColorRef.current = hex;
+    setHexDraft(hex);
+    onChange(hex);
   };
 
   const changeRgbChannel = (channel: keyof Rgb, event: ChangeEvent<HTMLInputElement>) => {
@@ -196,13 +222,13 @@ export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPi
           title="Visual color picker"
         />
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-white/90">Color picker</div>
+          <div className="text-xs font-semibold text-white/90">Extra colors</div>
           <div className="text-[10px] uppercase text-white/42">{rgbToHex(rgb)}</div>
         </div>
         <button
           type="button"
           className="grid h-8 w-8 place-items-center rounded-md text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-          onClick={onClose}
+          onClick={closePicker}
           title="Close"
         >
           <IconX size={18} stroke={2} />
@@ -263,7 +289,9 @@ export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPi
                     : undefined
                 }
               />
-              <span className="text-right text-[11px] tabular-nums text-white/62">{hsl[channel]}</span>
+              <span className="text-right text-[11px] tabular-nums text-white/62">
+                {hsl[channel]}
+              </span>
             </label>
           );
         })}
@@ -283,6 +311,25 @@ export function ColorPickerMenu({ color, left, top, onChange, onClose }: ColorPi
           ))}
         </div>
       </div>
+      {recentColors.length > 0 && (
+        <div className="mt-2 border-t border-white/[0.08] pt-2">
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/38">
+            Recent
+          </div>
+          <div className="grid grid-cols-8 gap-1.5">
+            {recentColors.map((recentColor) => (
+              <button
+                key={recentColor}
+                type="button"
+                className="h-6 rounded border border-white/[0.12] transition-transform hover:scale-110"
+                style={{ backgroundColor: recentColor }}
+                onClick={() => commitRgb(colorToRgb(recentColor))}
+                title={recentColor}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );

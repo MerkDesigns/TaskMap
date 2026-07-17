@@ -3,17 +3,11 @@ export const CANVAS_HEIGHT = 3000;
 export const MIN_WIDTH = 220;
 export const MIN_HEIGHT = 140;
 export const MIN_IMAGE_SIZE = 80;
-export const MIN_ZOOM = 0.35;
+export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 2.5;
 export const ZOOM_STEP = 0.05;
 export const ALIGN_SNAP_DISTANCE = 8;
 export const MINIMAP_MAX_SIZE = 176;
-
-export const CANVAS_ASPECT = CANVAS_WIDTH / CANVAS_HEIGHT;
-export const MINIMAP_WIDTH =
-  CANVAS_ASPECT >= 1 ? MINIMAP_MAX_SIZE : Math.max(72, Math.round(MINIMAP_MAX_SIZE * CANVAS_ASPECT));
-export const MINIMAP_HEIGHT =
-  CANVAS_ASPECT >= 1 ? Math.max(72, Math.round(MINIMAP_MAX_SIZE / CANVAS_ASPECT)) : MINIMAP_MAX_SIZE;
 
 export const ACCENT_PRESETS = [
   { swatch: "#E85D61", accent: "#A74144", textCardAccent: "#A74144" },
@@ -41,6 +35,12 @@ export const ALL_ACCENT_PRESETS = [...ACCENT_PRESETS, ...EXTENDED_ACCENT_PRESETS
 
 export const DEFAULT_TEXT_CARD_ACCENT = ACCENT_PRESETS[5].textCardAccent;
 export const DEFAULT_CONTAINER_ACCENT = DEFAULT_TEXT_CARD_ACCENT;
+export const DEFAULT_ELEMENT_COLORS: DefaultElementColors = {
+  container: DEFAULT_CONTAINER_ACCENT,
+  textCard: DEFAULT_TEXT_CARD_ACCENT,
+  textBlock: DEFAULT_CONTAINER_ACCENT,
+  image: DEFAULT_CONTAINER_ACCENT,
+};
 
 export const getTextCardAccent = (accent: string) =>
   ALL_ACCENT_PRESETS.find((preset) => preset.accent === accent || preset.textCardAccent === accent)
@@ -53,3 +53,4 @@ export const CONTEXT_MENU_PANEL_CLASS =
   "context-menu-panel fixed z-30 w-[165px] rounded-[9px] border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-[12px] text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] [&_svg]:scale-[1.08]";
 export const MENU_DANGER_ITEM_CLASS =
   "flex h-[29px] w-full items-center gap-2 rounded-md px-2 text-left text-[12px] text-[#ff4949] transition-colors hover:bg-white/[0.10] hover:text-red-300";
+import type { DefaultElementColors } from "./types";

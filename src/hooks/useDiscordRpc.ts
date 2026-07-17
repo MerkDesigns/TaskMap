@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { commandErrorMessage } from "../app/commandError";
 
 type UseDiscordRpcOptions = {
   appDataLoaded: boolean;
@@ -22,7 +23,7 @@ export function useDiscordRpc({
         enabled: discordRpcEnabled,
         canvasName,
       }).catch((error) => {
-        console.error(`Failed to update Discord Rich Presence: ${String(error)}`);
+        console.error(`Failed to update Discord Rich Presence: ${commandErrorMessage(error)}`);
       });
     }, 250);
 

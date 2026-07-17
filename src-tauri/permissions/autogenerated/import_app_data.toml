@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-import-app-data"
+description = "Enables the import_app_data command without any pre-configured scope."
+commands.allow = ["import_app_data"]
+
+[[permission]]
+identifier = "deny-import-app-data"
+description = "Denies the import_app_data command without any pre-configured scope."
+commands.deny = ["import_app_data"]

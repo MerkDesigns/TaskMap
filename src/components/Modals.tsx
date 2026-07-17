@@ -1,5 +1,6 @@
 import {
   IconDownload,
+  IconColorPicker,
   IconEye,
   IconEyeOff,
   IconGrid3x3,
@@ -12,8 +13,81 @@ import {
   IconUpload,
   IconX,
 } from "@tabler/icons-react";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
-import { AppUpdateInfo, CanvasGridStyle } from "../types";
+import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { commandErrorMessage } from "../app/commandError";
+import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
+import { ColorPickerMenu } from "./ColorPickerMenu";
+
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "a[href]",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+const useDialogFocus = (open = true) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || !dialogRef.current) {
+      return;
+    }
+
+    const dialog = dialogRef.current;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableElements = () =>
+      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+    (focusableElements()[0] ?? dialog).focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+      const openDialogs = Array.from(
+        document.querySelectorAll<HTMLElement>("[role='dialog'][aria-modal='true']"),
+      );
+      if (openDialogs[openDialogs.length - 1] !== dialog) {
+        return;
+      }
+
+      const focusable = focusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      previousFocus?.focus();
+    };
+  }, [open]);
+
+  return dialogRef;
+};
+
+function SettingsTabScroller({ children }: { children: ReactNode }) {
+  return (
+    <div className="settings-tab-scroll min-h-0 flex-1 overflow-y-auto px-1 py-4 pr-3">
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
 
 type UpdateAvailableModalProps = {
   update: AppUpdateInfo;
@@ -24,6 +98,18 @@ type UpdateAvailableModalProps = {
 export function UpdateAvailableModal({ update, onInstall, onDismiss }: UpdateAvailableModalProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const dialogRef = useDialogFocus();
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) {
+        event.preventDefault();
+        onDismiss();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [busy, onDismiss]);
 
   const handleInstall = async () => {
     setError("");
@@ -38,11 +124,20 @@ export function UpdateAvailableModal({ update, onInstall, onDismiss }: UpdateAva
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
-      <div className="w-[380px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-available-title"
+        tabIndex={-1}
+        className="w-[380px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+      >
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconDownload size={19} stroke={2} className="text-white/70" />
-            <h2 className="text-[16px] font-semibold">Update available</h2>
+            <h2 id="update-available-title" className="text-[16px] font-semibold">
+              Update available
+            </h2>
           </div>
           <button
             className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
@@ -87,15 +182,37 @@ type ClearCanvasModalProps = {
 };
 
 export function ClearCanvasModal({ onCancel, onConfirm }: ClearCanvasModalProps) {
+  const dialogRef = useDialogFocus();
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onCancel]);
+
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/45">
-      <div className="w-[360px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clear-canvas-title"
+        tabIndex={-1}
+        className="w-[360px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+      >
         <div className="mb-3 flex items-center gap-2">
           <IconTrash size={20} stroke={2} className="text-red-300" />
-          <h2 className="text-[16px] font-semibold">Clear canvas?</h2>
+          <h2 id="clear-canvas-title" className="text-[16px] font-semibold">
+            Clear canvas?
+          </h2>
         </div>
         <p className="mb-5 text-sm leading-5 text-white/65">
-          This will remove all containers from the canvas.
+          This will remove all content from the canvas, including locked items.
         </p>
         <div className="flex justify-end gap-2">
           <button
@@ -123,6 +240,12 @@ type SettingsModalProps = {
   onCanvasGridStyleChange: (style: CanvasGridStyle) => void;
   canvasGridOpacity: number;
   onCanvasGridOpacityChange: (opacity: number) => void;
+  defaultElementColors: DefaultElementColors;
+  onDefaultElementColorChange: (elementType: keyof DefaultElementColors, color: string) => void;
+  recentColors: string[];
+  onRememberRecentColor: (color?: string) => void;
+  shadowsUnderElements: boolean;
+  onShadowsUnderElementsChange: (enabled: boolean) => void;
   onExportData: (password: string) => Promise<boolean>;
   onImportData: (file: File, password: string) => Promise<void>;
   discordRpcEnabled: boolean;
@@ -151,6 +274,16 @@ const GRID_OPTIONS: Array<{
   { label: "Lines", value: "lines", Icon: IconGrid3x3 },
 ];
 
+const DEFAULT_COLOR_OPTIONS: Array<{
+  label: string;
+  value: keyof DefaultElementColors;
+}> = [
+  { label: "Containers", value: "container" },
+  { label: "Text cards", value: "textCard" },
+  { label: "Text blocks", value: "textBlock" },
+  { label: "Images", value: "image" },
+];
+
 const SHORTCUTS = [
   { label: "Open quick extensions menu", keys: ["Shift", "E"] },
   { label: "Open or close Canvases", keys: ["Tab"] },
@@ -166,11 +299,21 @@ const SHORTCUTS = [
   { label: "Box select", keys: ["Left-drag empty canvas"] },
 ] as const;
 
+const SETTINGS_TABS = import.meta.env.DEV
+  ? (["visual", "data", "misc", "shortcuts", "dev"] as const)
+  : (["visual", "data", "misc", "shortcuts"] as const);
+
 export function SettingsModal({
   canvasGridStyle,
   onCanvasGridStyleChange,
   canvasGridOpacity,
   onCanvasGridOpacityChange,
+  defaultElementColors,
+  onDefaultElementColorChange,
+  recentColors,
+  onRememberRecentColor,
+  shadowsUnderElements,
+  onShadowsUnderElementsChange,
   onExportData,
   onImportData,
   discordRpcEnabled,
@@ -198,15 +341,16 @@ export function SettingsModal({
   const [busy, setBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
-  const [activeTab, setActiveTab] =
-    useState<"visual" | "data" | "misc" | "shortcuts" | "dev">("visual");
-
-  useEffect(() => {
-    const trigger = document.activeElement;
-    if (trigger instanceof HTMLElement) {
-      trigger.blur();
-    }
-  }, []);
+  const [activeTab, setActiveTab] = useState<"visual" | "data" | "misc" | "shortcuts" | "dev">(
+    "visual",
+  );
+  const [defaultColorPicker, setDefaultColorPicker] = useState<{
+    elementType: keyof DefaultElementColors;
+    left: number;
+    top: number;
+  } | null>(null);
+  const dialogRef = useDialogFocus();
+  const passwordDialogRef = useDialogFocus(Boolean(passwordModal));
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -231,6 +375,11 @@ export function SettingsModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [updateModalOpen, passwordModal, onClose]);
 
+  useEffect(() => {
+    if (activeTab !== "visual") {
+      setDefaultColorPicker(null);
+    }
+  }, [activeTab]);
 
   const runDataAction = async (
     password: string,
@@ -255,7 +404,7 @@ export function SettingsModal({
       setPasswordDraft("");
       setPendingImportFile(null);
     } catch (error) {
-      setDataStatus(error instanceof Error ? error.message : String(error));
+      setDataStatus(commandErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -319,7 +468,7 @@ export function SettingsModal({
         setUpdateStatus("");
       }
     } catch (error) {
-      setUpdateStatus(error instanceof Error ? error.message : String(error));
+      setUpdateStatus(commandErrorMessage(error));
     } finally {
       setUpdateBusy(false);
     }
@@ -327,11 +476,20 @@ export function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
-      <div className="relative flex h-[432px] w-[528px] flex-col rounded-xl border border-white/[0.15] bg-[#141519] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        tabIndex={-1}
+        className="relative flex h-[432px] w-[528px] flex-col rounded-xl border border-white/[0.15] bg-[#141519] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+      >
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconSettings size={20} stroke={2} className="text-white/75" />
-            <h2 className="text-[16px] font-semibold">Settings</h2>
+            <h2 id="settings-title" className="text-[16px] font-semibold">
+              Settings
+            </h2>
           </div>
           <button
             className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white"
@@ -342,8 +500,14 @@ export function SettingsModal({
           </button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="grid grid-cols-5 items-end gap-1 px-1">
-            {(["visual", "data", "misc", "shortcuts", "dev"] as const).map((tab) => (
+          <div
+            className={
+              import.meta.env.DEV
+                ? "grid grid-cols-5 items-end gap-1 px-1"
+                : "grid grid-cols-4 items-end gap-1 px-1"
+            }
+          >
+            {SETTINGS_TABS.map((tab) => (
               <button
                 key={tab}
                 className={`relative flex h-9 min-w-0 items-center justify-center rounded-t-lg px-2 text-center text-sm font-semibold capitalize transition-colors ${
@@ -357,7 +521,7 @@ export function SettingsModal({
               </button>
             ))}
           </div>
-          <div className="min-h-0 flex-1 space-y-3 px-1 py-4">
+          <SettingsTabScroller key={activeTab}>
             {activeTab === "visual" && (
               <>
                 <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
@@ -391,7 +555,7 @@ export function SettingsModal({
                     <span className="text-white/60">{canvasGridOpacity}%</span>
                   </div>
                   <input
-                    className="range range-xs [--range-shdw:rgba(255,255,255,0.72)]"
+                    className="taskmap-range [--taskmap-range-accent:rgba(255,255,255,0.72)]"
                     type="range"
                     min={0}
                     max={100}
@@ -402,6 +566,66 @@ export function SettingsModal({
                     title="Grid opacity"
                   />
                 </div>
+                <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
+                  <div className="mb-1 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">
+                    <IconColorPicker size={16} stroke={2} />
+                    <span>Default element colors</span>
+                  </div>
+                  <div className="mb-3 text-[11px] text-white/38">
+                    Applied to newly created elements.
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DEFAULT_COLOR_OPTIONS.map(({ label, value }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className="left-panel-card flex h-10 min-w-0 items-center gap-2 rounded-md border border-white/[0.10] bg-black/[0.12] px-2.5 text-left transition-colors hover:bg-white/[0.08]"
+                        onClick={(event) => {
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          setDefaultColorPicker({
+                            elementType: value,
+                            left: rect.right + 8,
+                            top: rect.top,
+                          });
+                        }}
+                        title={`Choose default ${label.toLowerCase()} color`}
+                      >
+                        <span
+                          className="h-5 w-5 shrink-0 rounded border border-white/[0.18]"
+                          style={{ backgroundColor: defaultElementColors[value] }}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[12px] font-medium text-white/72">
+                            {label}
+                          </span>
+                          <span className="block truncate text-[10px] uppercase text-white/38">
+                            {defaultElementColors[value]}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
+                  <span className="flex flex-col">
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
+                      Shadows below elements
+                    </span>
+                    <span className="mt-0.5 text-[12px] text-white/45">
+                      Keep shadows on the canvas instead of over other elements.
+                    </span>
+                  </span>
+                  <input
+                    className="peer sr-only"
+                    type="checkbox"
+                    checked={shadowsUnderElements}
+                    onChange={(event) => onShadowsUnderElementsChange(event.target.checked)}
+                  />
+                  <span
+                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
+                    aria-hidden="true"
+                  />
+                </label>
                 <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
                   <span className="flex items-center gap-3">
                     {privacyModeEnabled ? (
@@ -424,7 +648,10 @@ export function SettingsModal({
                     checked={privacyModeEnabled}
                     onChange={(event) => onPrivacyModeEnabledChange(event.target.checked)}
                   />
-                  <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" aria-hidden="true" />
+                  <span
+                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
+                    aria-hidden="true"
+                  />
                 </label>
               </>
             )}
@@ -474,7 +701,10 @@ export function SettingsModal({
                     checked={discordRpcEnabled}
                     onChange={(event) => onDiscordRpcEnabledChange(event.target.checked)}
                   />
-                  <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" aria-hidden="true" />
+                  <span
+                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
+                    aria-hidden="true"
+                  />
                 </label>
                 <label
                   className={`settings-island left-panel-card left-panel-card-static mt-2 flex items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3 transition-opacity ${
@@ -496,7 +726,10 @@ export function SettingsModal({
                     disabled={!discordRpcEnabled}
                     onChange={(event) => onDiscordRpcShowCanvasChange(event.target.checked)}
                   />
-                  <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] peer-disabled:opacity-60 after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" aria-hidden="true" />
+                  <span
+                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] peer-disabled:opacity-60 after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
+                    aria-hidden="true"
+                  />
                 </label>
                 <button
                   className="mt-auto flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/[0.10] bg-white/[0.06] text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
@@ -514,7 +747,7 @@ export function SettingsModal({
                   <IconKeyboard size={16} stroke={2} />
                   <span>Shortcuts</span>
                 </div>
-                <div className="canvas-browser-scroll min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                <div className="space-y-1">
                   {SHORTCUTS.map((shortcut) => (
                     <div
                       key={shortcut.label}
@@ -536,7 +769,7 @@ export function SettingsModal({
                 </div>
               </div>
             )}
-            {activeTab === "dev" && (
+            {import.meta.env.DEV && activeTab === "dev" && (
               <div className="space-y-3">
                 <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
                   <span className="flex flex-col">
@@ -576,12 +809,26 @@ export function SettingsModal({
                 </div>
               </div>
             )}
-          </div>
+          </SettingsTabScroller>
         </div>
         <div className="mt-5 text-center text-[12px] font-semibold tracking-[0.18em] text-white/26">
           MADE BY MERK - v{appVersion}
         </div>
       </div>
+      {defaultColorPicker && (
+        <ColorPickerMenu
+          key={defaultColorPicker.elementType}
+          color={defaultElementColors[defaultColorPicker.elementType]}
+          left={defaultColorPicker.left}
+          top={defaultColorPicker.top}
+          recentColors={recentColors}
+          onChange={(color) => onDefaultElementColorChange(defaultColorPicker.elementType, color)}
+          onClose={(recentColor) => {
+            onRememberRecentColor(recentColor);
+            setDefaultColorPicker(null);
+          }}
+        />
+      )}
       {updateModalOpen && availableUpdate && (
         <UpdateAvailableModal
           update={availableUpdate}
@@ -591,7 +838,14 @@ export function SettingsModal({
       )}
       {passwordModal && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
-          <div className="frosted-glass w-[340px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+          <div
+            ref={passwordDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="data-password-title"
+            tabIndex={-1}
+            className="frosted-glass w-[340px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+          >
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {passwordModal === "export" ? (
@@ -599,7 +853,7 @@ export function SettingsModal({
                 ) : (
                   <IconUpload size={19} stroke={2} className="text-white/70" />
                 )}
-                <h2 className="text-[16px] font-semibold">
+                <h2 id="data-password-title" className="text-[16px] font-semibold">
                   {passwordModal === "export" ? "Export data" : "Import data"}
                 </h2>
               </div>

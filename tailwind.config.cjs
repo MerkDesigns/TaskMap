@@ -7,24 +7,5 @@ module.exports = {
       },
     },
   },
-  plugins: [require("daisyui")],
-  daisyui: {
-    themes: [
-      {
-        taskmap: {
-          primary: "#1d9a8a",
-          secondary: "#d89f45",
-          accent: "#e26f56",
-          neutral: "#202428",
-          "base-100": "#f6f3ec",
-          "base-200": "#e9e3d8",
-          "base-300": "#d7cec0",
-          info: "#376eaa",
-          success: "#24865f",
-          warning: "#c78125",
-          error: "#bc3e3e",
-        },
-      },
-    ],
-  },
+  plugins: [],
 };

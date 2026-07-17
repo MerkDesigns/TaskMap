@@ -1,19 +1,9 @@
 import {
   IconBox,
-  IconArrowsShuffle,
-  IconArrowsSort,
-  IconCalendarRepeat,
-  IconCards,
-  IconCheckbox,
-  IconChecklist,
   IconCheck,
-  IconColorPicker,
-  IconColorSwatch,
   IconFilter,
   IconInfoCircle,
-  IconLock,
   IconNotes,
-  IconPalette,
   IconPhoto,
   IconPencil,
   IconPuzzle,
@@ -21,24 +11,19 @@ import {
   IconShieldLock,
   IconStar,
 } from "@tabler/icons-react";
-import { PointerEvent, RefObject, useEffect, useRef, useState } from "react";
+import { RefObject, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  EXTENSIONS,
+  EXTENSION_REGISTRY,
+  type ExtensionDefinition,
+  type ExtensionId,
+  type ExtensionTargetType,
+} from "../extensions/registry";
+import { useExtensionDrag } from "../extensions/useExtensionDrag";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
-export type ExtensionId =
-  | "privacy"
-  | "lock"
-  | "colors"
-  | "colorPicker"
-  | "search"
-  | "sorting"
-  | "checkbox"
-  | "autoCheckbox"
-  | "dailyReset"
-  | "counter"
-  | "inheritCardColor"
-  | "pickCard";
-type ExtensionTarget = "container" | "textblock" | "textcard" | "image";
+export type { ExtensionId } from "../extensions/registry";
 
 type ExtensionsPanelProps = {
   closing: boolean;
@@ -48,14 +33,14 @@ type ExtensionsPanelProps = {
   panelRef?: RefObject<HTMLDivElement>;
 };
 
-const TARGET_META: Record<ExtensionTarget, { title: string; Icon: typeof IconBox }> = {
+const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof IconBox }> = {
   container: { title: "Containers", Icon: IconBox },
-  textblock: { title: "Text blocks", Icon: IconNotes },
-  textcard: { title: "Text cards", Icon: IconPencil },
+  "text-block": { title: "Text blocks", Icon: IconNotes },
+  "text-card": { title: "Text cards", Icon: IconPencil },
   image: { title: "Images", Icon: IconPhoto },
 };
 
-function ExtensionInfoButton({ targets }: { targets: ExtensionTarget[] }) {
+function ExtensionInfoButton({ targets }: { targets: readonly ExtensionTargetType[] }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -136,103 +121,6 @@ function ExtensionInfoButton({ targets }: { targets: ExtensionTarget[] }) {
   );
 }
 
-export const EXTENSIONS: Array<{
-  id: ExtensionId;
-  label: string;
-  description: string;
-  Icon: typeof IconShieldLock;
-  targets: ExtensionTarget[];
-}> = [
-  {
-    id: "privacy",
-    label: "Privacy",
-    description: "Blur element content",
-    Icon: IconShieldLock,
-    targets: ["container", "textblock"],
-  },
-  {
-    id: "lock",
-    label: "Lock",
-    description: "Lock move, resize & deletion",
-    Icon: IconLock,
-    targets: ["container", "textblock", "textcard", "image"],
-  },
-  {
-    id: "colors",
-    label: "More colors",
-    description: "Unlock 7 extra accents",
-    Icon: IconPalette,
-    targets: ["container", "textblock", "textcard", "image"],
-  },
-  {
-    id: "colorPicker",
-    label: "Color picker",
-    description: "Fine-tune any accent color",
-    Icon: IconColorPicker,
-    targets: ["container", "textblock"],
-  },
-  {
-    id: "search",
-    label: "Search",
-    description: "Filter container cards",
-    Icon: IconSearch,
-    targets: ["container"],
-  },
-  {
-    id: "sorting",
-    label: "Sorting",
-    description: "Sort container cards",
-    Icon: IconArrowsSort,
-    targets: ["container"],
-  },
-  {
-    id: "checkbox",
-    label: "Checkbox",
-    description: "Add checkable text cards",
-    Icon: IconCheckbox,
-    targets: ["textcard"],
-  },
-  {
-    id: "autoCheckbox",
-    label: "Auto checkboxes",
-    description: "Checkboxes on new cards",
-    Icon: IconChecklist,
-    targets: ["container"],
-  },
-  {
-    id: "dailyReset",
-    label: "Daily resets",
-    description: "Reset card checkboxes daily",
-    Icon: IconCalendarRepeat,
-    targets: ["container"],
-  },
-  {
-    id: "counter",
-    label: "Counter",
-    description: "Count cards in a container",
-    Icon: IconCards,
-    targets: ["container"],
-  },
-  {
-    id: "inheritCardColor",
-    label: "Inherit color",
-    description: "New cards inherit color",
-    Icon: IconColorSwatch,
-    targets: ["container"],
-  },
-  {
-    id: "pickCard",
-    label: "Pick a card",
-    description: "Show one random card",
-    Icon: IconArrowsShuffle,
-    targets: ["container"],
-  },
-];
-
-const DRAG_META = Object.fromEntries(EXTENSIONS.map(({ id, label, Icon }) => [id, { label, Icon }])) as Record<
-  ExtensionId,
-  { label: string; Icon: typeof IconShieldLock }
->;
 const EXTENSION_FAVORITES_STORAGE_KEY = "taskmap.extensionFavorites";
 const MAX_EXTENSION_FAVORITES = 5;
 
@@ -270,16 +158,16 @@ export function QuickExtensionsMenu({
   onDragExtension,
 }: QuickExtensionsMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ extensionId: ExtensionId; clientX: number; clientY: number } | null>(null);
-  const [drag, setDrag] = useState<typeof dragRef.current>(null);
   const favorites = loadExtensionFavorites();
   const position = useClampedFixedPosition(menuRef, { left: left + 10, top: top + 10 });
   const favoriteExtensions = EXTENSIONS.filter((extension) => favorites[extension.id]);
   const otherExtensions = EXTENSIONS.filter((extension) => !favorites[extension.id]);
-
-  useEffect(() => {
-    dragRef.current = drag;
-  }, [drag]);
+  const { drag, startExtensionDrag } = useExtensionDrag({
+    sourceRef: menuRef,
+    onDropExtension,
+    onDragExtension,
+    onDropComplete: onClose,
+  });
 
   useEffect(() => {
     const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
@@ -292,71 +180,18 @@ export function QuickExtensionsMenu({
     return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
   }, [onClose]);
 
-  useEffect(() => {
-    if (!drag) {
-      return;
-    }
-
-    const handlePointerMove = (event: globalThis.PointerEvent) => {
-      setDrag((current) => current && { ...current, clientX: event.clientX, clientY: event.clientY });
-      const activeDrag = dragRef.current;
-      if (activeDrag) {
-        onDragExtension?.(activeDrag.extensionId, event.clientX, event.clientY);
-      }
-    };
-    const handlePointerEnd = (event: globalThis.PointerEvent) => {
-      const activeDrag = dragRef.current;
-      if (!activeDrag) {
-        return;
-      }
-
-      const menuBounds = menuRef.current?.getBoundingClientRect();
-      const droppedInsideMenu =
-        menuBounds &&
-        event.clientX >= menuBounds.left &&
-        event.clientX <= menuBounds.right &&
-        event.clientY >= menuBounds.top &&
-        event.clientY <= menuBounds.bottom;
-
-      setDrag(null);
-      onDragExtension?.(null);
-      if (!droppedInsideMenu) {
-        onDropExtension(activeDrag.extensionId, event.clientX, event.clientY);
-        onClose();
-      }
-    };
-    const handlePointerCancel = () => {
-      setDrag(null);
-      onDragExtension?.(null);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerEnd);
-    window.addEventListener("pointercancel", handlePointerCancel);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerEnd);
-      window.removeEventListener("pointercancel", handlePointerCancel);
-    };
-  }, [drag, onClose, onDragExtension, onDropExtension]);
-
-  const startExtensionDrag = (event: PointerEvent<HTMLElement>, extensionId: ExtensionId) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    setDrag({ extensionId, clientX: event.clientX, clientY: event.clientY });
-    onDragExtension?.(extensionId, event.clientX, event.clientY);
-  };
-
-  const renderCategory = (label: string, extensions: typeof EXTENSIONS, scrollable = false) => (
+  const renderCategory = (
+    label: string,
+    extensions: readonly ExtensionDefinition[],
+    scrollable = false,
+  ) => (
     <div className={scrollable ? "flex min-h-0 flex-1 flex-col" : ""}>
       <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
         {label}
       </div>
-      <div className={`space-y-1 ${scrollable ? "quick-extensions-scroll min-h-0 overflow-y-auto pr-1.5" : ""}`}>
+      <div
+        className={`space-y-1 ${scrollable ? "quick-extensions-scroll min-h-0 overflow-y-auto pr-1.5" : ""}`}
+      >
         {extensions.map((extension) => {
           const ExtensionIcon = extension.Icon;
           return (
@@ -378,7 +213,7 @@ export function QuickExtensionsMenu({
     </div>
   );
 
-  const DragIcon = drag ? DRAG_META[drag.extensionId].Icon : IconPuzzle;
+  const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconPuzzle;
 
   return (
     <>
@@ -416,25 +251,27 @@ export function ExtensionsPanel({
   embedded = false,
   panelRef,
 }: ExtensionsPanelProps) {
-  const [drag, setDrag] = useState<{ extensionId: ExtensionId; clientX: number; clientY: number } | null>(null);
-  const dragRef = useRef<typeof drag>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
-  const [selectedTargets, setSelectedTargets] = useState<ExtensionTarget[]>(Object.keys(TARGET_META) as ExtensionTarget[]);
-  const [favorites, setFavorites] = useState<Partial<Record<ExtensionId, boolean>>>(loadExtensionFavorites);
+  const [selectedTargets, setSelectedTargets] = useState<ExtensionTargetType[]>(
+    Object.keys(TARGET_META) as ExtensionTargetType[],
+  );
+  const [favorites, setFavorites] =
+    useState<Partial<Record<ExtensionId, boolean>>>(loadExtensionFavorites);
   const localPanelRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const [filterPosition, setFilterPosition] = useState({ left: 0, top: 0 });
   const activePanelRef = panelRef ?? localPanelRef;
+  const { drag, startExtensionDrag } = useExtensionDrag({
+    sourceRef: activePanelRef,
+    onDropExtension,
+    onDragExtension,
+  });
 
   useEffect(() => {
     window.localStorage.setItem(EXTENSION_FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
   }, [favorites]);
-
-  useEffect(() => {
-    dragRef.current = drag;
-  }, [drag]);
 
   useEffect(() => {
     if (!filterOpen) {
@@ -473,80 +310,18 @@ export function ExtensionsPanel({
     };
   }, [filterOpen]);
 
-  useEffect(() => {
-    if (!drag?.extensionId) {
-      return;
-    }
-
-    const handlePointerMove = (event: globalThis.PointerEvent) => {
-      setDrag((current) =>
-        current ? { ...current, clientX: event.clientX, clientY: event.clientY } : current,
-      );
-      const activeDrag = dragRef.current;
-      if (activeDrag) {
-        onDragExtension?.(activeDrag.extensionId, event.clientX, event.clientY);
-      }
-    };
-
-    const handlePointerEnd = (event: globalThis.PointerEvent) => {
-      const activeDrag = dragRef.current;
-      if (!activeDrag) {
-        return;
-      }
-
-      const panelBounds = activePanelRef.current?.getBoundingClientRect();
-      if (
-        panelBounds &&
-        event.clientX >= panelBounds.left &&
-        event.clientX <= panelBounds.right &&
-        event.clientY >= panelBounds.top &&
-        event.clientY <= panelBounds.bottom
-      ) {
-        setDrag(null);
-        onDragExtension?.(null);
-        return;
-      }
-
-      onDropExtension(activeDrag.extensionId, event.clientX, event.clientY);
-      setDrag(null);
-      onDragExtension?.(null);
-    };
-
-    const handlePointerCancel = () => {
-      setDrag(null);
-      onDragExtension?.(null);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerEnd);
-    window.addEventListener("pointercancel", handlePointerCancel);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerEnd);
-      window.removeEventListener("pointercancel", handlePointerCancel);
-    };
-  }, [activePanelRef, drag?.extensionId, onDragExtension, onDropExtension]);
-
-  const startExtensionDrag = (event: PointerEvent<HTMLElement>, extensionId: ExtensionId) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    setDrag({ extensionId, clientX: event.clientX, clientY: event.clientY });
-    onDragExtension?.(extensionId, event.clientX, event.clientY);
-  };
-
-  const DragIcon = drag ? DRAG_META[drag.extensionId].Icon : IconShieldLock;
+  const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconShieldLock;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const allTargetsSelected = selectedTargets.length === Object.keys(TARGET_META).length;
   const filteredExtensions = EXTENSIONS.filter((extension) => {
     const matchesTarget = extension.targets.some((target) => selectedTargets.includes(target));
     const matchesSearch =
       !normalizedSearchQuery ||
-      [extension.label, extension.description, ...extension.targets.map((target) => TARGET_META[target].title)]
+      [
+        extension.label,
+        extension.description,
+        ...extension.targets.map((target) => TARGET_META[target].title),
+      ]
         .join(" ")
         .toLowerCase()
         .includes(normalizedSearchQuery);
@@ -571,7 +346,9 @@ export function ExtensionsPanel({
         </span>
         <span className="min-w-0">
           <span className="block text-sm font-semibold text-white">{extension.label}</span>
-          <span className="block truncate text-xs leading-5 text-white/42">{extension.description}</span>
+          <span className="block truncate text-xs leading-5 text-white/42">
+            {extension.description}
+          </span>
         </span>
         <span className="absolute right-1.5 top-1.5 flex items-center gap-0.5">
           <ExtensionInfoButton targets={extension.targets} />
@@ -582,7 +359,7 @@ export function ExtensionsPanel({
                 ? "border-amber-300/35 bg-amber-300/12 text-amber-200"
                 : favoriteLimitReached
                   ? "cursor-not-allowed border-white/[0.08] bg-black/[0.14] text-white/20"
-                : "border-white/[0.10] bg-black/[0.20] text-white/42 hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-white/72"
+                  : "border-white/[0.10] bg-black/[0.20] text-white/42 hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-white/72"
             }`}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -658,7 +435,7 @@ export function ExtensionsPanel({
             style={filterPosition}
             onPointerDown={(event) => event.stopPropagation()}
           >
-            {(Object.keys(TARGET_META) as ExtensionTarget[]).map((target) => {
+            {(Object.keys(TARGET_META) as ExtensionTargetType[]).map((target) => {
               const selected = selectedTargets.includes(target);
               const TargetIcon = TARGET_META[target].Icon;
 

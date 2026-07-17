@@ -11,10 +11,24 @@ import {
   IconNotes,
   IconPuzzle,
 } from "@tabler/icons-react";
-import { MouseEvent, PointerEvent, WheelEvent, memo, useEffect, useRef, useState } from "react";
+import {
+  MouseEvent,
+  PointerEvent,
+  Suspense,
+  WheelEvent,
+  lazy,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { TextBlockElement } from "../types";
 import { ColorPickerMenu } from "./ColorPickerMenu";
-import { MarkdownContent } from "./MarkdownContent";
+
+const MarkdownContent = lazy(() =>
+  import("./MarkdownContent").then(({ MarkdownContent }) => ({ default: MarkdownContent })),
+);
 
 type TextBlockHeaderExtensionKey = "lock" | "privacy" | "colorPicker";
 
@@ -26,6 +40,8 @@ type TextBlockNodeProps = {
   deleting: boolean;
   pulsing: boolean;
   moving: boolean;
+  shadowsUnderElements: boolean;
+  recentColors: string[];
   editing: boolean;
   draft: string;
   renaming: boolean;
@@ -44,6 +60,7 @@ type TextBlockNodeProps = {
   onTogglePrivacy: (id: string) => void;
   onToggleLock: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  onRememberRecentColor: (color?: string) => void;
   onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
 };
 
@@ -55,6 +72,8 @@ function TextBlockNodeComponent({
   deleting,
   pulsing,
   moving,
+  shadowsUnderElements,
+  recentColors,
   editing,
   draft,
   renaming,
@@ -73,6 +92,7 @@ function TextBlockNodeComponent({
   onTogglePrivacy,
   onToggleLock,
   onUpdateAccent,
+  onRememberRecentColor,
   onHeaderButtonsVisibleChange,
 }: TextBlockNodeProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -99,7 +119,7 @@ function TextBlockNodeComponent({
     const content = editing ? textareaRef.current : contentRef.current;
     const scrollable = Boolean(
       content &&
-        (content.scrollHeight > content.clientHeight || content.scrollWidth > content.clientWidth),
+      (content.scrollHeight > content.clientHeight || content.scrollWidth > content.clientWidth),
     );
 
     if (editing || scrollable) {
@@ -108,29 +128,38 @@ function TextBlockNodeComponent({
   };
 
   const privacyEnabled = Boolean(element.extensions?.privacy?.enabled);
+  const privacyInstalled = Boolean(element.extensions?.privacy);
   const lockInstalled = Boolean(element.extensions?.lock);
   const lockEnabled = Boolean(element.extensions?.lock?.enabled);
   const colorPickerInstalled = Boolean(element.extensions?.colorPicker);
   const extensionButtonsVisible = element.headerButtonsVisible ?? true;
-  const headerExtensionItems: Array<{ key: TextBlockHeaderExtensionKey; width: number }> = [];
-  if (lockInstalled) headerExtensionItems.push({ key: "lock", width: 36 });
-  if (element.extensions?.privacy) headerExtensionItems.push({ key: "privacy", width: 36 });
-  if (colorPickerInstalled) headerExtensionItems.push({ key: "colorPicker", width: 36 });
+  const headerExtensionItems = useMemo(() => {
+    const items: Array<{ key: TextBlockHeaderExtensionKey; width: number }> = [];
+    if (lockInstalled) items.push({ key: "lock", width: 36 });
+    if (privacyInstalled) items.push({ key: "privacy", width: 36 });
+    if (colorPickerInstalled) items.push({ key: "colorPicker", width: 36 });
+    return items;
+  }, [colorPickerInstalled, lockInstalled, privacyInstalled]);
   const headerExtensionButtonCount = headerExtensionItems.length;
   const headerExtensionWidth = headerExtensionItems.reduce((total, item) => total + item.width, 0);
-  const headerExtensionSignature = headerExtensionItems.map((item) => `${item.key}:${item.width}`).join("|");
   const collapsibleExtensions = headerExtensionButtonCount > 1;
   const [visibleExtensionCount, setVisibleExtensionCount] = useState(headerExtensionButtonCount);
-  const [overflowMenuPosition, setOverflowMenuPosition] = useState<{ left: number; top: number } | null>(null);
-  const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const [overflowMenuPosition, setOverflowMenuPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(
+    null,
+  );
   const articleRef = useRef<HTMLElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const headerTitleRef = useRef<HTMLDivElement | null>(null);
   const overflowButtonRef = useRef<HTMLButtonElement | null>(null);
   const overflowMenuRef = useRef<HTMLDivElement | null>(null);
   const visibleExtensionItems = headerExtensionItems.slice(0, visibleExtensionCount);
-  const overflowExtensionItems =
-    extensionButtonsVisible ? headerExtensionItems.slice(visibleExtensionCount) : [];
+  const overflowExtensionItems = extensionButtonsVisible
+    ? headerExtensionItems.slice(visibleExtensionCount)
+    : [];
   const hasOverflowExtensions = overflowExtensionItems.length > 0;
 
   useEffect(() => {
@@ -144,7 +173,10 @@ function TextBlockNodeComponent({
       const innerWidth = Math.max(0, header.clientWidth - 24);
       const titleReserve = Math.min(title.scrollWidth, Math.max(56, innerWidth * 0.38));
       const fixedControlsWidth = 28 + (collapsibleExtensions ? 24 : 0);
-      const availableWithoutOverflow = Math.max(0, innerWidth - titleReserve - fixedControlsWidth - 10);
+      const availableWithoutOverflow = Math.max(
+        0,
+        innerWidth - titleReserve - fixedControlsWidth - 10,
+      );
 
       if (headerExtensionWidth <= availableWithoutOverflow) {
         setVisibleExtensionCount(headerExtensionButtonCount);
@@ -175,7 +207,7 @@ function TextBlockNodeComponent({
     collapsibleExtensions,
     element.name,
     headerExtensionButtonCount,
-    headerExtensionSignature,
+    headerExtensionItems,
     headerExtensionWidth,
     renaming,
   ]);
@@ -197,7 +229,10 @@ function TextBlockNodeComponent({
       }
 
       const target = event.target as Node;
-      if (!overflowButtonRef.current?.contains(target) && !overflowMenuRef.current?.contains(target)) {
+      if (
+        !overflowButtonRef.current?.contains(target) &&
+        !overflowMenuRef.current?.contains(target)
+      ) {
         setOverflowMenuPosition(null);
       }
     };
@@ -294,9 +329,13 @@ function TextBlockNodeComponent({
   return (
     <article
       ref={articleRef}
-      className={`group/text-block absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] shadow-xl transition-[border-color] duration-150 ease-out ${
+      className={`group/text-block absolute z-20 overflow-visible rounded-xl border-2 border-[color:var(--container-chrome)] transition-[border-color] duration-150 ease-out ${
         entering ? "container-enter" : ""
-      } ${deleting ? "container-exit pointer-events-none" : ""} ${pulsing ? "text-card-pulse" : ""}`}
+      } ${deleting ? "container-exit pointer-events-none" : ""} ${pulsing ? "text-card-pulse" : ""} ${
+        shadowsUnderElements
+          ? ""
+          : `canvas-attached-shadow-shell ${moving ? "canvas-attached-drag-shadow" : ""}`
+      }`}
       style={{
         zIndex: 20 + (element.layer ?? 0),
         left: element.x,
@@ -305,7 +344,6 @@ function TextBlockNodeComponent({
         height: element.height,
         backgroundColor: element.accent,
         borderColor: selectedAccent,
-        boxShadow: "0 18px 42px rgba(0, 0, 0, 0.42)",
       }}
       onPointerDown={(event) => {
         if (event.button !== 1) {
@@ -326,9 +364,7 @@ function TextBlockNodeComponent({
         <div
           ref={headerRef}
           className={`relative z-30 flex h-10 items-center justify-between px-3 text-white ${
-            moving
-              ? "cursor-grabbing"
-              : "cursor-grab"
+            moving ? "cursor-grabbing" : "cursor-grab"
           }`}
           style={{ backgroundColor: element.accent }}
           onPointerDown={(event) => onStartMove(event, element)}
@@ -358,7 +394,9 @@ function TextBlockNodeComponent({
                 }}
               />
             ) : (
-              <span className="truncate text-[14px] font-semibold text-white/86">{element.name}</span>
+              <span className="truncate text-[14px] font-semibold text-white/86">
+                {element.name}
+              </span>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -370,7 +408,9 @@ function TextBlockNodeComponent({
                   onHeaderButtonsVisibleChange(element.id, !extensionButtonsVisible);
                 }}
                 onPointerDown={(event) => event.stopPropagation()}
-                title={extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"}
+                title={
+                  extensionButtonsVisible ? "Hide extension buttons" : "Show extension buttons"
+                }
               >
                 {extensionButtonsVisible ? (
                   <IconChevronRight size={18} stroke={2} />
@@ -419,13 +459,7 @@ function TextBlockNodeComponent({
         <div
           className={`h-[calc(100%-40px)] bg-[color:var(--container-bg)] transition-[filter] ${
             privacyEnabled ? "select-none blur-[5px]" : ""
-          } ${
-            multiSelected
-              ? moving
-                ? "cursor-grabbing"
-                : "cursor-grab"
-              : ""
-          }`}
+          } ${multiSelected ? (moving ? "cursor-grabbing" : "cursor-grab") : ""}`}
           onWheel={handleTextBlockWheel}
           onPointerDown={(event) => {
             if (event.button !== 0) {
@@ -469,7 +503,9 @@ function TextBlockNodeComponent({
               data-text-block-content
               className="markdown-content hidden-scrollbar h-full select-text overflow-auto break-words px-4 py-3 text-[16px] leading-6 text-white/92"
             >
-              <MarkdownContent>{element.text}</MarkdownContent>
+              <Suspense fallback={<div className="whitespace-pre-wrap">{element.text}</div>}>
+                <MarkdownContent>{element.text}</MarkdownContent>
+              </Suspense>
             </div>
           )}
         </div>
@@ -490,28 +526,31 @@ function TextBlockNodeComponent({
           }`}
         />
       </div>
-      {overflowMenuPosition &&
-        (
-          <div
-            ref={overflowMenuRef}
-            className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
-            style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
-            onPointerDown={(event) => event.stopPropagation()}
-            onContextMenu={(event) => event.preventDefault()}
-          >
-            <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
-            <span className="relative z-10 flex items-center gap-1">
-              {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
-            </span>
-          </div>
-        )}
+      {overflowMenuPosition && (
+        <div
+          ref={overflowMenuRef}
+          className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+          style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
+          <span className="relative z-10 flex items-center gap-1">
+            {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
+          </span>
+        </div>
+      )}
       {colorMenuPosition && (
         <ColorPickerMenu
           color={element.accent}
           left={colorMenuPosition.left}
           top={colorMenuPosition.top}
+          recentColors={recentColors}
           onChange={(accent) => onUpdateAccent(element.id, accent)}
-          onClose={() => setColorMenuPosition(null)}
+          onClose={(recentColor) => {
+            onRememberRecentColor(recentColor);
+            setColorMenuPosition(null);
+          }}
         />
       )}
     </article>

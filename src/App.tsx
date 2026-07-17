@@ -1,9 +1,19 @@
-import { CSSProperties, PointerEvent, WheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CSSProperties,
+  PointerEvent,
+  Suspense,
+  WheelEvent,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconRotateClockwise } from "@tabler/icons-react";
-import { CanvasManager } from "./components/CanvasManager";
 import {
   CanvasContextMenu,
   ContainerContentContextMenu,
@@ -13,18 +23,11 @@ import {
   TextCardContextMenu,
 } from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
-import {
-  ExtensionsPanel,
-  QuickExtensionsMenu,
-  type ExtensionId,
-} from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
-import { FpsCounter } from "./components/FpsCounter";
-import { FrostedGlassTuner, FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
+import type { FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
 import { Minimap } from "./components/Minimap";
-import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { TextCardNode } from "./components/TextCardNode";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
@@ -32,20 +35,20 @@ import {
   CANVAS_WIDTH,
   ALIGN_SNAP_DISTANCE,
   ALL_ACCENT_PRESETS,
-  DEFAULT_CONTAINER_ACCENT,
-  DEFAULT_TEXT_CARD_ACCENT,
+  DEFAULT_ELEMENT_COLORS,
   MIN_HEIGHT,
   MIN_IMAGE_SIZE,
   MIN_WIDTH,
   MINIMAP_MAX_SIZE,
 } from "./constants";
-import { clamp, getWheelZoom, quantizeZoom } from "./canvasMath";
+import { clamp, getVirtualRowRange, getWheelZoom, isVirtualRowInRange } from "./canvasMath";
 import {
   AppData,
   CanvasGridStyle,
   ContainerElement,
   ContainerMenuState,
   CopiedCanvasItem,
+  DefaultElementColors,
   DragState,
   ElementExtensions,
   ImageElement,
@@ -61,29 +64,64 @@ import {
   normalizeAppData,
   remapContainerExtensions,
 } from "./app/appData";
-import {
-  DEFAULT_CANVAS,
-  DEFAULT_ELEMENTS,
-  DEFAULT_GRID_OPACITY,
-  DEFAULT_PAN,
-} from "./app/defaultData";
+import { commandErrorMessage, isRecoverableStorageError } from "./app/commandError";
+import { planCanvasDeletion, updateCanvasDetails } from "./app/canvasDocument";
+import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY, DEFAULT_PAN } from "./app/defaultData";
 import { useAutosave } from "./hooks/useAutosave";
 import { useDiscordRpc } from "./hooks/useDiscordRpc";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
+import { useCanvasDocument } from "./hooks/useCanvasDocument";
 import {
   EXTENSION_COMPATIBLE_TARGETS,
-  EXTENSION_DROP_ICONS,
-  ExtensionTargetType,
-} from "./components/extensionMetadata";
+  EXTENSION_REGISTRY,
+  type ExtensionId,
+  type ExtensionTargetType,
+} from "./extensions/registry";
 import {
   cloneCanvas,
   createInitialCanvasHistory,
   getCanvasHistoryState,
-  HISTORY_DEBOUNCE_MS,
   omitCameraFromHistory,
   pushCanvasHistorySnapshot,
 } from "./app/history";
+
+const CanvasManager = lazy(() =>
+  import("./components/CanvasManager").then(({ CanvasManager }) => ({ default: CanvasManager })),
+);
+const ExtensionsPanel = lazy(() =>
+  import("./components/ExtensionsPanel").then(({ ExtensionsPanel }) => ({
+    default: ExtensionsPanel,
+  })),
+);
+const QuickExtensionsMenu = lazy(() =>
+  import("./components/ExtensionsPanel").then(({ QuickExtensionsMenu }) => ({
+    default: QuickExtensionsMenu,
+  })),
+);
+const ClearCanvasModal = lazy(() =>
+  import("./components/Modals").then(({ ClearCanvasModal }) => ({ default: ClearCanvasModal })),
+);
+const SettingsModal = lazy(() =>
+  import("./components/Modals").then(({ SettingsModal }) => ({ default: SettingsModal })),
+);
+const UpdateAvailableModal = lazy(() =>
+  import("./components/Modals").then(({ UpdateAvailableModal }) => ({
+    default: UpdateAvailableModal,
+  })),
+);
+const DevelopmentFpsCounter = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
+    )
+  : null;
+const DevelopmentFrostedGlassTuner = import.meta.env.DEV
+  ? lazy(() =>
+      import("./components/FrostedGlassTuner").then(({ FrostedGlassTuner }) => ({
+        default: FrostedGlassTuner,
+      })),
+    )
+  : null;
 
 type SnapGuide = {
   axis: "x" | "y";
@@ -136,26 +174,62 @@ type TextCardPointerSample = {
 
 type LeftPanelState = "closed" | "canvases" | "extensions";
 
+type PendingCanvasDeletions = {
+  containers: Set<string>;
+  textCards: Set<string>;
+  textBlocks: Set<string>;
+  images: Set<string>;
+};
+
+type StorageErrorState = {
+  message: string;
+  canReset: boolean;
+};
+
+const createStorageError = (prefix: string, error: unknown): StorageErrorState => ({
+  message: `${prefix}: ${commandErrorMessage(error)}`,
+  canReset: isRecoverableStorageError(error),
+});
+
+const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+
 const CANVAS_MANAGER_ANIMATION_MS = 120;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 const MINIMAP_FADE_MS = 500;
+const POINTER_HISTORY_TRANSACTION = "pointer-interaction";
+const CLEAR_HISTORY_TRANSACTION = "clear-canvas";
+const DELETE_HISTORY_TRANSACTION = "delete-selection";
+const imageHistoryTransaction = (imageId: string) => `image:${imageId}`;
 
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
 const isKeyboardFocusableControl = (target: HTMLElement | null) =>
   Boolean(target?.closest("button, [role='button'], a, select, [tabindex]"));
+const isInteractiveKeyboardTarget = (target: HTMLElement | null) =>
+  Boolean(
+    target?.closest(
+      "input, textarea, select, button, a[href], summary, [role='button'], [contenteditable], [tabindex]",
+    ),
+  );
 const CONTAINER_HEADER_HEIGHT = 48;
 const CONTAINER_SEARCH_HEIGHT = 42;
 const CONTAINER_TEXT_CARD_PADDING = 17;
 const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
 const CONTAINER_TEXT_CARD_GAP = 8;
+const CONTAINER_TEXT_CARD_OVERSCAN_ROWS = 3;
 const EMPTY_IDS: string[] = [];
 const CANVAS_RENDER_OVERSCAN_PX = 480;
 const LOOSE_TEXT_CARD_RENDER_WIDTH = 540;
 const LOOSE_TEXT_CARD_RENDER_HEIGHT = 320;
 
 type Rectangle = { left: number; top: number; width: number; height: number };
+
+type CanvasElementShadow = Rectangle & {
+  id: string;
+  radius: number;
+  strength: "shell" | "card";
+};
 
 const rectanglesOverlap = (left: Rectangle, right: Rectangle) =>
   left.left < right.left + right.width &&
@@ -192,22 +266,40 @@ const createAppMetadata = (data: AppData): AppData => ({
   })),
 });
 
-type CallbackMap = Record<string, (...args: any[]) => any>;
+type CallbackMap = Record<string, (...args: never[]) => unknown>;
 
 const useStableCallbacks = <T extends CallbackMap>(callbacks: T): T => {
   const callbacksRef = useRef(callbacks);
+  const stableCallbacksRef = useRef<T | null>(null);
   callbacksRef.current = callbacks;
 
-  return useMemo(
-    () =>
-      Object.fromEntries(
-        Object.keys(callbacks).map((name) => [
-          name,
-          (...args: any[]) => callbacksRef.current[name](...args),
-        ]),
-      ) as T,
-    [],
+  if (!stableCallbacksRef.current) {
+    stableCallbacksRef.current = Object.fromEntries(
+      Object.keys(callbacks).map((name) => [
+        name,
+        (...args: never[]) => callbacksRef.current[name](...args),
+      ]),
+    ) as T;
+  }
+
+  return stableCallbacksRef.current;
+};
+
+const useRevisionToken = (dependencies: readonly unknown[]) => {
+  const revisionRef = useRef<{ dependencies: readonly unknown[]; token: object } | undefined>(
+    undefined,
   );
+  const previous = revisionRef.current;
+  const changed =
+    !previous ||
+    previous.dependencies.length !== dependencies.length ||
+    dependencies.some((dependency, index) => !Object.is(dependency, previous.dependencies[index]));
+
+  if (changed) {
+    revisionRef.current = { dependencies, token: {} };
+  }
+
+  return revisionRef.current!.token;
 };
 
 const useCanvasLayers = <T extends { id: string; layer?: number }>(
@@ -265,16 +357,26 @@ function App() {
   const textCardDragFrameRef = useRef<number | null>(null);
   const historyRef = useRef<Record<string, TaskCanvas[]>>({});
   const historyIndexRef = useRef<Record<string, number>>({});
-  const historyTimeoutRef = useRef<number | null>(null);
+  const historyTransactionsRef = useRef<Map<string, Set<string>>>(new Map());
+  const dirtyHistoryTransactionsRef = useRef<Set<string>>(new Set());
+  const pointerHistoryTransactionActiveRef = useRef(false);
   const applyingHistoryRef = useRef(false);
   const dirtyCanvasVersionsRef = useRef<Map<string, number>>(new Map());
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const imageGarbageCollectionNeededRef = useRef(false);
+  const pendingCanvasDeletionsRef = useRef<Map<string, PendingCanvasDeletions>>(new Map());
+  const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
+  const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
+  const latestDataGetterRef = useRef<() => AppData>(() => latestAppDataRef.current);
+  const closeInProgressRef = useRef(false);
   const latestAppDataRef = useRef<AppData>({
+    schemaVersion: 1,
     activeCanvasId: DEFAULT_CANVAS.id,
     canvases: [DEFAULT_CANVAS],
     canvasGridStyle: "dots",
     canvasGridOpacity: DEFAULT_GRID_OPACITY,
+    defaultElementColors: DEFAULT_ELEMENT_COLORS,
+    recentColors: [],
+    shadowsUnderElements: true,
     discordRpcEnabled: false,
     discordRpcShowCanvas: true,
     minimapEnabled: true,
@@ -283,29 +385,73 @@ function App() {
   });
   const appDataLoadedRef = useRef(false);
   const [appDataLoaded, setAppDataLoaded] = useState(false);
-  const [pan, setPan] = useState(DEFAULT_PAN);
-  const [zoom, setZoom] = useState(1);
+  const {
+    activeCanvas,
+    canvases,
+    elements,
+    images,
+    pan,
+    setActiveCanvas,
+    setCanvases,
+    setElements,
+    setImages,
+    setPan,
+    setTextBlocks,
+    setTextCards,
+    setZoom,
+    textBlocks,
+    textCards,
+    zoom,
+  } = useCanvasDocument();
   const latestCameraRef = useRef({ pan: DEFAULT_PAN, zoom: 1 });
   const [minimapVisible, setMinimapVisible] = useState(false);
   const [minimapMounted, setMinimapMounted] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [containerMenu, setContainerMenu] = useState<ContainerMenuState | null>(null);
   const [closingContainerMenu, setClosingContainerMenu] = useState<ContainerMenuState | null>(null);
-  const [containerContentMenu, setContainerContentMenu] =
-    useState<{ containerId: string; clientX: number; clientY: number } | null>(null);
-  const [closingContainerContentMenu, setClosingContainerContentMenu] =
-    useState<{ containerId: string; clientX: number; clientY: number } | null>(null);
-  const [textCardMenu, setTextCardMenu] = useState<{ id: string; left: number; top: number } | null>(null);
-  const [closingTextCardMenu, setClosingTextCardMenu] =
-    useState<{ id: string; left: number; top: number } | null>(null);
-  const [textBlockMenu, setTextBlockMenu] = useState<{ id: string; left: number; top: number } | null>(null);
-  const [closingTextBlockMenu, setClosingTextBlockMenu] =
-    useState<{ id: string; left: number; top: number } | null>(null);
-  const [imageMenu, setImageMenu] = useState<{ id: string; left: number; top: number } | null>(null);
-  const [closingImageMenu, setClosingImageMenu] =
-    useState<{ id: string; left: number; top: number } | null>(null);
+  const [containerContentMenu, setContainerContentMenu] = useState<{
+    containerId: string;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const [closingContainerContentMenu, setClosingContainerContentMenu] = useState<{
+    containerId: string;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const [textCardMenu, setTextCardMenu] = useState<{
+    id: string;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [closingTextCardMenu, setClosingTextCardMenu] = useState<{
+    id: string;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [textBlockMenu, setTextBlockMenu] = useState<{
+    id: string;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [closingTextBlockMenu, setClosingTextBlockMenu] = useState<{
+    id: string;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [imageMenu, setImageMenu] = useState<{ id: string; left: number; top: number } | null>(
+    null,
+  );
+  const [closingImageMenu, setClosingImageMenu] = useState<{
+    id: string;
+    left: number;
+    top: number;
+  } | null>(null);
   const [canvasMenu, setCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
-  const [closingCanvasMenu, setClosingCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
+  const [closingCanvasMenu, setClosingCanvasMenu] = useState<{
+    clientX: number;
+    clientY: number;
+  } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [editingTextCardId, setEditingTextCardId] = useState<string | null>(null);
@@ -316,12 +462,18 @@ function App() {
   const [canvasGridStyle, setCanvasGridStyle] = useState<CanvasGridStyle>("dots");
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
+  const [defaultElementColors, setDefaultElementColors] =
+    useState<DefaultElementColors>(DEFAULT_ELEMENT_COLORS);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [shadowsUnderElements, setShadowsUnderElements] = useState(true);
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
   const [discordRpcShowCanvas, setDiscordRpcShowCanvas] = useState(true);
   const [minimapEnabled, setMinimapEnabled] = useState(true);
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toolbarButtonsVisible, setToolbarButtonsVisible] = useState(false);
-  const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(undefined);
+  const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
+    undefined,
+  );
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
@@ -333,11 +485,13 @@ function App() {
   const [canvasCycleHighlightId, setCanvasCycleHighlightId] = useState<string | null>(null);
   const [extensionsOpen, setExtensionsOpen] = useState(false);
   const [extensionsClosing, setExtensionsClosing] = useState(false);
-  const [quickExtensionsMenu, setQuickExtensionsMenu] =
-    useState<{ left: number; top: number } | null>(null);
+  const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const [frostedGlassValues, setFrostedGlassValues] = useState(DEFAULT_FROSTED_GLASS_VALUES);
   const [leftPanelCardValues, setLeftPanelCardValues] = useState(DEFAULT_LEFT_PANEL_CARD_VALUES);
-  const [storageError, setStorageError] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState<StorageErrorState | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
@@ -353,14 +507,10 @@ function App() {
   const [pulsingTextBlockIds, setPulsingTextBlockIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
-  const [activeCanvas, setActiveCanvas] = useState<TaskCanvas>(DEFAULT_CANVAS);
-  const [canvases, setCanvases] = useState<TaskCanvas[]>([DEFAULT_CANVAS]);
-  const [elements, setElements] = useState<ContainerElement[]>(DEFAULT_ELEMENTS);
-  const [textCards, setTextCards] = useState<TextCardElement[]>([]);
-  const [textBlocks, setTextBlocks] = useState<TextBlockElement[]>([]);
-  const [images, setImages] = useState<ImageElement[]>([]);
-  const [textCardDropPreview, setTextCardDropPreview] =
-    useState<{ containerId: string; index: number } | null>(null);
+  const [textCardDropPreview, setTextCardDropPreview] = useState<{
+    containerId: string;
+    index: number;
+  } | null>(null);
 
   useEffect(() => {
     const resetDailyCheckboxes = () => {
@@ -368,8 +518,7 @@ function App() {
       const dueContainerIds = elements
         .filter(
           (element) =>
-            element.extensions?.dailyReset &&
-            element.extensions.dailyReset.lastResetDate !== today,
+            element.extensions?.dailyReset && element.extensions.dailyReset.lastResetDate !== today,
         )
         .map((element) => element.id);
       if (dueContainerIds.length === 0) {
@@ -410,8 +559,10 @@ function App() {
     resetDailyCheckboxes();
     const interval = window.setInterval(resetDailyCheckboxes, 60_000);
     return () => window.clearInterval(interval);
-  }, [elements]);
-  const [textCardDetachedContainerId, setTextCardDetachedContainerId] = useState<string | null>(null);
+  }, [elements, setElements, setTextCards]);
+  const [textCardDetachedContainerId, setTextCardDetachedContainerId] = useState<string | null>(
+    null,
+  );
   const [settlingTextCardIds, setSettlingTextCardIds] = useState<string[]>([]);
   const [textCardReleaseAnimation, setTextCardReleaseAnimation] =
     useState<TextCardReleaseAnimation | null>(null);
@@ -477,18 +628,23 @@ function App() {
 
     return grouped;
   }, [textCards]);
-  const looseTextCards = useMemo(
-    () => textCards.filter((card) => !card.containerId),
-    [textCards],
-  );
-  const imagesById = useMemo(
-    () => new Map(images.map((image) => [image.id, image])),
-    [images],
-  );
-  const looseImages = useMemo(
-    () => images.filter((image) => !image.containerId),
-    [images],
-  );
+  const looseTextCards = useMemo(() => textCards.filter((card) => !card.containerId), [textCards]);
+  const imagesById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
+  const looseImages = useMemo(() => images.filter((image) => !image.containerId), [images]);
+  const isElementLocked = (id: string) =>
+    Boolean(
+      (
+        containersById.get(id) ??
+        textBlocksById.get(id) ??
+        textCardsById.get(id) ??
+        imagesById.get(id)
+      )?.extensions?.lock?.enabled,
+    );
+  const isElementDeletionLocked = (id: string) =>
+    isElementLocked(id) ||
+    (containersById.has(id) &&
+      (textCards.some((card) => card.containerId === id && isElementLocked(card.id)) ||
+        images.some((image) => image.containerId === id && isElementLocked(image.id))));
   const draggedTextCardIds = dragState?.type === "text-card-move" ? dragState.ids : EMPTY_IDS;
   const renderedLooseTextCards = useMemo(() => {
     const extraCards: TextCardElement[] = [];
@@ -554,9 +710,21 @@ function App() {
     return queuedSave;
   };
 
+  const activeCachedImages = useMemo(
+    () =>
+      images.flatMap((image) =>
+        image.imageId ? [{ hash: image.imageId, format: image.format }] : [],
+      ),
+    [images],
+  );
   const { imageUrlVersion, getImageUrl, storeImageFromBytes } = useImageCache({
+    activeImages: activeCachedImages,
     onStoreError: (error) => {
-      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+      showToast({
+        tone: "error",
+        title: "Could not add image",
+        message: commandErrorMessage(error),
+      });
     },
   });
   // Latest image drop/paste handlers, refreshed each render so the once-mounted
@@ -569,50 +737,64 @@ function App() {
     addImageFromBuffer: (buffer: ArrayBuffer, clientX: number, clientY: number) => void;
   } | null>(null);
 
-  const collectAllImageIds = (data: AppData): string[] => {
-    const ids = new Set<string>();
-    data.canvases.forEach((canvas) => {
-      (canvas.images ?? []).forEach((image) => {
-        if (image.imageId) {
-          ids.add(image.imageId);
-        }
-      });
-    });
-    return Array.from(ids);
+  const clampCanvasSize = (value: number) =>
+    clamp(Number.isFinite(value) ? value : CANVAS_WIDTH, 600, 10000);
+
+  activeCanvasIdRef.current = activeCanvas.id;
+
+  const markCanvasDirty = (canvasId: string) => {
+    const currentVersion = dirtyCanvasVersionsRef.current.get(canvasId) ?? 0;
+    dirtyCanvasVersionsRef.current.set(canvasId, currentVersion + 1);
   };
 
-  const collectImageGarbage = (data: AppData) => {
-    invoke("gc_images", { used: collectAllImageIds(data) }).catch((error) => {
-      console.error("Image garbage collection failed", error);
-    });
+  const applyPendingCanvasDeletions = (canvas: TaskCanvas): TaskCanvas => {
+    const pending = pendingCanvasDeletionsRef.current.get(canvas.id);
+    if (!pending) {
+      return canvas;
+    }
+
+    return {
+      ...canvas,
+      containers: canvas.containers.filter((element) => !pending.containers.has(element.id)),
+      textCards: canvas.textCards.filter((card) => !pending.textCards.has(card.id)),
+      textBlocks: (canvas.textBlocks ?? []).filter(
+        (element) => !pending.textBlocks.has(element.id),
+      ),
+      images: (canvas.images ?? []).filter((image) => !pending.images.has(image.id)),
+    };
   };
 
-  const clampCanvasSize = (value: number) => clamp(Number.isFinite(value) ? value : CANVAS_WIDTH, 600, 10000);
-
-  const getActiveCanvasSnapshot = (): TaskCanvas => ({
-    ...activeCanvas,
-    containers: elements,
-    textCards,
-    textBlocks,
-    images,
-    pan,
-    zoom,
-    previewViewport: {
-      width: stageRef.current?.clientWidth ?? window.innerWidth,
-      height: stageRef.current?.clientHeight ?? window.innerHeight,
-    },
-  });
+  const getActiveCanvasSnapshot = (): TaskCanvas =>
+    applyPendingCanvasDeletions({
+      ...activeCanvas,
+      containers: elements,
+      textCards,
+      textBlocks,
+      images,
+      pan,
+      zoom,
+      previewViewport: {
+        width: stageRef.current?.clientWidth ?? window.innerWidth,
+        height: stageRef.current?.clientHeight ?? window.innerHeight,
+      },
+    });
 
   const getPersistedCanvases = () => {
     const snapshot = getActiveCanvasSnapshot();
-    return canvases.map((canvas) => (canvas.id === snapshot.id ? snapshot : canvas));
+    return canvases.map((canvas) =>
+      canvas.id === snapshot.id ? snapshot : applyPendingCanvasDeletions(canvas),
+    );
   };
 
   const getCurrentAppData = (): AppData => ({
+    schemaVersion: 1,
     activeCanvasId: activeCanvas.id,
     canvases: getPersistedCanvases(),
     canvasGridStyle,
     canvasGridOpacity,
+    defaultElementColors,
+    recentColors,
+    shadowsUnderElements,
     discordRpcEnabled,
     discordRpcShowCanvas,
     minimapEnabled,
@@ -620,41 +802,108 @@ function App() {
     toolbarButtonsVisible,
     dismissedUpdateVersion,
   });
+  latestDataGetterRef.current = getCurrentAppData;
 
   const updateHistoryState = (canvasId = activeCanvas.id) => {
     setHistoryState(getCanvasHistoryState(historyRef.current, historyIndexRef.current, canvasId));
   };
 
-  const pushHistorySnapshot = (data: AppData) => {
-    const nextHistory = pushCanvasHistorySnapshot(historyRef.current, historyIndexRef.current, data);
+  const pushHistorySnapshot = (data: AppData, canvasId = data.activeCanvasId) => {
+    const nextHistory = pushCanvasHistorySnapshot(
+      historyRef.current,
+      historyIndexRef.current,
+      data,
+      canvasId,
+    );
     if (!nextHistory) {
       return;
     }
 
     historyRef.current = nextHistory.historyByCanvasId;
     historyIndexRef.current = nextHistory.historyIndexByCanvasId;
-    updateHistoryState(nextHistory.canvasId);
+    if (nextHistory.canvasId === activeCanvasIdRef.current) {
+      updateHistoryState(nextHistory.canvasId);
+    }
   };
 
-  const scheduleHistorySnapshot = (data: AppData) => {
+  const recordHistorySnapshot = (data: AppData, canvasId = data.activeCanvasId) => {
     if (!appDataLoadedRef.current || applyingHistoryRef.current) {
       return;
     }
 
-    if (historyTimeoutRef.current) {
-      window.clearTimeout(historyTimeoutRef.current);
+    if ((historyTransactionsRef.current.get(canvasId)?.size ?? 0) > 0) {
+      dirtyHistoryTransactionsRef.current.add(canvasId);
+      if (canvasId === activeCanvasIdRef.current) {
+        setHistoryState((current) =>
+          current.canUndo && !current.canRedo ? current : { canUndo: true, canRedo: false },
+        );
+      }
+      return;
     }
 
-    historyTimeoutRef.current = window.setTimeout(() => {
-      historyTimeoutRef.current = null;
-      pushHistorySnapshot(data);
-    }, HISTORY_DEBOUNCE_MS);
+    dirtyHistoryTransactionsRef.current.delete(canvasId);
+    pushHistorySnapshot(data, canvasId);
   };
+
+  const beginHistoryTransaction = (canvasId: string, transactionId: string) => {
+    if (!appDataLoadedRef.current || applyingHistoryRef.current) {
+      return;
+    }
+
+    const transactions = historyTransactionsRef.current.get(canvasId) ?? new Set<string>();
+    if (transactions.has(transactionId)) {
+      return;
+    }
+
+    if (transactions.size === 0) {
+      dirtyHistoryTransactionsRef.current.delete(canvasId);
+      pushHistorySnapshot(latestDataGetterRef.current(), canvasId);
+    }
+    transactions.add(transactionId);
+    historyTransactionsRef.current.set(canvasId, transactions);
+  };
+
+  const finishHistoryTransaction = (
+    canvasId: string,
+    transactionId: string,
+    finalData?: AppData,
+  ) => {
+    const transactions = historyTransactionsRef.current.get(canvasId);
+    if (!transactions?.delete(transactionId)) {
+      return;
+    }
+
+    if (transactions.size > 0) {
+      return;
+    }
+
+    historyTransactionsRef.current.delete(canvasId);
+    const transactionChanged = dirtyHistoryTransactionsRef.current.delete(canvasId);
+    if (finalData && transactionChanged) {
+      recordHistorySnapshot(finalData, canvasId);
+    }
+  };
+
+  const cancelHistoryTransactions = (canvasId: string) => {
+    historyTransactionsRef.current.delete(canvasId);
+    dirtyHistoryTransactionsRef.current.delete(canvasId);
+  };
+
+  const commitHistorySnapshot = (canvasId: string, data = latestDataGetterRef.current()) => {
+    pushHistorySnapshot(data, canvasId);
+  };
+
+  const lifecycleActions = useStableCallbacks({
+    getActiveCanvasSnapshot,
+    getCurrentAppData,
+    recordHistorySnapshot,
+    updateHistoryState,
+  });
 
   useEffect(() => {
     let active = true;
 
-    invoke<AppData | null>("load_app_data")
+    invoke<unknown | null>("load_app_data")
       .then((data) => {
         if (!active) {
           return;
@@ -667,17 +916,15 @@ function App() {
             normalized.canvases[0] ??
             DEFAULT_CANVAS;
 
+          activeCanvasIdRef.current = selectedCanvas.id;
           latestAppDataRef.current = normalized;
           setCanvases(normalized.canvases.length ? normalized.canvases : [DEFAULT_CANVAS]);
           setActiveCanvas(selectedCanvas);
-          setElements(selectedCanvas.containers);
-          setTextCards(selectedCanvas.textCards);
-          setTextBlocks(selectedCanvas.textBlocks ?? []);
-          setImages(selectedCanvas.images ?? []);
-          setPan(selectedCanvas.pan);
-          setZoom(selectedCanvas.zoom);
           setCanvasGridStyle(normalized.canvasGridStyle);
           setCanvasGridOpacity(normalized.canvasGridOpacity);
+          setDefaultElementColors(normalized.defaultElementColors);
+          setRecentColors(normalized.recentColors);
+          setShadowsUnderElements(normalized.shadowsUnderElements);
           setDiscordRpcEnabled(normalized.discordRpcEnabled);
           setDiscordRpcShowCanvas(normalized.discordRpcShowCanvas);
           setMinimapEnabled(normalized.minimapEnabled);
@@ -687,12 +934,13 @@ function App() {
           const initialHistory = createInitialCanvasHistory(selectedCanvas);
           historyRef.current = initialHistory.historyByCanvasId;
           historyIndexRef.current = initialHistory.historyIndexByCanvasId;
-          updateHistoryState(selectedCanvas.id);
+          lifecycleActions.updateHistoryState(selectedCanvas.id);
         } else {
           const initialHistory = createInitialCanvasHistory(DEFAULT_CANVAS);
           historyRef.current = initialHistory.historyByCanvasId;
           historyIndexRef.current = initialHistory.historyIndexByCanvasId;
-          updateHistoryState(DEFAULT_CANVAS.id);
+          lifecycleActions.updateHistoryState(DEFAULT_CANVAS.id);
+          markCanvasDirty(DEFAULT_CANVAS.id);
         }
 
         setStorageError(null);
@@ -700,25 +948,37 @@ function App() {
         appDataLoadedRef.current = true;
       })
       .catch((error) => {
-        const message = `Failed to load app data: ${String(error)}`;
-        setStorageError(message);
-        console.error(message);
+        const storageFailure = createStorageError("Failed to load app data", error);
+        setStorageError(storageFailure);
+        console.error(storageFailure.message);
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [
+    lifecycleActions,
+    setActiveCanvas,
+    setCanvases,
+    setElements,
+    setImages,
+    setPan,
+    setTextBlocks,
+    setTextCards,
+    setZoom,
+  ]);
 
   useEffect(() => {
-    const data = getCurrentAppData();
+    const data = lifecycleActions.getCurrentAppData();
     latestAppDataRef.current = data;
-    scheduleHistorySnapshot(data);
   }, [
     activeCanvas,
     canvasGridOpacity,
     canvasGridStyle,
     canvases,
+    defaultElementColors,
+    recentColors,
+    shadowsUnderElements,
     dismissedUpdateVersion,
     discordRpcEnabled,
     discordRpcShowCanvas,
@@ -731,7 +991,36 @@ function App() {
     textCards,
     toolbarButtonsVisible,
     zoom,
+    lifecycleActions,
   ]);
+
+  useEffect(() => {
+    const data = lifecycleActions.getCurrentAppData();
+    latestAppDataRef.current = data;
+    lifecycleActions.recordHistorySnapshot(data, activeCanvas.id);
+  }, [
+    activeCanvas.height,
+    activeCanvas.id,
+    activeCanvas.name,
+    activeCanvas.width,
+    elements,
+    images,
+    textBlocks,
+    textCards,
+    lifecycleActions,
+  ]);
+
+  useEffect(() => {
+    const transactionActive = dragState !== null;
+    const transactionWasActive = pointerHistoryTransactionActiveRef.current;
+    pointerHistoryTransactionActiveRef.current = transactionActive;
+
+    if (transactionWasActive && !transactionActive) {
+      const data = lifecycleActions.getCurrentAppData();
+      latestAppDataRef.current = data;
+      lifecycleActions.recordHistorySnapshot(data, activeCanvas.id);
+    }
+  }, [activeCanvas.id, dragState, lifecycleActions]);
 
   useEffect(() => {
     if (!appDataLoadedRef.current) {
@@ -742,19 +1031,15 @@ function App() {
   }, [activeCanvas.id, elements, images, textBlocks, textCards]);
 
   useEffect(() => {
-    if (appDataLoadedRef.current) {
-      imageGarbageCollectionNeededRef.current = true;
-    }
-  }, [canvases.length, images]);
-
-  useEffect(() => {
     latestCameraRef.current = { pan, zoom };
   }, [pan, zoom]);
 
   useEffect(() => {
     const activeHistory = historyRef.current[activeCanvas.id];
     if (!activeHistory) {
-      const snapshot = omitCameraFromHistory(cloneCanvas(getActiveCanvasSnapshot()));
+      const snapshot = omitCameraFromHistory(
+        cloneCanvas(lifecycleActions.getActiveCanvasSnapshot()),
+      );
       historyRef.current = {
         ...historyRef.current,
         [activeCanvas.id]: [snapshot],
@@ -765,10 +1050,10 @@ function App() {
       };
     }
 
-    updateHistoryState(activeCanvas.id);
-  }, [activeCanvas.id]);
+    lifecycleActions.updateHistoryState(activeCanvas.id);
+  }, [activeCanvas.id, lifecycleActions]);
 
-  const cancelAutosave = useAutosave({
+  const { cancelAutosave, flushAutosave } = useAutosave({
     enabled: appDataLoaded,
     dataRef: latestAppDataRef,
     dependencies: [
@@ -776,6 +1061,9 @@ function App() {
       canvasGridOpacity,
       canvasGridStyle,
       canvases,
+      defaultElementColors,
+      recentColors,
+      shadowsUnderElements,
       discordRpcEnabled,
       discordRpcShowCanvas,
       dismissedUpdateVersion,
@@ -790,19 +1078,65 @@ function App() {
       zoom,
     ],
     save: persistAppData,
-    onSaved: () => {
-      setStorageError(null);
-      if (imageGarbageCollectionNeededRef.current) {
-        imageGarbageCollectionNeededRef.current = false;
-        collectImageGarbage(latestAppDataRef.current);
-      }
-    },
+    onSaved: () => setStorageError(null),
     onError: (error) => {
-      const message = `Failed to save app data: ${String(error)}`;
-      setStorageError(message);
-      console.error(message);
+      const storageFailure = createStorageError("Failed to save app data", error);
+      setStorageError(storageFailure);
+      console.error(storageFailure.message);
     },
   });
+
+  useEffect(() => {
+    if (!appDataLoaded) {
+      return;
+    }
+
+    const appWindow = getCurrentWindow();
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+
+    void appWindow
+      .onCloseRequested(async (event) => {
+        event.preventDefault();
+        if (closeInProgressRef.current) {
+          return;
+        }
+
+        closeInProgressRef.current = true;
+        const latestData = latestDataGetterRef.current();
+        latestAppDataRef.current = latestData;
+        markCanvasDirty(latestData.activeCanvasId);
+
+        try {
+          await flushAutosave();
+          await appWindow.destroy();
+        } catch (error) {
+          closeInProgressRef.current = false;
+          const storageFailure = createStorageError(
+            "Close cancelled because TaskMap could not save",
+            error,
+          );
+          setStorageError(storageFailure);
+          showToast({
+            tone: "error",
+            title: "Could not close safely",
+            message: commandErrorMessage(error),
+          });
+        }
+      })
+      .then((stopListening) => {
+        if (disposed) {
+          stopListening();
+        } else {
+          unlisten = stopListening;
+        }
+      });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [appDataLoaded, flushAutosave, showToast]);
 
   useDiscordRpc({
     appDataLoaded,
@@ -817,20 +1151,22 @@ function App() {
 
     let cancelled = false;
 
-    getCurrentWindow().setContentProtected(privacyModeEnabled).catch((error) => {
-      if (cancelled) {
-        return;
-      }
+    getCurrentWindow()
+      .setContentProtected(privacyModeEnabled)
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
 
-      if (privacyModeEnabled) {
-        setPrivacyModeEnabled(false);
-      }
-      showToast({
-        tone: "error",
-        title: "Privacy mode unavailable",
-        message: String(error),
+        if (privacyModeEnabled) {
+          setPrivacyModeEnabled(false);
+        }
+        showToast({
+          tone: "error",
+          title: "Privacy mode unavailable",
+          message: commandErrorMessage(error),
+        });
       });
-    });
 
     return () => {
       cancelled = true;
@@ -854,6 +1190,9 @@ function App() {
   });
 
   useEffect(() => {
+    const pendingDeletionTimeouts = pendingDeletionTimeoutsRef.current;
+    const historyTransactions = historyTransactionsRef.current;
+    const dirtyHistoryTransactions = dirtyHistoryTransactionsRef.current;
     return () => {
       if (minimapTimeoutRef.current) {
         window.clearTimeout(minimapTimeoutRef.current);
@@ -861,9 +1200,12 @@ function App() {
       if (minimapUnmountTimeoutRef.current) {
         window.clearTimeout(minimapUnmountTimeoutRef.current);
       }
-      if (historyTimeoutRef.current) {
-        window.clearTimeout(historyTimeoutRef.current);
-      }
+      historyTransactions.clear();
+      dirtyHistoryTransactions.clear();
+      pendingDeletionTimeouts.forEach((timeouts) =>
+        timeouts.forEach((timeout) => window.clearTimeout(timeout)),
+      );
+      pendingDeletionTimeouts.clear();
     };
   }, []);
 
@@ -961,7 +1303,10 @@ function App() {
     const current = textCardDropPreviewRef.current;
     if (
       current === preview ||
-      (current && preview && current.containerId === preview.containerId && current.index === preview.index)
+      (current &&
+        preview &&
+        current.containerId === preview.containerId &&
+        current.index === preview.index)
     ) {
       return;
     }
@@ -1027,8 +1372,14 @@ function App() {
     }
 
     return [...cards].sort((left, right) => {
-      const leftValue = sorting.mode === "alphabet" ? getAlphabetSortKey(left.text) : left.accent.toLocaleLowerCase();
-      const rightValue = sorting.mode === "alphabet" ? getAlphabetSortKey(right.text) : right.accent.toLocaleLowerCase();
+      const leftValue =
+        sorting.mode === "alphabet"
+          ? getAlphabetSortKey(left.text)
+          : left.accent.toLocaleLowerCase();
+      const rightValue =
+        sorting.mode === "alphabet"
+          ? getAlphabetSortKey(right.text)
+          : right.accent.toLocaleLowerCase();
       const groupDifference =
         sorting.mode === "alphabet" ? getSortGroup(leftValue) - getSortGroup(rightValue) : 0;
       const valueDifference = leftValue.localeCompare(rightValue);
@@ -1062,7 +1413,10 @@ function App() {
   };
 
   const getContainerMaxScroll = (container: ContainerElement, cards = textCards) =>
-    Math.max(0, getContainerContentHeight(container, cards) - getContainerViewportHeight(container));
+    Math.max(
+      0,
+      getContainerContentHeight(container, cards) - getContainerViewportHeight(container),
+    );
 
   const getContainerScrollOffset = (container: ContainerElement) =>
     clamp(containerScrollOffsets[container.id] ?? 0, 0, getContainerMaxScroll(container));
@@ -1075,7 +1429,9 @@ function App() {
     const currentOffset = getContainerScrollOffset(container);
     const viewportHeight = getContainerViewportHeight(container);
     const maxScroll = getContainerMaxScroll(container, cards);
-    const slotTop = CONTAINER_TEXT_CARD_PADDING + visibleIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
+    const slotTop =
+      CONTAINER_TEXT_CARD_PADDING +
+      visibleIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
     const slotBottom = slotTop + CONTAINER_TEXT_CARD_ROW_HEIGHT;
     const visibleTop = currentOffset + CONTAINER_TEXT_CARD_PADDING;
     const visibleBottom = currentOffset + viewportHeight - CONTAINER_TEXT_CARD_PADDING;
@@ -1150,7 +1506,7 @@ function App() {
 
   const getOrderedContainerTextCards = (containerId: string, cards = textCards) =>
     cards === textCards
-      ? orderedTextCardsByContainerId.get(containerId) ?? []
+      ? (orderedTextCardsByContainerId.get(containerId) ?? [])
       : cards
           .filter((card) => card.containerId === containerId)
           .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
@@ -1177,7 +1533,14 @@ function App() {
   };
 
   const toContainerRelativePosition = (
-    position: { x: number; y: number; width?: number; height?: number; maxWidth?: number; text?: string },
+    position: {
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      maxWidth?: number;
+      text?: string;
+    },
     container: ContainerElement,
   ) => ({
     ...position,
@@ -1190,7 +1553,8 @@ function App() {
       return undefined;
     }
 
-    const draggingTextCard = dragState?.type === "text-card-move" && dragState.ids.includes(card.id);
+    const draggingTextCard =
+      dragState?.type === "text-card-move" && dragState.ids.includes(card.id);
     if (draggingTextCard) {
       return { x: card.x, y: card.y };
     }
@@ -1434,8 +1798,12 @@ function App() {
         break;
       }
     }
-    const nonTargetsBeforeFirst = current.slice(0, firstIndex).filter((item) => !targetIds.has(item.id)).length;
-    const nonTargetsThroughLast = current.slice(0, lastIndex + 1).filter((item) => !targetIds.has(item.id)).length;
+    const nonTargetsBeforeFirst = current
+      .slice(0, firstIndex)
+      .filter((item) => !targetIds.has(item.id)).length;
+    const nonTargetsThroughLast = current
+      .slice(0, lastIndex + 1)
+      .filter((item) => !targetIds.has(item.id)).length;
     const nextIndex =
       direction === "back"
         ? 0
@@ -1453,16 +1821,16 @@ function App() {
   const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
     (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
 
-  const moveCanvasLayers = (
-    id: string,
-    direction: "back" | "backward" | "forward" | "front",
-  ) => {
+  const moveCanvasLayers = (id: string, direction: "back" | "backward" | "forward" | "front") => {
     const topLevelItems = [
       ...elements,
       ...textBlocks,
       ...textCards.filter((card) => !card.containerId),
       ...images.filter((image) => !image.containerId),
-    ].sort((left, right) => (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER));
+    ].sort(
+      (left, right) =>
+        (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER),
+    );
     const topLevelIds = new Set(topLevelItems.map((item) => item.id));
     const actionIds = getLayerActionIds(id, (actionId) => topLevelIds.has(actionId));
     const reordered = moveLayerItems(topLevelItems, actionIds, direction);
@@ -1477,22 +1845,19 @@ function App() {
     setRenamingId(null);
   };
 
-  const topLevelLayerSignature = JSON.stringify([
-    ...elements.map((item) => ["container", item.id, item.layer]),
-    ...textBlocks.map((item) => ["text-block", item.id, item.layer]),
-    ...textCards.filter((item) => !item.containerId).map((item) => ["text-card", item.id, item.layer]),
-    ...images.filter((item) => !item.containerId).map((item) => ["image", item.id, item.layer]),
-  ]);
   const topLevelLayerMap = useMemo(() => {
     const ordered = [
       ...elements,
       ...textBlocks,
       ...textCards.filter((card) => !card.containerId),
       ...images.filter((image) => !image.containerId),
-    ].sort((left, right) => (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER));
+    ].sort(
+      (left, right) =>
+        (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER),
+    );
 
     return new Map(ordered.map((item, index) => [item.id, index]));
-  }, [topLevelLayerSignature]);
+  }, [elements, images, textBlocks, textCards]);
 
   const layeredElements = useCanvasLayers(elements, topLevelLayerMap);
   const layeredTextBlocks = useCanvasLayers(textBlocks, topLevelLayerMap);
@@ -1544,20 +1909,109 @@ function App() {
     }, 180);
   };
 
-  const removeImages = (ids: string[]) => {
-    if (ids.length === 0) {
+  const registerPendingDeletion = (
+    canvasId: string,
+    kind: keyof PendingCanvasDeletions,
+    ids: string[],
+  ) => {
+    const pending = pendingCanvasDeletionsRef.current.get(canvasId) ?? {
+      containers: new Set<string>(),
+      textCards: new Set<string>(),
+      textBlocks: new Set<string>(),
+      images: new Set<string>(),
+    };
+    ids.forEach((id) => pending[kind].add(id));
+    pendingCanvasDeletionsRef.current.set(canvasId, pending);
+    markCanvasDirty(canvasId);
+  };
+
+  const recordPendingDeletion = (canvasId: string) => {
+    const latestData = latestDataGetterRef.current();
+    latestAppDataRef.current = latestData;
+    recordHistorySnapshot(latestData, canvasId);
+  };
+
+  const finishPendingDeletion = (
+    canvasId: string,
+    kind: keyof PendingCanvasDeletions,
+    ids: string[],
+  ) => {
+    const pending = pendingCanvasDeletionsRef.current.get(canvasId);
+    if (!pending) {
+      return;
+    }
+    ids.forEach((id) => pending[kind].delete(id));
+    if (
+      pending.containers.size === 0 &&
+      pending.textCards.size === 0 &&
+      pending.textBlocks.size === 0 &&
+      pending.images.size === 0
+    ) {
+      pendingCanvasDeletionsRef.current.delete(canvasId);
+    }
+  };
+
+  const scheduleDeletionCommit = (canvasId: string, commit: () => void, delayMs: number) => {
+    const timeout = window.setTimeout(() => {
+      const canvasTimeouts = pendingDeletionTimeoutsRef.current.get(canvasId);
+      canvasTimeouts?.delete(timeout);
+      if (canvasTimeouts?.size === 0) {
+        pendingDeletionTimeoutsRef.current.delete(canvasId);
+      }
+      commit();
+    }, delayMs);
+    const canvasTimeouts = pendingDeletionTimeoutsRef.current.get(canvasId) ?? new Set<number>();
+    canvasTimeouts.add(timeout);
+    pendingDeletionTimeoutsRef.current.set(canvasId, canvasTimeouts);
+  };
+
+  const cancelPendingDeletionCommits = (canvasId: string) => {
+    pendingDeletionTimeoutsRef.current
+      .get(canvasId)
+      ?.forEach((timeout) => window.clearTimeout(timeout));
+    pendingDeletionTimeoutsRef.current.delete(canvasId);
+    pendingCanvasDeletionsRef.current.delete(canvasId);
+    if (canvasId === activeCanvasIdRef.current) {
+      setDeletingIds([]);
+      setDeletingTextCardIds([]);
+      setDeletingTextBlockIds([]);
+      setDeletingImageIds([]);
+    }
+  };
+
+  const removeImages = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
+    const idsToRemove = ids.filter(
+      (id) => force || canvasId !== activeCanvasIdRef.current || !isElementLocked(id),
+    );
+    if (idsToRemove.length === 0) {
       return;
     }
 
-    setDeletingImageIds((current) => Array.from(new Set([...current, ...ids])));
-    setImageMenu((current) => (current && ids.includes(current.id) ? null : current));
-    setSelectedIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
-    setLoadingImageIds((current) => current.filter((loadingId) => !ids.includes(loadingId)));
-    window.setTimeout(() => {
-      setImages((current) => current.filter((image) => !ids.includes(image.id)));
-      setDeletingImageIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
-      setEnteringImageIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
-    }, 160);
+    const idSet = new Set(idsToRemove);
+    registerPendingDeletion(canvasId, "images", idsToRemove);
+    recordPendingDeletion(canvasId);
+    if (canvasId === activeCanvasIdRef.current) {
+      setDeletingImageIds((current) => Array.from(new Set([...current, ...idsToRemove])));
+      setImageMenu((current) => (current && idSet.has(current.id) ? null : current));
+      setSelectedIds((current) => current.filter((selectedId) => !idSet.has(selectedId)));
+      setLoadingImageIds((current) => current.filter((loadingId) => !idSet.has(loadingId)));
+    }
+    scheduleDeletionCommit(
+      canvasId,
+      () => {
+        setCanvases((current) =>
+          current.map((canvas) =>
+            canvas.id === canvasId
+              ? { ...canvas, images: (canvas.images ?? []).filter((image) => !idSet.has(image.id)) }
+              : canvas,
+          ),
+        );
+        setDeletingImageIds((current) => current.filter((deletingId) => !idSet.has(deletingId)));
+        setEnteringImageIds((current) => current.filter((enteringId) => !idSet.has(enteringId)));
+        finishPendingDeletion(canvasId, "images", idsToRemove);
+      },
+      160,
+    );
   };
 
   const pulseTextCard = (id: string) => {
@@ -1581,82 +2035,192 @@ function App() {
     }, 260);
   };
 
-  const removeContainers = (ids: string[]) => {
-    if (ids.length === 0) {
+  const removeContainers = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
+    const idsToRemove = ids.filter((id) => {
+      if (force || canvasId !== activeCanvasIdRef.current) {
+        return true;
+      }
+      return !isElementDeletionLocked(id);
+    });
+    if (idsToRemove.length === 0) {
       return;
     }
 
-    const idsToRemove = new Set(ids);
+    const idsToRemoveSet = new Set(idsToRemove);
     const containedTextCardIds = textCards
-      .filter((card) => card.containerId && idsToRemove.has(card.containerId))
+      .filter((card) => card.containerId && idsToRemoveSet.has(card.containerId))
       .map((card) => card.id);
     const containedImageIds = images
-      .filter((image) => image.containerId && idsToRemove.has(image.containerId))
+      .filter((image) => image.containerId && idsToRemoveSet.has(image.containerId))
       .map((image) => image.id);
 
-    setDeletingIds((current) => Array.from(new Set([...current, ...ids])));
+    registerPendingDeletion(canvasId, "containers", idsToRemove);
+    registerPendingDeletion(canvasId, "textCards", containedTextCardIds);
+    registerPendingDeletion(canvasId, "images", containedImageIds);
+    recordPendingDeletion(canvasId);
+    setDeletingIds((current) => Array.from(new Set([...current, ...idsToRemove])));
     setDeletingTextCardIds((current) => Array.from(new Set([...current, ...containedTextCardIds])));
     setDeletingImageIds((current) => Array.from(new Set([...current, ...containedImageIds])));
     setSelectedIds((current) =>
       current.filter(
         (selectedId) =>
-          !ids.includes(selectedId) &&
+          !idsToRemoveSet.has(selectedId) &&
           !containedTextCardIds.includes(selectedId) &&
           !containedImageIds.includes(selectedId),
       ),
     );
-    setEditingTextCardId((current) => (current && containedTextCardIds.includes(current) ? null : current));
-    setTextCardMenu((current) => (current && containedTextCardIds.includes(current.id) ? null : current));
+    setEditingTextCardId((current) =>
+      current && containedTextCardIds.includes(current) ? null : current,
+    );
+    setTextCardMenu((current) =>
+      current && containedTextCardIds.includes(current.id) ? null : current,
+    );
     setImageMenu((current) => (current && containedImageIds.includes(current.id) ? null : current));
-    setLoadingImageIds((current) => current.filter((loadingId) => !containedImageIds.includes(loadingId)));
-    window.setTimeout(() => {
-      setElements((current) => current.filter((element) => !ids.includes(element.id)));
-      setTextCards((current) =>
-        normalizeTextCardOrders(current.filter((card) => !containedTextCardIds.includes(card.id))),
-      );
-      setImages((current) => current.filter((image) => !containedImageIds.includes(image.id)));
-      setDeletingIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
-      setEnteringIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
-      setDeletingTextCardIds((current) => current.filter((deletingId) => !containedTextCardIds.includes(deletingId)));
-      setEnteringTextCardIds((current) => current.filter((enteringId) => !containedTextCardIds.includes(enteringId)));
-      setPulsingTextCardIds((current) => current.filter((pulsingId) => !containedTextCardIds.includes(pulsingId)));
-      setDeletingImageIds((current) => current.filter((deletingId) => !containedImageIds.includes(deletingId)));
-      setEnteringImageIds((current) => current.filter((enteringId) => !containedImageIds.includes(enteringId)));
-    }, 160);
+    setLoadingImageIds((current) =>
+      current.filter((loadingId) => !containedImageIds.includes(loadingId)),
+    );
+    scheduleDeletionCommit(
+      canvasId,
+      () => {
+        const containedTextCardIdSet = new Set(containedTextCardIds);
+        const containedImageIdSet = new Set(containedImageIds);
+        setCanvases((current) =>
+          current.map((canvas) =>
+            canvas.id === canvasId
+              ? {
+                  ...canvas,
+                  containers: canvas.containers.filter(
+                    (element) => !idsToRemoveSet.has(element.id),
+                  ),
+                  textCards: normalizeTextCardOrders(
+                    canvas.textCards.filter((card) => !containedTextCardIdSet.has(card.id)),
+                  ),
+                  images: (canvas.images ?? []).filter(
+                    (image) => !containedImageIdSet.has(image.id),
+                  ),
+                }
+              : canvas,
+          ),
+        );
+        setDeletingIds((current) =>
+          current.filter((deletingId) => !idsToRemoveSet.has(deletingId)),
+        );
+        setEnteringIds((current) =>
+          current.filter((enteringId) => !idsToRemoveSet.has(enteringId)),
+        );
+        setDeletingTextCardIds((current) =>
+          current.filter((deletingId) => !containedTextCardIds.includes(deletingId)),
+        );
+        setEnteringTextCardIds((current) =>
+          current.filter((enteringId) => !containedTextCardIds.includes(enteringId)),
+        );
+        setPulsingTextCardIds((current) =>
+          current.filter((pulsingId) => !containedTextCardIds.includes(pulsingId)),
+        );
+        setDeletingImageIds((current) =>
+          current.filter((deletingId) => !containedImageIds.includes(deletingId)),
+        );
+        setEnteringImageIds((current) =>
+          current.filter((enteringId) => !containedImageIds.includes(enteringId)),
+        );
+        finishPendingDeletion(canvasId, "containers", idsToRemove);
+        finishPendingDeletion(canvasId, "textCards", containedTextCardIds);
+        finishPendingDeletion(canvasId, "images", containedImageIds);
+      },
+      160,
+    );
   };
 
-  const removeTextCards = (ids: string[]) => {
-    if (ids.length === 0) {
+  const removeTextCards = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
+    const idsToRemove = ids.filter(
+      (id) => force || canvasId !== activeCanvasIdRef.current || !isElementLocked(id),
+    );
+    if (idsToRemove.length === 0) {
       return;
     }
 
-    setDeletingTextCardIds((current) => Array.from(new Set([...current, ...ids])));
-    setEditingTextCardId((current) => (current && ids.includes(current) ? null : current));
-    setTextCardMenu((current) => (current && ids.includes(current.id) ? null : current));
-    setSelectedIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
-    window.setTimeout(() => {
-      setTextCards((current) => normalizeTextCardOrders(current.filter((card) => !ids.includes(card.id))));
-      setDeletingTextCardIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
-      setEnteringTextCardIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
-      setPulsingTextCardIds((current) => current.filter((pulsingId) => !ids.includes(pulsingId)));
-    }, 150);
+    const idSet = new Set(idsToRemove);
+    registerPendingDeletion(canvasId, "textCards", idsToRemove);
+    recordPendingDeletion(canvasId);
+    setDeletingTextCardIds((current) => Array.from(new Set([...current, ...idsToRemove])));
+    setEditingTextCardId((current) => (current && idSet.has(current) ? null : current));
+    setTextCardMenu((current) => (current && idSet.has(current.id) ? null : current));
+    setSelectedIds((current) => current.filter((selectedId) => !idSet.has(selectedId)));
+    scheduleDeletionCommit(
+      canvasId,
+      () => {
+        setCanvases((current) =>
+          current.map((canvas) =>
+            canvas.id === canvasId
+              ? {
+                  ...canvas,
+                  textCards: normalizeTextCardOrders(
+                    canvas.textCards.filter((card) => !idSet.has(card.id)),
+                  ),
+                }
+              : canvas,
+          ),
+        );
+        setDeletingTextCardIds((current) => current.filter((deletingId) => !idSet.has(deletingId)));
+        setEnteringTextCardIds((current) => current.filter((enteringId) => !idSet.has(enteringId)));
+        setPulsingTextCardIds((current) => current.filter((pulsingId) => !idSet.has(pulsingId)));
+        finishPendingDeletion(canvasId, "textCards", idsToRemove);
+      },
+      150,
+    );
   };
 
-  const removeTextBlocks = (ids: string[]) => {
-    if (ids.length === 0) {
+  const removeTextBlocks = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
+    const idsToRemove = ids.filter(
+      (id) => force || canvasId !== activeCanvasIdRef.current || !isElementLocked(id),
+    );
+    if (idsToRemove.length === 0) {
       return;
     }
 
-    setDeletingTextBlockIds((current) => Array.from(new Set([...current, ...ids])));
-    setEditingTextBlockId((current) => (current && ids.includes(current) ? null : current));
-    setTextBlockMenu((current) => (current && ids.includes(current.id) ? null : current));
-    setSelectedIds((current) => current.filter((selectedId) => !ids.includes(selectedId)));
-    window.setTimeout(() => {
-      setTextBlocks((current) => current.filter((element) => !ids.includes(element.id)));
-      setDeletingTextBlockIds((current) => current.filter((deletingId) => !ids.includes(deletingId)));
-      setEnteringTextBlockIds((current) => current.filter((enteringId) => !ids.includes(enteringId)));
-      setPulsingTextBlockIds((current) => current.filter((pulsingId) => !ids.includes(pulsingId)));
-    }, 160);
+    const idSet = new Set(idsToRemove);
+    registerPendingDeletion(canvasId, "textBlocks", idsToRemove);
+    recordPendingDeletion(canvasId);
+    setDeletingTextBlockIds((current) => Array.from(new Set([...current, ...idsToRemove])));
+    setEditingTextBlockId((current) => (current && idSet.has(current) ? null : current));
+    setTextBlockMenu((current) => (current && idSet.has(current.id) ? null : current));
+    setSelectedIds((current) => current.filter((selectedId) => !idSet.has(selectedId)));
+    scheduleDeletionCommit(
+      canvasId,
+      () => {
+        setCanvases((current) =>
+          current.map((canvas) =>
+            canvas.id === canvasId
+              ? {
+                  ...canvas,
+                  textBlocks: (canvas.textBlocks ?? []).filter((element) => !idSet.has(element.id)),
+                }
+              : canvas,
+          ),
+        );
+        setDeletingTextBlockIds((current) =>
+          current.filter((deletingId) => !idSet.has(deletingId)),
+        );
+        setEnteringTextBlockIds((current) =>
+          current.filter((enteringId) => !idSet.has(enteringId)),
+        );
+        setPulsingTextBlockIds((current) => current.filter((pulsingId) => !idSet.has(pulsingId)));
+        finishPendingDeletion(canvasId, "textBlocks", idsToRemove);
+      },
+      160,
+    );
+  };
+
+  const deleteCanvasSelection = (actionIds: string[]) => {
+    const canvasId = activeCanvasIdRef.current;
+    const plan = planCanvasDeletion(activeCanvas, actionIds, isElementDeletionLocked);
+
+    beginHistoryTransaction(canvasId, DELETE_HISTORY_TRANSACTION);
+    removeContainers(plan.containerIds);
+    removeTextCards(plan.textCardIds);
+    removeTextBlocks(plan.textBlockIds);
+    removeImages(plan.imageIds);
+    finishHistoryTransaction(canvasId, DELETE_HISTORY_TRANSACTION, latestDataGetterRef.current());
   };
 
   const closeCanvasManager = useCallback(() => {
@@ -1742,7 +2306,6 @@ function App() {
     [],
   );
 
-
   useEffect(() => {
     const trackPointer = (event: globalThis.PointerEvent) => {
       lastPointerPositionRef.current = { x: event.clientX, y: event.clientY };
@@ -1751,6 +2314,14 @@ function App() {
     window.addEventListener("pointermove", trackPointer, true);
     return () => window.removeEventListener("pointermove", trackPointer, true);
   }, []);
+
+  const deletionActions = useStableCallbacks({
+    deleteCanvasSelection,
+    removeContainers,
+    removeImages,
+    removeTextBlocks,
+    removeTextCards,
+  });
 
   useEffect(() => {
     const clearFocusedElement = () => {
@@ -1763,6 +2334,11 @@ function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const isEditingText = isEditableKeyboardTarget(target);
+      const modalOpen = settingsOpen || clearModalOpen || updateModalOpen;
+
+      if (modalOpen || target?.closest("[role='dialog'], [aria-modal='true']")) {
+        return;
+      }
 
       if (
         event.shiftKey &&
@@ -1770,7 +2346,8 @@ function App() {
         !event.ctrlKey &&
         !event.metaKey &&
         event.key.toLowerCase() === "e" &&
-        !isEditingText
+        !isEditingText &&
+        !isKeyboardFocusableControl(target)
       ) {
         event.preventDefault();
         event.stopPropagation();
@@ -1783,7 +2360,14 @@ function App() {
         return;
       }
 
-      if (event.key === "Tab" && !isEditingText && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      if (
+        event.key === "Tab" &&
+        !isEditingText &&
+        !isKeyboardFocusableControl(target) &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey
+      ) {
         event.preventDefault();
         event.stopPropagation();
         clearFocusedElement();
@@ -1817,17 +2401,6 @@ function App() {
 
       if (
         !isEditingText &&
-        (event.key === "Enter" || event.key === " " || event.key === "Spacebar") &&
-        isKeyboardFocusableControl(target)
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        clearFocusedElement();
-        return;
-      }
-
-      if (
-        !isEditingText &&
         event.key === "Escape" &&
         !settingsOpen &&
         !clearModalOpen &&
@@ -1843,23 +2416,12 @@ function App() {
         return;
       }
 
-      if (
-        event.key !== "Delete" ||
-        isEditingText
-      ) {
+      if (event.key !== "Delete" || isEditingText || isKeyboardFocusableControl(target)) {
         return;
       }
 
       event.preventDefault();
-      removeContainers(selectedIds.filter((id) => containersById.has(id)));
-      removeTextCards(
-        selectedIds.filter((id) => {
-          const card = textCardsById.get(id);
-          return Boolean(card && !card.containerId);
-        }),
-      );
-      removeTextBlocks(selectedIds.filter((id) => textBlocksById.has(id)));
-      removeImages(selectedIds.filter((id) => imagesById.has(id)));
+      deletionActions.deleteCanvasSelection(selectedIds);
       closeContextMenus();
       setRenamingId(null);
     };
@@ -1873,6 +2435,7 @@ function App() {
     closeCanvasManager,
     closeExtensionsPanel,
     containersById,
+    deletionActions,
     extensionsClosing,
     extensionsOpen,
     imagesById,
@@ -2000,7 +2563,11 @@ function App() {
           )
           .map((element) => element.id),
         ...textCards
-          .filter((card) => !card.containerId && rectsOverlap(selectionBounds, getLooseTextCardSelectionBounds(card)))
+          .filter(
+            (card) =>
+              !card.containerId &&
+              rectsOverlap(selectionBounds, getLooseTextCardSelectionBounds(card)),
+          )
           .map((card) => card.id),
         ...textBlocks
           .filter((element) =>
@@ -2039,7 +2606,7 @@ function App() {
             })
             .map((card) => card.id);
         })()
-    : [];
+      : [];
   const outlinedIds =
     dragState?.type === "select" || dragState?.type === "container-select"
       ? Array.from(new Set([...(dragState.additive ? selectedIds : []), ...selectionPreviewIds]))
@@ -2300,7 +2867,7 @@ function App() {
     const width = 360;
     const height = 240;
     const nextNumber = elements.length + 1;
-    const id = `container-${Date.now()}`;
+    const id = createEntityId("container");
     const nextElement: ContainerElement = {
       id,
       name: `Container ${nextNumber}`,
@@ -2308,7 +2875,7 @@ function App() {
       y: clamp(point.y - 28, 0, canvasHeight - height),
       width,
       height,
-      accent: DEFAULT_CONTAINER_ACCENT,
+      accent: defaultElementColors.container,
     };
 
     setElements((current) => [...current, nextElement]);
@@ -2337,7 +2904,7 @@ function App() {
   // user clicking it) fills it with a picked/dropped/pasted image afterwards.
   const createImageElement = (clientX: number, clientY: number): string => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = `image-${Date.now()}`;
+    const id = createEntityId("image");
     const width = 280;
     const height = 200;
     const image: ImageElement = {
@@ -2346,10 +2913,10 @@ function App() {
       y: clamp(point.y - height / 2, 0, canvasHeight - height),
       width,
       height,
-      accent: DEFAULT_CONTAINER_ACCENT,
+      accent: defaultElementColors.image,
     };
 
-    setImages((current) => [...current, image]);
+    updateImagesForCanvas(activeCanvasIdRef.current, (current) => [...current, image]);
     animateImageIn(id);
     setSelectedIds([id]);
     closeContextMenus();
@@ -2367,11 +2934,34 @@ function App() {
     );
   };
 
+  const updateImagesForCanvas = (
+    canvasId: string,
+    update: (current: ImageElement[]) => ImageElement[],
+  ) => {
+    markCanvasDirty(canvasId);
+    setCanvases((current) =>
+      current.map((canvas) =>
+        canvas.id === canvasId ? { ...canvas, images: update(canvas.images ?? []) } : canvas,
+      ),
+    );
+
+    latestAppDataRef.current = {
+      ...latestAppDataRef.current,
+      canvases: latestAppDataRef.current.canvases.map((canvas) =>
+        canvas.id === canvasId ? { ...canvas, images: update(canvas.images ?? []) } : canvas,
+      ),
+    };
+    recordHistorySnapshot(latestAppDataRef.current, canvasId);
+  };
+
   // Apply stored image metadata to an element, sizing it to the image's aspect.
   // Only resizes empty placeholders; an element that already had an image keeps
   // its current box when the image is replaced.
-  const applyImageMeta = (id: string, meta: ImageMeta) => {
-    setImages((current) =>
+  const applyImageMeta = (canvasId: string, id: string, meta: ImageMeta) => {
+    const targetCanvas = latestAppDataRef.current.canvases.find((canvas) => canvas.id === canvasId);
+    const targetCanvasWidth = targetCanvas?.width ?? canvasWidth;
+    const targetCanvasHeight = targetCanvas?.height ?? canvasHeight;
+    updateImagesForCanvas(canvasId, (current) =>
       current.map((image) => {
         if (image.id !== id) {
           return image;
@@ -2386,8 +2976,8 @@ function App() {
           naturalHeight: meta.height || undefined,
           ...(wasEmpty
             ? {
-                x: clamp(image.x, 0, canvasWidth - size.width),
-                y: clamp(image.y, 0, canvasHeight - size.height),
+                x: clamp(image.x, 0, targetCanvasWidth - size.width),
+                y: clamp(image.y, 0, targetCanvasHeight - size.height),
                 ...size,
               }
             : {}),
@@ -2399,15 +2989,27 @@ function App() {
 
   // Store an already-read image path into the given element, showing a loading
   // spinner while the (off-thread) decode/encode runs.
-  const fillElementFromPath = async (id: string, path: string) => {
+  const fillElementFromPath = async (
+    id: string,
+    path: string,
+    canvasId = activeCanvasIdRef.current,
+  ) => {
+    const historyTransaction = imageHistoryTransaction(id);
+    beginHistoryTransaction(canvasId, historyTransaction);
     setImageLoading(id, true);
     try {
       const meta = await invoke<ImageMeta>("store_image_path", { path });
-      applyImageMeta(id, meta);
+      applyImageMeta(canvasId, id, meta);
     } catch (error) {
       console.error("Failed to store image", error);
-      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+      showToast({
+        tone: "error",
+        title: "Could not add image",
+        message: commandErrorMessage(error),
+      });
       setImageLoading(id, false);
+    } finally {
+      finishHistoryTransaction(canvasId, historyTransaction, latestAppDataRef.current);
     }
   };
 
@@ -2415,14 +3017,19 @@ function App() {
   // element. The heavy processing happens afterward behind a loading spinner so
   // the app never freezes on a large image.
   const pickImageForElement = async (id: string) => {
+    const canvasId = activeCanvasIdRef.current;
     try {
       const path = await invoke<string | null>("pick_image_path");
       if (path) {
-        await fillElementFromPath(id, path);
+        await fillElementFromPath(id, path, canvasId);
       }
     } catch (error) {
       console.error("Failed to pick image", error);
-      showToast({ tone: "error", title: "Could not add image", message: String(error) });
+      showToast({
+        tone: "error",
+        title: "Could not add image",
+        message: commandErrorMessage(error),
+      });
     }
   };
 
@@ -2432,28 +3039,32 @@ function App() {
     const point = canvasPointFromEvent({ clientX, clientY });
     const width = 280;
     const height = 200;
-    const id = `image-${Date.now()}-${Math.round(point.x) + offset}`;
+    const id = createEntityId("image");
+    const canvasId = activeCanvasIdRef.current;
     const image: ImageElement = {
       id,
       x: clamp(point.x - width / 2 + offset, 0, canvasWidth - width),
       y: clamp(point.y - height / 2 + offset, 0, canvasHeight - height),
       width,
       height,
-      accent: DEFAULT_CONTAINER_ACCENT,
+      accent: defaultElementColors.image,
     };
-    setImages((current) => [...current, image]);
+    beginHistoryTransaction(canvasId, imageHistoryTransaction(id));
+    updateImagesForCanvas(canvasId, (current) => [...current, image]);
     animateImageIn(id);
     return id;
   };
 
   // Drop a loading placeholder at a point, then fill it from a path off-thread.
   const importImageFromPath = (path: string, clientX: number, clientY: number, offset = 0) => {
+    const canvasId = activeCanvasIdRef.current;
     const id = spawnImagePlaceholder(clientX, clientY, offset);
-    void fillElementFromPath(id, path);
+    void fillElementFromPath(id, path, canvasId);
   };
 
   // Clipboard paste: placeholder first, then store the bytes behind a spinner.
   const addImageFromBuffer = async (buffer: ArrayBuffer, clientX: number, clientY: number) => {
+    const canvasId = activeCanvasIdRef.current;
     const id = spawnImagePlaceholder(clientX, clientY);
     setSelectedIds([id]);
     setImageLoading(id, true);
@@ -2462,12 +3073,13 @@ function App() {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
       const meta = await storeImageFromBytes(buffer);
       if (meta) {
-        applyImageMeta(id, meta);
+        applyImageMeta(canvasId, id, meta);
       } else {
-        removeImages([id]);
+        removeImages([id], true, canvasId);
       }
     } finally {
       setImageLoading(id, false);
+      finishHistoryTransaction(canvasId, imageHistoryTransaction(id), latestAppDataRef.current);
     }
   };
 
@@ -2499,7 +3111,9 @@ function App() {
         }
 
         const { x, y } = event.payload.position;
-        const paths = event.payload.paths.filter((path) => /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(path));
+        const paths = event.payload.paths.filter((path) =>
+          /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(path),
+        );
         if (paths.length === 0) {
           return;
         }
@@ -2550,7 +3164,10 @@ function App() {
       }
 
       const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
         return;
       }
 
@@ -2587,12 +3204,6 @@ function App() {
     createImageElement(clientX, clientY);
   };
 
-  const updateImageAccent = (id: string, accent: string) => {
-    setImages((current) =>
-      current.map((image) => (image.id === id ? { ...image, accent } : image)),
-    );
-  };
-
   const toggleImageBackground = (id: string) => {
     setImages((current) =>
       current.map((image) =>
@@ -2626,20 +3237,15 @@ function App() {
     closeContextMenus();
   };
 
-  const deleteImageElement = (id: string) => {
-    removeImages([id]);
-    closeContextMenus();
-  };
-
   const createTextCard = (clientX: number, clientY: number) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = `text-card-${Date.now()}`;
+    const id = createEntityId("text-card");
     const card: TextCardElement = {
       id,
       text: "Text card",
       x: clamp(point.x, 0, canvasWidth),
       y: clamp(point.y, 0, canvasHeight),
-      accent: DEFAULT_TEXT_CARD_ACCENT,
+      accent: defaultElementColors.textCard,
     };
 
     setTextCards((current) => [...current, card]);
@@ -2656,7 +3262,7 @@ function App() {
     const width = 320;
     const height = 220;
     const nextNumber = textBlocks.length + 1;
-    const id = `text-block-${Date.now()}`;
+    const id = createEntityId("text-block");
     const element: TextBlockElement = {
       id,
       name: `Text block ${nextNumber}`,
@@ -2665,7 +3271,7 @@ function App() {
       y: clamp(point.y - 28, 0, canvasHeight - height),
       width,
       height,
-      accent: DEFAULT_CONTAINER_ACCENT,
+      accent: defaultElementColors.textBlock,
     };
 
     setTextBlocks((current) => [...current, element]);
@@ -2685,14 +3291,16 @@ function App() {
     }
 
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = `text-card-${Date.now()}`;
+    const id = createEntityId("text-card");
     const order = getTextCardDropIndex(container, point, textCards, id);
     const card: TextCardElement = {
       id,
       text: "Text card",
       x: container.x + CONTAINER_TEXT_CARD_PADDING,
-      y: getContainerCardStackTop(container) + order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
-      accent: DEFAULT_TEXT_CARD_ACCENT,
+      y:
+        getContainerCardStackTop(container) +
+        order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+      accent: defaultElementColors.textCard,
       ...(container.extensions?.inheritCardColor ? { accent: container.accent } : {}),
       ...(container.extensions?.autoCheckbox
         ? { extensions: { checkbox: { checked: false } } }
@@ -2700,7 +3308,9 @@ function App() {
       containerId,
       order,
     };
-    const cardsOutsideContainer = textCards.filter((currentCard) => currentCard.containerId !== containerId);
+    const cardsOutsideContainer = textCards.filter(
+      (currentCard) => currentCard.containerId !== containerId,
+    );
     const containerCards = getOrderedContainerTextCards(containerId);
     containerCards.splice(order, 0, card);
     const nextCards = normalizeTextCardOrders([
@@ -2740,7 +3350,10 @@ function App() {
     setCanvasMenu({ clientX: event.clientX, clientY: event.clientY });
   };
 
-  const openContainerContentMenu = (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => {
+  const openContainerContentMenu = (
+    event: React.MouseEvent<HTMLElement>,
+    element: ContainerElement,
+  ) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectedIds([element.id]);
@@ -2778,6 +3391,7 @@ function App() {
     closeContextMenus();
     setRenamingId(null);
     showMinimap();
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "pan",
       pointerId: event.pointerId,
@@ -2852,6 +3466,7 @@ function App() {
     (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
       event.pointerId,
     );
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "select",
       pointerId: event.pointerId,
@@ -2863,7 +3478,10 @@ function App() {
     });
   };
 
-  const startContainerContentSelection = (event: PointerEvent<HTMLElement>, container: ContainerElement) => {
+  const startContainerContentSelection = (
+    event: PointerEvent<HTMLElement>,
+    container: ContainerElement,
+  ) => {
     if (event.button !== 0) {
       return;
     }
@@ -2882,6 +3500,7 @@ function App() {
     (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
       event.pointerId,
     );
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "container-select",
       pointerId: event.pointerId,
@@ -3059,9 +3678,18 @@ function App() {
       const activeImageStart = dragState.imageStartPositions.find(
         (position) => position.id === dragState.id,
       );
-      const activePosition = activeStart ?? activeTextBlockStart ?? activeTextCardStart ?? activeImageStart;
-      const activeWidth = activeElement?.width ?? activeTextBlock?.width ?? activeImage?.width ?? dragState.activeWidth;
-      const activeHeight = activeElement?.height ?? activeTextBlock?.height ?? activeImage?.height ?? dragState.activeHeight;
+      const activePosition =
+        activeStart ?? activeTextBlockStart ?? activeTextCardStart ?? activeImageStart;
+      const activeWidth =
+        activeElement?.width ??
+        activeTextBlock?.width ??
+        activeImage?.width ??
+        dragState.activeWidth;
+      const activeHeight =
+        activeElement?.height ??
+        activeTextBlock?.height ??
+        activeImage?.height ??
+        dragState.activeHeight;
 
       if (!activePosition) {
         return;
@@ -3204,7 +3832,8 @@ function App() {
       }
 
       // Aspect-locked: drive width from the larger pointer delta, derive height.
-      const proposedWidth = dragState.startWidth + Math.max(worldDeltaX, worldDeltaY * dragState.aspectRatio);
+      const proposedWidth =
+        dragState.startWidth + Math.max(worldDeltaX, worldDeltaY * dragState.aspectRatio);
       const maxWidth = Math.min(
         canvasWidth - resizingImage.x,
         (canvasHeight - resizingImage.y) * dragState.aspectRatio,
@@ -3217,9 +3846,7 @@ function App() {
       const width = clamp(snapped.width, MIN_IMAGE_SIZE, maxWidth);
       const height = width / dragState.aspectRatio;
       setImages((current) =>
-        current.map((image) =>
-          image.id === dragState.id ? { ...image, width, height } : image,
-        ),
+        current.map((image) => (image.id === dragState.id ? { ...image, width, height } : image)),
       );
       setSnapGuides(event.shiftKey ? snapped.guides : []);
       return;
@@ -3232,10 +3859,24 @@ function App() {
       return;
     }
 
-    const nextWidth = clamp(dragState.startWidth + worldDeltaX, MIN_WIDTH, canvasWidth - resizingElement.x);
-    const nextHeight = clamp(dragState.startHeight + worldDeltaY, MIN_HEIGHT, canvasHeight - resizingElement.y);
+    const nextWidth = clamp(
+      dragState.startWidth + worldDeltaX,
+      MIN_WIDTH,
+      canvasWidth - resizingElement.x,
+    );
+    const nextHeight = clamp(
+      dragState.startHeight + worldDeltaY,
+      MIN_HEIGHT,
+      canvasHeight - resizingElement.y,
+    );
     const snapped = event.shiftKey
-      ? snapResizedContainer(resizingElement, [...elements, ...textBlocks], nextWidth, nextHeight, pointerPoint)
+      ? snapResizedContainer(
+          resizingElement,
+          [...elements, ...textBlocks],
+          nextWidth,
+          nextHeight,
+          pointerPoint,
+        )
       : { width: nextWidth, height: nextHeight, guides: [] };
     nextGuides = snapped.guides;
     const width = clamp(snapped.width, MIN_WIDTH, canvasWidth - resizingElement.x);
@@ -3287,7 +3928,7 @@ function App() {
         liveDragState.lastClientX !== event.clientX ||
         liveDragState.lastClientY !== event.clientY ||
         liveDragState.snapping !== event.shiftKey
-          ? applyTextCardDragFrame(
+          ? (applyTextCardDragFrame(
               {
                 pointerId: event.pointerId,
                 clientX: event.clientX,
@@ -3295,7 +3936,7 @@ function App() {
                 shiftKey: event.shiftKey,
               },
               false,
-            ) ?? liveDragState
+            ) ?? liveDragState)
           : liveDragState;
       const droppedTextCardIds = stoppedDragState.ids;
       const droppedTextCardIdSet = new Set(droppedTextCardIds);
@@ -3470,12 +4111,13 @@ function App() {
           )
           .map((element) => element.id),
         ...textCards
-          .filter((card) =>
-            !card.containerId &&
-            rectsOverlap(
-              { left, top, width: right - left, height: bottom - top },
-              getLooseTextCardSelectionBounds(card),
-            ),
+          .filter(
+            (card) =>
+              !card.containerId &&
+              rectsOverlap(
+                { left, top, width: right - left, height: bottom - top },
+                getLooseTextCardSelectionBounds(card),
+              ),
           )
           .map((card) => card.id),
         ...textBlocks
@@ -3540,6 +4182,7 @@ function App() {
       }
     }
 
+    finishHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState(null);
     updateTextCardDropPreview(null);
     setTextCardDetachedContainerId(null);
@@ -3586,8 +4229,12 @@ function App() {
 
       if (current.type === "move") {
         const movingContainerIds = new Set(current.startPositions.map((position) => position.id));
-        const movingTextCardIds = new Set(current.textCardStartPositions.map((position) => position.id));
-        const movingTextBlockIds = new Set(current.textBlockStartPositions.map((position) => position.id));
+        const movingTextCardIds = new Set(
+          current.textCardStartPositions.map((position) => position.id),
+        );
+        const movingTextBlockIds = new Set(
+          current.textBlockStartPositions.map((position) => position.id),
+        );
         const movingImageIds = new Set(current.imageStartPositions.map((position) => position.id));
 
         return {
@@ -3644,17 +4291,10 @@ function App() {
     });
   };
 
-  const isElementLocked = (id: string) =>
-    Boolean(
-      (
-        containersById.get(id) ??
-        textBlocksById.get(id) ??
-        textCardsById.get(id) ??
-        imagesById.get(id)
-      )?.extensions?.lock?.enabled,
-    );
-
-  const startMove = (event: PointerEvent<HTMLElement>, element: ContainerElement | TextBlockElement) => {
+  const startMove = (
+    event: PointerEvent<HTMLElement>,
+    element: ContainerElement | TextBlockElement,
+  ) => {
     if (event.button !== 0) {
       return;
     }
@@ -3677,7 +4317,9 @@ function App() {
     (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
       event.pointerId,
     );
-    const movingIds = selectedIds.includes(element.id) ? selectedIds : [element.id];
+    const movingIds = (selectedIds.includes(element.id) ? selectedIds : [element.id]).filter(
+      (id) => !isElementLocked(id),
+    );
     const movingContainerIds = movingIds.filter((id) => containersById.has(id));
     const movingTextBlockIds = movingIds.filter((id) => textBlocksById.has(id));
     const movingTextCardIds = movingIds.filter((id) => {
@@ -3694,6 +4336,7 @@ function App() {
       saveTextBlockEdit(editingTextBlockId);
     }
     setEditingTextBlockId(null);
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "move",
       pointerId: event.pointerId,
@@ -3734,7 +4377,10 @@ function App() {
     });
   };
 
-  const startResize = (event: PointerEvent<HTMLButtonElement>, element: ContainerElement | TextBlockElement) => {
+  const startResize = (
+    event: PointerEvent<HTMLButtonElement>,
+    element: ContainerElement | TextBlockElement,
+  ) => {
     if (event.button !== 0) {
       return;
     }
@@ -3751,6 +4397,7 @@ function App() {
     selectCanvasElement(element);
     closeContextMenus();
     setRenamingId(null);
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "resize",
       pointerId: event.pointerId,
@@ -3787,7 +4434,9 @@ function App() {
     );
 
     if (!card.containerId && selectedIds.length > 1 && selectedIds.includes(card.id)) {
-      const movingIds = selectedIds.includes(card.id) ? selectedIds : [card.id];
+      const movingIds = (selectedIds.includes(card.id) ? selectedIds : [card.id]).filter(
+        (id) => !isElementLocked(id),
+      );
       const movingContainerIds = movingIds.filter((id) => containersById.has(id));
       const movingTextBlockIds = movingIds.filter((id) => textBlocksById.has(id));
       const movingTextCardIds = movingIds.filter((id) => {
@@ -3805,6 +4454,7 @@ function App() {
       setRenamingId(null);
       setEditingTextCardId(null);
       setEditingTextBlockId(null);
+      beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
       setDragState({
         type: "move",
         pointerId: event.pointerId,
@@ -3822,7 +4472,9 @@ function App() {
             y: element.y,
           })),
         textCardStartPositions: textCards
-          .filter((currentCard) => movingTextCardIds.includes(currentCard.id) && !currentCard.containerId)
+          .filter(
+            (currentCard) => movingTextCardIds.includes(currentCard.id) && !currentCard.containerId,
+          )
           .map((currentCard) => ({
             id: currentCard.id,
             x: currentCard.x,
@@ -3856,7 +4508,9 @@ function App() {
             selectedIds.includes(currentCard.id),
           )
         : [card];
-    const movableBundleCards = bundleCards.filter((currentCard) => !isElementLocked(currentCard.id));
+    const movableBundleCards = bundleCards.filter(
+      (currentCard) => !isElementLocked(currentCard.id),
+    );
     const draggedCards = movableBundleCards.length > 0 ? movableBundleCards : [card];
     const draggedIds = draggedCards.map((currentCard) => currentCard.id);
     if (draggedIds.length === 1) {
@@ -3865,10 +4519,13 @@ function App() {
       setSelectedIds(draggedIds);
     }
     const startPosition = getTextCardStackPosition(card);
-    const stackedCards = [card, ...draggedCards.filter((currentCard) => currentCard.id !== card.id)];
+    const stackedCards = [
+      card,
+      ...draggedCards.filter((currentCard) => currentCard.id !== card.id),
+    ];
     const cardOffsets = stackedCards.map((currentCard, index) => {
       const originalPosition = getTextCardStackPosition(currentCard);
-      const x = index === 0 ? 0 : ((index % 2 === 0 ? -1 : 1) * (5 + Math.min(index, 4) * 2));
+      const x = index === 0 ? 0 : (index % 2 === 0 ? -1 : 1) * (5 + Math.min(index, 4) * 2);
       const y = index === 0 ? 0 : Math.min(index, 5) * 4;
       return {
         id: currentCard.id,
@@ -3911,6 +4568,7 @@ function App() {
       window.cancelAnimationFrame(textCardDragFrameRef.current);
       textCardDragFrameRef.current = null;
     }
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState(nextDragState);
   };
 
@@ -3940,7 +4598,7 @@ function App() {
 
     // Part of a multi-selection → use the shared container/card/block move path.
     if (selectedIds.length > 1 && selectedIds.includes(image.id)) {
-      const movingIds = selectedIds;
+      const movingIds = selectedIds.filter((id) => !isElementLocked(id));
       const movingContainerIds = movingIds.filter((id) => containersById.has(id));
       const movingTextBlockIds = movingIds.filter((id) => textBlocksById.has(id));
       const movingTextCardIds = movingIds.filter((id) => {
@@ -3953,6 +4611,7 @@ function App() {
       setRenamingId(null);
       setEditingTextCardId(null);
       setEditingTextBlockId(null);
+      beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
       setDragState({
         type: "move",
         pointerId: event.pointerId,
@@ -3983,6 +4642,7 @@ function App() {
     setRenamingId(null);
     setEditingTextCardId(null);
     setEditingTextBlockId(null);
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "image-move",
       pointerId: event.pointerId,
@@ -4014,6 +4674,7 @@ function App() {
     setSelectedIds([image.id]);
     closeContextMenus();
     setRenamingId(null);
+    beginHistoryTransaction(activeCanvasIdRef.current, POINTER_HISTORY_TRANSACTION);
     setDragState({
       type: "image-resize",
       pointerId: event.pointerId,
@@ -4085,12 +4746,6 @@ function App() {
     setTextCardDraft("");
   };
 
-  const updateTextCardAccent = (id: string, accent: string) => {
-    setTextCards((current) =>
-      current.map((card) => (card.id === id ? { ...card, accent } : card)),
-    );
-  };
-
   const normalizeTextCardLink = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -4116,7 +4771,9 @@ function App() {
 
     try {
       const url = new URL(withProtocol);
-      return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol) ? url.toString() : undefined;
+      return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol)
+        ? url.toString()
+        : undefined;
     } catch {
       return undefined;
     }
@@ -4136,12 +4793,10 @@ function App() {
     );
   };
 
-  const deleteTextCard = (id: string) => {
-    removeTextCards([id]);
-    closeContextMenus();
-  };
-
-  const openTextBlockMenu = (event: React.MouseEvent<HTMLButtonElement>, element: TextBlockElement) => {
+  const openTextBlockMenu = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    element: TextBlockElement,
+  ) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
     if (!selectedIds.includes(element.id)) {
@@ -4207,11 +4862,6 @@ function App() {
     );
   };
 
-  const deleteTextBlock = (id: string) => {
-    removeTextBlocks([id]);
-    closeContextMenus();
-  };
-
   const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
@@ -4262,25 +4912,24 @@ function App() {
     setRenameDraft("");
   };
 
-  const deleteContainer = (id: string) => {
-    removeContainers([id]);
-    closeContextMenus();
-    setRenamingId(null);
-  };
-
   const getTextCardCopyPosition = (card: TextCardElement) => {
     const position = getTextCardRenderPosition(card) ?? getTextCardStackPosition(card);
     return { x: position.x, y: position.y };
   };
 
-  const copyContextSelection = (id: string) => {
-    if (!isMultiContextAction(id)) {
+  const copyContextSelection = (id: string, actionIdsOverride?: string[]) => {
+    if (!actionIdsOverride && !isMultiContextAction(id)) {
       return false;
     }
 
-    const actionIds = getContextActionIds(id);
+    const actionIds = actionIdsOverride ?? getContextActionIds(id);
+    if (actionIds.length === 0) {
+      return false;
+    }
     const actionSet = new Set(actionIds);
-    const selectedContainerIds = new Set(actionIds.filter((actionId) => containersById.has(actionId)));
+    const selectedContainerIds = new Set(
+      actionIds.filter((actionId) => containersById.has(actionId)),
+    );
 
     setCopiedItem({
       type: "selection",
@@ -4306,7 +4955,11 @@ function App() {
             })),
           })),
         textCards: textCards
-          .filter((card) => actionSet.has(card.id) && (!card.containerId || !selectedContainerIds.has(card.containerId)))
+          .filter(
+            (card) =>
+              actionSet.has(card.id) &&
+              (!card.containerId || !selectedContainerIds.has(card.containerId)),
+          )
           .map((card) => {
             const position = getTextCardCopyPosition(card);
             return {
@@ -4333,7 +4986,11 @@ function App() {
             extensions: cloneExtensions(element.extensions),
           })),
         images: images
-          .filter((image) => actionSet.has(image.id) && (!image.containerId || !selectedContainerIds.has(image.containerId)))
+          .filter(
+            (image) =>
+              actionSet.has(image.id) &&
+              (!image.containerId || !selectedContainerIds.has(image.containerId)),
+          )
           .map((image) => ({
             imageId: image.imageId,
             format: image.format,
@@ -4433,7 +5090,7 @@ function App() {
 
     if (copiedItem.type === "container") {
       const copiedContainer = copiedItem.item;
-      const pasteSeed = Date.now();
+      const pasteSeed = crypto.randomUUID();
       const id = `container-${pasteSeed}`;
       const textCardIdMap = new Map<string, string>(
         copiedContainer.textCards
@@ -4454,7 +5111,9 @@ function App() {
 
       setElements((current) => [...current, duplicate]);
       const pastedTextCards = copiedContainer.textCards.map((card, index) => ({
-        id: card.sourceId ? textCardIdMap.get(card.sourceId) ?? `text-card-${pasteSeed}-${index}` : `text-card-${pasteSeed}-${index}`,
+        id: card.sourceId
+          ? (textCardIdMap.get(card.sourceId) ?? `text-card-${pasteSeed}-${index}`)
+          : `text-card-${pasteSeed}-${index}`,
         text: card.text,
         x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
         y:
@@ -4473,7 +5132,7 @@ function App() {
       animateContainerIn(id);
     } else if (copiedItem.type === "text-card") {
       const targetContainer = targetContainerId ? containersById.get(targetContainerId) : null;
-      const id = `text-card-${Date.now()}`;
+      const id = createEntityId("text-card");
       const duplicate = {
         ...copiedItem.item,
         id,
@@ -4490,11 +5149,15 @@ function App() {
 
       if (targetContainer) {
         const order = getTextCardDropIndex(targetContainer, point, textCards, id);
-        const cardsOutsideContainer = textCards.filter((currentCard) => currentCard.containerId !== targetContainer.id);
+        const cardsOutsideContainer = textCards.filter(
+          (currentCard) => currentCard.containerId !== targetContainer.id,
+        );
         const containerCards = getOrderedContainerTextCards(targetContainer.id);
         const cardInContainer = {
           ...duplicate,
-          y: getContainerCardStackTop(targetContainer) + order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
+          y:
+            getContainerCardStackTop(targetContainer) +
+            order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
           order,
         };
         containerCards.splice(order, 0, cardInContainer);
@@ -4510,7 +5173,11 @@ function App() {
         if (visibleIndex >= 0) {
           setContainerScrollOffsets((current) => ({
             ...current,
-            [targetContainer.id]: getScrollOffsetForVisibleCardIndex(targetContainer, visibleIndex, nextCards),
+            [targetContainer.id]: getScrollOffsetForVisibleCardIndex(
+              targetContainer,
+              visibleIndex,
+              nextCards,
+            ),
           }));
         }
       } else {
@@ -4520,7 +5187,7 @@ function App() {
       setSelectedIds([]);
     } else if (copiedItem.type === "text-block") {
       const copiedTextBlock = copiedItem.item;
-      const id = `text-block-${Date.now()}`;
+      const id = createEntityId("text-block");
       const duplicate = {
         ...copiedTextBlock,
         id,
@@ -4535,7 +5202,7 @@ function App() {
       setSelectedIds([id]);
     } else if (copiedItem.type === "image") {
       const copiedImage = copiedItem.item;
-      const id = `image-${Date.now()}`;
+      const id = createEntityId("image");
       const duplicate: ImageElement = {
         ...copiedImage,
         id,
@@ -4563,7 +5230,7 @@ function App() {
       const offsetX = point.x - originX;
       const offsetY = point.y - originY;
       const nextSelectedIds: string[] = [];
-      const pasteSeed = Date.now();
+      const pasteSeed = crypto.randomUUID();
       const containerTextCardIdMaps = copiedSelection.containers.map(
         (container, containerIndex) =>
           new Map<string, string>(
@@ -4585,14 +5252,17 @@ function App() {
           name: `${container.name} copy`,
           x: clamp((container.x ?? point.x) + offsetX, 0, canvasWidth - container.width),
           y: clamp((container.y ?? point.y) + offsetY, 0, canvasHeight - container.height),
-          extensions: remapContainerExtensions(container.extensions, containerTextCardIdMaps[index]),
+          extensions: remapContainerExtensions(
+            container.extensions,
+            containerTextCardIdMaps[index],
+          ),
         };
       });
       const pastedContainerCards = pastedContainers.flatMap((container, containerIndex) =>
         copiedSelection.containers[containerIndex].textCards.map((card, cardIndex) => ({
           id: card.sourceId
-            ? containerTextCardIdMaps[containerIndex].get(card.sourceId) ??
-              `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`
+            ? (containerTextCardIdMaps[containerIndex].get(card.sourceId) ??
+              `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`)
             : `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`,
           text: card.text,
           x: container.x + CONTAINER_TEXT_CARD_PADDING,
@@ -4666,10 +5336,25 @@ function App() {
   };
 
   const clearCanvas = () => {
-    removeContainers(elements.map((element) => element.id));
-    removeTextCards(textCards.map((card) => card.id));
-    removeTextBlocks(textBlocks.map((element) => element.id));
-    removeImages(images.map((image) => image.id));
+    const canvasId = activeCanvasIdRef.current;
+    beginHistoryTransaction(canvasId, CLEAR_HISTORY_TRANSACTION);
+    removeContainers(
+      elements.map((element) => element.id),
+      true,
+    );
+    removeTextCards(
+      textCards.filter((card) => !card.containerId).map((card) => card.id),
+      true,
+    );
+    removeTextBlocks(
+      textBlocks.map((element) => element.id),
+      true,
+    );
+    removeImages(
+      images.filter((image) => !image.containerId).map((image) => image.id),
+      true,
+    );
+    finishHistoryTransaction(canvasId, CLEAR_HISTORY_TRANSACTION, latestDataGetterRef.current());
     closeContextMenus();
     setRenamingId(null);
     setEditingTextCardId(null);
@@ -4719,7 +5404,6 @@ function App() {
       search: ids.some((id) => hasExtension(id, "search")),
       sorting: ids.some((id) => hasExtension(id, "sorting")),
       lock: ids.some((id) => hasExtension(id, "lock")),
-      colors: ids.some((id) => hasExtension(id, "colors")),
       colorPicker: ids.some((id) => hasExtension(id, "colorPicker")),
       checkbox: ids.some((id) => hasExtension(id, "checkbox")),
       autoCheckbox: ids.some((id) => hasExtension(id, "autoCheckbox")),
@@ -4734,7 +5418,7 @@ function App() {
     const preset = ALL_ACCENT_PRESETS.find(
       (currentPreset) => currentPreset.accent === accent || currentPreset.textCardAccent === accent,
     );
-    return kind === "text-card" ? preset?.textCardAccent ?? accent : preset?.accent ?? accent;
+    return kind === "text-card" ? (preset?.textCardAccent ?? accent) : (preset?.accent ?? accent);
   };
 
   const updateContextAccent = (id: string, accent: string) => {
@@ -4743,22 +5427,30 @@ function App() {
 
     setElements((current) =>
       current.map((element) =>
-        actionSet.has(element.id) ? { ...element, accent: getElementAccentForKind(accent, "other") } : element,
+        actionSet.has(element.id)
+          ? { ...element, accent: getElementAccentForKind(accent, "other") }
+          : element,
       ),
     );
     setTextBlocks((current) =>
       current.map((element) =>
-        actionSet.has(element.id) ? { ...element, accent: getElementAccentForKind(accent, "other") } : element,
+        actionSet.has(element.id)
+          ? { ...element, accent: getElementAccentForKind(accent, "other") }
+          : element,
       ),
     );
     setTextCards((current) =>
       current.map((card) =>
-        actionSet.has(card.id) ? { ...card, accent: getElementAccentForKind(accent, "text-card") } : card,
+        actionSet.has(card.id)
+          ? { ...card, accent: getElementAccentForKind(accent, "text-card") }
+          : card,
       ),
     );
     setImages((current) =>
       current.map((image) =>
-        actionSet.has(image.id) ? { ...image, accent: getElementAccentForKind(accent, "other") } : image,
+        actionSet.has(image.id)
+          ? { ...image, accent: getElementAccentForKind(accent, "other") }
+          : image,
       ),
     );
   };
@@ -4790,138 +5482,97 @@ function App() {
     closeContextMenus();
   };
 
-  const deleteContextSelection = (id: string) => {
-    const actionIds = getContextActionIds(id);
-    const selectedContainerIds = actionIds.filter((actionId) => containersById.has(actionId));
-    const selectedContainerIdSet = new Set(selectedContainerIds);
-
-    removeContainers(selectedContainerIds);
-    removeTextCards(
-      actionIds.filter((actionId) => {
-        const card = textCardsById.get(actionId);
-        return Boolean(card && (!card.containerId || !selectedContainerIdSet.has(card.containerId)));
-      }),
-    );
-    removeTextBlocks(actionIds.filter((actionId) => textBlocksById.has(actionId)));
-    removeImages(
-      actionIds.filter((actionId) => {
-        const image = imagesById.get(actionId);
-        return Boolean(image && (!image.containerId || !selectedContainerIdSet.has(image.containerId)));
-      }),
-    );
+  const deleteContextSelection = (id: string, actionIdsOverride?: string[]) => {
+    const actionIds = actionIdsOverride ?? getContextActionIds(id);
+    deleteCanvasSelection(actionIds);
     closeContextMenus();
     setRenamingId(null);
   };
 
+  const cutUnlockedContextSelection = (id: string) => {
+    if (!isMultiContextAction(id)) {
+      return false;
+    }
+
+    const actionIds = getContextActionIds(id).filter(
+      (actionId) => !isElementDeletionLocked(actionId),
+    );
+    if (actionIds.length > 0) {
+      copyContextSelection(id, actionIds);
+      deleteContextSelection(id, actionIds);
+    }
+    return true;
+  };
+
   const cutContainer = (element: ContainerElement) => {
+    if (cutUnlockedContextSelection(element.id)) {
+      return;
+    }
+    if (isElementDeletionLocked(element.id)) {
+      return;
+    }
     copyContainer(element);
     deleteContextSelection(element.id);
   };
 
   const cutTextCard = (card: TextCardElement) => {
+    if (cutUnlockedContextSelection(card.id)) {
+      return;
+    }
+    if (isElementLocked(card.id)) {
+      return;
+    }
     copyTextCard(card);
     deleteContextSelection(card.id);
   };
 
   const cutTextBlock = (element: TextBlockElement) => {
+    if (cutUnlockedContextSelection(element.id)) {
+      return;
+    }
+    if (isElementLocked(element.id)) {
+      return;
+    }
     copyTextBlock(element);
     deleteContextSelection(element.id);
   };
 
   const cutImage = (image: ImageElement) => {
+    if (cutUnlockedContextSelection(image.id)) {
+      return;
+    }
+    if (isElementLocked(image.id)) {
+      return;
+    }
     copyImage(image);
     deleteContextSelection(image.id);
   };
 
-  const installPrivacyExtensions = (ids: string[]) => {
+  const installExtensions = (extensionId: ExtensionId, ids: string[]) => {
     const targetIds = new Set(ids);
     if (targetIds.size === 0) {
       return;
     }
 
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                privacy: element.extensions?.privacy ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
-    setTextBlocks((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                privacy: element.extensions?.privacy ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
+    const install = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
+      if (!targetIds.has(item.id) || item.extensions?.[extensionId] !== undefined) {
+        return item;
+      }
+
+      return {
+        ...item,
+        extensions: {
+          ...item.extensions,
+          [extensionId]: EXTENSION_REGISTRY[extensionId].createDefault(),
+        },
+      } as T;
+    };
+
+    setElements((current) => current.map(install));
+    setTextBlocks((current) => current.map(install));
+    setTextCards((current) => current.map(install));
+    setImages((current) => current.map(install));
     closeContextMenus();
-  };
-
-  const installPrivacyExtension = (id: string) => {
-    installPrivacyExtensions([id]);
-  };
-
-  const installSearchExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                search: element.extensions?.search ?? { query: "" },
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installSearchExtension = (id: string) => {
-    installSearchExtensions([id]);
-  };
-
-  const installSortingExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                sorting: element.extensions?.sorting ?? { mode: null, direction: "asc" },
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installSortingExtension = (id: string) => {
-    installSortingExtensions([id]);
   };
 
   const togglePrivacyExtension = (id: string) => {
@@ -4957,63 +5608,6 @@ function App() {
     );
   };
 
-  const removePrivacyExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.privacy) {
-          return element;
-        }
-
-        const { privacy: _privacy, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
-    setTextBlocks((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.privacy) {
-          return element;
-        }
-
-        const { privacy: _privacy, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
-    closeContextMenus();
-  };
-
-  const installLockExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    const withLock = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
-      targetIds.has(item.id)
-        ? {
-            ...item,
-            extensions: {
-              ...item.extensions,
-              lock: item.extensions?.lock ?? { enabled: true },
-            },
-          }
-        : item;
-    setElements((current) => current.map(withLock));
-    setTextBlocks((current) => current.map(withLock));
-    setTextCards((current) => current.map(withLock));
-    setImages((current) => current.map(withLock));
-    closeContextMenus();
-  };
-
-  const installLockExtension = (id: string) => {
-    installLockExtensions([id]);
-  };
-
   const toggleLockExtension = (id: string) => {
     const source =
       containersById.get(id) ??
@@ -5042,218 +5636,6 @@ function App() {
     setTextBlocks((current) => current.map(toggle));
     setTextCards((current) => current.map(toggle));
     setImages((current) => current.map(toggle));
-  };
-
-  const removeLockExtension = (id: string) => {
-    const stripLock = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
-      if (item.id !== id || !item.extensions?.lock) {
-        return item;
-      }
-      const { lock: _lock, ...extensions } = item.extensions;
-      return { ...item, extensions };
-    };
-    setElements((current) => current.map(stripLock));
-    setTextBlocks((current) => current.map(stripLock));
-    setTextCards((current) => current.map(stripLock));
-    setImages((current) => current.map(stripLock));
-    closeContextMenus();
-  };
-
-  const installColorsExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                colors: element.extensions?.colors ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
-    setTextBlocks((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                colors: element.extensions?.colors ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
-    setTextCards((current) =>
-      current.map((card) =>
-        targetIds.has(card.id)
-          ? {
-              ...card,
-              extensions: {
-                ...card.extensions,
-                colors: card.extensions?.colors ?? { enabled: true },
-              },
-            }
-          : card,
-      ),
-    );
-    setImages((current) =>
-      current.map((image) =>
-        targetIds.has(image.id)
-          ? {
-              ...image,
-              extensions: {
-                ...image.extensions,
-                colors: image.extensions?.colors ?? { enabled: true },
-              },
-            }
-          : image,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installColorsExtension = (id: string) => {
-    installColorsExtensions([id]);
-  };
-
-  const installColorPickerExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    const withColorPicker = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
-      targetIds.has(item.id)
-        ? {
-            ...item,
-            extensions: {
-              ...item.extensions,
-              colorPicker: item.extensions?.colorPicker ?? { enabled: true },
-            },
-          }
-        : item;
-    setElements((current) => current.map(withColorPicker));
-    setTextBlocks((current) => current.map(withColorPicker));
-    closeContextMenus();
-  };
-
-  const installAutoCheckboxExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                autoCheckbox: element.extensions?.autoCheckbox ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installDailyResetExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    const today = getLocalDateKey();
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                dailyReset: element.extensions?.dailyReset ?? { lastResetDate: today },
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installCounterExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                counter: element.extensions?.counter ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installInheritCardColorExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                inheritCardColor: element.extensions?.inheritCardColor ?? { enabled: true },
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
-  };
-
-  const installPickCardExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) =>
-        targetIds.has(element.id)
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                pickCard: element.extensions?.pickCard ?? {},
-              },
-            }
-          : element,
-      ),
-    );
-    closeContextMenus();
   };
 
   const togglePickedContainerCard = (id: string) => {
@@ -5291,84 +5673,6 @@ function App() {
     if (nextSelectedCardId) {
       window.requestAnimationFrame(() => glowTextCard(nextSelectedCardId));
     }
-  };
-
-  const removeColorsExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.colors) {
-          return element;
-        }
-
-        const { colors: _colors, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
-    setTextBlocks((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.colors) {
-          return element;
-        }
-
-        const { colors: _colors, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
-    setTextCards((current) =>
-      current.map((card) => {
-        if (card.id !== id || !card.extensions?.colors) {
-          return card;
-        }
-
-        const { colors: _colors, ...extensions } = card.extensions;
-        return {
-          ...card,
-          extensions,
-        };
-      }),
-    );
-    setImages((current) =>
-      current.map((image) => {
-        if (image.id !== id || !image.extensions?.colors) {
-          return image;
-        }
-
-        const { colors: _colors, ...extensions } = image.extensions;
-        return {
-          ...image,
-          extensions,
-        };
-      }),
-    );
-    closeContextMenus();
-  };
-
-  const installCheckboxExtensions = (ids: string[]) => {
-    const targetIds = new Set(ids);
-    if (targetIds.size === 0) {
-      return;
-    }
-
-    setTextCards((current) =>
-      current.map((card) =>
-        targetIds.has(card.id)
-          ? {
-              ...card,
-              extensions: {
-                ...card.extensions,
-                checkbox: card.extensions?.checkbox ?? { checked: false },
-              },
-            }
-          : card,
-      ),
-    );
-    closeContextMenus();
   };
 
   const toggleTextCardCheckbox = (id: string) => {
@@ -5411,27 +5715,6 @@ function App() {
     }));
   };
 
-  const removeSearchExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.search) {
-          return element;
-        }
-
-        const { search: _search, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
-    setContainerScrollOffsets((current) => ({
-      ...current,
-      [id]: 0,
-    }));
-    closeContextMenus();
-  };
-
   const setContainerSort = (
     id: string,
     mode: "alphabet" | "color" | null,
@@ -5457,27 +5740,6 @@ function App() {
       ...current,
       [id]: 0,
     }));
-  };
-
-  const removeSortingExtension = (id: string) => {
-    setElements((current) =>
-      current.map((element) => {
-        if (element.id !== id || !element.extensions?.sorting) {
-          return element;
-        }
-
-        const { sorting: _sorting, ...extensions } = element.extensions;
-        return {
-          ...element,
-          extensions,
-        };
-      }),
-    );
-    setContainerScrollOffsets((current) => ({
-      ...current,
-      [id]: 0,
-    }));
-    closeContextMenus();
   };
 
   const showExtensionDropRipple = (
@@ -5528,7 +5790,9 @@ function App() {
     return { type: targetType, id };
   };
 
-  const getExtensionTargetBounds = (target: ExtensionDropRipple["target"]): ExtensionRippleBounds | null => {
+  const getExtensionTargetBounds = (
+    target: ExtensionDropRipple["target"],
+  ): ExtensionRippleBounds | null => {
     if (target.type === "container") {
       const element = containersById.get(target.id);
       return element
@@ -5554,74 +5818,10 @@ function App() {
     return card ? getTextCardRippleBounds(card) : null;
   };
 
-  const getExtensionHoverTargetAtPoint = (
-    point: { x: number; y: number },
-  ): { target: ExtensionDropRipple["target"]; bounds: ExtensionRippleBounds } | null => {
-    const hitBounds = (bounds: ExtensionRippleBounds) =>
-      point.x >= bounds.left &&
-      point.x <= bounds.left + bounds.width &&
-      point.y >= bounds.top &&
-      point.y <= bounds.top + bounds.height;
-
-    for (const image of [...looseImages].reverse()) {
-      const bounds = { left: image.x, top: image.y, width: image.width, height: image.height };
-      if (hitBounds(bounds)) {
-        return { target: { type: "image", id: image.id }, bounds };
-      }
-    }
-
-    for (const card of [...looseTextCards].reverse()) {
-      const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
-      if (hitBounds(bounds)) {
-        return { target: { type: "text-card", id: card.id }, bounds };
-      }
-    }
-
-    for (const container of [...elements].reverse()) {
-      const contentTop =
-        container.y +
-        CONTAINER_HEADER_HEIGHT +
-        (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0);
-      const contentBottom = container.y + container.height;
-
-      for (const card of [...getContainerVisibleTextCards(container)].reverse()) {
-        const bounds = getTextCardRippleBounds(card);
-        if (
-          bounds &&
-          bounds.top < contentBottom &&
-          bounds.top + bounds.height > contentTop &&
-          hitBounds(bounds)
-        ) {
-          return { target: { type: "text-card", id: card.id }, bounds };
-        }
-      }
-    }
-
-    for (const element of [...textBlocks].reverse()) {
-      const bounds = { left: element.x, top: element.y, width: element.width, height: element.height };
-      if (hitBounds(bounds)) {
-        return { target: { type: "text-block", id: element.id }, bounds };
-      }
-    }
-
-    for (const element of [...elements].reverse()) {
-      const bounds = { left: element.x, top: element.y, width: element.width, height: element.height };
-      if (hitBounds(bounds)) {
-        return { target: { type: "container", id: element.id }, bounds };
-      }
-    }
-
-    return null;
-  };
-
-  const handleExtensionDragHover = (
-    _extensionId: ExtensionId | null,
-    _clientX?: number,
-    _clientY?: number,
+  const getExtensionDropTargetIds = (
+    extensionId: ExtensionId,
+    target: ExtensionDropRipple["target"],
   ) => {
-  };
-
-  const getExtensionDropTargetIds = (extensionId: ExtensionId, target: ExtensionDropRipple["target"]) => {
     if (!selectedIds.includes(target.id) || selectedIds.length <= 1) {
       return [target.id];
     }
@@ -5632,37 +5832,6 @@ function App() {
     });
   };
 
-  const installDroppedExtension = (
-    extensionId: ExtensionId,
-    ids: string[],
-  ) => {
-    if (extensionId === "privacy") {
-      installPrivacyExtensions(ids);
-    } else if (extensionId === "lock") {
-      installLockExtensions(ids);
-    } else if (extensionId === "colors") {
-      installColorsExtensions(ids);
-    } else if (extensionId === "colorPicker") {
-      installColorPickerExtensions(ids);
-    } else if (extensionId === "search") {
-      installSearchExtensions(ids);
-    } else if (extensionId === "checkbox") {
-      installCheckboxExtensions(ids);
-    } else if (extensionId === "autoCheckbox") {
-      installAutoCheckboxExtensions(ids);
-    } else if (extensionId === "dailyReset") {
-      installDailyResetExtensions(ids);
-    } else if (extensionId === "counter") {
-      installCounterExtensions(ids);
-    } else if (extensionId === "inheritCardColor") {
-      installInheritCardColorExtensions(ids);
-    } else if (extensionId === "pickCard") {
-      installPickCardExtensions(ids);
-    } else {
-      installSortingExtensions(ids);
-    }
-  };
-
   const applyDroppedExtension = (
     extensionId: ExtensionId,
     point: { x: number; y: number },
@@ -5670,7 +5839,7 @@ function App() {
     bounds: ExtensionRippleBounds,
   ) => {
     const targetIds = getExtensionDropTargetIds(extensionId, target);
-    installDroppedExtension(extensionId, targetIds);
+    installExtensions(extensionId, targetIds);
     if (!selectedIds.includes(target.id)) {
       setSelectedIds([target.id]);
     }
@@ -5707,20 +5876,18 @@ function App() {
     }
   };
 
-  const dropExtensionOnCanvas = (
-    extensionId: ExtensionId,
-    clientX: number,
-    clientY: number,
-  ) => {
+  const dropExtensionOnCanvas = (extensionId: ExtensionId, clientX: number, clientY: number) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    if (extensionId === "colors" || extensionId === "lock") {
-      const targetImage = [...looseImages].reverse().find(
-        (image) =>
-          point.x >= image.x &&
-          point.x <= image.x + image.width &&
-          point.y >= image.y &&
-          point.y <= image.y + image.height,
-      );
+    if (extensionId === "lock") {
+      const targetImage = [...looseImages]
+        .reverse()
+        .find(
+          (image) =>
+            point.x >= image.x &&
+            point.x <= image.x + image.width &&
+            point.y >= image.y &&
+            point.y <= image.y + image.height,
+        );
 
       if (targetImage) {
         applyDroppedExtension(
@@ -5738,7 +5905,7 @@ function App() {
       }
     }
 
-    if (extensionId === "colors" || extensionId === "lock" || extensionId === "checkbox") {
+    if (extensionId === "lock" || extensionId === "checkbox") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
         return (
@@ -5752,7 +5919,12 @@ function App() {
       if (targetTextCard) {
         const bounds = getTextCardRippleBounds(targetTextCard);
         if (bounds) {
-          applyDroppedExtension(extensionId, point, { type: "text-card", id: targetTextCard.id }, bounds);
+          applyDroppedExtension(
+            extensionId,
+            point,
+            { type: "text-card", id: targetTextCard.id },
+            bounds,
+          );
         }
         return;
       }
@@ -5800,18 +5972,18 @@ function App() {
       if (targetContainerCard) {
         const bounds = getTextCardRippleBounds(targetContainerCard);
         if (bounds) {
-          applyDroppedExtension(extensionId, point, { type: "text-card", id: targetContainerCard.id }, bounds);
+          applyDroppedExtension(
+            extensionId,
+            point,
+            { type: "text-card", id: targetContainerCard.id },
+            bounds,
+          );
         }
         return;
       }
     }
 
-    if (
-      extensionId === "privacy" ||
-      extensionId === "colors" ||
-      extensionId === "colorPicker" ||
-      extensionId === "lock"
-    ) {
+    if (extensionId === "privacy" || extensionId === "colorPicker" || extensionId === "lock") {
       const targetTextBlock = [...textBlocks]
         .reverse()
         .find(
@@ -5877,12 +6049,15 @@ function App() {
     showMinimap();
   };
 
-  const applyAppData = (data: AppData, recordHistory = true, preserveCamera = false) => {
+  const applyAppData = (data: unknown, recordHistory = true, preserveCamera = false) => {
     applyingHistoryRef.current = !recordHistory;
-    if (historyTimeoutRef.current) {
-      window.clearTimeout(historyTimeoutRef.current);
-      historyTimeoutRef.current = null;
-    }
+    pendingDeletionTimeoutsRef.current.forEach((timeouts) =>
+      timeouts.forEach((timeout) => window.clearTimeout(timeout)),
+    );
+    pendingDeletionTimeoutsRef.current.clear();
+    pendingCanvasDeletionsRef.current.clear();
+    historyTransactionsRef.current.clear();
+    dirtyHistoryTransactionsRef.current.clear();
 
     const normalized = normalizeAppData(data, getWindowPreviewViewport);
     const selectedCanvas =
@@ -5918,16 +6093,14 @@ function App() {
     const cameraPreservedSelectedCanvas =
       cameraPreservedCanvases.find((canvas) => canvas.id === selectedCanvas.id) ?? selectedCanvas;
 
+    activeCanvasIdRef.current = cameraPreservedSelectedCanvas.id;
     setCanvases(cameraPreservedCanvases);
     setActiveCanvas(cameraPreservedSelectedCanvas);
-    setElements(selectedCanvas.containers);
-    setTextCards(selectedCanvas.textCards);
-    setTextBlocks(selectedCanvas.textBlocks ?? []);
-    setImages(selectedCanvas.images ?? []);
-    setPan(preserveCamera ? latestCameraRef.current.pan : selectedCanvas.pan);
-    setZoom(preserveCamera ? latestCameraRef.current.zoom : selectedCanvas.zoom);
     setCanvasGridStyle(normalized.canvasGridStyle);
     setCanvasGridOpacity(normalized.canvasGridOpacity);
+    setDefaultElementColors(normalized.defaultElementColors);
+    setRecentColors(normalized.recentColors);
+    setShadowsUnderElements(normalized.shadowsUnderElements);
     setDiscordRpcEnabled(normalized.discordRpcEnabled);
     setDiscordRpcShowCanvas(normalized.discordRpcShowCanvas);
     setMinimapEnabled(normalized.minimapEnabled);
@@ -5955,12 +6128,12 @@ function App() {
 
   const applyActiveCanvasHistorySnapshot = (snapshot: TaskCanvas) => {
     applyingHistoryRef.current = true;
-    if (historyTimeoutRef.current) {
-      window.clearTimeout(historyTimeoutRef.current);
-      historyTimeoutRef.current = null;
-    }
+    cancelPendingDeletionCommits(activeCanvas.id);
+    cancelHistoryTransactions(activeCanvas.id);
 
-    const currentActiveCanvas = latestAppDataRef.current.canvases.find((canvas) => canvas.id === activeCanvas.id);
+    const currentActiveCanvas = latestAppDataRef.current.canvases.find(
+      (canvas) => canvas.id === activeCanvas.id,
+    );
     const nextCanvas = {
       ...snapshot,
       pan: latestCameraRef.current.pan,
@@ -5968,14 +6141,9 @@ function App() {
       previewViewport: currentActiveCanvas?.previewViewport,
     };
 
-    setCanvases((current) => current.map((canvas) => (canvas.id === activeCanvas.id ? nextCanvas : canvas)));
-    setActiveCanvas(nextCanvas);
-    setElements(snapshot.containers);
-    setTextCards(snapshot.textCards);
-    setTextBlocks(snapshot.textBlocks ?? []);
-    setImages(snapshot.images ?? []);
-    setPan(latestCameraRef.current.pan);
-    setZoom(latestCameraRef.current.zoom);
+    setCanvases((current) =>
+      current.map((canvas) => (canvas.id === activeCanvas.id ? nextCanvas : canvas)),
+    );
     setSelectedIds([]);
     setRenamingId(null);
     setEditingTextCardId(null);
@@ -5988,8 +6156,10 @@ function App() {
     }, 0);
   };
 
-  const undo = useCallback(() => {
+  const undo = () => {
     const canvasId = activeCanvas.id;
+    cancelHistoryTransactions(canvasId);
+    commitHistorySnapshot(canvasId);
     const history = historyRef.current[canvasId] ?? [];
     const historyIndex = historyIndexRef.current[canvasId] ?? -1;
 
@@ -6004,10 +6174,12 @@ function App() {
     };
     applyActiveCanvasHistorySnapshot(cloneCanvas(history[nextHistoryIndex]));
     updateHistoryState(canvasId);
-  }, [activeCanvas.id, applyActiveCanvasHistorySnapshot]);
+  };
 
-  const redo = useCallback(() => {
+  const redo = () => {
     const canvasId = activeCanvas.id;
+    cancelHistoryTransactions(canvasId);
+    commitHistorySnapshot(canvasId);
     const history = historyRef.current[canvasId] ?? [];
     const historyIndex = historyIndexRef.current[canvasId] ?? -1;
 
@@ -6022,32 +6194,44 @@ function App() {
     };
     applyActiveCanvasHistorySnapshot(cloneCanvas(history[nextHistoryIndex]));
     updateHistoryState(canvasId);
-  }, [activeCanvas.id, applyActiveCanvasHistorySnapshot]);
+  };
+
+  const historyActions = useStableCallbacks({ redo, undo });
 
   useEffect(() => {
     const handleHistoryKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const isEditingText =
-        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      const modalOpen = settingsOpen || clearModalOpen || updateModalOpen;
 
-      if (isEditingText || (!event.ctrlKey && !event.metaKey) || event.altKey) {
+      if (
+        isInteractiveKeyboardTarget(target) ||
+        modalOpen ||
+        target?.closest("[role='dialog'], [aria-modal='true']") ||
+        (!event.ctrlKey && !event.metaKey) ||
+        event.altKey
+      ) {
         return;
       }
 
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
-        undo();
+        if (event.shiftKey) {
+          historyActions.redo();
+        } else {
+          historyActions.undo();
+        }
+        return;
       }
 
-      if (event.key.toLowerCase() === "y") {
+      if (event.key.toLowerCase() === "y" && !event.shiftKey) {
         event.preventDefault();
-        redo();
+        historyActions.redo();
       }
     };
 
     window.addEventListener("keydown", handleHistoryKeyDown);
     return () => window.removeEventListener("keydown", handleHistoryKeyDown);
-  }, [redo, undo]);
+  }, [clearModalOpen, historyActions, settingsOpen, updateModalOpen]);
 
   const exportData = (password: string) =>
     invoke<boolean>("export_app_data", {
@@ -6059,7 +6243,7 @@ function App() {
     cancelAutosave();
     await persistenceQueueRef.current.catch(() => undefined);
     const payload = await file.text();
-    const data = await invoke<AppData>("import_app_data", { payload, password });
+    const data = await invoke<unknown>("import_app_data", { payload, password });
     dirtyCanvasVersionsRef.current.clear();
     applyAppData(data);
     setStorageError(null);
@@ -6070,10 +6254,14 @@ function App() {
     await persistenceQueueRef.current.catch(() => undefined);
     await invoke("reset_local_database");
     const data: AppData = {
+      schemaVersion: 1,
       activeCanvasId: DEFAULT_CANVAS.id,
       canvases: [DEFAULT_CANVAS],
       canvasGridStyle: "dots",
       canvasGridOpacity: DEFAULT_GRID_OPACITY,
+      defaultElementColors: DEFAULT_ELEMENT_COLORS,
+      recentColors: [],
+      shadowsUnderElements: true,
       discordRpcEnabled: false,
       discordRpcShowCanvas: true,
       minimapEnabled: true,
@@ -6091,11 +6279,13 @@ function App() {
   };
 
   const createCanvas = (draft: Pick<TaskCanvas, "name" | "width" | "height">) => {
+    recordHistorySnapshot(getCurrentAppData(), activeCanvas.id);
     const currentCanvases = getPersistedCanvases();
+    cancelPendingDeletionCommits(activeCanvas.id);
     const width = clampCanvasSize(draft.width);
     const height = clampCanvasSize(draft.height);
     const canvas: TaskCanvas = {
-      id: `canvas-${Date.now()}`,
+      id: createEntityId("canvas"),
       name: draft.name.trim() || "Untitled canvas",
       width,
       height,
@@ -6112,14 +6302,9 @@ function App() {
     };
 
     const nextCanvases = [...currentCanvases, canvas];
+    activeCanvasIdRef.current = canvas.id;
     setCanvases(nextCanvases);
     setActiveCanvas(canvas);
-    setElements([]);
-    setTextCards([]);
-    setTextBlocks([]);
-    setImages([]);
-    setPan(canvas.pan);
-    setZoom(canvas.zoom);
     setSelectedIds([]);
     setRenamingId(null);
     closeContextMenus();
@@ -6130,109 +6315,74 @@ function App() {
       return;
     }
 
+    recordHistorySnapshot(getCurrentAppData(), activeCanvas.id);
     const currentCanvases = getPersistedCanvases();
     const nextCanvas = currentCanvases.find((canvas) => canvas.id === id);
     if (!nextCanvas) {
       return;
     }
 
+    cancelPendingDeletionCommits(activeCanvas.id);
+    activeCanvasIdRef.current = nextCanvas.id;
     setCanvases(currentCanvases);
     setActiveCanvas(nextCanvas);
-    setElements(nextCanvas.containers);
-    setTextCards(nextCanvas.textCards);
-    setTextBlocks(nextCanvas.textBlocks ?? []);
-    setImages(nextCanvas.images ?? []);
-    setPan(nextCanvas.pan);
-    setZoom(nextCanvas.zoom);
     setSelectedIds([]);
+    setDeletingIds([]);
+    setDeletingTextCardIds([]);
+    setDeletingTextBlockIds([]);
+    setDeletingImageIds([]);
     setRenamingId(null);
     closeContextMenus();
   };
 
   const updateCanvas = (id: string, updates: Pick<TaskCanvas, "name" | "width" | "height">) => {
-    const width = clampCanvasSize(updates.width);
-    const height = clampCanvasSize(updates.height);
+    const details = {
+      ...updates,
+      width: clampCanvasSize(updates.width),
+      height: clampCanvasSize(updates.height),
+    };
+    const applyUpdate = (canvas: TaskCanvas) =>
+      canvas.id === id ? updateCanvasDetails(canvas, details) : canvas;
 
-    setCanvases((current) =>
-      current.map((canvas) =>
-        canvas.id === id
-          ? {
-              ...canvas,
-              name: updates.name,
-              width,
-              height,
-            }
-          : canvas,
-      ),
-    );
-
-    if (id === activeCanvas.id) {
-      setActiveCanvas((current) => ({
-        ...current,
-        name: updates.name,
-        width,
-        height,
-      }));
-      setElements((current) =>
-        current.map((element) => ({
-          ...element,
-          x: clamp(element.x, 0, Math.max(0, width - element.width)),
-          y: clamp(element.y, 0, Math.max(0, height - element.height)),
-          width: Math.min(element.width, width),
-          height: Math.min(element.height, height),
-        })),
-      );
-      setTextCards((current) =>
-        current.map((card) => ({
-          ...card,
-          x: clamp(card.x, 0, width),
-          y: clamp(card.y, 0, height),
-        })),
-      );
-      setTextBlocks((current) =>
-        current.map((element) => ({
-          ...element,
-          x: clamp(element.x, 0, Math.max(0, width - element.width)),
-          y: clamp(element.y, 0, Math.max(0, height - element.height)),
-          width: Math.min(element.width, width),
-          height: Math.min(element.height, height),
-        })),
-      );
-      setImages((current) =>
-        current.map((image) => ({
-          ...image,
-          x: clamp(image.x, 0, Math.max(0, width - image.width)),
-          y: clamp(image.y, 0, Math.max(0, height - image.height)),
-          width: Math.min(image.width, width),
-          height: Math.min(image.height, height),
-        })),
-      );
-    }
+    markCanvasDirty(id);
+    setCanvases((current) => current.map(applyUpdate));
+    const latestData = latestDataGetterRef.current();
+    const nextData = {
+      ...latestData,
+      canvases: latestData.canvases.map(applyUpdate),
+    };
+    latestAppDataRef.current = nextData;
+    recordHistorySnapshot(nextData, id);
   };
 
   const deleteCanvas = (id: string) => {
+    recordHistorySnapshot(getCurrentAppData(), activeCanvas.id);
     const currentCanvases = getPersistedCanvases();
     if (currentCanvases.length <= 1) {
       return;
     }
 
+    if (id === activeCanvas.id) {
+      cancelPendingDeletionCommits(activeCanvas.id);
+    }
+
     const nextCanvases = currentCanvases.filter((canvas) => canvas.id !== id);
     const nextActiveCanvas =
-      id === activeCanvas.id ? nextCanvases[Math.max(currentCanvases.findIndex((canvas) => canvas.id === id) - 1, 0)] : activeCanvas;
+      id === activeCanvas.id
+        ? nextCanvases[Math.max(currentCanvases.findIndex((canvas) => canvas.id === id) - 1, 0)]
+        : activeCanvas;
 
     delete historyRef.current[id];
     delete historyIndexRef.current[id];
+    cancelHistoryTransactions(id);
+    pendingCanvasDeletionsRef.current.delete(id);
+    dirtyCanvasVersionsRef.current.delete(id);
 
     setCanvases(nextCanvases);
 
     if (nextActiveCanvas.id !== activeCanvas.id) {
+      activeCanvasIdRef.current = nextActiveCanvas.id;
       setActiveCanvas(nextActiveCanvas);
-      setElements(nextActiveCanvas.containers);
-      setTextCards(nextActiveCanvas.textCards);
-      setTextBlocks(nextActiveCanvas.textBlocks ?? []);
-      setImages(nextActiveCanvas.images ?? []);
-      setPan(nextActiveCanvas.pan);
-      setZoom(nextActiveCanvas.zoom);
       setSelectedIds([]);
       setRenamingId(null);
       closeContextMenus();
@@ -6355,6 +6505,8 @@ function App() {
     selectCanvas(nextCanvasId);
   };
 
+  const canvasCycleActions = useStableCallbacks({ cycleCanvases, finishCanvasCycle });
+
   useEffect(() => {
     const handleCtrlTab = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -6370,14 +6522,14 @@ function App() {
 
       event.preventDefault();
       event.stopPropagation();
-      cycleCanvases(event.shiftKey ? -1 : 1);
+      canvasCycleActions.cycleCanvases(event.shiftKey ? -1 : 1);
     };
     const handleCtrlRelease = (event: KeyboardEvent) => {
       if (
         (event.key === "Control" || event.key === "ControlLeft" || event.key === "ControlRight") &&
         canvasCycleSessionRef.current
       ) {
-        finishCanvasCycle();
+        canvasCycleActions.finishCanvasCycle();
       }
     };
 
@@ -6387,21 +6539,7 @@ function App() {
       window.removeEventListener("keydown", handleCtrlTab, true);
       window.removeEventListener("keyup", handleCtrlRelease, true);
     };
-  }, [
-    activeCanvas,
-    canvasCycleHighlightId,
-    canvasManagerClosing,
-    canvasManagerOpen,
-    canvases,
-    elements,
-    extensionsClosing,
-    extensionsOpen,
-    images,
-    pan,
-    textBlocks,
-    textCards,
-    zoom,
-  ]);
+  }, [canvasCycleActions]);
 
   const toggleCanvasManager = () => {
     if (canvasManagerOpen && !canvasManagerClosing) {
@@ -6425,6 +6563,20 @@ function App() {
     setDiscordRpcEnabled(enabled);
   };
 
+  const rememberRecentColor = (color?: string) => {
+    if (!color) {
+      return;
+    }
+
+    const normalized = color.toUpperCase();
+    setRecentColors((current) =>
+      [
+        normalized,
+        ...current.filter((recentColor) => recentColor.toUpperCase() !== normalized),
+      ].slice(0, 8),
+    );
+  };
+
   const canvasNodeActions = useStableCallbacks({
     cancelRename,
     cancelTextBlockEdit,
@@ -6435,6 +6587,7 @@ function App() {
     openTextBlockMenu,
     openTextCardMenu,
     pickImageForElement,
+    rememberRecentColor,
     saveRename,
     saveTextBlockEdit,
     saveTextCardEdit,
@@ -6458,30 +6611,25 @@ function App() {
     updateTextBlockAccent,
     updateTextBlockHeaderButtonsVisible,
   });
-  const outlinedIdsSignature = outlinedIds.join("|");
-  const draggedTextCardIdsSignature = draggedTextCardIds.join("|");
   const editingTextCardContainerId = editingTextCardId
     ? textCardsById.get(editingTextCardId)?.containerId
     : undefined;
-  const containerContentRevision = useMemo(
-    () => ({}),
-    [
-      containerScrollOffsets,
-      deletingTextCardIds,
-      draggedTextCardIdsSignature,
-      dragState?.type === "move",
-      dragState?.type === "text-card-move",
-      enteringTextCardIds,
-      glowingTextCardIds,
-      outlinedIdsSignature,
-      pulsingTextCardIds,
-      selectedIds.length,
-      settlingTextCardIds,
-      textCardDetachedContainerId,
-      textCardDropPreview,
-      textCards,
-    ],
-  );
+  const containerContentRevision = useRevisionToken([
+    containerScrollOffsets,
+    deletingTextCardIds,
+    draggedTextCardIds,
+    dragState?.type === "move",
+    dragState?.type === "text-card-move",
+    enteringTextCardIds,
+    glowingTextCardIds,
+    outlinedIds,
+    pulsingTextCardIds,
+    selectedIds.length,
+    settlingTextCardIds,
+    textCardDetachedContainerId,
+    textCardDropPreview,
+    textCards,
+  ]);
 
   const stageWidth = stageSize.width;
   const stageHeight = stageSize.height;
@@ -6496,12 +6644,15 @@ function App() {
       height: stageHeight / zoom + overscan * 2,
     };
   }, [pan.x, pan.y, stageHeight, stageWidth, zoom]);
-  const dragPinnedIds = dragState && "ids" in dragState
-    ? dragState.ids
-    : dragState && "id" in dragState
-      ? [dragState.id]
-      : EMPTY_IDS;
-  const dragPinnedSignature = dragPinnedIds.join("|");
+  const dragPinnedIds = useMemo(
+    () =>
+      dragState && "ids" in dragState
+        ? dragState.ids
+        : dragState && "id" in dragState
+          ? [dragState.id]
+          : EMPTY_IDS,
+    [dragState],
+  );
   const pinnedRenderIds = useMemo(() => {
     const ids = new Set(selectedIds);
     [renamingId, editingTextBlockId, editingTextCardId].forEach((id) => {
@@ -6509,7 +6660,7 @@ function App() {
     });
     dragPinnedIds.forEach((id) => ids.add(id));
     return ids;
-  }, [dragPinnedSignature, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
+  }, [dragPinnedIds, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
   const renderedElements = useMemo(
     () =>
       layeredElements.filter(
@@ -6577,8 +6728,16 @@ function App() {
       : MINIMAP_MAX_SIZE;
   const visibleWorldLeft = -pan.x / zoom;
   const visibleWorldTop = -pan.y / zoom;
-  const minimapViewportWidth = clamp((stageWidth / zoom / canvasWidth) * minimapWidth, 8, minimapWidth);
-  const minimapViewportHeight = clamp((stageHeight / zoom / canvasHeight) * minimapHeight, 8, minimapHeight);
+  const minimapViewportWidth = clamp(
+    (stageWidth / zoom / canvasWidth) * minimapWidth,
+    8,
+    minimapWidth,
+  );
+  const minimapViewportHeight = clamp(
+    (stageHeight / zoom / canvasHeight) * minimapHeight,
+    8,
+    minimapHeight,
+  );
   const minimapViewport = {
     x: (visibleWorldLeft / canvasWidth) * minimapWidth,
     y: (visibleWorldTop / canvasHeight) * minimapHeight,
@@ -6604,27 +6763,96 @@ function App() {
   const containerSelectionAccent = containerSelectionBounds
     ? containersById.get(containerSelectionBounds.containerId)?.accent
     : null;
-  const contextMenuElement = containerMenu
-    ? containersById.get(containerMenu.id)
-    : null;
+  const contextMenuElement = containerMenu ? containersById.get(containerMenu.id) : null;
   const closingContextMenuElement = closingContainerMenu
     ? containersById.get(closingContainerMenu.id)
     : null;
-  const textCardContextElement = textCardMenu
-    ? textCardsById.get(textCardMenu.id)
-    : null;
+  const textCardContextElement = textCardMenu ? textCardsById.get(textCardMenu.id) : null;
   const closingTextCardContextElement = closingTextCardMenu
     ? textCardsById.get(closingTextCardMenu.id)
     : null;
-  const textBlockContextElement = textBlockMenu
-    ? textBlocksById.get(textBlockMenu.id)
-    : null;
+  const textBlockContextElement = textBlockMenu ? textBlocksById.get(textBlockMenu.id) : null;
   const closingTextBlockContextElement = closingTextBlockMenu
     ? textBlocksById.get(closingTextBlockMenu.id)
     : null;
   const imageContextElement = imageMenu ? imagesById.get(imageMenu.id) : null;
   const closingImageContextElement = closingImageMenu ? imagesById.get(closingImageMenu.id) : null;
   const textCardDropPreviewPosition = getTextCardDropPreviewPosition();
+  const canvasElementShadows: CanvasElementShadow[] = [
+    ...renderedElements
+      .filter((element) => !deletingIds.includes(element.id))
+      .map((element) => ({
+        id: element.id,
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        radius: 12,
+        strength: "shell" as const,
+      })),
+    ...renderedTextBlocks
+      .filter((element) => !deletingTextBlockIds.includes(element.id))
+      .map((element) => ({
+        id: element.id,
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        radius: 12,
+        strength: "shell" as const,
+      })),
+    ...renderedTextCards.flatMap((card) => {
+      const draggingTextCard =
+        dragState?.type === "text-card-move" && dragState.ids.includes(card.id);
+      if ((card.containerId && !draggingTextCard) || deletingTextCardIds.includes(card.id)) {
+        return [];
+      }
+
+      const dragOffset = draggingTextCard
+        ? dragState.cardOffsets.find((offset) => offset.id === card.id)
+        : undefined;
+      const bounds = getLooseTextCardSelectionBounds(card);
+      return [
+        {
+          id: card.id,
+          left: draggingTextCard ? dragState.currentX + (dragOffset?.x ?? 0) : card.x,
+          top: draggingTextCard ? dragState.currentY + (dragOffset?.y ?? 0) : card.y,
+          width: draggingTextCard ? dragState.width : bounds.width,
+          height: draggingTextCard ? dragState.height : bounds.height,
+          radius: 8,
+          strength: "card" as const,
+        },
+      ];
+    }),
+    ...renderedImages.flatMap((image) => {
+      const chromeless =
+        Boolean(image.imageId) && !loadingImageIds.includes(image.id) && image.background === false;
+      if (chromeless || deletingImageIds.includes(image.id)) {
+        return [];
+      }
+
+      return [
+        {
+          id: image.id,
+          left: image.x,
+          top: image.y,
+          width: image.width,
+          height: image.height,
+          radius: 12,
+          strength: "card" as const,
+        },
+      ];
+    }),
+  ];
+  const draggedShadowIds =
+    dragState?.type === "move" || dragState?.type === "text-card-move"
+      ? new Set(dragState.ids)
+      : dragState?.type === "image-move"
+        ? new Set([dragState.id])
+        : new Set<string>();
+  const draggedCanvasElementShadows = canvasElementShadows.filter((shadow) =>
+    draggedShadowIds.has(shadow.id),
+  );
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
   const frostedGlassStyle = {
     "--frosted-bg-opacity": frostedGlassValues.bgOpacity,
@@ -6639,7 +6867,6 @@ function App() {
   } as CSSProperties;
   return (
     <main
-      data-theme="taskmap"
       spellCheck={false}
       className="h-full w-full bg-[color:var(--void-bg)] text-white"
       style={frostedGlassStyle}
@@ -6648,21 +6875,23 @@ function App() {
     >
       <div className="h-full">
         <section className="relative h-full overflow-hidden">
-          {temporaryPanelsVisible && (
-            <>
-              <FrostedGlassTuner
+          {import.meta.env.DEV && temporaryPanelsVisible && DevelopmentFrostedGlassTuner && (
+            <Suspense fallback={null}>
+              <DevelopmentFrostedGlassTuner
                 frostedValues={frostedGlassValues}
                 cardValues={leftPanelCardValues}
                 onFrostedChange={setFrostedGlassValues}
                 onCardChange={setLeftPanelCardValues}
               />
               <div className="frosted-glass pointer-events-none fixed left-1/2 top-6 z-30 w-[640px] -translate-x-1/2 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-8 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm">
-                <div className="text-2xl font-semibold tracking-tight text-white/88">Frosted glass preview</div>
+                <div className="text-2xl font-semibold tracking-tight text-white/88">
+                  Frosted glass preview
+                </div>
                 <div className="mt-3 text-base leading-6 text-white/58">
                   Temporary example panel using the current slider values.
                 </div>
               </div>
-            </>
+            </Suspense>
           )}
           <FloatingToolbar
             canRedo={historyState.canRedo}
@@ -6681,47 +6910,55 @@ function App() {
             onUndo={undo}
             onOpenSettings={() => setSettingsOpen(true)}
           />
-          {fpsCounterVisible && (
-            <FpsCounter />
+          {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
+            <Suspense fallback={null}>
+              <DevelopmentFpsCounter />
+            </Suspense>
           )}
           {canvasManagerOpen && (
-            <CanvasManager
-              canvases={getPersistedCanvases()}
-              activeCanvasId={activeCanvas.id}
-              cycleHighlightCanvasId={canvasCycleHighlightId}
-              closing={canvasManagerClosing}
-              minimalView={canvasManagerMinimalView}
-              viewportWidth={stageWidth}
-              viewportHeight={stageHeight}
-              onMinimalViewChange={setCanvasManagerMinimalView}
-              onCreateCanvas={createCanvas}
-              onSelectCanvas={selectCanvas}
-              onUpdateCanvas={updateCanvas}
-              onDeleteCanvas={deleteCanvas}
-              onReorderCanvases={reorderCanvases}
-            />
+            <Suspense fallback={null}>
+              <CanvasManager
+                canvases={getPersistedCanvases()}
+                activeCanvasId={activeCanvas.id}
+                cycleHighlightCanvasId={canvasCycleHighlightId}
+                closing={canvasManagerClosing}
+                minimalView={canvasManagerMinimalView}
+                viewportWidth={stageWidth}
+                viewportHeight={stageHeight}
+                onMinimalViewChange={setCanvasManagerMinimalView}
+                onCreateCanvas={createCanvas}
+                onSelectCanvas={selectCanvas}
+                onUpdateCanvas={updateCanvas}
+                onDeleteCanvas={deleteCanvas}
+                onReorderCanvases={reorderCanvases}
+              />
+            </Suspense>
           )}
           {extensionsOpen && (
-            <ExtensionsPanel
-              closing={extensionsClosing}
-              onDropExtension={dropExtensionOnCanvas}
-              onDragExtension={handleExtensionDragHover}
-            />
+            <Suspense fallback={null}>
+              <ExtensionsPanel
+                closing={extensionsClosing}
+                onDropExtension={dropExtensionOnCanvas}
+              />
+            </Suspense>
           )}
           {quickExtensionsMenu && (
-            <QuickExtensionsMenu
-              left={quickExtensionsMenu.left}
-              top={quickExtensionsMenu.top}
-              onClose={() => setQuickExtensionsMenu(null)}
-              onDropExtension={dropExtensionOnCanvas}
-              onDragExtension={handleExtensionDragHover}
-            />
+            <Suspense fallback={null}>
+              <QuickExtensionsMenu
+                left={quickExtensionsMenu.left}
+                top={quickExtensionsMenu.top}
+                onClose={() => setQuickExtensionsMenu(null)}
+                onDropExtension={dropExtensionOnCanvas}
+              />
+            </Suspense>
           )}
           <div
             ref={stageRef}
             data-stage
             className={`absolute inset-0 overflow-hidden ${
-              dragState?.type === "pan" || dragState?.type === "move" ? "cursor-grabbing" : "cursor-default"
+              dragState?.type === "pan" || dragState?.type === "move"
+                ? "cursor-grabbing"
+                : "cursor-default"
             }`}
             onPointerDownCapture={handleStagePointerDownCapture}
             onPointerDown={handleStagePointerDown}
@@ -6736,15 +6973,17 @@ function App() {
               className="canvas-grid absolute overflow-hidden rounded-[24px] border border-white/[0.15] shadow-premium"
               data-grid-style={canvasGridStyle}
               data-image-url-version={imageUrlVersion}
-              style={{
-                "--canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
-                "--canvas-dot-size": `${1.25 / zoom}px`,
-                "--canvas-dot-opacity-scale": dotGridOpacityScale,
-                width: canvasWidth,
-                height: canvasHeight,
-                transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
-                transformOrigin: "0 0",
-              } as React.CSSProperties}
+              style={
+                {
+                  "--canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
+                  "--canvas-dot-size": `${1.25 / zoom}px`,
+                  "--canvas-dot-opacity-scale": dotGridOpacityScale,
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                  transformOrigin: "0 0",
+                } as React.CSSProperties
+              }
               onContextMenu={handleCanvasContextMenu}
               onPointerDown={handleWorldPointerDown}
             >
@@ -6820,6 +7059,36 @@ function App() {
                   </div>
                 );
               })}
+              {shadowsUnderElements && (
+                <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+                  {canvasElementShadows.map((shadow) => (
+                    <div
+                      key={`canvas-shadow-${shadow.id}`}
+                      className={`canvas-element-shadow canvas-element-shadow-${shadow.strength} absolute`}
+                      style={{
+                        left: shadow.left,
+                        top: shadow.top,
+                        width: shadow.width,
+                        height: shadow.height,
+                        borderRadius: shadow.radius,
+                      }}
+                    />
+                  ))}
+                  {draggedCanvasElementShadows.map((shadow) => (
+                    <div
+                      key={`canvas-drag-shadow-${shadow.id}`}
+                      className="canvas-drag-shadow absolute"
+                      style={{
+                        left: shadow.left,
+                        top: shadow.top,
+                        width: shadow.width,
+                        height: shadow.height,
+                        borderRadius: shadow.radius,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
               {renderedElements.map((element) => {
                 // Keep the settling card in the index list so neighbours keep
                 // their correct visible slots; it is rendered in the loose
@@ -6830,17 +7099,34 @@ function App() {
                 const allContainedCards = (
                   orderedTextCardsByContainerId.get(element.id) ?? []
                 ).filter(
-                  (card) => !(dragState?.type === "text-card-move" && dragState.ids.includes(card.id)),
+                  (card) =>
+                    !(dragState?.type === "text-card-move" && dragState.ids.includes(card.id)),
                 );
                 const searchQuery = getContainerSearchQuery(element);
                 const containedCards = getContainerVisibleTextCards(element, allContainedCards);
                 const sorted = Boolean(element.extensions?.sorting?.mode);
+                const containerScrollOffset = getContainerScrollOffset(element);
+                const containerDropPreviewShift =
+                  textCardDropPreview?.containerId === element.id
+                    ? dragState?.type === "text-card-move"
+                      ? dragState.ids.length
+                      : 1
+                    : 0;
+                const containerCardRenderRange = getVirtualRowRange({
+                  rowCount: containedCards.length + containerDropPreviewShift,
+                  rowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+                  rowGap: CONTAINER_TEXT_CARD_GAP,
+                  padding: CONTAINER_TEXT_CARD_PADDING,
+                  scrollOffset: containerScrollOffset,
+                  viewportHeight: getContainerViewportHeight(element),
+                  overscanRows: CONTAINER_TEXT_CARD_OVERSCAN_ROWS,
+                });
                 const relativeDropPreview =
                   textCardDropPreview?.containerId === element.id && textCardDropPreviewPosition
                     ? toContainerRelativePosition(textCardDropPreviewPosition, element)
                     : null;
-                const scrollOffset = getContainerScrollOffset(element);
-                const containerMultiSelected = selectedIds.length > 1 && selectedIds.includes(element.id);
+                const containerMultiSelected =
+                  selectedIds.length > 1 && selectedIds.includes(element.id);
 
                 return (
                   <ContainerNode
@@ -6851,6 +7137,8 @@ function App() {
                     entering={enteringIds.includes(element.id)}
                     deleting={deletingIds.includes(element.id)}
                     moving={dragState?.type === "move" && dragState.ids.includes(element.id)}
+                    shadowsUnderElements={shadowsUnderElements}
+                    recentColors={recentColors}
                     renaming={renamingId === element.id}
                     renameDraft={renamingId === element.id ? renameDraft : ""}
                     onRenameDraftChange={setRenameDraft}
@@ -6863,6 +7151,7 @@ function App() {
                     onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
                     onToggleLock={canvasNodeActions.toggleLockExtension}
                     onUpdateAccent={canvasNodeActions.updateContainerAccent}
+                    onRememberRecentColor={canvasNodeActions.rememberRecentColor}
                     onTogglePickCard={canvasNodeActions.togglePickedContainerCard}
                     onHeaderButtonsVisibleChange={
                       canvasNodeActions.updateContainerHeaderButtonsVisible
@@ -6904,22 +7193,37 @@ function App() {
                       const previewShift =
                         textCardDropPreview?.containerId === element.id &&
                         visibleIndex >= textCardDropPreview.index
-                          ? dragState?.type === "text-card-move"
-                            ? dragState.ids.length
-                            : 1
+                          ? containerDropPreviewShift
                           : 0;
-                      const compactSearchPosition = searchQuery || sorted
-                        ? {
-                            x: element.x + CONTAINER_TEXT_CARD_PADDING,
-                            y:
-                              getContainerCardStackTop(element) +
-                              (visibleIndex + previewShift) *
-                                (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-                              getContainerScrollOffset(element),
-                          }
-                        : null;
+                      const animationPinned =
+                        editingTextCardId === card.id ||
+                        enteringTextCardIds.includes(card.id) ||
+                        deletingTextCardIds.includes(card.id) ||
+                        pulsingTextCardIds.includes(card.id) ||
+                        glowingTextCardIds.includes(card.id);
+                      if (
+                        !animationPinned &&
+                        !isVirtualRowInRange(visibleIndex, containerCardRenderRange, previewShift)
+                      ) {
+                        return null;
+                      }
+
+                      const compactSearchPosition =
+                        searchQuery || sorted
+                          ? {
+                              x: element.x + CONTAINER_TEXT_CARD_PADDING,
+                              y:
+                                getContainerCardStackTop(element) +
+                                (visibleIndex + previewShift) *
+                                  (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
+                                containerScrollOffset,
+                            }
+                          : null;
                       const position = {
-                        ...toContainerRelativePosition(compactSearchPosition ?? getTextCardRenderPosition(card) ?? card, element),
+                        ...toContainerRelativePosition(
+                          compactSearchPosition ?? getTextCardRenderPosition(card) ?? card,
+                          element,
+                        ),
                         maxWidth: Math.max(120, element.width - CONTAINER_TEXT_CARD_PADDING * 2),
                       };
 
@@ -6940,6 +7244,7 @@ function App() {
                           interactionDisabled={containerMultiSelected}
                           linksDisabled={selectedIds.length > 1}
                           privacyHidden={Boolean(element.extensions?.privacy?.enabled)}
+                          shadowsUnderElements={shadowsUnderElements}
                           onDraftChange={setTextCardDraft}
                           onSave={canvasNodeActions.saveTextCardEdit}
                           onCancel={canvasNodeActions.cancelTextCardEdit}
@@ -6953,7 +7258,8 @@ function App() {
                 );
               })}
               {renderedTextBlocks.map((element) => {
-                const textBlockMultiSelected = selectedIds.length > 1 && selectedIds.includes(element.id);
+                const textBlockMultiSelected =
+                  selectedIds.length > 1 && selectedIds.includes(element.id);
 
                 return (
                   <TextBlockNode
@@ -6965,6 +7271,8 @@ function App() {
                     deleting={deletingTextBlockIds.includes(element.id)}
                     pulsing={pulsingTextBlockIds.includes(element.id)}
                     moving={dragState?.type === "move" && dragState.ids.includes(element.id)}
+                    shadowsUnderElements={shadowsUnderElements}
+                    recentColors={recentColors}
                     editing={editingTextBlockId === element.id}
                     draft={editingTextBlockId === element.id ? textBlockDraft : ""}
                     renaming={renamingId === element.id}
@@ -6983,6 +7291,7 @@ function App() {
                     onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
                     onToggleLock={canvasNodeActions.toggleLockExtension}
                     onUpdateAccent={canvasNodeActions.updateTextBlockAccent}
+                    onRememberRecentColor={canvasNodeActions.rememberRecentColor}
                     onHeaderButtonsVisibleChange={
                       canvasNodeActions.updateTextBlockHeaderButtonsVisible
                     }
@@ -7023,25 +7332,17 @@ function App() {
                     pulsing={pulsingTextCardIds.includes(card.id)}
                     glowing={glowingTextCardIds.includes(card.id)}
                     dragging={draggingTextCard}
-                    dragPrimary={
-                      dragState?.type === "text-card-move" && dragState.id === card.id
-                    }
+                    dragPrimary={dragState?.type === "text-card-move" && dragState.id === card.id}
                     dragBundleIndex={dragBundleIndex}
-                    dragBundleSize={
-                      dragState?.type === "text-card-move" ? dragState.ids.length : 1
-                    }
                     dragPickupX={dragBundleOffset?.pickupX ?? 0}
                     dragPickupY={dragBundleOffset?.pickupY ?? 0}
-                    dragSwayX={
-                      dragState?.type === "text-card-move" ? dragState.swayX : 0
-                    }
-                    dragSwayY={
-                      dragState?.type === "text-card-move" ? dragState.swayY : 0
-                    }
+                    dragSwayX={dragState?.type === "text-card-move" ? dragState.swayX : 0}
+                    dragSwayY={dragState?.type === "text-card-move" ? dragState.swayY : 0}
                     moving={dragState?.type === "move" && selectedIds.includes(card.id)}
                     settling={settlingTextCard}
                     selected={outlinedIds.includes(card.id)}
                     linksDisabled={selectedIds.length > 1}
+                    shadowsUnderElements={shadowsUnderElements}
                     onDraftChange={setTextCardDraft}
                     onSave={canvasNodeActions.saveTextCardEdit}
                     onCancel={canvasNodeActions.cancelTextCardEdit}
@@ -7063,6 +7364,7 @@ function App() {
                   moving={dragState?.type === "move" && selectedIds.includes(image.id)}
                   resizing={dragState?.type === "image-resize" && dragState.id === image.id}
                   selected={outlinedIds.includes(image.id)}
+                  shadowsUnderElements={shadowsUnderElements}
                   onStartMove={canvasNodeActions.startImageMove}
                   onStartResize={canvasNodeActions.startImageResize}
                   onOpenMenu={canvasNodeActions.openImageMenu}
@@ -7091,7 +7393,9 @@ function App() {
                 >
                   {dragState.ids.map((id, dragBundleIndex) => {
                     const card = textCardsById.get(id);
-                    const dragBundleOffset = dragState.cardOffsets.find((offset) => offset.id === id);
+                    const dragBundleOffset = dragState.cardOffsets.find(
+                      (offset) => offset.id === id,
+                    );
                     if (!card) {
                       return null;
                     }
@@ -7109,13 +7413,13 @@ function App() {
                         dragging
                         dragPrimary={dragState.id === card.id}
                         dragBundleIndex={dragBundleIndex}
-                        dragBundleSize={dragState.ids.length}
                         dragPickupX={dragBundleOffset?.pickupX ?? 0}
                         dragPickupY={dragBundleOffset?.pickupY ?? 0}
                         dragSwayX={dragState.swayX}
                         dragSwayY={dragState.swayY}
                         selected={outlinedIds.includes(card.id)}
                         linksDisabled
+                        shadowsUnderElements={shadowsUnderElements}
                         onDraftChange={setTextCardDraft}
                         onSave={canvasNodeActions.saveTextCardEdit}
                         onCancel={canvasNodeActions.cancelTextCardEdit}
@@ -7148,6 +7452,7 @@ function App() {
                     settling
                     selected={outlinedIds.includes(card.id)}
                     linksDisabled
+                    shadowsUnderElements={shadowsUnderElements}
                     onDraftChange={setTextCardDraft}
                     onSave={canvasNodeActions.saveTextCardEdit}
                     onCancel={canvasNodeActions.cancelTextCardEdit}
@@ -7192,12 +7497,13 @@ function App() {
               onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
               onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
               onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
               onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
               onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
-              onRemoveInheritCardColorExtension={(id) => stripContextExtension(id, "inheritCardColor")}
+              onRemoveInheritCardColorExtension={(id) =>
+                stripContextExtension(id, "inheritCardColor")
+              }
               onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
@@ -7211,7 +7517,9 @@ function App() {
               element={closingContextMenuElement}
               closing
               isMultiTarget={isMultiContextAction(closingContextMenuElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(closingContextMenuElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingContextMenuElement.id),
+              )}
               onStartRename={startRename}
               onUpdateAccent={updateContextAccent}
               onCut={cutContainer}
@@ -7220,12 +7528,13 @@ function App() {
               onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
               onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
               onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
               onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
               onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
-              onRemoveInheritCardColorExtension={(id) => stripContextExtension(id, "inheritCardColor")}
+              onRemoveInheritCardColorExtension={(id) =>
+                stripContextExtension(id, "inheritCardColor")
+              }
               onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
@@ -7261,14 +7570,15 @@ function App() {
               card={textCardContextElement}
               closing={false}
               isMultiTarget={isMultiContextAction(textCardContextElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(textCardContextElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(textCardContextElement.id),
+              )}
               onStartEdit={startTextCardEdit}
               onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
               onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
@@ -7282,14 +7592,15 @@ function App() {
               card={closingTextCardContextElement}
               closing
               isMultiTarget={isMultiContextAction(closingTextCardContextElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(closingTextCardContextElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingTextCardContextElement.id),
+              )}
               onStartEdit={startTextCardEdit}
               onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
               onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
@@ -7303,14 +7614,15 @@ function App() {
               element={textBlockContextElement}
               closing={false}
               isMultiTarget={isMultiContextAction(textBlockContextElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(textBlockContextElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(textBlockContextElement.id),
+              )}
               onStartEdit={startRename}
               onUpdateAccent={updateContextAccent}
               onCut={cutTextBlock}
               onCopy={copyTextBlock}
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
@@ -7324,14 +7636,15 @@ function App() {
               element={closingTextBlockContextElement}
               closing
               isMultiTarget={isMultiContextAction(closingTextBlockContextElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(closingTextBlockContextElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingTextBlockContextElement.id),
+              )}
               onStartEdit={startRename}
               onUpdateAccent={updateContextAccent}
               onCut={cutTextBlock}
               onCopy={copyTextBlock}
               onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
@@ -7345,7 +7658,9 @@ function App() {
               image={imageContextElement}
               closing={false}
               isMultiTarget={isMultiContextAction(imageContextElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(imageContextElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(imageContextElement.id),
+              )}
               onReplace={pickImageForElement}
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
@@ -7353,7 +7668,6 @@ function App() {
               onCut={cutImage}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onDelete={deleteContextSelection}
             />
           )}
@@ -7365,7 +7679,9 @@ function App() {
               image={closingImageContextElement}
               closing
               isMultiTarget={isMultiContextAction(closingImageContextElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(closingImageContextElement.id))}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingImageContextElement.id),
+              )}
               onReplace={pickImageForElement}
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
@@ -7373,7 +7689,6 @@ function App() {
               onCut={cutImage}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorsExtension={(id) => stripContextExtension(id, "colors")}
               onDelete={deleteContextSelection}
             />
           )}
@@ -7409,61 +7724,77 @@ function App() {
           )}
 
           {clearModalOpen && (
-            <ClearCanvasModal onCancel={() => setClearModalOpen(false)} onConfirm={clearCanvas} />
+            <Suspense fallback={null}>
+              <ClearCanvasModal onCancel={() => setClearModalOpen(false)} onConfirm={clearCanvas} />
+            </Suspense>
           )}
 
           {settingsOpen && (
-            <SettingsModal
-              canvasGridStyle={canvasGridStyle}
-              onCanvasGridStyleChange={setCanvasGridStyle}
-              canvasGridOpacity={canvasGridOpacity[canvasGridStyle]}
-              onCanvasGridOpacityChange={(opacity) =>
-                setCanvasGridOpacity((current) => ({
-                  ...current,
-                  [canvasGridStyle]: opacity,
-                }))
-              }
-              onExportData={exportData}
-              onImportData={importData}
-              discordRpcEnabled={discordRpcEnabled}
-              onDiscordRpcEnabledChange={updateDiscordRpcEnabled}
-              discordRpcShowCanvas={discordRpcShowCanvas}
-              onDiscordRpcShowCanvasChange={setDiscordRpcShowCanvas}
-              availableUpdate={availableUpdate}
-              appVersion={appVersion}
-              fpsCounterVisible={fpsCounterVisible}
-              onFpsCounterVisibleChange={setFpsCounterVisible}
-              privacyModeEnabled={privacyModeEnabled}
-              onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-              temporaryPanelsVisible={temporaryPanelsVisible}
-              onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
-              onCheckForUpdate={checkForAppUpdate}
-              onInstallUpdate={installAppUpdate}
-              onClose={() => setSettingsOpen(false)}
-            />
+            <Suspense fallback={null}>
+              <SettingsModal
+                canvasGridStyle={canvasGridStyle}
+                onCanvasGridStyleChange={setCanvasGridStyle}
+                canvasGridOpacity={canvasGridOpacity[canvasGridStyle]}
+                onCanvasGridOpacityChange={(opacity) =>
+                  setCanvasGridOpacity((current) => ({
+                    ...current,
+                    [canvasGridStyle]: opacity,
+                  }))
+                }
+                defaultElementColors={defaultElementColors}
+                onDefaultElementColorChange={(elementType, color) =>
+                  setDefaultElementColors((current) => ({ ...current, [elementType]: color }))
+                }
+                recentColors={recentColors}
+                onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+                shadowsUnderElements={shadowsUnderElements}
+                onShadowsUnderElementsChange={setShadowsUnderElements}
+                onExportData={exportData}
+                onImportData={importData}
+                discordRpcEnabled={discordRpcEnabled}
+                onDiscordRpcEnabledChange={updateDiscordRpcEnabled}
+                discordRpcShowCanvas={discordRpcShowCanvas}
+                onDiscordRpcShowCanvasChange={setDiscordRpcShowCanvas}
+                availableUpdate={availableUpdate}
+                appVersion={appVersion}
+                fpsCounterVisible={fpsCounterVisible}
+                onFpsCounterVisibleChange={setFpsCounterVisible}
+                privacyModeEnabled={privacyModeEnabled}
+                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
+                temporaryPanelsVisible={temporaryPanelsVisible}
+                onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
+                onCheckForUpdate={checkForAppUpdate}
+                onInstallUpdate={installAppUpdate}
+                onClose={() => setSettingsOpen(false)}
+              />
+            </Suspense>
           )}
 
           {updateModalOpen && availableUpdate && !settingsOpen && (
-            <UpdateAvailableModal
-              update={availableUpdate}
-              onInstall={installAppUpdate}
-              onDismiss={dismissUpdateModal}
-            />
+            <Suspense fallback={null}>
+              <UpdateAvailableModal
+                update={availableUpdate}
+                onInstall={installAppUpdate}
+                onDismiss={dismissUpdateModal}
+              />
+            </Suspense>
           )}
 
           {storageError && (
             <div className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">
               <div className="mb-1 font-semibold">Storage error</div>
-              <div className="text-red-100/75">{storageError}</div>
-              {(storageError.includes("database key no longer matches") ||
-                storageError.includes("no database key was found")) && (
+              <div className="text-red-100/75">{storageError.message}</div>
+              {storageError.canReset && (
                 <button
                   className="mt-3 flex h-9 items-center gap-2 rounded-md bg-red-300/14 px-3 text-sm text-red-100 transition-colors hover:bg-red-300/22"
                   onClick={() => {
                     resetLocalDatabase().catch((error) => {
-                      const message = `Failed to reset local database: ${String(error)}`;
-                      setStorageError(message);
-                      console.error(message);
+                      const storageFailure = createStorageError(
+                        "Failed to reset local database",
+                        error,
+                      );
+                      setStorageError(storageFailure);
+                      console.error(storageFailure.message);
                     });
                   }}
                 >

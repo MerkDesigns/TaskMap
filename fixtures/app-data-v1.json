@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "activeCanvasId": "canvas-fixture",
+  "canvases": [
+    {
+      "id": "canvas-fixture",
+      "name": "Fixture Canvas",
+      "width": 3000,
+      "height": 3000,
+      "containers": [
+        {
+          "id": "container-fixture",
+          "name": "Fixture Container",
+          "x": 100,
+          "y": 120,
+          "width": 380,
+          "height": 260,
+          "accent": "#476FA8",
+          "layer": 1,
+          "headerButtonsVisible": true,
+          "extensions": {
+            "privacy": { "enabled": false },
+            "lock": { "enabled": false },
+            "colorPicker": { "enabled": true },
+            "counter": { "enabled": true },
+            "pickCard": {
+              "selectedCardId": "card-fixture",
+              "lastCardId": "card-fixture"
+            },
+            "search": { "query": "fixture" },
+            "sorting": { "mode": "alphabet", "direction": "asc" }
+          }
+        }
+      ],
+      "textCards": [
+        {
+          "id": "card-fixture",
+          "text": "Fixture card",
+          "x": 130,
+          "y": 180,
+          "accent": "#476FA8",
+          "containerId": "container-fixture",
+          "order": 0,
+          "link": "https://example.com",
+          "extensions": {
+            "checkbox": { "checked": false },
+            "autoCheckbox": { "enabled": true },
+            "dailyReset": { "lastResetDate": "2026-07-17" },
+            "inheritCardColor": { "enabled": true }
+          }
+        }
+      ],
+      "textBlocks": [
+        {
+          "id": "text-block-fixture",
+          "name": "Fixture Text",
+          "text": "Fixture block",
+          "x": 600,
+          "y": 160,
+          "width": 320,
+          "height": 220,
+          "accent": "#6657B1",
+          "extensions": {}
+        }
+      ],
+      "images": [
+        {
+          "id": "image-fixture",
+          "x": 980,
+          "y": 200,
+          "width": 240,
+          "height": 180,
+          "accent": "#4C9A9C",
+          "background": true,
+          "extensions": {}
+        }
+      ],
+      "pan": { "x": -520, "y": -420 },
+      "zoom": 1,
+      "previewViewport": { "width": 1280, "height": 820 }
+    }
+  ],
+  "canvasGridStyle": "dots",
+  "canvasGridOpacity": { "dots": 50, "lines": 15 },
+  "discordRpcEnabled": false,
+  "discordRpcShowCanvas": true,
+  "minimapEnabled": true,
+  "privacyModeEnabled": false,
+  "toolbarButtonsVisible": false,
+  "dismissedUpdateVersion": "0.2.9"
+}

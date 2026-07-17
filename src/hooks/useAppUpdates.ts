@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check as checkForUpdate, Update } from "@tauri-apps/plugin-updater";
+import { commandErrorMessage } from "../app/commandError";
 import { AppUpdateInfo, ToastMessage } from "../types";
 
 type UpdateCheckSource = "startup" | "manual";
@@ -92,7 +93,7 @@ export function useAppUpdates({
           showToast({
             tone: "error",
             title: "Update check failed",
-            message: error instanceof Error ? error.message : String(error),
+            message: commandErrorMessage(error),
             duration: 7000,
           });
         }
@@ -144,7 +145,7 @@ export function useAppUpdates({
       showToast({
         tone: "error",
         title: "Update failed",
-        message: error instanceof Error ? error.message : String(error),
+        message: commandErrorMessage(error),
         duration: 7000,
       });
       throw error;

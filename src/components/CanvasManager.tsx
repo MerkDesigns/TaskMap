@@ -11,7 +11,14 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
-import { PointerEvent as ReactPointerEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   CONTEXT_MENU_PANEL_CLASS,
@@ -59,7 +66,6 @@ type CanvasDragState = {
   currentY: number;
   lastAnchorY: number;
   offsetY: number;
-  rowHeight: number;
   active: boolean;
   orderIds: string[];
   layout: DragLayoutRow[];
@@ -148,7 +154,7 @@ export function CanvasManager({
     });
   };
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     if (!modalMode || createMenuClosing) {
       return;
     }
@@ -160,7 +166,7 @@ export function CanvasManager({
       setEditingId(null);
       setDraft(DEFAULT_DRAFT);
     }, 120);
-  };
+  }, [createMenuClosing, modalMode]);
 
   useEffect(() => {
     if (!editingId) {
@@ -190,7 +196,9 @@ export function CanvasManager({
 
     const closeMenu = (event: PointerEvent) => {
       if (
-        !(event.target as HTMLElement | null)?.closest("[data-context-menu], [data-canvas-menu-trigger]")
+        !(event.target as HTMLElement | null)?.closest(
+          "[data-context-menu], [data-canvas-menu-trigger]",
+        )
       ) {
         setMenu(null);
       }
@@ -217,7 +225,7 @@ export function CanvasManager({
 
     window.addEventListener("pointerdown", closeCreateMenu, true);
     return () => window.removeEventListener("pointerdown", closeCreateMenu, true);
-  }, [modalMode]);
+  }, [closeModal, modalMode]);
 
   const saveInlineEdit = () => {
     if (!editingId) {
@@ -252,12 +260,10 @@ export function CanvasManager({
       setDraft(DEFAULT_DRAFT);
       return;
     }
-
   };
 
   const orderedIds = canvases.map((canvas) => canvas.id);
   const orderedIdsKey = orderedIds.join("|");
-  const orderedCanvases = canvases;
 
   const captureCardRects = () => {
     const rects: Record<string, DOMRect> = {};
@@ -286,16 +292,16 @@ export function CanvasManager({
       return;
     }
 
-    orderedCanvases.forEach((canvas) => {
-      const node = cardRefs.current[canvas.id];
+    Object.keys(firstRects).forEach((id) => {
+      const node = cardRefs.current[id];
       if (!node) {
         return;
       }
 
-      const previousRect = firstRects[canvas.id];
+      const previousRect = firstRects[id];
       const nextRect = node.getBoundingClientRect();
 
-      if (!previousRect || canvas.id === draggingId) {
+      if (!previousRect || id === draggingId) {
         return;
       }
 
@@ -306,23 +312,20 @@ export function CanvasManager({
         return;
       }
 
-      cardAnimationsRef.current[canvas.id]?.cancel();
+      cardAnimationsRef.current[id]?.cancel();
       const animation = node.animate(
-        [
-          { transform: `translate(${deltaX}px, ${deltaY}px)` },
-          { transform: "translate(0, 0)" },
-        ],
+        [{ transform: `translate(${deltaX}px, ${deltaY}px)` }, { transform: "translate(0, 0)" }],
         {
           duration: 190,
           easing: "cubic-bezier(0.16, 1, 0.3, 1)",
         },
       );
-      cardAnimationsRef.current[canvas.id] = animation;
+      cardAnimationsRef.current[id] = animation;
       animation.onfinish = () => {
-        delete cardAnimationsRef.current[canvas.id];
+        delete cardAnimationsRef.current[id];
       };
       animation.oncancel = () => {
-        delete cardAnimationsRef.current[canvas.id];
+        delete cardAnimationsRef.current[id];
       };
     });
 
@@ -371,9 +374,7 @@ export function CanvasManager({
     }
 
     const movingDown = deltaY > 0;
-    const targetId = movingDown
-      ? drag.orderIds[currentIndex + 1]
-      : drag.orderIds[currentIndex - 1];
+    const targetId = movingDown ? drag.orderIds[currentIndex + 1] : drag.orderIds[currentIndex - 1];
     if (!targetId) {
       return;
     }
@@ -384,9 +385,7 @@ export function CanvasManager({
     }
 
     const targetMidpoint = target.top + target.height / 2;
-    const crossedTrigger = movingDown
-      ? anchorY > targetMidpoint
-      : anchorY < targetMidpoint;
+    const crossedTrigger = movingDown ? anchorY > targetMidpoint : anchorY < targetMidpoint;
     if (!crossedTrigger) {
       return;
     }
@@ -557,7 +556,6 @@ export function CanvasManager({
       currentY: event.clientY,
       lastAnchorY: event.clientY,
       offsetY: event.clientY - rect.top,
-      rowHeight: rect.height,
       active: false,
       orderIds,
       layout,
@@ -587,7 +585,9 @@ export function CanvasManager({
       onPointerDownCapture={(event) => {
         if (
           menu &&
-          !(event.target as HTMLElement | null)?.closest("[data-context-menu], [data-canvas-menu-trigger]")
+          !(event.target as HTMLElement | null)?.closest(
+            "[data-context-menu], [data-canvas-menu-trigger]",
+          )
         ) {
           setMenu(null);
         }
@@ -631,151 +631,211 @@ export function CanvasManager({
           ref={listRef}
           className="canvas-browser-scroll h-full min-h-0 space-y-2.5 overflow-y-auto pr-0.5"
         >
-          {orderedCanvases.map((canvas) => {
-          const active = canvas.id === activeCanvasId;
-          const cycleHighlighted = canvas.id === cycleHighlightCanvasId;
-          previewViewportSizesRef.current[canvas.id] ??= canvas.previewViewport ?? {
-            width: viewportWidth,
-            height: viewportHeight,
-          };
-
-          if (active) {
-            previewViewportSizesRef.current[canvas.id] = {
+          {canvases.map((canvas) => {
+            const active = canvas.id === activeCanvasId;
+            const cycleHighlighted = canvas.id === cycleHighlightCanvasId;
+            previewViewportSizesRef.current[canvas.id] ??= canvas.previewViewport ?? {
               width: viewportWidth,
               height: viewportHeight,
             };
-          }
 
-          const previewViewport = previewViewportSizesRef.current[canvas.id];
-          const dragging = draggingId === canvas.id;
-          const previewWidth = 96;
-          const previewHeight = 64;
-          const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
-          const visibleWidth = previewViewport.width / safeZoom;
-          const visibleHeight = previewViewport.height / safeZoom;
-          const visibleLeft = -canvas.pan.x / safeZoom;
-          const visibleTop = -canvas.pan.y / safeZoom;
-          const previewScale = previewWidth / visibleWidth;
+            if (active) {
+              previewViewportSizesRef.current[canvas.id] = {
+                width: viewportWidth,
+                height: viewportHeight,
+              };
+            }
 
-          if (editingId === canvas.id) {
-            return (
-              <div
-                key={canvas.id}
-                data-canvas-card-id={canvas.id}
-                ref={(node) => {
-                  cardRefs.current[canvas.id] = node;
-                }}
-                className={`relative flex w-full select-none flex-col gap-3 rounded-xl border border-[#2dd8c8]/40 bg-[#1c1d22] p-3 text-left ${
-                  cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""
-                }`}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/45">
-                  <IconPencil size={14} stroke={2} />
-                  <span>Edit canvas</span>
+            const previewViewport = previewViewportSizesRef.current[canvas.id];
+            const dragging = draggingId === canvas.id;
+            const previewWidth = 96;
+            const previewHeight = 64;
+            const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
+            const visibleWidth = previewViewport.width / safeZoom;
+            const visibleLeft = -canvas.pan.x / safeZoom;
+            const visibleTop = -canvas.pan.y / safeZoom;
+            const previewScale = previewWidth / visibleWidth;
+
+            if (editingId === canvas.id) {
+              return (
+                <div
+                  key={canvas.id}
+                  data-canvas-card-id={canvas.id}
+                  ref={(node) => {
+                    cardRefs.current[canvas.id] = node;
+                  }}
+                  className={`relative flex w-full select-none flex-col gap-3 rounded-xl border border-[#2dd8c8]/40 bg-[#1c1d22] p-3 text-left ${
+                    cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""
+                  }`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+                    <IconPencil size={14} stroke={2} />
+                    <span>Edit canvas</span>
+                  </div>
+
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[11px] font-medium text-white/50">Name</span>
+                    <input
+                      ref={nameInputRef}
+                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm font-medium text-white outline-none selection:bg-white/25 focus:border-[#2dd8c8]/60"
+                      value={draft.name}
+                      spellCheck={false}
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, name: event.target.value }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          saveInlineEdit();
+                        }
+
+                        if (event.key === "Escape") {
+                          cancelInlineEdit();
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-1.5">
+                      <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
+                        <IconArrowsHorizontal size={13} stroke={2} />
+                        Width
+                      </span>
+                      <input
+                        className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        type="number"
+                        min={600}
+                        max={10000}
+                        step={100}
+                        value={draft.width}
+                        spellCheck={false}
+                        onChange={(event) =>
+                          setDraft((current) => ({ ...current, width: Number(event.target.value) }))
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            saveInlineEdit();
+                          }
+                        }}
+                        title="Canvas width"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
+                        <IconArrowsVertical size={13} stroke={2} />
+                        Height
+                      </span>
+                      <input
+                        className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        type="number"
+                        min={600}
+                        max={10000}
+                        step={100}
+                        value={draft.height}
+                        spellCheck={false}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            height: Number(event.target.value),
+                          }))
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            saveInlineEdit();
+                          }
+                        }}
+                        title="Canvas height"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-0.5 flex justify-end gap-2">
+                    <button
+                      className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
+                      onClick={cancelInlineEdit}
+                    >
+                      <IconX size={15} stroke={2} />
+                      <span>Cancel</span>
+                    </button>
+                    <button
+                      className="flex h-8 items-center gap-1.5 rounded-md bg-white/[0.12] px-2.5 text-[13px] text-white transition-colors hover:bg-white/[0.18]"
+                      onClick={saveInlineEdit}
+                    >
+                      <IconCheck size={15} stroke={2} />
+                      <span>Save</span>
+                    </button>
+                  </div>
                 </div>
+              );
+            }
 
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-medium text-white/50">Name</span>
-                  <input
-                    ref={nameInputRef}
-                    className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm font-medium text-white outline-none selection:bg-white/25 focus:border-[#2dd8c8]/60"
-                    value={draft.name}
-                    spellCheck={false}
-                    onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        saveInlineEdit();
-                      }
+            if (minimalView) {
+              return (
+                <div
+                  key={`${canvas.id}-minimal`}
+                  data-bar-id={canvas.id}
+                  data-canvas-card-id={canvas.id}
+                  ref={(node) => {
+                    cardRefs.current[canvas.id] = node;
+                  }}
+                  className={`left-panel-card group relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border pl-3 pr-2 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+                    active
+                      ? "border-white/[0.16] bg-[#1c1d22]"
+                      : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
+                  } ${cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""} ${
+                    dragging ? "scale-[0.985] opacity-20" : ""
+                  }`}
+                  onPointerDown={(event) => startCanvasDrag(event, canvas)}
+                  onClick={() => {
+                    if (suppressClickRef.current) {
+                      suppressClickRef.current = false;
+                      return;
+                    }
 
-                      if (event.key === "Escape") {
-                        cancelInlineEdit();
-                      }
-                    }}
+                    if (!editingId) {
+                      onSelectCanvas(canvas.id);
+                    }
+                  }}
+                >
+                  <span
+                    className={`pointer-events-none absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
+                      active ? "opacity-100" : "opacity-0"
+                    }`}
                   />
-                </label>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
-                      <IconArrowsHorizontal size={13} stroke={2} />
-                      Width
-                    </span>
-                    <input
-                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      type="number"
-                      min={600}
-                      max={10000}
-                      step={100}
-                      value={draft.width}
-                      spellCheck={false}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, width: Number(event.target.value) }))
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          saveInlineEdit();
-                        }
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
+                  </div>
+                  <div className="relative shrink-0">
+                    <button
+                      data-canvas-menu-trigger
+                      className="grid h-7 w-7 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMenu((current) =>
+                          current?.id === canvas.id
+                            ? null
+                            : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
+                        );
                       }}
-                      title="Canvas width"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
-                      <IconArrowsVertical size={13} stroke={2} />
-                      Height
-                    </span>
-                    <input
-                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      type="number"
-                      min={600}
-                      max={10000}
-                      step={100}
-                      value={draft.height}
-                      spellCheck={false}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, height: Number(event.target.value) }))
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          saveInlineEdit();
-                        }
-                      }}
-                      title="Canvas height"
-                    />
-                  </label>
+                      title="Canvas menu"
+                    >
+                      <IconDotsVertical size={16} stroke={2} />
+                    </button>
+                  </div>
                 </div>
+              );
+            }
 
-                <div className="mt-0.5 flex justify-end gap-2">
-                  <button
-                    className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
-                    onClick={cancelInlineEdit}
-                  >
-                    <IconX size={15} stroke={2} />
-                    <span>Cancel</span>
-                  </button>
-                  <button
-                    className="flex h-8 items-center gap-1.5 rounded-md bg-white/[0.12] px-2.5 text-[13px] text-white transition-colors hover:bg-white/[0.18]"
-                    onClick={saveInlineEdit}
-                  >
-                    <IconCheck size={15} stroke={2} />
-                    <span>Save</span>
-                  </button>
-                </div>
-              </div>
-            );
-          }
-
-          if (minimalView) {
             return (
               <div
-                key={`${canvas.id}-minimal`}
+                key={`${canvas.id}-full`}
                 data-bar-id={canvas.id}
                 data-canvas-card-id={canvas.id}
                 ref={(node) => {
                   cardRefs.current[canvas.id] = node;
                 }}
-                className={`left-panel-card group relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border pl-3 pr-2 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
+                className={`left-panel-card group relative flex w-full touch-none select-none gap-3 overflow-clip rounded-xl border p-2 pl-3 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
                   active
                     ? "border-white/[0.16] bg-[#1c1d22]"
                     : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
@@ -795,17 +855,90 @@ export function CanvasManager({
                 }}
               >
                 <span
-                  className={`pointer-events-none absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
+                  className={`pointer-events-none absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
                     active ? "opacity-100" : "opacity-0"
                   }`}
                 />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
+                <div className="shrink-0">
+                  <div
+                    className={`relative overflow-hidden rounded-md border bg-[#101116] transition-colors ${
+                      active ? "border-white/[0.22]" : "border-white/[0.10]"
+                    }`}
+                    style={{ width: previewWidth, height: previewHeight }}
+                  >
+                    {canvas.containers.map((container) => (
+                      <div
+                        key={container.id}
+                        className="absolute overflow-hidden rounded-[1px] border"
+                        style={{
+                          left: (container.x - visibleLeft) * previewScale,
+                          top: (container.y - visibleTop) * previewScale,
+                          width: Math.max(container.width * previewScale, 3),
+                          height: Math.max(container.height * previewScale, 3),
+                          borderColor: container.accent,
+                          backgroundColor: "#1b1b1e",
+                        }}
+                      >
+                        <div
+                          className="absolute inset-x-0 top-0"
+                          style={{
+                            height: Math.max(2, 48 * previewScale),
+                            backgroundColor: container.accent,
+                          }}
+                        />
+                      </div>
+                    ))}
+                    {canvas.textBlocks.map((element) => (
+                      <div
+                        key={element.id}
+                        className="absolute overflow-hidden rounded-[1px] border"
+                        style={{
+                          left: (element.x - visibleLeft) * previewScale,
+                          top: (element.y - visibleTop) * previewScale,
+                          width: Math.max(element.width * previewScale, 3),
+                          height: Math.max(element.height * previewScale, 3),
+                          borderColor: element.accent,
+                          backgroundColor: "#1b1b1e",
+                        }}
+                      >
+                        <div
+                          className="absolute inset-x-0 top-0"
+                          style={{
+                            height: Math.max(2, 40 * previewScale),
+                            backgroundColor: element.accent,
+                          }}
+                        />
+                      </div>
+                    ))}
+                    {(canvas.images ?? []).map((image) => (
+                      <div
+                        key={image.id}
+                        className="absolute overflow-hidden rounded-[1px] border"
+                        style={{
+                          left: (image.x - visibleLeft) * previewScale,
+                          top: (image.y - visibleTop) * previewScale,
+                          width: Math.max(image.width * previewScale, 3),
+                          height: Math.max(image.height * previewScale, 3),
+                          borderColor: image.accent,
+                          backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="relative shrink-0">
+
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5">
+                  <div className="min-w-0">
+                    <div className="line-clamp-2 break-words text-base font-semibold leading-snug text-white">
+                      {canvas.name}
+                    </div>
+                    <div className="mt-1 text-[11px] tabular-nums text-white/40">
+                      {canvas.width} × {canvas.height}
+                    </div>
+                  </div>
                   <button
                     data-canvas-menu-trigger
-                    className="grid h-7 w-7 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
                     onClick={(event) => {
                       event.stopPropagation();
                       setMenu((current) =>
@@ -821,191 +954,60 @@ export function CanvasManager({
                 </div>
               </div>
             );
-          }
-
-          return (
-            <div
-              key={`${canvas.id}-full`}
-              data-bar-id={canvas.id}
-              data-canvas-card-id={canvas.id}
-              ref={(node) => {
-                cardRefs.current[canvas.id] = node;
-              }}
-              className={`left-panel-card group relative flex w-full touch-none select-none gap-3 overflow-clip rounded-xl border p-2 pl-3 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
-                active
-                  ? "border-white/[0.16] bg-[#1c1d22]"
-                  : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
-              } ${cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""} ${
-                dragging ? "scale-[0.985] opacity-20" : ""
-              }`}
-              onPointerDown={(event) => startCanvasDrag(event, canvas)}
-              onClick={() => {
-                if (suppressClickRef.current) {
-                  suppressClickRef.current = false;
-                  return;
-                }
-
-                if (!editingId) {
-                  onSelectCanvas(canvas.id);
-                }
-              }}
-            >
-              <span
-                className={`pointer-events-none absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
-                  active ? "opacity-100" : "opacity-0"
-                }`}
-              />
-              <div className="shrink-0">
-                <div
-                  className={`relative overflow-hidden rounded-md border bg-[#101116] transition-colors ${
-                    active ? "border-white/[0.22]" : "border-white/[0.10]"
-                  }`}
-                  style={{ width: previewWidth, height: previewHeight }}
-                >
-                  {canvas.containers.map((container) => (
-                    <div
-                      key={container.id}
-                      className="absolute overflow-hidden rounded-[1px] border"
-                      style={{
-                        left: (container.x - visibleLeft) * previewScale,
-                        top: (container.y - visibleTop) * previewScale,
-                        width: Math.max(container.width * previewScale, 3),
-                        height: Math.max(container.height * previewScale, 3),
-                        borderColor: container.accent,
-                        backgroundColor: "#1b1b1e",
-                      }}
-                    >
-                      <div
-                        className="absolute inset-x-0 top-0"
-                        style={{
-                          height: Math.max(2, 48 * previewScale),
-                          backgroundColor: container.accent,
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {canvas.textBlocks.map((element) => (
-                    <div
-                      key={element.id}
-                      className="absolute overflow-hidden rounded-[1px] border"
-                      style={{
-                        left: (element.x - visibleLeft) * previewScale,
-                        top: (element.y - visibleTop) * previewScale,
-                        width: Math.max(element.width * previewScale, 3),
-                        height: Math.max(element.height * previewScale, 3),
-                        borderColor: element.accent,
-                        backgroundColor: "#1b1b1e",
-                      }}
-                    >
-                      <div
-                        className="absolute inset-x-0 top-0"
-                        style={{
-                          height: Math.max(2, 40 * previewScale),
-                          backgroundColor: element.accent,
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {(canvas.images ?? []).map((image) => (
-                    <div
-                      key={image.id}
-                      className="absolute overflow-hidden rounded-[1px] border"
-                      style={{
-                        left: (image.x - visibleLeft) * previewScale,
-                        top: (image.y - visibleTop) * previewScale,
-                        width: Math.max(image.width * previewScale, 3),
-                        height: Math.max(image.height * previewScale, 3),
-                        borderColor: image.accent,
-                        backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5">
-                <div className="min-w-0">
-                  <div className="line-clamp-2 break-words text-base font-semibold leading-snug text-white">
-                    {canvas.name}
-                  </div>
-                  <div className="mt-1 text-[11px] tabular-nums text-white/40">
-                    {canvas.width} × {canvas.height}
-                  </div>
-                </div>
-                <button
-                  data-canvas-menu-trigger
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setMenu((current) =>
-                      current?.id === canvas.id
-                        ? null
-                        : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
-                    );
-                  }}
-                  title="Canvas menu"
-                >
-                  <IconDotsVertical size={16} stroke={2} />
-                </button>
-              </div>
-            </div>
-          );
           })}
         </div>
       </div>
 
       {menu &&
         createPortal(
-        <div
-          ref={menuRef}
-          data-context-menu
-          className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter z-40`}
-          style={menuPosition}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <button
-            className={MENU_ITEM_CLASS}
-            onClick={() => {
-              const canvas = canvases.find((current) => current.id === menu.id);
-              if (canvas) {
-                openEdit(canvas);
-              }
-            }}
+          <div
+            ref={menuRef}
+            data-context-menu
+            className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter z-40`}
+            style={menuPosition}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
-            <IconPencil size={17} stroke={2} />
-            <span>Edit</span>
-          </button>
-          <div className={MENU_DIVIDER_CLASS} />
-          <button
-            className={`${MENU_DANGER_ITEM_CLASS} disabled:cursor-not-allowed disabled:opacity-35`}
-            onClick={() => {
-              setMenu(null);
-              onDeleteCanvas(menu.id);
-            }}
-            disabled={canvases.length <= 1}
-          >
-            <IconTrash size={17} stroke={2} />
-            <span>Delete</span>
-          </button>
-        </div>,
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => {
+                const canvas = canvases.find((current) => current.id === menu.id);
+                if (canvas) {
+                  openEdit(canvas);
+                }
+              }}
+            >
+              <IconPencil size={17} stroke={2} />
+              <span>Edit</span>
+            </button>
+            <div className={MENU_DIVIDER_CLASS} />
+            <button
+              className={`${MENU_DANGER_ITEM_CLASS} disabled:cursor-not-allowed disabled:opacity-35`}
+              onClick={() => {
+                setMenu(null);
+                onDeleteCanvas(menu.id);
+              }}
+              disabled={canvases.length <= 1}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Delete</span>
+            </button>
+          </div>,
           document.body,
         )}
 
       {modalMode &&
         createPortal(
-        <div
-          data-new-canvas-menu
-          className={`frosted-glass context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
-            createMenuClosing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
-          }`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
+          <div
+            data-new-canvas-menu
+            className={`frosted-glass context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
+              createMenuClosing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
+            }`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[16px] font-semibold">
-                New canvas
-              </h2>
+              <h2 className="text-[16px] font-semibold">New canvas</h2>
               <button
                 className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white"
                 onClick={closeModal}
@@ -1021,7 +1023,9 @@ export function CanvasManager({
                 value={draft.name}
                 autoFocus
                 spellCheck={false}
-                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, name: event.target.value }))
+                }
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     submitModal();
@@ -1075,8 +1079,7 @@ export function CanvasManager({
                 <span>Create</span>
               </button>
             </div>
-        </div>
-        ,
+          </div>,
           document.body,
         )}
     </div>

@@ -98,7 +98,7 @@ export function FrostedGlassTuner({
                 </span>
               </div>
               <input
-                className="range range-xs [--range-shdw:#8aa0ff]"
+                className="taskmap-range [--taskmap-range-accent:#8aa0ff]"
                 type="range"
                 min={control.min}
                 max={control.max}
@@ -120,7 +120,7 @@ export function FrostedGlassTuner({
                 <span className="font-mono text-white/72">{cardValues[control.key]}</span>
               </div>
               <input
-                className="range range-xs [--range-shdw:#8aa0ff]"
+                className="taskmap-range [--taskmap-range-accent:#8aa0ff]"
                 type="range"
                 min={control.min}
                 max={control.max}

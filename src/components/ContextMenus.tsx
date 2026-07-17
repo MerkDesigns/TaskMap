@@ -7,35 +7,34 @@ import {
   IconCut,
   IconCheck,
   IconLink,
-  IconLock,
   IconPencil,
   IconPlus,
   IconNotes,
-  IconPalette,
   IconPhoto,
   IconSquare,
   IconSquareOff,
-  IconSearch,
-  IconShieldLock,
-  IconSortAZ,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ACCENT_PRESETS,
-  ALL_ACCENT_PRESETS,
   CONTEXT_MENU_PANEL_CLASS,
   getTextCardAccent,
   MENU_DANGER_ITEM_CLASS,
   MENU_DIVIDER_CLASS,
   MENU_ITEM_CLASS,
 } from "../constants";
-import { ContainerElement, ContainerMenuState, ImageElement, TextBlockElement, TextCardElement } from "../types";
+import {
+  ContainerElement,
+  ContainerMenuState,
+  ImageElement,
+  TextBlockElement,
+  TextCardElement,
+} from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
-const REMOVE_EXTENSIONS_TITLE_CLASS =
-  "px-2 pb-1 pt-0.5 text-[11px] font-semibold text-white/45";
+const REMOVE_EXTENSIONS_TITLE_CLASS = "px-2 pb-1 pt-0.5 text-[11px] font-semibold text-white/45";
 
 type ContainerContextMenuProps = {
   menu: ContainerMenuState;
@@ -48,7 +47,6 @@ type ContainerContextMenuProps = {
       | "search"
       | "sorting"
       | "lock"
-      | "colors"
       | "colorPicker"
       | "autoCheckbox"
       | "dailyReset"
@@ -66,17 +64,13 @@ type ContainerContextMenuProps = {
   onRemoveSearchExtension: (id: string) => void;
   onRemoveSortingExtension: (id: string) => void;
   onRemoveLockExtension: (id: string) => void;
-  onRemoveColorsExtension: (id: string) => void;
   onRemoveColorPickerExtension: (id: string) => void;
   onRemoveAutoCheckboxExtension: (id: string) => void;
   onRemoveDailyResetExtension: (id: string) => void;
   onRemoveCounterExtension: (id: string) => void;
   onRemoveInheritCardColorExtension: (id: string) => void;
   onRemovePickCardExtension: (id: string) => void;
-  onMoveLayer: (
-    id: string,
-    direction: "back" | "backward" | "forward" | "front",
-  ) => void;
+  onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onDelete: (id: string) => void;
 };
 
@@ -94,7 +88,6 @@ export function ContainerContextMenu({
   onRemoveSearchExtension,
   onRemoveSortingExtension,
   onRemoveLockExtension,
-  onRemoveColorsExtension,
   onRemoveColorPickerExtension,
   onRemoveAutoCheckboxExtension,
   onRemoveDailyResetExtension,
@@ -111,7 +104,6 @@ export function ContainerContextMenu({
     search: Boolean(element.extensions?.search),
     sorting: Boolean(element.extensions?.sorting),
     lock: Boolean(element.extensions?.lock),
-    colors: Boolean(element.extensions?.colors),
     colorPicker: Boolean(element.extensions?.colorPicker),
     autoCheckbox: Boolean(element.extensions?.autoCheckbox),
     dailyReset: Boolean(element.extensions?.dailyReset),
@@ -119,7 +111,7 @@ export function ContainerContextMenu({
     inheritCardColor: Boolean(element.extensions?.inheritCardColor),
     pickCard: Boolean(element.extensions?.pickCard),
   };
-  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const presets = ACCENT_PRESETS;
 
   return (
     <div
@@ -200,7 +192,6 @@ export function ContainerContextMenu({
         extensions.search ||
         extensions.sorting ||
         extensions.lock ||
-        extensions.colors ||
         extensions.colorPicker ||
         extensions.autoCheckbox ||
         extensions.dailyReset ||
@@ -211,78 +202,93 @@ export function ContainerContextMenu({
           <div className={MENU_DIVIDER_CLASS} />
           <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
           {extensions.privacy && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Privacy</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemovePrivacyExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Privacy</span>
+            </button>
           )}
           {extensions.search && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSearchExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Search</span>
-          </button>
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSearchExtension(element.id)}>
+              <IconTrash size={17} stroke={2} />
+              <span>Search</span>
+            </button>
           )}
           {extensions.sorting && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveSortingExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Sorting</span>
-          </button>
-          )}
-          {extensions.colors && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>More Colors</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveSortingExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Sorting</span>
+            </button>
           )}
           {extensions.lock && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Lock</span>
-          </button>
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
+              <IconTrash size={17} stroke={2} />
+              <span>Lock</span>
+            </button>
           )}
           {extensions.colorPicker && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorPickerExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Color Picker</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveColorPickerExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Extra colors</span>
+            </button>
           )}
           {extensions.autoCheckbox && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveAutoCheckboxExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Auto checkboxes</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveAutoCheckboxExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Auto checkboxes</span>
+            </button>
           )}
           {extensions.dailyReset && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveDailyResetExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Daily Resets</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveDailyResetExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Daily Resets</span>
+            </button>
           )}
           {extensions.counter && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveCounterExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Counter</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveCounterExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Counter</span>
+            </button>
           )}
           {extensions.inheritCardColor && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveInheritCardColorExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Inherit Card Color</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveInheritCardColorExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Inherit Card Color</span>
+            </button>
           )}
           {extensions.pickCard && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemovePickCardExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Pick a Card</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemovePickCardExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Pick a Card</span>
+            </button>
           )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
-      <button
-        className={MENU_DANGER_ITEM_CLASS}
-        onClick={() => onDelete(element.id)}
-      >
+      <button className={MENU_DANGER_ITEM_CLASS} onClick={() => onDelete(element.id)}>
         <IconTrash size={17} stroke={2} />
         <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
@@ -318,7 +324,10 @@ export function ContainerContentContextMenu({
   onCreateTextCard,
 }: ContainerContentContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const position = useClampedFixedPosition(menuRef, { left: menu.clientX + 8, top: menu.clientY + 8 });
+  const position = useClampedFixedPosition(menuRef, {
+    left: menu.clientX + 8,
+    top: menu.clientY + 8,
+  });
 
   return (
     <div
@@ -333,7 +342,10 @@ export function ContainerContentContextMenu({
     >
       {hasCopiedItem && (
         <>
-          <button className={MENU_ITEM_CLASS} onClick={() => onPaste(menu.clientX, menu.clientY, menu.containerId)}>
+          <button
+            className={MENU_ITEM_CLASS}
+            onClick={() => onPaste(menu.clientX, menu.clientY, menu.containerId)}
+          >
             <IconCopy size={17} stroke={2} />
             <span>Paste</span>
           </button>
@@ -363,7 +375,10 @@ export function CanvasContextMenu({
   onClear,
 }: CanvasContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const position = useClampedFixedPosition(menuRef, { left: menu.clientX + 8, top: menu.clientY + 8 });
+  const position = useClampedFixedPosition(menuRef, {
+    left: menu.clientX + 8,
+    top: menu.clientY + 8,
+  });
 
   return (
     <div
@@ -390,12 +405,18 @@ export function CanvasContextMenu({
         <span>Create container</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      <button className={MENU_ITEM_CLASS} onClick={() => onCreateTextCard(menu.clientX, menu.clientY)}>
+      <button
+        className={MENU_ITEM_CLASS}
+        onClick={() => onCreateTextCard(menu.clientX, menu.clientY)}
+      >
         <IconPencil size={17} stroke={2} />
         <span>Create text card</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      <button className={MENU_ITEM_CLASS} onClick={() => onCreateTextBlock(menu.clientX, menu.clientY)}>
+      <button
+        className={MENU_ITEM_CLASS}
+        onClick={() => onCreateTextBlock(menu.clientX, menu.clientY)}
+      >
         <IconNotes size={17} stroke={2} />
         <span>Text block</span>
       </button>
@@ -405,10 +426,7 @@ export function CanvasContextMenu({
         <span>Image</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      <button
-        className={MENU_DANGER_ITEM_CLASS}
-        onClick={onClear}
-      >
+      <button className={MENU_DANGER_ITEM_CLASS} onClick={onClear}>
         <IconTrash size={17} stroke={2} />
         <span>Clear canvas</span>
       </button>
@@ -421,19 +439,15 @@ type TextBlockContextMenuProps = {
   element: TextBlockElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"privacy" | "lock" | "colors" | "colorPicker", boolean>>;
+  extensionState?: Partial<Record<"privacy" | "lock" | "colorPicker", boolean>>;
   onStartEdit: (element: TextBlockElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onCut: (element: TextBlockElement) => void;
   onCopy: (element: TextBlockElement) => void;
   onRemovePrivacyExtension: (id: string) => void;
   onRemoveLockExtension: (id: string) => void;
-  onRemoveColorsExtension: (id: string) => void;
   onRemoveColorPickerExtension: (id: string) => void;
-  onMoveLayer: (
-    id: string,
-    direction: "back" | "backward" | "forward" | "front",
-  ) => void;
+  onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onDelete: (id: string) => void;
 };
 
@@ -449,7 +463,6 @@ export function TextBlockContextMenu({
   onCopy,
   onRemovePrivacyExtension,
   onRemoveLockExtension,
-  onRemoveColorsExtension,
   onRemoveColorPickerExtension,
   onMoveLayer,
   onDelete,
@@ -459,10 +472,9 @@ export function TextBlockContextMenu({
   const extensions = extensionState ?? {
     privacy: Boolean(element.extensions?.privacy),
     lock: Boolean(element.extensions?.lock),
-    colors: Boolean(element.extensions?.colors),
     colorPicker: Boolean(element.extensions?.colorPicker),
   };
-  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const presets = ACCENT_PRESETS;
 
   return (
     <div
@@ -539,41 +551,38 @@ export function TextBlockContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
       </button>
-      {(extensions.privacy || extensions.lock || extensions.colors || extensions.colorPicker) && (
+      {(extensions.privacy || extensions.lock || extensions.colorPicker) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
           <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
           {extensions.privacy && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemovePrivacyExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Privacy</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemovePrivacyExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Privacy</span>
+            </button>
           )}
           {extensions.lock && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Lock</span>
-          </button>
-          )}
-          {extensions.colors && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>More Colors</span>
-          </button>
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(element.id)}>
+              <IconTrash size={17} stroke={2} />
+              <span>Lock</span>
+            </button>
           )}
           {extensions.colorPicker && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorPickerExtension(element.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Color Picker</span>
-          </button>
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveColorPickerExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Extra colors</span>
+            </button>
           )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
-      <button
-        className={MENU_DANGER_ITEM_CLASS}
-        onClick={() => onDelete(element.id)}
-      >
+      <button className={MENU_DANGER_ITEM_CLASS} onClick={() => onDelete(element.id)}>
         <IconTrash size={17} stroke={2} />
         <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
@@ -586,14 +595,13 @@ type TextCardContextMenuProps = {
   card: TextCardElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"lock" | "colors" | "checkbox", boolean>>;
+  extensionState?: Partial<Record<"lock" | "checkbox", boolean>>;
   onStartEdit: (card: TextCardElement) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
   onCut: (card: TextCardElement) => void;
   onCopy: (card: TextCardElement) => void;
   onRemoveLockExtension: (id: string) => void;
-  onRemoveColorsExtension: (id: string) => void;
   onRemoveCheckboxExtension: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onDelete: (id: string) => void;
@@ -611,7 +619,6 @@ export function TextCardContextMenu({
   onCut,
   onCopy,
   onRemoveLockExtension,
-  onRemoveColorsExtension,
   onRemoveCheckboxExtension,
   onMoveLayer,
   onDelete,
@@ -619,10 +626,9 @@ export function TextCardContextMenu({
   const activeAccent = getTextCardAccent(card.accent);
   const extensions = extensionState ?? {
     lock: Boolean(card.extensions?.lock),
-    colors: Boolean(card.extensions?.colors),
     checkbox: Boolean(card.extensions?.checkbox),
   };
-  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const presets = ACCENT_PRESETS;
   const menuRef = useRef<HTMLDivElement | null>(null);
   const linkButtonRef = useRef<HTMLButtonElement | null>(null);
   const linkMenuRef = useRef<HTMLDivElement | null>(null);
@@ -748,35 +754,29 @@ export function TextCardContextMenu({
           <IconCopy size={17} stroke={2} />
           <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
         </button>
-        {(extensions.lock || extensions.colors || extensions.checkbox) && (
+        {(extensions.lock || extensions.checkbox) && (
           <>
             <div className={MENU_DIVIDER_CLASS} />
             <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
             {extensions.lock && (
-            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(card.id)}>
-              <IconTrash size={17} stroke={2} />
-              <span>Lock</span>
-            </button>
-            )}
-            {extensions.colors && (
-            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(card.id)}>
-              <IconTrash size={17} stroke={2} />
-              <span>More Colors</span>
-            </button>
+              <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(card.id)}>
+                <IconTrash size={17} stroke={2} />
+                <span>Lock</span>
+              </button>
             )}
             {extensions.checkbox && (
-            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveCheckboxExtension(card.id)}>
-              <IconTrash size={17} stroke={2} />
-              <span>Checkbox</span>
-            </button>
+              <button
+                className={MENU_ITEM_CLASS}
+                onClick={() => onRemoveCheckboxExtension(card.id)}
+              >
+                <IconTrash size={17} stroke={2} />
+                <span>Checkbox</span>
+              </button>
             )}
           </>
         )}
         <div className={MENU_DIVIDER_CLASS} />
-        <button
-          className={MENU_DANGER_ITEM_CLASS}
-          onClick={() => onDelete(card.id)}
-        >
+        <button className={MENU_DANGER_ITEM_CLASS} onClick={() => onDelete(card.id)}>
           <IconTrash size={17} stroke={2} />
           <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
         </button>
@@ -836,7 +836,7 @@ type ImageContextMenuProps = {
   image: ImageElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"lock" | "colors", boolean>>;
+  extensionState?: Partial<Record<"lock", boolean>>;
   onReplace: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onToggleBackground: (id: string) => void;
@@ -844,7 +844,6 @@ type ImageContextMenuProps = {
   onCut: (image: ImageElement) => void;
   onCopy: (image: ImageElement) => void;
   onRemoveLockExtension: (id: string) => void;
-  onRemoveColorsExtension: (id: string) => void;
   onDelete: (id: string) => void;
 };
 
@@ -861,16 +860,14 @@ export function ImageContextMenu({
   onCut,
   onCopy,
   onRemoveLockExtension,
-  onRemoveColorsExtension,
   onDelete,
 }: ImageContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
   const extensions = extensionState ?? {
     lock: Boolean(image.extensions?.lock),
-    colors: Boolean(image.extensions?.colors),
   };
-  const presets = extensions.colors ? ALL_ACCENT_PRESETS : ACCENT_PRESETS;
+  const presets = ACCENT_PRESETS;
 
   return (
     <div
@@ -940,7 +937,11 @@ export function ImageContextMenu({
       </div>
       <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onToggleBackground(image.id)}>
-        {image.background === false ? <IconSquare size={17} stroke={2} /> : <IconSquareOff size={17} stroke={2} />}
+        {image.background === false ? (
+          <IconSquare size={17} stroke={2} />
+        ) : (
+          <IconSquareOff size={17} stroke={2} />
+        )}
         <span>{image.background === false ? "Show background" : "Hide background"}</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
@@ -952,29 +953,20 @@ export function ImageContextMenu({
         <IconCopy size={17} stroke={2} />
         <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
       </button>
-      {(extensions.lock || extensions.colors) && (
+      {extensions.lock && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
           <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
           {extensions.lock && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(image.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>Lock</span>
-          </button>
-          )}
-          {extensions.colors && (
-          <button className={MENU_ITEM_CLASS} onClick={() => onRemoveColorsExtension(image.id)}>
-            <IconTrash size={17} stroke={2} />
-            <span>More Colors</span>
-          </button>
+            <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(image.id)}>
+              <IconTrash size={17} stroke={2} />
+              <span>Lock</span>
+            </button>
           )}
         </>
       )}
       <div className={MENU_DIVIDER_CLASS} />
-      <button
-        className={MENU_DANGER_ITEM_CLASS}
-        onClick={() => onDelete(image.id)}
-      >
+      <button className={MENU_DANGER_ITEM_CLASS} onClick={() => onDelete(image.id)}>
         <IconTrash size={17} stroke={2} />
         <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>

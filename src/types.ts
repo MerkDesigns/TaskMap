@@ -5,9 +5,6 @@ export type ElementExtensions = {
   lock?: {
     enabled: boolean;
   };
-  colors?: {
-    enabled: boolean;
-  };
   colorPicker?: {
     enabled: boolean;
   };
@@ -185,6 +182,13 @@ export type CopiedCanvasItem =
 
 export type CanvasGridStyle = "dots" | "lines";
 
+export type DefaultElementColors = {
+  container: string;
+  textCard: string;
+  textBlock: string;
+  image: string;
+};
+
 export type TaskCanvas = {
   id: string;
   name: string;
@@ -206,10 +210,14 @@ export type TaskCanvas = {
 };
 
 export type AppData = {
+  schemaVersion: 1;
   activeCanvasId: string;
   canvases: TaskCanvas[];
   canvasGridStyle: CanvasGridStyle;
   canvasGridOpacity: Record<CanvasGridStyle, number>;
+  defaultElementColors: DefaultElementColors;
+  recentColors: string[];
+  shadowsUnderElements: boolean;
   discordRpcEnabled: boolean;
   discordRpcShowCanvas: boolean;
   minimapEnabled: boolean;
@@ -335,22 +343,22 @@ export type DragState =
       startHeight: number;
       aspectRatio: number;
     }
-    | {
-        type: "select";
-        pointerId: number;
-        additive: boolean;
-        startX: number;
-        startY: number;
-        currentX: number;
-        currentY: number;
-      }
   | {
-        type: "container-select";
-        pointerId: number;
-        containerId: string;
-        additive: boolean;
-        startX: number;
-        startY: number;
-        currentX: number;
-        currentY: number;
-      };
+      type: "select";
+      pointerId: number;
+      additive: boolean;
+      startX: number;
+      startY: number;
+      currentX: number;
+      currentY: number;
+    }
+  | {
+      type: "container-select";
+      pointerId: number;
+      containerId: string;
+      additive: boolean;
+      startX: number;
+      startY: number;
+      currentX: number;
+      currentY: number;
+    };

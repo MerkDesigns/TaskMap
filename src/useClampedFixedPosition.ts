@@ -11,12 +11,13 @@ export function useClampedFixedPosition<T extends HTMLElement>(
   ref: RefObject<T>,
   preferred: FixedPosition,
 ) {
+  const { left: preferredLeft, top: preferredTop } = preferred;
   const [position, setPosition] = useState(preferred);
 
   useLayoutEffect(() => {
     const node = ref.current;
     if (!node) {
-      setPosition(preferred);
+      setPosition({ left: preferredLeft, top: preferredTop });
       return;
     }
 
@@ -25,10 +26,10 @@ export function useClampedFixedPosition<T extends HTMLElement>(
     const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - rect.height - VIEWPORT_MARGIN);
 
     setPosition({
-      left: Math.min(Math.max(preferred.left, VIEWPORT_MARGIN), maxLeft),
-      top: Math.min(Math.max(preferred.top, VIEWPORT_MARGIN), maxTop),
+      left: Math.min(Math.max(preferredLeft, VIEWPORT_MARGIN), maxLeft),
+      top: Math.min(Math.max(preferredTop, VIEWPORT_MARGIN), maxTop),
     });
-  }, [preferred.left, preferred.top, ref]);
+  }, [preferredLeft, preferredTop, ref]);
 
   return position;
 }

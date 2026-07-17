@@ -49,19 +49,13 @@ export function FloatingToolbar({
 }: FloatingToolbarProps) {
   const buttonClass = (active = false) =>
     `grid h-7 w-7 place-items-center rounded-md transition-colors disabled:cursor-default disabled:text-white/25 disabled:hover:bg-transparent ${
-      active
-        ? "bg-white/[0.14] text-white"
-        : "text-white/70 hover:bg-white/[0.10] hover:text-white"
+      active ? "bg-white/[0.14] text-white" : "text-white/70 hover:bg-white/[0.10] hover:text-white"
     }`;
 
   return (
     <div className="fixed left-4 top-4 z-20 flex items-center gap-2">
       <div className="frosted-glass-toolbar flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-sm">
-        <button
-          className={buttonClass(canvasesOpen)}
-          onClick={onToggleCanvases}
-          title="Canvases"
-        >
+        <button className={buttonClass(canvasesOpen)} onClick={onToggleCanvases} title="Canvases">
           <IconMenu2 size={18} stroke={2} />
         </button>
         <button
@@ -71,11 +65,7 @@ export function FloatingToolbar({
         >
           <IconPuzzle size={18} stroke={2} />
         </button>
-        <button
-          className={buttonClass()}
-          onClick={onOpenSettings}
-          title="Settings"
-        >
+        <button className={buttonClass()} onClick={onOpenSettings} title="Settings">
           <IconSettings size={18} stroke={2} />
         </button>
         <button

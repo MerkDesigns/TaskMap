@@ -1,9 +1,4 @@
-import {
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconInfoCircle,
-  IconX,
-} from "@tabler/icons-react";
+import { IconAlertTriangle, IconCircleCheck, IconInfoCircle, IconX } from "@tabler/icons-react";
 import { ToastMessage, ToastTone } from "../types";
 
 type ToastStackProps = {
