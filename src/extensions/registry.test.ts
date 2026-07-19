@@ -20,5 +20,8 @@ describe("extension registry", () => {
     expect(isExtensionCompatible("checkbox", "text-card")).toBe(true);
     expect(isExtensionCompatible("checkbox", "text-block")).toBe(false);
     expect(isExtensionCompatible("privacy", "text-block")).toBe(true);
+    expect(isExtensionCompatible("copyPasteJson", "container")).toBe(true);
+    expect(isExtensionCompatible("copyPasteJson", "text-card")).toBe(false);
+    expect(EXTENSION_REGISTRY.copyPasteJson.description).toBe("Edit cards with AI");
   });
 });

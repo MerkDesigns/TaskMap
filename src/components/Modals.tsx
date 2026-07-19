@@ -482,7 +482,7 @@ export function SettingsModal({
         aria-modal="true"
         aria-labelledby="settings-title"
         tabIndex={-1}
-        className="relative flex h-[432px] w-[528px] flex-col rounded-xl border border-white/[0.15] bg-[#141519] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+        className="relative flex h-[632px] max-h-[calc(100vh-2rem)] w-[528px] flex-col rounded-xl border border-white/[0.15] bg-[#141519] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
       >
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -528,43 +528,45 @@ export function SettingsModal({
                   <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">
                     Canvas grid
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {GRID_OPTIONS.map(({ label, value, Icon }) => {
-                      const selected = canvasGridStyle === value;
+                  <div className="grid grid-cols-[176px_minmax(0,1fr)] items-center gap-3">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {GRID_OPTIONS.map(({ label, value, Icon }) => {
+                        const selected = canvasGridStyle === value;
 
-                      return (
-                        <button
-                          key={value}
-                          className={`left-panel-card flex h-10 items-center justify-center gap-2 rounded-md border text-sm transition-colors ${
-                            selected
-                              ? "border-white/30 bg-white/[0.14] text-white"
-                              : "border-white/[0.10] bg-black/[0.12] text-white/62 hover:bg-white/[0.08] hover:text-white"
-                          }`}
-                          onClick={() => onCanvasGridStyleChange(value)}
-                        >
-                          <Icon size={17} stroke={2} />
-                          <span>{label}</span>
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={value}
+                            className={`left-panel-card flex h-8 items-center justify-center gap-1.5 rounded-md border text-[12px] transition-colors ${
+                              selected
+                                ? "border-white/30 bg-white/[0.14] text-white"
+                                : "border-white/[0.10] bg-black/[0.12] text-white/62 hover:bg-white/[0.08] hover:text-white"
+                            }`}
+                            onClick={() => onCanvasGridStyleChange(value)}
+                          >
+                            <Icon size={15} stroke={2} />
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/48">
+                        <span>Opacity</span>
+                        <span className="text-white/60">{canvasGridOpacity}%</span>
+                      </div>
+                      <input
+                        className="taskmap-range [--taskmap-range-accent:rgba(255,255,255,0.72)]"
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={canvasGridOpacity}
+                        spellCheck={false}
+                        onChange={(event) => onCanvasGridOpacityChange(Number(event.target.value))}
+                        title="Grid opacity"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <div className="mb-2 flex items-center justify-between text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                    <span>Grid opacity</span>
-                    <span className="text-white/60">{canvasGridOpacity}%</span>
-                  </div>
-                  <input
-                    className="taskmap-range [--taskmap-range-accent:rgba(255,255,255,0.72)]"
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={canvasGridOpacity}
-                    spellCheck={false}
-                    onChange={(event) => onCanvasGridOpacityChange(Number(event.target.value))}
-                    title="Grid opacity"
-                  />
                 </div>
                 <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
                   <div className="mb-1 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">

@@ -173,6 +173,31 @@ body {
   background: rgb(255 255 255 / 0.46);
 }
 
+.json-editor-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #4d535e #17181d;
+}
+
+.json-editor-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.json-editor-scrollbar::-webkit-scrollbar-track {
+  background: #17181d;
+  border-radius: 999px;
+}
+
+.json-editor-scrollbar::-webkit-scrollbar-thumb {
+  background: #4d535e;
+  border: 2px solid #17181d;
+  border-radius: 999px;
+}
+
+.json-editor-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #656d7a;
+}
+
 .hidden-scrollbar {
   scrollbar-width: none;
 }

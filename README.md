@@ -1,6 +1,5 @@
 <div align="center">
 
-
 <h1>TaskMap</h1>
 
 <p><strong>A fast, flexible desktop canvas for organizing tasks, notes, and ideas.</strong></p>
@@ -15,7 +14,7 @@
 </p>
 
 <p>
-  <a href="https://github.com/MerkDesigns/TaskMap/releases/latest/download/TaskMap_0.2.9_x64-setup.exe">Download for Windows</a>
+  <a href="https://github.com/MerkDesigns/TaskMap/releases/latest/download/TaskMap_0.3.0_x64-setup.exe">Download for Windows</a>
   ·
   <a href="https://github.com/MerkDesigns/TaskMap/releases">View all releases</a>
 </p>

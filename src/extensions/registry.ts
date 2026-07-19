@@ -3,6 +3,7 @@ import {
   IconArrowsSort,
   IconCalendarRepeat,
   IconCards,
+  IconBraces,
   IconCheckbox,
   IconChecklist,
   IconColorPicker,
@@ -26,7 +27,8 @@ export type ExtensionId =
   | "dailyReset"
   | "counter"
   | "inheritCardColor"
-  | "pickCard";
+  | "pickCard"
+  | "copyPasteJson";
 
 export type ExtensionTargetType = "container" | "text-block" | "text-card" | "image";
 
@@ -129,6 +131,14 @@ export const EXTENSIONS = [
     Icon: IconArrowsShuffle,
     targets: ["container"],
     createDefault: () => ({}),
+  }),
+  defineExtension({
+    id: "copyPasteJson",
+    label: "Copy/Paste JSON",
+    description: "Edit cards with AI",
+    Icon: IconBraces,
+    targets: ["container"],
+    createDefault: () => ({ enabled: true }),
   }),
 ] as const satisfies readonly ExtensionDefinition[];
 

@@ -27,6 +27,9 @@ export type ElementExtensions = {
     selectedCardId?: string;
     lastCardId?: string;
   };
+  copyPasteJson?: {
+    enabled: boolean;
+  };
   search?: {
     query: string;
   };

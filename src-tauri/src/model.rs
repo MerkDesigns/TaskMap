@@ -302,6 +302,7 @@ fn validate_extensions(value: &serde_json::Value, context: &str) -> Result<(), S
         "autoCheckbox",
         "counter",
         "inheritCardColor",
+        "copyPasteJson",
     ] {
         if let Some(extension) = extensions.get(field) {
             let object = extension
@@ -700,6 +701,11 @@ mod tests {
 
         let mut invalid = valid_app_data();
         invalid["canvases"][0]["containers"][0]["extensions"]["lock"] = json!({ "enabled": "yes" });
+        assert!(migrate_app_data(invalid).is_err());
+
+        let mut invalid = valid_app_data();
+        invalid["canvases"][0]["containers"][0]["extensions"]["copyPasteJson"] =
+            json!({ "enabled": "yes" });
         assert!(migrate_app_data(invalid).is_err());
     }
 

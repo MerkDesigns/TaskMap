@@ -23,6 +23,7 @@ import {
   TextCardContextMenu,
 } from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
+import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import type { FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
@@ -78,6 +79,11 @@ import {
   type ExtensionId,
   type ExtensionTargetType,
 } from "./extensions/registry";
+import {
+  parseCopyPasteJson,
+  replaceContainerFromAiJson,
+  serializeContainerForAi,
+} from "./extensions/copyPasteJson";
 import {
   cloneCanvas,
   createInitialCanvasHistory,
@@ -376,7 +382,7 @@ function App() {
     canvasGridOpacity: DEFAULT_GRID_OPACITY,
     defaultElementColors: DEFAULT_ELEMENT_COLORS,
     recentColors: [],
-    shadowsUnderElements: true,
+    shadowsUnderElements: false,
     discordRpcEnabled: false,
     discordRpcShowCanvas: true,
     minimapEnabled: true,
@@ -459,13 +465,17 @@ function App() {
   const [editingTextBlockId, setEditingTextBlockId] = useState<string | null>(null);
   const [textBlockDraft, setTextBlockDraft] = useState("");
   const [copiedItem, setCopiedItem] = useState<CopiedCanvasItem | null>(null);
+  const [containerJsonEditor, setContainerJsonEditor] = useState<{
+    containerId: string;
+    initialJson: string;
+  } | null>(null);
   const [canvasGridStyle, setCanvasGridStyle] = useState<CanvasGridStyle>("dots");
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [defaultElementColors, setDefaultElementColors] =
     useState<DefaultElementColors>(DEFAULT_ELEMENT_COLORS);
   const [recentColors, setRecentColors] = useState<string[]>([]);
-  const [shadowsUnderElements, setShadowsUnderElements] = useState(true);
+  const [shadowsUnderElements, setShadowsUnderElements] = useState(false);
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
   const [discordRpcShowCanvas, setDiscordRpcShowCanvas] = useState(true);
   const [minimapEnabled, setMinimapEnabled] = useState(true);
@@ -5411,6 +5421,7 @@ function App() {
       counter: ids.some((id) => hasExtension(id, "counter")),
       inheritCardColor: ids.some((id) => hasExtension(id, "inheritCardColor")),
       pickCard: ids.some((id) => hasExtension(id, "pickCard")),
+      copyPasteJson: ids.some((id) => hasExtension(id, "copyPasteJson")),
     };
   };
 
@@ -5478,6 +5489,13 @@ function App() {
         });
         return next;
       });
+    }
+    if (
+      key === "copyPasteJson" &&
+      containerJsonEditor &&
+      actionSet.has(containerJsonEditor.containerId)
+    ) {
+      setContainerJsonEditor(null);
     }
     closeContextMenus();
   };
@@ -5573,6 +5591,110 @@ function App() {
     setTextCards((current) => current.map(install));
     setImages((current) => current.map(install));
     closeContextMenus();
+  };
+
+  const getContainerJsonForAi = (id: string) => {
+    const container = containersById.get(id);
+    if (!container?.extensions?.copyPasteJson) {
+      return null;
+    }
+
+    return serializeContainerForAi(container, getOrderedContainerTextCards(id));
+  };
+
+  const openContainerJsonEditor = (id: string) => {
+    const json = getContainerJsonForAi(id);
+    if (!json) {
+      return;
+    }
+
+    setContainerJsonEditor({ containerId: id, initialJson: json });
+  };
+
+  const copyContainerJsonForAi = async (id: string) => {
+    const json = getContainerJsonForAi(id);
+    if (!json) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(json);
+      showToast({
+        tone: "success",
+        title: "Container JSON copied",
+        message: "Paste it into an AI, then copy only the returned JSON.",
+      });
+    } catch (error) {
+      showToast({
+        tone: "error",
+        title: "Could not copy JSON",
+        message: commandErrorMessage(error),
+      });
+    }
+  };
+
+  const applyContainerJsonFromAi = (id: string, json: string) => {
+    const container = containersById.get(id);
+    if (!container?.extensions?.copyPasteJson) {
+      return false;
+    }
+
+    const parsed = parseCopyPasteJson(json);
+    if (!parsed.success) {
+      showToast({
+        tone: "error",
+        title: "Invalid AI JSON",
+        message: parsed.error,
+        duration: 7000,
+      });
+      return false;
+    }
+
+    const replacedCardIds = new Set(
+      textCards.filter((card) => card.containerId === id).map((card) => card.id),
+    );
+    setActiveCanvas(
+      (current) =>
+        replaceContainerFromAiJson(current, id, parsed.data, {
+          createCardId: () => createEntityId("text-card"),
+          headerHeight: CONTAINER_HEADER_HEIGHT,
+          searchHeight: CONTAINER_SEARCH_HEIGHT,
+          cardPadding: CONTAINER_TEXT_CARD_PADDING,
+          cardRowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+          cardGap: CONTAINER_TEXT_CARD_GAP,
+        }) ?? current,
+    );
+    setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
+    setSelectedIds((current) =>
+      current.some((selectedId) => replacedCardIds.has(selectedId)) ? [id] : current,
+    );
+    if (editingTextCardId && replacedCardIds.has(editingTextCardId)) {
+      setEditingTextCardId(null);
+      setTextCardDraft("");
+    }
+    setRenamingId(null);
+    showToast({
+      tone: "success",
+      title: "AI JSON applied",
+      message: `${parsed.data.cards.length} ${parsed.data.cards.length === 1 ? "card" : "cards"} replaced.`,
+    });
+    return true;
+  };
+
+  const pasteContainerJsonFromAi = async (id: string) => {
+    let clipboardText: string;
+    try {
+      clipboardText = await navigator.clipboard.readText();
+    } catch (error) {
+      showToast({
+        tone: "error",
+        title: "Could not read clipboard",
+        message: commandErrorMessage(error),
+      });
+      return;
+    }
+
+    applyContainerJsonFromAi(id, clipboardText);
   };
 
   const togglePrivacyExtension = (id: string) => {
@@ -6261,7 +6383,7 @@ function App() {
       canvasGridOpacity: DEFAULT_GRID_OPACITY,
       defaultElementColors: DEFAULT_ELEMENT_COLORS,
       recentColors: [],
-      shadowsUnderElements: true,
+      shadowsUnderElements: false,
       discordRpcEnabled: false,
       discordRpcShowCanvas: true,
       minimapEnabled: true,
@@ -6610,6 +6732,9 @@ function App() {
     updateContainerSearchQuery,
     updateTextBlockAccent,
     updateTextBlockHeaderButtonsVisible,
+    copyContainerJsonForAi,
+    openContainerJsonEditor,
+    pasteContainerJsonFromAi,
   });
   const editingTextCardContainerId = editingTextCardId
     ? textCardsById.get(editingTextCardId)?.containerId
@@ -7153,6 +7278,9 @@ function App() {
                     onUpdateAccent={canvasNodeActions.updateContainerAccent}
                     onRememberRecentColor={canvasNodeActions.rememberRecentColor}
                     onTogglePickCard={canvasNodeActions.togglePickedContainerCard}
+                    onCopyJsonForAi={canvasNodeActions.copyContainerJsonForAi}
+                    onPasteJsonFromAi={canvasNodeActions.pasteContainerJsonFromAi}
+                    onOpenJsonEditor={canvasNodeActions.openContainerJsonEditor}
                     onHeaderButtonsVisibleChange={
                       canvasNodeActions.updateContainerHeaderButtonsVisible
                     }
@@ -7505,6 +7633,7 @@ function App() {
                 stripContextExtension(id, "inheritCardColor")
               }
               onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
+              onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
@@ -7536,6 +7665,7 @@ function App() {
                 stripContextExtension(id, "inheritCardColor")
               }
               onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
+              onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
@@ -7728,6 +7858,21 @@ function App() {
               <ClearCanvasModal onCancel={() => setClearModalOpen(false)} onConfirm={clearCanvas} />
             </Suspense>
           )}
+
+          {containerJsonEditor &&
+            containersById.get(containerJsonEditor.containerId)?.extensions?.copyPasteJson && (
+              <ContainerJsonEditorWindow
+                key={containerJsonEditor.containerId}
+                containerName={
+                  containersById.get(containerJsonEditor.containerId)?.name ?? "Container"
+                }
+                initialJson={containerJsonEditor.initialJson}
+                onApply={(json) => {
+                  applyContainerJsonFromAi(containerJsonEditor.containerId, json);
+                }}
+                onClose={() => setContainerJsonEditor(null)}
+              />
+            )}
 
           {settingsOpen && (
             <Suspense fallback={null}>

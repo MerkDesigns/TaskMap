@@ -52,7 +52,8 @@ type ContainerContextMenuProps = {
       | "dailyReset"
       | "counter"
       | "inheritCardColor"
-      | "pickCard",
+      | "pickCard"
+      | "copyPasteJson",
       boolean
     >
   >;
@@ -70,6 +71,7 @@ type ContainerContextMenuProps = {
   onRemoveCounterExtension: (id: string) => void;
   onRemoveInheritCardColorExtension: (id: string) => void;
   onRemovePickCardExtension: (id: string) => void;
+  onRemoveCopyPasteJsonExtension: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onDelete: (id: string) => void;
 };
@@ -94,6 +96,7 @@ export function ContainerContextMenu({
   onRemoveCounterExtension,
   onRemoveInheritCardColorExtension,
   onRemovePickCardExtension,
+  onRemoveCopyPasteJsonExtension,
   onMoveLayer,
   onDelete,
 }: ContainerContextMenuProps) {
@@ -110,6 +113,7 @@ export function ContainerContextMenu({
     counter: Boolean(element.extensions?.counter),
     inheritCardColor: Boolean(element.extensions?.inheritCardColor),
     pickCard: Boolean(element.extensions?.pickCard),
+    copyPasteJson: Boolean(element.extensions?.copyPasteJson),
   };
   const presets = ACCENT_PRESETS;
 
@@ -197,7 +201,8 @@ export function ContainerContextMenu({
         extensions.dailyReset ||
         extensions.counter ||
         extensions.inheritCardColor ||
-        extensions.pickCard) && (
+        extensions.pickCard ||
+        extensions.copyPasteJson) && (
         <>
           <div className={MENU_DIVIDER_CLASS} />
           <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
@@ -283,6 +288,15 @@ export function ContainerContextMenu({
             >
               <IconTrash size={17} stroke={2} />
               <span>Pick a Card</span>
+            </button>
+          )}
+          {extensions.copyPasteJson && (
+            <button
+              className={MENU_ITEM_CLASS}
+              onClick={() => onRemoveCopyPasteJsonExtension(element.id)}
+            >
+              <IconTrash size={17} stroke={2} />
+              <span>Copy/Paste JSON</span>
             </button>
           )}
         </>

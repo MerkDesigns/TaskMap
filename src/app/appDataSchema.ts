@@ -18,6 +18,7 @@ const extensionsSchema = z
     dailyReset: z.object({ lastResetDate: z.string() }).optional(),
     counter: z.object({ enabled: z.boolean() }).optional(),
     inheritCardColor: z.object({ enabled: z.boolean() }).optional(),
+    copyPasteJson: z.object({ enabled: z.boolean() }).optional(),
     pickCard: z
       .object({
         selectedCardId: z.string().optional(),
@@ -154,7 +155,7 @@ export const appDataSchema = z
       })
       .default(DEFAULT_ELEMENT_COLORS),
     recentColors: z.array(z.string().min(1)).max(8).default([]),
-    shadowsUnderElements: z.boolean().default(true),
+    shadowsUnderElements: z.boolean().default(false),
     discordRpcEnabled: z.boolean(),
     discordRpcShowCanvas: z.boolean(),
     minimapEnabled: z.boolean(),

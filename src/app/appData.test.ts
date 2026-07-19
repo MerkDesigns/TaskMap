@@ -17,7 +17,7 @@ describe("app data migration and validation", () => {
     expect(data.canvases[0].images).toHaveLength(1);
     expect(data.defaultElementColors).toEqual(DEFAULT_ELEMENT_COLORS);
     expect(data.recentColors).toEqual([]);
-    expect(data.shadowsUnderElements).toBe(true);
+    expect(data.shadowsUnderElements).toBe(false);
   });
 
   it("migrates legacy top-level content to schema version 1", () => {
