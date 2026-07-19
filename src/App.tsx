@@ -46,6 +46,9 @@ import { clamp, getVirtualRowRange, getWheelZoom, isVirtualRowInRange } from "./
 import {
   AppData,
   CanvasGridStyle,
+  CommandRunnerCommand,
+  CommandRunStatus,
+  CommandStartResult,
   ContainerElement,
   ContainerMenuState,
   CopiedCanvasItem,
@@ -75,7 +78,9 @@ import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
 import {
   EXTENSION_COMPATIBLE_TARGETS,
+  EXTENSION_CONFLICTS,
   EXTENSION_REGISTRY,
+  addAutomaticCheckbox,
   type ExtensionId,
   type ExtensionTargetType,
 } from "./extensions/registry";
@@ -110,6 +115,16 @@ const ClearCanvasModal = lazy(() =>
 );
 const SettingsModal = lazy(() =>
   import("./components/Modals").then(({ SettingsModal }) => ({ default: SettingsModal })),
+);
+const CommandRunnerSettingsModal = lazy(() =>
+  import("./components/CommandRunnerModals").then(({ CommandRunnerSettingsModal }) => ({
+    default: CommandRunnerSettingsModal,
+  })),
+);
+const ExtensionConflictModal = lazy(() =>
+  import("./components/CommandRunnerModals").then(({ ExtensionConflictModal }) => ({
+    default: ExtensionConflictModal,
+  })),
 );
 const UpdateAvailableModal = lazy(() =>
   import("./components/Modals").then(({ UpdateAvailableModal }) => ({
@@ -190,6 +205,13 @@ type PendingCanvasDeletions = {
 type StorageErrorState = {
   message: string;
   canReset: boolean;
+};
+
+type PendingExtensionConflict = {
+  extensionId: ExtensionId;
+  targetIds: string[];
+  conflictIds: ExtensionId[];
+  affectedCount: number;
 };
 
 const createStorageError = (prefix: string, error: unknown): StorageErrorState => ({
@@ -486,6 +508,10 @@ function App() {
   );
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [commandRunnerEditorCardId, setCommandRunnerEditorCardId] = useState<string | null>(null);
+  const [pendingExtensionConflict, setPendingExtensionConflict] =
+    useState<PendingExtensionConflict | null>(null);
+  const [runningCommandRuns, setRunningCommandRuns] = useState<Record<string, string[]>>({});
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -696,6 +722,45 @@ function App() {
     },
     [dismissToast],
   );
+
+  useEffect(() => {
+    const runIds = Object.values(runningCommandRuns).flat();
+    if (runIds.length === 0) {
+      return;
+    }
+
+    let disposed = false;
+    const refreshStatuses = async () => {
+      try {
+        const statuses = await invoke<CommandRunStatus[]>("get_saved_command_run_status", {
+          runIds,
+        });
+        if (disposed) return;
+        const runningIds = new Set(
+          statuses.filter((status) => status.running).map((status) => status.runId),
+        );
+        setRunningCommandRuns((current) => {
+          let changed = false;
+          const next: Record<string, string[]> = {};
+          Object.entries(current).forEach(([cardId, cardRunIds]) => {
+            const active = cardRunIds.filter((runId) => runningIds.has(runId));
+            if (active.length > 0) next[cardId] = active;
+            if (active.length !== cardRunIds.length) changed = true;
+          });
+          return changed ? next : current;
+        });
+      } catch (error) {
+        console.error("Failed to query saved command status", error);
+      }
+    };
+
+    void refreshStatuses();
+    const interval = window.setInterval(refreshStatuses, 500);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, [runningCommandRuns]);
 
   const persistAppData = (data: AppData, forceAllCanvases = false): Promise<void> => {
     const capturedVersions = new Map(dirtyCanvasVersionsRef.current);
@@ -2344,7 +2409,8 @@ function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const isEditingText = isEditableKeyboardTarget(target);
-      const modalOpen = settingsOpen || clearModalOpen || updateModalOpen;
+      const modalOpen =
+        settingsOpen || clearModalOpen || updateModalOpen || Boolean(pendingExtensionConflict);
 
       if (modalOpen || target?.closest("[role='dialog'], [aria-modal='true']")) {
         return;
@@ -2414,7 +2480,8 @@ function App() {
         event.key === "Escape" &&
         !settingsOpen &&
         !clearModalOpen &&
-        !updateModalOpen
+        !updateModalOpen &&
+        !pendingExtensionConflict
       ) {
         event.preventDefault();
         event.stopPropagation();
@@ -2449,6 +2516,7 @@ function App() {
     extensionsClosing,
     extensionsOpen,
     imagesById,
+    pendingExtensionConflict,
     selectedIds,
     settingsOpen,
     switchLeftPanel,
@@ -5143,6 +5211,7 @@ function App() {
     } else if (copiedItem.type === "text-card") {
       const targetContainer = targetContainerId ? containersById.get(targetContainerId) : null;
       const id = createEntityId("text-card");
+      const copiedExtensions = cloneExtensions(copiedItem.item.extensions);
       const duplicate = {
         ...copiedItem.item,
         id,
@@ -5150,11 +5219,8 @@ function App() {
         y: targetContainer ? getContainerCardStackTop(targetContainer) : point.y,
         containerId: targetContainer?.id,
         extensions: targetContainer?.extensions?.autoCheckbox
-          ? {
-              ...cloneExtensions(copiedItem.item.extensions),
-              checkbox: cloneExtensions(copiedItem.item.extensions)?.checkbox ?? { checked: false },
-            }
-          : cloneExtensions(copiedItem.item.extensions),
+          ? addAutomaticCheckbox(copiedExtensions)
+          : copiedExtensions,
       };
 
       if (targetContainer) {
@@ -5416,6 +5482,7 @@ function App() {
       lock: ids.some((id) => hasExtension(id, "lock")),
       colorPicker: ids.some((id) => hasExtension(id, "colorPicker")),
       checkbox: ids.some((id) => hasExtension(id, "checkbox")),
+      commandRunner: ids.some((id) => hasExtension(id, "commandRunner")),
       autoCheckbox: ids.some((id) => hasExtension(id, "autoCheckbox")),
       dailyReset: ids.some((id) => hasExtension(id, "dailyReset")),
       counter: ids.some((id) => hasExtension(id, "counter")),
@@ -5497,6 +5564,13 @@ function App() {
     ) {
       setContainerJsonEditor(null);
     }
+    if (
+      key === "commandRunner" &&
+      commandRunnerEditorCardId &&
+      actionSet.has(commandRunnerEditorCardId)
+    ) {
+      setCommandRunnerEditorCardId(null);
+    }
     closeContextMenus();
   };
 
@@ -5566,23 +5640,71 @@ function App() {
     deleteContextSelection(image.id);
   };
 
-  const installExtensions = (extensionId: ExtensionId, ids: string[]) => {
+  const installExtensions = (extensionId: ExtensionId, ids: string[], replaceConflicts = false) => {
     const targetIds = new Set(ids);
     if (targetIds.size === 0) {
-      return;
+      return false;
+    }
+
+    const conflictIds = EXTENSION_CONFLICTS[extensionId];
+    if (!replaceConflicts && conflictIds.size > 0) {
+      const presentConflicts = new Set<ExtensionId>();
+      let affectedCount = 0;
+      ids.forEach((id) => {
+        const item =
+          containersById.get(id) ??
+          textBlocksById.get(id) ??
+          textCardsById.get(id) ??
+          imagesById.get(id);
+        const itemConflicts = [...conflictIds].filter(
+          (conflictId) => item?.extensions?.[conflictId] !== undefined,
+        );
+        if (itemConflicts.length > 0) {
+          affectedCount += 1;
+          itemConflicts.forEach((conflictId) => presentConflicts.add(conflictId));
+        }
+      });
+
+      if (affectedCount > 0) {
+        setPendingExtensionConflict({
+          extensionId,
+          targetIds: [...targetIds],
+          conflictIds: [...presentConflicts],
+          affectedCount,
+        });
+        closeContextMenus();
+        return false;
+      }
     }
 
     const install = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
-      if (!targetIds.has(item.id) || item.extensions?.[extensionId] !== undefined) {
+      if (!targetIds.has(item.id)) {
+        return item;
+      }
+
+      const extensions: ElementExtensions = { ...item.extensions };
+      let changed = false;
+      if (replaceConflicts) {
+        conflictIds.forEach((conflictId) => {
+          if (extensions[conflictId] !== undefined) {
+            delete extensions[conflictId];
+            changed = true;
+          }
+        });
+      }
+      if (extensions[extensionId] === undefined) {
+        Object.assign(extensions, {
+          [extensionId]: EXTENSION_REGISTRY[extensionId].createDefault(),
+        });
+        changed = true;
+      }
+      if (!changed) {
         return item;
       }
 
       return {
         ...item,
-        extensions: {
-          ...item.extensions,
-          [extensionId]: EXTENSION_REGISTRY[extensionId].createDefault(),
-        },
+        extensions,
       } as T;
     };
 
@@ -5591,6 +5713,7 @@ function App() {
     setTextCards((current) => current.map(install));
     setImages((current) => current.map(install));
     closeContextMenus();
+    return true;
   };
 
   const getContainerJsonForAi = (id: string) => {
@@ -5815,6 +5938,92 @@ function App() {
     );
   };
 
+  const openCommandRunnerSettings = (id: string) => {
+    if (!textCardsById.get(id)?.extensions?.commandRunner) {
+      return;
+    }
+    closeContextMenus();
+    setCommandRunnerEditorCardId(id);
+  };
+
+  const saveCommandRunnerCommands = (commands: CommandRunnerCommand[]) => {
+    if (!commandRunnerEditorCardId) {
+      return;
+    }
+    const cardId = commandRunnerEditorCardId;
+    setTextCards((current) =>
+      current.map((card) =>
+        card.id === cardId && card.extensions?.commandRunner
+          ? {
+              ...card,
+              extensions: {
+                ...card.extensions,
+                commandRunner: { commands },
+              },
+            }
+          : card,
+      ),
+    );
+  };
+
+  const runTextCardCommands = async (id: string) => {
+    const commands = textCardsById.get(id)?.extensions?.commandRunner?.commands ?? [];
+    if (commands.length === 0) {
+      return;
+    }
+
+    try {
+      const results = await invoke<CommandStartResult[]>("run_saved_commands", { commands });
+      const runIds = results.flatMap((result) =>
+        result.started && result.runId ? [result.runId] : [],
+      );
+      if (runIds.length > 0) {
+        setRunningCommandRuns((current) => ({ ...current, [id]: runIds }));
+      }
+      const failures = results.filter((result) => !result.started);
+      if (failures.length === 0) {
+        return;
+      }
+
+      showToast({
+        tone: "error",
+        title: `${failures.length} ${failures.length === 1 ? "command" : "commands"} could not start`,
+        message: failures
+          .map((failure) => {
+            const command = commands[failure.index]?.command ?? "Unknown command";
+            return `#${failure.index + 1} ${command}: ${failure.error ?? "Could not spawn"}`;
+          })
+          .join(" · "),
+        duration: 7000,
+      });
+    } catch (error) {
+      showToast({
+        tone: "error",
+        title: "Could not run saved commands",
+        message: commandErrorMessage(error),
+      });
+    }
+  };
+
+  const stopTextCardCommands = async (id: string) => {
+    const runIds = runningCommandRuns[id] ?? [];
+    if (runIds.length === 0) return;
+    setRunningCommandRuns((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    try {
+      await invoke("stop_saved_commands", { runIds });
+    } catch (error) {
+      showToast({
+        tone: "error",
+        title: "Could not stop saved commands",
+        message: commandErrorMessage(error),
+      });
+    }
+  };
+
   const updateContainerSearchQuery = (id: string, query: string) => {
     setElements((current) =>
       current.map((element) =>
@@ -5961,7 +6170,9 @@ function App() {
     bounds: ExtensionRippleBounds,
   ) => {
     const targetIds = getExtensionDropTargetIds(extensionId, target);
-    installExtensions(extensionId, targetIds);
+    if (!installExtensions(extensionId, targetIds)) {
+      return;
+    }
     if (!selectedIds.includes(target.id)) {
       setSelectedIds([target.id]);
     }
@@ -6027,7 +6238,7 @@ function App() {
       }
     }
 
-    if (extensionId === "lock" || extensionId === "checkbox") {
+    if (extensionId === "lock" || extensionId === "checkbox" || extensionId === "commandRunner") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
         return (
@@ -6323,7 +6534,8 @@ function App() {
   useEffect(() => {
     const handleHistoryKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const modalOpen = settingsOpen || clearModalOpen || updateModalOpen;
+      const modalOpen =
+        settingsOpen || clearModalOpen || updateModalOpen || Boolean(pendingExtensionConflict);
 
       if (
         isInteractiveKeyboardTarget(target) ||
@@ -6353,7 +6565,7 @@ function App() {
 
     window.addEventListener("keydown", handleHistoryKeyDown);
     return () => window.removeEventListener("keydown", handleHistoryKeyDown);
-  }, [clearModalOpen, historyActions, settingsOpen, updateModalOpen]);
+  }, [clearModalOpen, historyActions, pendingExtensionConflict, settingsOpen, updateModalOpen]);
 
   const exportData = (password: string) =>
     invoke<boolean>("export_app_data", {
@@ -6722,11 +6934,13 @@ function App() {
     startResize,
     startTextBlockEdit,
     startTextCardMove,
+    stopTextCardCommands,
     toggleLockExtension,
     toggleMenu,
     togglePickedContainerCard,
     togglePrivacyExtension,
     toggleTextCardCheckbox,
+    runTextCardCommands,
     updateContainerAccent,
     updateContainerHeaderButtonsVisible,
     updateContainerSearchQuery,
@@ -7379,6 +7593,9 @@ function App() {
                           onStartMove={canvasNodeActions.startTextCardMove}
                           onOpenMenu={canvasNodeActions.openTextCardMenu}
                           onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                          onRunCommands={canvasNodeActions.runTextCardCommands}
+                          running={Boolean(runningCommandRuns[card.id]?.length)}
+                          onStopCommands={canvasNodeActions.stopTextCardCommands}
                         />
                       );
                     })}
@@ -7477,6 +7694,9 @@ function App() {
                     onStartMove={canvasNodeActions.startTextCardMove}
                     onOpenMenu={canvasNodeActions.openTextCardMenu}
                     onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                    onRunCommands={canvasNodeActions.runTextCardCommands}
+                    running={Boolean(runningCommandRuns[card.id]?.length)}
+                    onStopCommands={canvasNodeActions.stopTextCardCommands}
                   />
                 );
               })}
@@ -7554,6 +7774,9 @@ function App() {
                         onStartMove={canvasNodeActions.startTextCardMove}
                         onOpenMenu={canvasNodeActions.openTextCardMenu}
                         onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                        onRunCommands={canvasNodeActions.runTextCardCommands}
+                        running={Boolean(runningCommandRuns[card.id]?.length)}
+                        onStopCommands={canvasNodeActions.stopTextCardCommands}
                       />
                     );
                   })}
@@ -7587,6 +7810,9 @@ function App() {
                     onStartMove={canvasNodeActions.startTextCardMove}
                     onOpenMenu={canvasNodeActions.openTextCardMenu}
                     onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                    onRunCommands={canvasNodeActions.runTextCardCommands}
+                    running={Boolean(runningCommandRuns[card.id]?.length)}
+                    onStopCommands={canvasNodeActions.stopTextCardCommands}
                   />
                 ))}
               </div>
@@ -7704,12 +7930,14 @@ function App() {
                 getContextActionIds(textCardContextElement.id),
               )}
               onStartEdit={startTextCardEdit}
+              onEditCommand={openCommandRunnerSettings}
               onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
               onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
+              onRemoveCommandRunnerExtension={(id) => stripContextExtension(id, "commandRunner")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
@@ -7726,12 +7954,14 @@ function App() {
                 getContextActionIds(closingTextCardContextElement.id),
               )}
               onStartEdit={startTextCardEdit}
+              onEditCommand={openCommandRunnerSettings}
               onUpdateAccent={updateContextAccent}
               onUpdateLink={updateTextCardLink}
               onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
+              onRemoveCommandRunnerExtension={(id) => stripContextExtension(id, "commandRunner")}
               onMoveLayer={moveCanvasLayers}
               onDelete={deleteContextSelection}
             />
@@ -7856,6 +8086,46 @@ function App() {
           {clearModalOpen && (
             <Suspense fallback={null}>
               <ClearCanvasModal onCancel={() => setClearModalOpen(false)} onConfirm={clearCanvas} />
+            </Suspense>
+          )}
+
+          {commandRunnerEditorCardId &&
+            textCardsById.get(commandRunnerEditorCardId)?.extensions?.commandRunner && (
+              <Suspense fallback={null}>
+                <CommandRunnerSettingsModal
+                  cardText={textCardsById.get(commandRunnerEditorCardId)?.text ?? "Text card"}
+                  commands={
+                    textCardsById.get(commandRunnerEditorCardId)?.extensions?.commandRunner
+                      ?.commands ?? []
+                  }
+                  onCancel={() => setCommandRunnerEditorCardId(null)}
+                  onSave={saveCommandRunnerCommands}
+                />
+              </Suspense>
+            )}
+
+          {pendingExtensionConflict && (
+            <Suspense fallback={null}>
+              <ExtensionConflictModal
+                requestedLabel={EXTENSION_REGISTRY[pendingExtensionConflict.extensionId].label}
+                existingLabels={pendingExtensionConflict.conflictIds.map(
+                  (id) => EXTENSION_REGISTRY[id].label,
+                )}
+                affectedCount={pendingExtensionConflict.affectedCount}
+                targetCount={pendingExtensionConflict.targetIds.length}
+                removesSavedCommands={pendingExtensionConflict.conflictIds.includes(
+                  "commandRunner",
+                )}
+                onCancel={() => setPendingExtensionConflict(null)}
+                onConfirm={() => {
+                  installExtensions(
+                    pendingExtensionConflict.extensionId,
+                    pendingExtensionConflict.targetIds,
+                    true,
+                  );
+                  setPendingExtensionConflict(null);
+                }}
+              />
             </Suspense>
           )}
 

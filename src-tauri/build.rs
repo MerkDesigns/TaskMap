@@ -9,6 +9,10 @@ fn main() {
         "load_image",
         "store_image_path",
         "pick_image_path",
+        "pick_command_working_directory",
+        "run_saved_commands",
+        "get_saved_command_run_status",
+        "stop_saved_commands",
         "set_discord_rpc",
     ];
 

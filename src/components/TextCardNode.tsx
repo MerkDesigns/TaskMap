@@ -1,6 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IconCheck, IconLink } from "@tabler/icons-react";
-import { MouseEvent, PointerEvent, memo, useEffect, useRef } from "react";
+import {
+  IconCheck,
+  IconLink,
+  IconLoader2,
+  IconPlayerPlayFilled,
+  IconPlayerStopFilled,
+} from "@tabler/icons-react";
+import { MouseEvent, PointerEvent, memo, useEffect, useRef, useState } from "react";
 import { getTextCardAccent } from "../constants";
 import { TextCardElement } from "../types";
 
@@ -38,6 +44,9 @@ type TextCardNodeProps = {
   onStartMove: (event: PointerEvent<HTMLElement>, card: TextCardElement) => void;
   onOpenMenu: (event: MouseEvent<HTMLElement>, card: TextCardElement) => void;
   onToggleCheckbox: (id: string) => void;
+  onRunCommands: (id: string) => void;
+  running: boolean;
+  onStopCommands: (id: string) => void;
 };
 
 function tintTowardWhite(hexColor: string, amount = 0.61) {
@@ -88,13 +97,21 @@ function TextCardNodeComponent({
   onStartMove,
   onOpenMenu,
   onToggleCheckbox,
+  onRunCommands,
+  running,
+  onStopCommands,
 }: TextCardNodeProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const commandAnimationTimeoutRef = useRef<number | null>(null);
+  const commandLaunchTimeoutRef = useRef<number | null>(null);
+  const [commandPlayAnimating, setCommandPlayAnimating] = useState(false);
   const accent = getTextCardAccent(card.accent);
   const selectedAccent = selected ? `color-mix(in srgb, ${accent} 72%, white 28%)` : accent;
   const linkedTextColor = tintTowardWhite(accent);
   const checkboxInstalled = Boolean(card.extensions?.checkbox);
   const checkboxChecked = Boolean(card.extensions?.checkbox?.checked);
+  const commandRunnerInstalled = Boolean(card.extensions?.commandRunner);
+  const hasCommands = Boolean(card.extensions?.commandRunner?.commands.length);
   const checkedTextClass = checkboxChecked ? "opacity-55 line-through" : "";
 
   useEffect(() => {
@@ -107,6 +124,18 @@ function TextCardNodeComponent({
       inputRef.current?.select();
     });
   }, [editing]);
+
+  useEffect(
+    () => () => {
+      if (commandAnimationTimeoutRef.current !== null) {
+        window.clearTimeout(commandAnimationTimeoutRef.current);
+      }
+      if (commandLaunchTimeoutRef.current !== null) {
+        window.clearTimeout(commandLaunchTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   const openLink = () => {
     if (!card.link) {
@@ -157,8 +186,8 @@ function TextCardNodeComponent({
             : 20 + (card.layer ?? 0),
           left: position?.x ?? card.x,
           top: position?.y ?? card.y,
-          width: position?.width,
-          maxWidth: position?.maxWidth,
+          width: position?.width ? position.width + (running ? 38 : 0) : undefined,
+          maxWidth: position?.maxWidth ? position.maxWidth + (running ? 38 : 0) : undefined,
           borderColor: selectedAccent,
           backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
           transform:
@@ -202,6 +231,53 @@ function TextCardNodeComponent({
             <IconCheck size={16} stroke={2} />
           </span>
         </button>
+      )}
+      {commandRunnerInstalled && (
+        <div className="-my-[7px] -ml-[10px] mr-[5px] flex h-[32px] shrink-0 items-center">
+          <button
+            type="button"
+            className={`group grid h-[32px] w-[32px] place-items-center rounded text-white transition-[transform,background-color,box-shadow] duration-150 ease-out hover:bg-white/[0.10] disabled:cursor-not-allowed disabled:text-white disabled:hover:bg-transparent ${
+              commandPlayAnimating ? "command-runner-play-press" : ""
+            }`}
+            style={{ color: "#ffffff", opacity: 1 }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              setCommandPlayAnimating(false);
+              window.requestAnimationFrame(() => setCommandPlayAnimating(true));
+              if (commandAnimationTimeoutRef.current !== null) {
+                window.clearTimeout(commandAnimationTimeoutRef.current);
+              }
+              if (commandLaunchTimeoutRef.current !== null) {
+                window.clearTimeout(commandLaunchTimeoutRef.current);
+              }
+              commandAnimationTimeoutRef.current = window.setTimeout(
+                () => setCommandPlayAnimating(false),
+                380,
+              );
+              commandLaunchTimeoutRef.current = window.setTimeout(
+                () => onRunCommands(card.id),
+                170,
+              );
+            }}
+            disabled={!hasCommands || running}
+            aria-label="Run saved commands"
+            title={
+              running
+                ? "Commands running"
+                : hasCommands
+                  ? "Run saved commands"
+                  : "No saved commands"
+            }
+          >
+            <IconPlayerPlayFilled
+              size={18.4}
+              stroke={2}
+              color="#ffffff"
+              className="transition-transform duration-150 ease-out group-active:translate-x-[2px] group-active:scale-[0.88]"
+            />
+          </button>
+        </div>
       )}
       {editing ? (
         <span className={`relative grid ${position?.width ? "w-full" : "max-w-[480px]"}`}>
@@ -273,6 +349,22 @@ function TextCardNodeComponent({
         >
           {card.text}
         </span>
+      )}
+      {running && (
+        <button
+          type="button"
+          className="group ml-[10px] grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full text-white transition-colors duration-150 hover:bg-red-500/20 hover:text-red-300"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onStopCommands(card.id);
+          }}
+          aria-label="Stop commands"
+          title="Stop commands"
+        >
+          <IconLoader2 size={18} stroke={2} className="animate-spin group-hover:hidden" />
+          <IconPlayerStopFilled size={17} stroke={2} className="hidden group-hover:block" />
+        </button>
       )}
       <div
         className={`selection-overlay pointer-events-none z-10 rounded-[inherit] ${

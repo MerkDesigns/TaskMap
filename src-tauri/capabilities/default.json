@@ -35,6 +35,10 @@
     "allow-load-image",
     "allow-store-image-path",
     "allow-pick-image-path",
+    "allow-pick-command-working-directory",
+    "allow-run-saved-commands",
+    "allow-get-saved-command-run-status",
+    "allow-stop-saved-commands",
     "allow-set-discord-rpc"
   ]
 }

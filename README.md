@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <a href="https://github.com/MerkDesigns/TaskMap/releases/latest/download/TaskMap_0.3.0_x64-setup.exe">Download for Windows</a>
+  <a href="https://github.com/MerkDesigns/TaskMap/releases/latest/download/TaskMap_0.3.1_x64-setup.exe">Download for Windows</a>
   ·
   <a href="https://github.com/MerkDesigns/TaskMap/releases">View all releases</a>
 </p>

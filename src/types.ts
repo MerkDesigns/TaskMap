@@ -11,6 +11,9 @@ export type ElementExtensions = {
   checkbox?: {
     checked: boolean;
   };
+  commandRunner?: {
+    commands: CommandRunnerCommand[];
+  };
   autoCheckbox?: {
     enabled: boolean;
   };
@@ -37,6 +40,25 @@ export type ElementExtensions = {
     mode: "alphabet" | "color" | null;
     direction: "asc" | "desc";
   };
+};
+
+export type CommandRunnerCommand = {
+  command: string;
+  workingDirectory?: string;
+  runMode: "terminal" | "background";
+  runAsAdmin?: boolean;
+};
+
+export type CommandStartResult = {
+  index: number;
+  started: boolean;
+  runId?: string;
+  error?: string;
+};
+
+export type CommandRunStatus = {
+  runId: string;
+  running: boolean;
 };
 
 export type ContainerElement = {

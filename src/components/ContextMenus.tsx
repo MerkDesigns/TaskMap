@@ -13,6 +13,7 @@ import {
   IconPhoto,
   IconSquare,
   IconSquareOff,
+  IconTerminal2,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
@@ -609,14 +610,16 @@ type TextCardContextMenuProps = {
   card: TextCardElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"lock" | "checkbox", boolean>>;
+  extensionState?: Partial<Record<"lock" | "checkbox" | "commandRunner", boolean>>;
   onStartEdit: (card: TextCardElement) => void;
+  onEditCommand: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onUpdateLink: (id: string, link: string) => void;
   onCut: (card: TextCardElement) => void;
   onCopy: (card: TextCardElement) => void;
   onRemoveLockExtension: (id: string) => void;
   onRemoveCheckboxExtension: (id: string) => void;
+  onRemoveCommandRunnerExtension: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onDelete: (id: string) => void;
 };
@@ -628,12 +631,14 @@ export function TextCardContextMenu({
   isMultiTarget = false,
   extensionState,
   onStartEdit,
+  onEditCommand,
   onUpdateAccent,
   onUpdateLink,
   onCut,
   onCopy,
   onRemoveLockExtension,
   onRemoveCheckboxExtension,
+  onRemoveCommandRunnerExtension,
   onMoveLayer,
   onDelete,
 }: TextCardContextMenuProps) {
@@ -641,6 +646,7 @@ export function TextCardContextMenu({
   const extensions = extensionState ?? {
     lock: Boolean(card.extensions?.lock),
     checkbox: Boolean(card.extensions?.checkbox),
+    commandRunner: Boolean(card.extensions?.commandRunner),
   };
   const presets = ACCENT_PRESETS;
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -695,6 +701,12 @@ export function TextCardContextMenu({
           <IconPencil size={17} stroke={2} />
           <span>Edit Text</span>
         </button>
+        {card.extensions?.commandRunner && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onEditCommand(card.id)}>
+            <IconTerminal2 size={17} stroke={2} />
+            <span>Edit Command</span>
+          </button>
+        )}
         <div className={MENU_DIVIDER_CLASS} />
         <div className="px-1 pb-2 pt-1.5">
           <div className="grid grid-cols-8 gap-1">
@@ -768,7 +780,7 @@ export function TextCardContextMenu({
           <IconCopy size={17} stroke={2} />
           <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
         </button>
-        {(extensions.lock || extensions.checkbox) && (
+        {(extensions.lock || extensions.checkbox || extensions.commandRunner) && (
           <>
             <div className={MENU_DIVIDER_CLASS} />
             <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
@@ -785,6 +797,15 @@ export function TextCardContextMenu({
               >
                 <IconTrash size={17} stroke={2} />
                 <span>Checkbox</span>
+              </button>
+            )}
+            {extensions.commandRunner && (
+              <button
+                className={MENU_ITEM_CLASS}
+                onClick={() => onRemoveCommandRunnerExtension(card.id)}
+              >
+                <IconTrash size={17} stroke={2} />
+                <span>Command Runner</span>
               </button>
             )}
           </>

@@ -6,6 +6,7 @@ import {
   IconBraces,
   IconCheckbox,
   IconChecklist,
+  IconTerminal2,
   IconColorPicker,
   IconColorSwatch,
   IconLock,
@@ -23,6 +24,7 @@ export type ExtensionId =
   | "search"
   | "sorting"
   | "checkbox"
+  | "commandRunner"
   | "autoCheckbox"
   | "dailyReset"
   | "counter"
@@ -38,6 +40,7 @@ export type ExtensionDefinition<Id extends ExtensionId = ExtensionId> = {
   description: string;
   Icon: TablerIcon;
   targets: readonly ExtensionTargetType[];
+  conflicts?: readonly ExtensionId[];
   createDefault: () => NonNullable<ElementExtensions[Id]>;
 };
 
@@ -90,7 +93,17 @@ export const EXTENSIONS = [
     description: "Add checkable text cards",
     Icon: IconCheckbox,
     targets: ["text-card"],
+    conflicts: ["commandRunner"],
     createDefault: () => ({ checked: false }),
+  }),
+  defineExtension({
+    id: "commandRunner",
+    label: "Command Runner",
+    description: "Run saved commands",
+    Icon: IconTerminal2,
+    targets: ["text-card"],
+    conflicts: ["checkbox"],
+    createDefault: () => ({ commands: [] }),
   }),
   defineExtension({
     id: "autoCheckbox",
@@ -162,5 +175,28 @@ export const EXTENSION_COMPATIBLE_TARGETS = EXTENSIONS.reduce(
   {} as Record<ExtensionId, ReadonlySet<ExtensionTargetType>>,
 );
 
+export const EXTENSION_CONFLICTS = EXTENSIONS.reduce(
+  (conflicts, extension) => {
+    conflicts[extension.id] = new Set<ExtensionId>(
+      "conflicts" in extension ? extension.conflicts : [],
+    );
+    return conflicts;
+  },
+  {} as Record<ExtensionId, ReadonlySet<ExtensionId>>,
+);
+
 export const isExtensionCompatible = (extensionId: ExtensionId, target: ExtensionTargetType) =>
   EXTENSION_COMPATIBLE_TARGETS[extensionId].has(target);
+
+export const addAutomaticCheckbox = (extensions?: ElementExtensions): ElementExtensions => {
+  const hasConflict = [...EXTENSION_CONFLICTS.checkbox].some(
+    (extensionId) => extensions?.[extensionId] !== undefined,
+  );
+  if (hasConflict) {
+    return { ...extensions };
+  }
+  return {
+    ...extensions,
+    checkbox: extensions?.checkbox ?? EXTENSION_REGISTRY.checkbox.createDefault(),
+  };
+};

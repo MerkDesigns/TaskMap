@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import sharedAppDataFixture from "../../fixtures/app-data-v1.json";
 import { DEFAULT_CONTAINER_ACCENT, DEFAULT_ELEMENT_COLORS } from "../constants";
+import type { AppData } from "../types";
 import { normalizeAppData } from "./appData";
 
 const preview = () => ({ width: 1280, height: 720 });
@@ -171,5 +172,26 @@ describe("app data migration and validation", () => {
         preview,
       ),
     ).toThrow("Element IDs must be unique");
+  });
+
+  it("validates Command Runner data and rejects Checkbox conflicts", () => {
+    const current = structuredClone(sharedAppDataFixture) as unknown as AppData;
+    current.canvases[0].textCards[0].extensions = {
+      commandRunner: {
+        commands: [{ command: "npm test", workingDirectory: "C:\\project", runMode: "background" }],
+      },
+    };
+    expect(normalizeAppData(current, preview).canvases[0].textCards[0].extensions).toEqual(
+      current.canvases[0].textCards[0].extensions,
+    );
+
+    current.canvases[0].textCards[0].extensions.checkbox = { checked: false };
+    expect(() => normalizeAppData(current, preview)).toThrow(
+      "Checkbox and Command Runner cannot both be installed",
+    );
+
+    delete current.canvases[0].textCards[0].extensions.checkbox;
+    current.canvases[0].textCards[0].extensions.commandRunner!.commands[0].command = "   ";
+    expect(() => normalizeAppData(current, preview)).toThrow("Command must not be empty");
   });
 });

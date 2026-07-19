@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-saved-command-run-status"
+description = "Enables the get_saved_command_run_status command without any pre-configured scope."
+commands.allow = ["get_saved_command_run_status"]
+
+[[permission]]
+identifier = "deny-get-saved-command-run-status"
+description = "Denies the get_saved_command_run_status command without any pre-configured scope."
+commands.deny = ["get_saved_command_run_status"]

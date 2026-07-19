@@ -330,6 +330,43 @@ fn validate_extensions(value: &serde_json::Value, context: &str) -> Result<(), S
             return Err(format!("{context}.checkbox.checked must be a boolean"));
         }
     }
+    if extensions.contains_key("checkbox") && extensions.contains_key("commandRunner") {
+        return Err(format!(
+            "{context} cannot contain both checkbox and commandRunner"
+        ));
+    }
+    if let Some(extension) = extensions.get("commandRunner") {
+        let object = extension
+            .as_object()
+            .ok_or_else(|| format!("{context}.commandRunner must be an object"))?;
+        let commands = object
+            .get("commands")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| format!("{context}.commandRunner.commands must be an array"))?;
+        for (index, command) in commands.iter().enumerate() {
+            let command_context = format!("{context}.commandRunner.commands[{index}]");
+            let command = command
+                .as_object()
+                .ok_or_else(|| format!("{command_context} must be an object"))?;
+            let command_text = command
+                .get("command")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| format!("{command_context}.command must be a string"))?;
+            if command_text.trim().is_empty() {
+                return Err(format!("{command_context}.command must not be empty"));
+            }
+            optional_string(command, "workingDirectory", &command_context, false)?;
+            optional_boolean(command, "runAsAdmin", &command_context)?;
+            if !matches!(
+                command.get("runMode").and_then(serde_json::Value::as_str),
+                Some("terminal" | "background")
+            ) {
+                return Err(format!(
+                    "{command_context}.runMode must be terminal or background"
+                ));
+            }
+        }
+    }
     if let Some(extension) = extensions.get("dailyReset") {
         let object = extension
             .as_object()
@@ -707,6 +744,48 @@ mod tests {
         invalid["canvases"][0]["containers"][0]["extensions"]["copyPasteJson"] =
             json!({ "enabled": "yes" });
         assert!(migrate_app_data(invalid).is_err());
+
+        let mut valid_command_runner = valid_app_data();
+        valid_command_runner["canvases"][0]["textCards"][0]["extensions"] = json!({
+            "commandRunner": {
+                "commands": [{
+                    "command": "npm test",
+                    "workingDirectory": "C:\\project",
+                    "runMode": "background"
+                }]
+            }
+        });
+        assert!(migrate_app_data(valid_command_runner.clone()).is_ok());
+
+        valid_command_runner["canvases"][0]["textCards"][0]["extensions"]["checkbox"] =
+            json!({ "checked": false });
+        assert!(migrate_app_data(valid_command_runner).is_err());
+
+        let mut blank_command = valid_app_data();
+        blank_command["canvases"][0]["textCards"][0]["extensions"] = json!({
+            "commandRunner": { "commands": [{ "command": " ", "runMode": "terminal" }] }
+        });
+        assert!(migrate_app_data(blank_command).is_err());
+
+        let mut invalid_directory = valid_app_data();
+        invalid_directory["canvases"][0]["textCards"][0]["extensions"] = json!({
+            "commandRunner": {
+                "commands": [{
+                    "command": "npm test",
+                    "workingDirectory": 42,
+                    "runMode": "background"
+                }]
+            }
+        });
+        assert!(migrate_app_data(invalid_directory).is_err());
+
+        let mut invalid_run_mode = valid_app_data();
+        invalid_run_mode["canvases"][0]["textCards"][0]["extensions"] = json!({
+            "commandRunner": {
+                "commands": [{ "command": "npm test", "runMode": "hidden" }]
+            }
+        });
+        assert!(migrate_app_data(invalid_run_mode).is_err());
     }
 
     #[test]

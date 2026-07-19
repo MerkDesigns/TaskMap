@@ -806,3 +806,82 @@ body {
 .quick-extensions-scroll::-webkit-scrollbar-thumb:hover {
   background: #7b8493;
 }
+.command-runner-play-press {
+  animation: command-runner-play-press 380ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+.command-runner-modal-backdrop-enter {
+  animation: command-runner-modal-backdrop-in 160ms ease-out both;
+}
+
+.command-runner-modal-backdrop-exit {
+  animation: command-runner-modal-backdrop-out 160ms ease-in both;
+}
+
+.command-runner-modal-enter {
+  animation: command-runner-modal-in 160ms cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+.command-runner-modal-exit {
+  animation: command-runner-modal-out 160ms ease-in both;
+}
+
+@keyframes command-runner-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes command-runner-modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes command-runner-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes command-runner-modal-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+}
+
+@keyframes command-runner-play-press {
+  0% {
+    transform: scale(1) rotate(0deg);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+  28% {
+    transform: scale(0.7) rotate(-8deg);
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.55);
+  }
+  68% {
+    transform: scale(1.12) rotate(3deg);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.28);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  }
+}

@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
 mod discord;
 mod error;
 mod images;
@@ -8,6 +9,10 @@ mod portable;
 mod storage;
 mod window_state;
 
+use commands::{
+    get_saved_command_run_status, pick_command_working_directory, run_saved_commands,
+    stop_saved_commands, CommandRunnerState,
+};
 use discord::{set_discord_rpc, DiscordRpc};
 use images::{gc_images_at_startup, load_image, pick_image_path, store_image, store_image_path};
 use portable::{export_app_data, import_app_data};
@@ -36,6 +41,7 @@ fn main() {
             }
         }))
         .manage(StorageState::default())
+        .manage(CommandRunnerState::default())
         .manage(DiscordRpc::new(started_at))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -80,6 +86,10 @@ fn main() {
             load_image,
             store_image_path,
             pick_image_path,
+            pick_command_working_directory,
+            run_saved_commands,
+            get_saved_command_run_status,
+            stop_saved_commands,
             set_discord_rpc
         ])
         .run(tauri::generate_context!())

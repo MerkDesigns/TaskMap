@@ -4139,7 +4139,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "taskmap"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -4161,6 +4161,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "webp",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
