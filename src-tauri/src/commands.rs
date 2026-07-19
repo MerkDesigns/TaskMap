@@ -538,10 +538,9 @@ mod tests {
 
         stop_saved_commands_inner(vec![run_id.clone()], &state)
             .expect("the running process tree should stop");
-        assert_eq!(
-            get_run_statuses_inner(vec![run_id], &state).expect("status lookup should succeed")[0]
-                .running,
-            false
+        assert!(
+            !get_run_statuses_inner(vec![run_id], &state).expect("status lookup should succeed")[0]
+                .running
         );
     }
 
