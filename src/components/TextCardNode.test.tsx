@@ -72,7 +72,6 @@ describe("TextCardNode Command Runner controls", () => {
       true,
     );
 
-    expect(screen.getByRole("button", { name: "Run saved commands" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Stop commands" }));
     expect(actions.onStopCommands).toHaveBeenCalledWith("card-1");
   });

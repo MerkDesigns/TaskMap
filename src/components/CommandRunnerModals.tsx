@@ -19,7 +19,7 @@ type CommandRunnerSettingsModalProps = {
   cardText: string;
   commands: CommandRunnerCommand[];
   onCancel: () => void;
-  onSave: (commands: CommandRunnerCommand[]) => void;
+  onSave: (cardText: string, commands: CommandRunnerCommand[]) => void;
 };
 
 type CommandWindowBounds = {
@@ -62,6 +62,7 @@ export function CommandRunnerSettingsModal({
   onCancel,
   onSave,
 }: CommandRunnerSettingsModalProps) {
+  const [cardTextDraft, setCardTextDraft] = useState(cardText);
   const [draft, setDraft] = useState<CommandRunnerCommand[]>(() => structuredClone(commands));
   const [error, setError] = useState("");
   const [closing, setClosing] = useState(false);
@@ -229,12 +230,18 @@ export function CommandRunnerSettingsModal({
   };
 
   const save = () => {
+    const nextCardText = cardTextDraft.trim();
+    if (!nextCardText) {
+      setError("Text card name cannot be blank.");
+      return;
+    }
     if (draft.some(({ command }) => !command.trim())) {
       setError("Commands cannot be blank.");
       return;
     }
 
     onSave(
+      nextCardText,
       draft.map(({ command, workingDirectory, runMode, runAsAdmin }) => ({
         command,
         runMode,
@@ -266,21 +273,34 @@ export function CommandRunnerSettingsModal({
         onPointerUp={finishPointerAction}
         onPointerCancel={finishPointerAction}
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <IconTerminal2 size={19} stroke={2} className="shrink-0 text-white/72" />
           <h2
             id="command-runner-settings-title"
-            className="truncate text-sm font-semibold text-white/85"
+            className="shrink-0 text-sm font-semibold text-white/85"
           >
-            Command Runner - {cardText}
+            Command Runner
           </h2>
+          <span className="shrink-0 text-sm text-white/45">-</span>
+          <input
+            aria-label="Text card name"
+            className="h-8 min-w-0 max-w-[320px] flex-1 rounded-md border border-white/[0.12] bg-black/[0.20] px-2.5 text-sm font-medium text-white outline-none selection:bg-white/25 focus:border-white/35"
+            value={cardTextDraft}
+            spellCheck={false}
+            onChange={(event) => {
+              setCardTextDraft(event.target.value);
+              setError("");
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={requestClose}
+            onClick={() => requestClose()}
             title="Close"
           >
             <IconX size={17} stroke={2} />
@@ -419,7 +439,7 @@ export function CommandRunnerSettingsModal({
             <button
               type="button"
               className="h-9 rounded-md px-3 text-sm text-white/70 hover:bg-white/[0.10] hover:text-white"
-              onClick={requestClose}
+              onClick={() => requestClose()}
             >
               Cancel
             </button>

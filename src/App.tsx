@@ -5640,6 +5640,79 @@ function App() {
     deleteContextSelection(image.id);
   };
 
+  const copyKeyboardSelection = () => {
+    if (selectedIds.length === 0) {
+      return false;
+    }
+    if (selectedIds.length > 1) {
+      return copyContextSelection(selectedIds[0], selectedIds);
+    }
+
+    const id = selectedIds[0];
+    const container = containersById.get(id);
+    if (container) {
+      copyContainer(container);
+      return true;
+    }
+    const card = textCardsById.get(id);
+    if (card) {
+      copyTextCard(card);
+      return true;
+    }
+    const block = textBlocksById.get(id);
+    if (block) {
+      copyTextBlock(block);
+      return true;
+    }
+    const image = imagesById.get(id);
+    if (image) {
+      copyImage(image);
+      return true;
+    }
+    return false;
+  };
+
+  const clipboardShortcutActions = useStableCallbacks({
+    copyKeyboardSelection,
+    pasteKeyboardClipboard: () => {
+      const { x, y } = lastPointerPositionRef.current;
+      pasteCopiedItem(x, y);
+    },
+  });
+
+  useEffect(() => {
+    const handleClipboardShortcut = (event: KeyboardEvent) => {
+      if (
+        (!event.ctrlKey && !event.metaKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        isInteractiveKeyboardTarget(event.target as HTMLElement | null)
+      ) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "c") {
+        if (!clipboardShortcutActions.copyKeyboardSelection()) {
+          return;
+        }
+      } else if (key === "v") {
+        if (!copiedItem) {
+          return;
+        }
+        clipboardShortcutActions.pasteKeyboardClipboard();
+      } else {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener("keydown", handleClipboardShortcut, true);
+    return () => window.removeEventListener("keydown", handleClipboardShortcut, true);
+  }, [clipboardShortcutActions, copiedItem]);
+
   const installExtensions = (extensionId: ExtensionId, ids: string[], replaceConflicts = false) => {
     const targetIds = new Set(ids);
     if (targetIds.size === 0) {
@@ -5946,7 +6019,7 @@ function App() {
     setCommandRunnerEditorCardId(id);
   };
 
-  const saveCommandRunnerCommands = (commands: CommandRunnerCommand[]) => {
+  const saveCommandRunnerSettings = (cardText: string, commands: CommandRunnerCommand[]) => {
     if (!commandRunnerEditorCardId) {
       return;
     }
@@ -5956,6 +6029,7 @@ function App() {
         card.id === cardId && card.extensions?.commandRunner
           ? {
               ...card,
+              text: cardText,
               extensions: {
                 ...card.extensions,
                 commandRunner: { commands },
@@ -8099,7 +8173,7 @@ function App() {
                       ?.commands ?? []
                   }
                   onCancel={() => setCommandRunnerEditorCardId(null)}
-                  onSave={saveCommandRunnerCommands}
+                  onSave={saveCommandRunnerSettings}
                 />
               </Suspense>
             )}

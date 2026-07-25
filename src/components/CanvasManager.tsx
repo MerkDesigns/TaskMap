@@ -578,7 +578,7 @@ export function CanvasManager({
       className={
         embedded
           ? "flex h-full min-h-0 flex-col"
-          : `frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
+          : `frosted-glass fixed bottom-4 left-4 top-16 z-30 flex w-[290px] flex-col overflow-hidden rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
               closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
             }`
       }
@@ -875,6 +875,7 @@ export function CanvasManager({
                           top: (container.y - visibleTop) * previewScale,
                           width: Math.max(container.width * previewScale, 3),
                           height: Math.max(container.height * previewScale, 3),
+                          zIndex: 20 + (container.layer ?? 0),
                           borderColor: container.accent,
                           backgroundColor: "#1b1b1e",
                         }}
@@ -897,6 +898,7 @@ export function CanvasManager({
                           top: (element.y - visibleTop) * previewScale,
                           width: Math.max(element.width * previewScale, 3),
                           height: Math.max(element.height * previewScale, 3),
+                          zIndex: 20 + (element.layer ?? 0),
                           borderColor: element.accent,
                           backgroundColor: "#1b1b1e",
                         }}
@@ -919,6 +921,7 @@ export function CanvasManager({
                           top: (image.y - visibleTop) * previewScale,
                           width: Math.max(image.width * previewScale, 3),
                           height: Math.max(image.height * previewScale, 3),
+                          zIndex: 20 + (image.layer ?? 0),
                           borderColor: image.accent,
                           backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
                         }}

@@ -48,7 +48,7 @@ describe("Command Runner settings", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(onSave).toHaveBeenCalledWith([
+    expect(onSave).toHaveBeenCalledWith("Build", [
       {
         command: "npm test",
         workingDirectory: "C:\\workspace",
@@ -77,7 +77,7 @@ describe("Command Runner settings", () => {
     await user.click(screen.getAllByTitle("Move down")[0]);
     await user.click(screen.getAllByTitle("Remove command")[1]);
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(onSave).toHaveBeenCalledWith([{ command: "second", runMode: "background" }]);
+    expect(onSave).toHaveBeenCalledWith("Build", [{ command: "second", runMode: "background" }]);
 
     await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
   });
@@ -94,7 +94,30 @@ describe("Command Runner settings", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(onSave).toHaveBeenCalledWith([]);
+    expect(onSave).toHaveBeenCalledWith("Build", []);
+  });
+
+  it("edits the text-card name inside the command editor", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <CommandRunnerSettingsModal
+        cardText="Build"
+        commands={[]}
+        onCancel={onCancel}
+        onSave={onSave}
+      />,
+    );
+
+    const nameInput = screen.getByRole("textbox", { name: "Text card name" });
+    await user.clear(nameInput);
+    await user.type(nameInput, "Deploy");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(onCancel).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledWith("Deploy", []);
   });
 });
 

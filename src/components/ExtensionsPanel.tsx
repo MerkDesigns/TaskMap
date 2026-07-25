@@ -158,16 +158,38 @@ export function QuickExtensionsMenu({
   onDragExtension,
 }: QuickExtensionsMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const favorites = loadExtensionFavorites();
   const position = useClampedFixedPosition(menuRef, { left: left + 10, top: top + 10 });
-  const favoriteExtensions = EXTENSIONS.filter((extension) => favorites[extension.id]);
-  const otherExtensions = EXTENSIONS.filter((extension) => !favorites[extension.id]);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredExtensions = EXTENSIONS.filter(
+    (extension) =>
+      !normalizedSearchQuery ||
+      [
+        extension.label,
+        extension.description,
+        ...extension.targets.map((target) => TARGET_META[target].title),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearchQuery),
+  );
+  const favoriteExtensions = filteredExtensions.filter((extension) => favorites[extension.id]);
+  const otherExtensions = filteredExtensions.filter((extension) => !favorites[extension.id]);
   const { drag, startExtensionDrag } = useExtensionDrag({
     sourceRef: menuRef,
     onDropExtension,
     onDragExtension,
     onDropComplete: onClose,
   });
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
@@ -224,10 +246,39 @@ export function QuickExtensionsMenu({
         style={position}
         onPointerDown={(event) => event.stopPropagation()}
       >
+        <label className="mb-2.5 flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/[0.10] bg-[#111216] px-2.5 text-white/42 focus-within:border-white/[0.20] focus-within:text-white/68">
+          <IconSearch size={16} stroke={2} />
+          <input
+            ref={searchInputRef}
+            className="min-w-0 flex-1 bg-transparent text-sm text-white/82 outline-none placeholder:text-white/32"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onClose();
+              }
+            }}
+            placeholder="Search extensions"
+            spellCheck={false}
+          />
+        </label>
         <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-          {renderCategory("Favorited", favoriteExtensions)}
-          <div className="h-px shrink-0 bg-white/[0.09]" />
-          {renderCategory("Not favorited", otherExtensions, true)}
+          {favoriteExtensions.length > 0 && renderCategory("Favorited", favoriteExtensions)}
+          {favoriteExtensions.length > 0 && otherExtensions.length > 0 && (
+            <div className="h-px shrink-0 bg-white/[0.09]" />
+          )}
+          {otherExtensions.length > 0 &&
+            renderCategory(
+              favoriteExtensions.length > 0 ? "Not favorited" : "Extensions",
+              otherExtensions,
+              true,
+            )}
+          {filteredExtensions.length === 0 && (
+            <div className="rounded-md border border-white/[0.10] bg-[#15161a] px-3 py-4 text-center text-sm text-white/42">
+              No extensions found
+            </div>
+          )}
         </div>
       </div>
       {drag &&
