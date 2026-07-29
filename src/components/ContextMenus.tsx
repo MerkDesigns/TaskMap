@@ -10,10 +10,12 @@ import {
   IconPencil,
   IconPlus,
   IconNotes,
+  IconPalette,
   IconPhoto,
   IconSquare,
   IconSquareOff,
   IconTerminal2,
+  IconTextSize,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
@@ -34,6 +36,7 @@ import {
   TextCardElement,
 } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import { ColorPickerMenu } from "./ColorPickerMenu";
 
 const REMOVE_EXTENSIONS_TITLE_CLASS = "px-2 pb-1 pt-0.5 text-[11px] font-semibold text-white/45";
 
@@ -371,7 +374,7 @@ export function ContainerContentContextMenu({
         className={MENU_ITEM_CLASS}
         onClick={() => onCreateTextCard(menu.containerId, menu.clientX, menu.clientY)}
       >
-        <IconPencil size={17} stroke={2} />
+        <IconTextSize size={17} stroke={2} />
         <span>Create text card</span>
       </button>
     </div>
@@ -406,6 +409,14 @@ export function CanvasContextMenu({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
+      <button
+        className={MENU_ITEM_CLASS}
+        onClick={() => onCreateTextCard(menu.clientX, menu.clientY)}
+      >
+        <IconTextSize size={17} stroke={2} />
+        <span>Create text card</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
       {hasCopiedItem && (
         <>
           <button className={MENU_ITEM_CLASS} onClick={() => onPaste(menu.clientX, menu.clientY)}>
@@ -422,23 +433,15 @@ export function CanvasContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <button
         className={MENU_ITEM_CLASS}
-        onClick={() => onCreateTextCard(menu.clientX, menu.clientY)}
-      >
-        <IconPencil size={17} stroke={2} />
-        <span>Create text card</span>
-      </button>
-      <div className={MENU_DIVIDER_CLASS} />
-      <button
-        className={MENU_ITEM_CLASS}
         onClick={() => onCreateTextBlock(menu.clientX, menu.clientY)}
       >
         <IconNotes size={17} stroke={2} />
-        <span>Text block</span>
+        <span>Create text block</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCreateImage(menu.clientX, menu.clientY)}>
         <IconPhoto size={17} stroke={2} />
-        <span>Image</span>
+        <span>Create image</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_DANGER_ITEM_CLASS} onClick={onClear}>
@@ -610,14 +613,17 @@ type TextCardContextMenuProps = {
   card: TextCardElement;
   closing: boolean;
   isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"lock" | "checkbox" | "commandRunner", boolean>>;
+  extensionState?: Partial<Record<"lock" | "colorPicker" | "checkbox" | "commandRunner", boolean>>;
   onStartEdit: (card: TextCardElement) => void;
   onEditCommand: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
+  recentColors: string[];
+  onRememberRecentColor: (color?: string) => void;
   onUpdateLink: (id: string, link: string) => void;
   onCut: (card: TextCardElement) => void;
   onCopy: (card: TextCardElement) => void;
   onRemoveLockExtension: (id: string) => void;
+  onRemoveColorPickerExtension: (id: string) => void;
   onRemoveCheckboxExtension: (id: string) => void;
   onRemoveCommandRunnerExtension: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
@@ -633,10 +639,13 @@ export function TextCardContextMenu({
   onStartEdit,
   onEditCommand,
   onUpdateAccent,
+  recentColors,
+  onRememberRecentColor,
   onUpdateLink,
   onCut,
   onCopy,
   onRemoveLockExtension,
+  onRemoveColorPickerExtension,
   onRemoveCheckboxExtension,
   onRemoveCommandRunnerExtension,
   onMoveLayer,
@@ -645,6 +654,7 @@ export function TextCardContextMenu({
   const activeAccent = getTextCardAccent(card.accent);
   const extensions = extensionState ?? {
     lock: Boolean(card.extensions?.lock),
+    colorPicker: Boolean(card.extensions?.colorPicker),
     checkbox: Boolean(card.extensions?.checkbox),
     commandRunner: Boolean(card.extensions?.commandRunner),
   };
@@ -660,6 +670,10 @@ export function TextCardContextMenu({
   const linkMenuPosition = useClampedFixedPosition(linkMenuRef, linkMenuPreferredPosition);
   const [linkDraft, setLinkDraft] = useState(card.link ?? "");
   const [linkMenuOpen, setLinkMenuOpen] = useState(false);
+  const [colorPickerPosition, setColorPickerPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
 
   useEffect(() => {
     setLinkDraft(card.link ?? "");
@@ -701,6 +715,18 @@ export function TextCardContextMenu({
           <IconPencil size={17} stroke={2} />
           <span>Edit Text</span>
         </button>
+        {extensions.colorPicker && (
+          <button
+            className={MENU_ITEM_CLASS}
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              setColorPickerPosition({ left: rect.right + 8, top: rect.top });
+            }}
+          >
+            <IconPalette size={17} stroke={2} />
+            <span>Open color picker</span>
+          </button>
+        )}
         {card.extensions?.commandRunner && (
           <button className={MENU_ITEM_CLASS} onClick={() => onEditCommand(card.id)}>
             <IconTerminal2 size={17} stroke={2} />
@@ -780,7 +806,10 @@ export function TextCardContextMenu({
           <IconCopy size={17} stroke={2} />
           <span>{isMultiTarget ? "Copy selected" : "Copy"}</span>
         </button>
-        {(extensions.lock || extensions.checkbox || extensions.commandRunner) && (
+        {(extensions.lock ||
+          extensions.colorPicker ||
+          extensions.checkbox ||
+          extensions.commandRunner) && (
           <>
             <div className={MENU_DIVIDER_CLASS} />
             <div className={REMOVE_EXTENSIONS_TITLE_CLASS}>Remove Extensions</div>
@@ -788,6 +817,15 @@ export function TextCardContextMenu({
               <button className={MENU_ITEM_CLASS} onClick={() => onRemoveLockExtension(card.id)}>
                 <IconTrash size={17} stroke={2} />
                 <span>Lock</span>
+              </button>
+            )}
+            {extensions.colorPicker && (
+              <button
+                className={MENU_ITEM_CLASS}
+                onClick={() => onRemoveColorPickerExtension(card.id)}
+              >
+                <IconTrash size={17} stroke={2} />
+                <span>Extra colors</span>
               </button>
             )}
             {extensions.checkbox && (
@@ -861,6 +899,19 @@ export function TextCardContextMenu({
             </button>
           </div>
         </div>
+      )}
+      {colorPickerPosition && !closing && (
+        <ColorPickerMenu
+          color={activeAccent}
+          left={colorPickerPosition.left}
+          top={colorPickerPosition.top}
+          recentColors={recentColors}
+          onChange={(accent) => onUpdateAccent(card.id, accent)}
+          onClose={(recentColor) => {
+            onRememberRecentColor(recentColor);
+            setColorPickerPosition(null);
+          }}
+        />
       )}
     </>
   );

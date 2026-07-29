@@ -198,6 +198,7 @@ describe("Copy/Paste JSON extension", () => {
         defaultElementColors: DEFAULT_ELEMENT_COLORS,
         recentColors: [],
         shadowsUnderElements: false,
+        allowLockedElementDeletion: true,
         discordRpcEnabled: false,
         discordRpcShowCanvas: true,
         minimapEnabled: true,

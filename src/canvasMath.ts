@@ -1,4 +1,4 @@
-import { MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from "./constants";
+import { ALIGN_SNAP_DISTANCE, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP } from "./constants";
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -22,7 +22,57 @@ export function getWheelZoom(currentZoom: number, deltaY: number) {
   }
 
   const steps = direction * Math.min(4, Math.max(1, Math.round(Math.abs(rawSteps))));
-  return quantizeZoom(currentZoom + ZOOM_STEP * steps);
+  return quantizeZoom(currentZoom * (1 + ZOOM_STEP) ** steps);
+}
+
+type AlignmentGuide = {
+  value: number;
+  kind: "start" | "end";
+};
+
+export function findSnapOffset(movingGuides: AlignmentGuide[], targetGuides: AlignmentGuide[]) {
+  let bestOffset = 0;
+  let bestDistance = ALIGN_SNAP_DISTANCE + 1;
+
+  movingGuides.forEach((movingGuide) => {
+    targetGuides.forEach((targetGuide) => {
+      if (movingGuide.kind !== targetGuide.kind) {
+        return;
+      }
+
+      const offset = targetGuide.value - movingGuide.value;
+      const distance = Math.abs(offset);
+
+      if (distance < bestDistance && distance <= ALIGN_SNAP_DISTANCE) {
+        bestDistance = distance;
+        bestOffset = offset;
+      }
+    });
+  });
+
+  if (bestDistance > ALIGN_SNAP_DISTANCE) {
+    return { offset: 0, guide: null, guides: [] };
+  }
+
+  const guides = Array.from(
+    new Set(
+      movingGuides.flatMap((movingGuide) =>
+        targetGuides
+          .filter(
+            (targetGuide) =>
+              movingGuide.kind === targetGuide.kind &&
+              Math.abs(targetGuide.value - movingGuide.value - bestOffset) < 0.001,
+          )
+          .map((targetGuide) => targetGuide.value),
+      ),
+    ),
+  );
+
+  return {
+    offset: bestOffset,
+    guide: guides[0] ?? null,
+    guides,
+  };
 }
 
 type VirtualRowRangeOptions = {

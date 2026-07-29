@@ -2,9 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   IconCheck,
   IconLink,
-  IconLoader2,
   IconPlayerPlayFilled,
   IconPlayerStopFilled,
+  IconSettings,
 } from "@tabler/icons-react";
 import { MouseEvent, PointerEvent, memo, useEffect, useRef, useState } from "react";
 import { getTextCardAccent } from "../constants";
@@ -25,6 +25,7 @@ type TextCardNodeProps = {
   pulsing?: boolean;
   glowing?: boolean;
   dragging?: boolean;
+  dragAtTrueSize?: boolean;
   dragPrimary?: boolean;
   dragBundleIndex?: number;
   dragPickupX?: number;
@@ -78,6 +79,7 @@ function TextCardNodeComponent({
   pulsing = false,
   glowing = false,
   dragging = false,
+  dragAtTrueSize = false,
   dragPrimary = false,
   dragBundleIndex = -1,
   dragPickupX = 0,
@@ -158,8 +160,10 @@ function TextCardNodeComponent({
       data-text-card-id={card.id}
       className={`absolute inline-flex cursor-grab select-none items-center overflow-hidden rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
         dragging
-          ? `z-30 cursor-grabbing opacity-95 transition-none ${
-              dragPrimary ? "scale-[1.035]" : "text-card-bundle-pickup"
+          ? `z-30 cursor-grabbing opacity-95 ${
+              dragPrimary
+                ? `origin-top-left ${dragAtTrueSize ? "scale-100" : "scale-[1.035]"}`
+                : "text-card-bundle-pickup"
             }`
           : `z-20 ${
               moving
@@ -194,7 +198,9 @@ function TextCardNodeComponent({
             dragging && !dragPrimary
               ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
                   Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
-                }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
+                }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(${
+                  dragAtTrueSize ? 1 : 0.99
+                })`
               : undefined,
           "--bundle-pickup-x": `${dragPickupX}px`,
           "--bundle-pickup-y": `${dragPickupY}px`,
@@ -202,7 +208,9 @@ function TextCardNodeComponent({
             dragging && !dragPrimary
               ? `translate(${dragSwayX * (0.18 + Math.min(dragBundleIndex, 5) * 0.04)}px, ${
                   Math.abs(dragSwayX) * 0.08 + dragSwayY * 0.12
-                }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(0.99)`
+                }px) rotate(${dragSwayX * (0.16 + Math.min(dragBundleIndex, 5) * 0.035)}deg) scale(${
+                  dragAtTrueSize ? 1 : 0.99
+                })`
               : "none",
         } as React.CSSProperties
       }
@@ -272,7 +280,12 @@ function TextCardNodeComponent({
           >
             {running ? (
               <>
-                <IconLoader2 size={18} stroke={2} className="animate-spin group-hover:hidden" />
+                <IconSettings
+                  size={20.7}
+                  stroke={2}
+                  className="animate-spin group-hover:hidden"
+                  style={{ animationDuration: "1.3s" }}
+                />
                 <IconPlayerStopFilled size={17} stroke={2} className="hidden group-hover:block" />
               </>
             ) : (

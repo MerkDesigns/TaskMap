@@ -1,6 +1,7 @@
 node_modules/
 dist/
-Example/
+examples/*
+!examples/app-data-v1.json
 src-tauri/target/
 .env
 .env.*

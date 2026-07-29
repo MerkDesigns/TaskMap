@@ -178,6 +178,7 @@ export const appDataSchema = z
       .default(DEFAULT_ELEMENT_COLORS),
     recentColors: z.array(z.string().min(1)).max(8).default([]),
     shadowsUnderElements: z.boolean().default(false),
+    allowLockedElementDeletion: z.boolean().default(true),
     discordRpcEnabled: z.boolean(),
     discordRpcShowCanvas: z.boolean(),
     minimapEnabled: z.boolean(),

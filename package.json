@@ -1,20 +1,24 @@
 {
   "name": "taskmap",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
+  "prettier": {
+    "printWidth": 100,
+    "trailingComma": "all"
+  },
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 1420",
-    "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "dev": "vite --config config/vite.config.ts --host 127.0.0.1 --port 1420",
+    "build": "tsc --noEmit -p config/tsconfig.json && vite build --config config/vite.config.ts",
+    "typecheck": "tsc --noEmit -p config/tsconfig.json",
+    "lint": "eslint --config config/eslint.config.js . --max-warnings 0",
+    "format": "prettier --write . --ignore-path config/prettierignore",
+    "format:check": "prettier --check . --ignore-path config/prettierignore",
+    "test": "vitest run --config config/vite.config.ts",
+    "test:watch": "vitest --config config/vite.config.ts",
     "check:version": "node scripts/check-version.mjs",
     "check": "npm run check:version && npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build",
     "tauri": "tauri"

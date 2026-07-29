@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
+  css: {
+    postcss: "./config",
+  },
   server: {
     host: "127.0.0.1",
     port: 1420,

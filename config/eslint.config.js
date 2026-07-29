@@ -6,17 +6,17 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
-      "coverage/**",
-      "dist/**",
-      "node_modules/**",
-      "src-tauri/gen/**",
-      "src-tauri/target/**",
+      "**/coverage/**",
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/src-tauri/gen/**",
+      "**/src-tauri/target/**",
     ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["**/src/**/*.{ts,tsx}"],
     languageOptions: {
       globals: globals.browser,
     },
@@ -37,7 +37,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["*.config.{js,cjs,mjs,ts}", "scripts/**/*.mjs"],
+    files: ["**/*.config.{js,cjs,mjs,ts}", "**/scripts/**/*.mjs"],
     languageOptions: {
       globals: globals.node,
     },

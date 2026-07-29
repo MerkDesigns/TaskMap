@@ -2,7 +2,7 @@ import {
   IconArrowDownRight,
   IconChevronLeft,
   IconChevronRight,
-  IconColorPicker,
+  IconPalette,
   IconDotsVertical,
   IconEye,
   IconEyeOff,
@@ -300,7 +300,7 @@ function TextBlockNodeComponent({
         onPointerDown={(event) => event.stopPropagation()}
         title="Open color picker"
       >
-        <IconColorPicker size={18} stroke={2} />
+        <IconPalette size={18} stroke={2} />
       </button>
     );
   };

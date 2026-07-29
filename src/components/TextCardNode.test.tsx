@@ -15,10 +15,18 @@ const card = (commands: TextCardElement["extensions"]): TextCardElement => ({
   extensions: commands,
 });
 
-const renderCard = (value: TextCardElement, running = false) => {
+const renderCard = (
+  value: TextCardElement,
+  running = false,
+  drag?: {
+    dragging?: boolean;
+    dragAtTrueSize?: boolean;
+    dragPrimary?: boolean;
+  },
+) => {
   const onRunCommands = vi.fn();
   const onStopCommands = vi.fn();
-  render(
+  const { container } = render(
     <TextCardNode
       card={value}
       editing={false}
@@ -33,10 +41,36 @@ const renderCard = (value: TextCardElement, running = false) => {
       onRunCommands={onRunCommands}
       running={running}
       onStopCommands={onStopCommands}
+      {...drag}
     />,
   );
-  return { onRunCommands, onStopCommands };
+  return { container, onRunCommands, onStopCommands };
 };
+
+describe("TextCardNode drag presentation", () => {
+  it("anchors the lifted size to the card position", () => {
+    const { container } = renderCard(card(undefined), false, {
+      dragging: true,
+      dragPrimary: true,
+    });
+    const draggedCard = container.querySelector("[data-text-card-id='card-1']");
+
+    expect(draggedCard).toHaveClass("origin-top-left", "scale-[1.035]");
+  });
+
+  it("shows the primary card at its true size without a transition after snapping", () => {
+    const { container } = renderCard(card(undefined), false, {
+      dragging: true,
+      dragAtTrueSize: true,
+      dragPrimary: true,
+    });
+    const draggedCard = container.querySelector("[data-text-card-id='card-1']");
+
+    expect(draggedCard).toHaveClass("origin-top-left", "scale-100");
+    expect(draggedCard).not.toHaveClass("scale-[1.035]");
+    expect(draggedCard).not.toHaveClass("transition-transform");
+  });
+});
 
 describe("TextCardNode Command Runner controls", () => {
   it("disables Play with no commands while keeping it solid white", () => {
@@ -72,6 +106,10 @@ describe("TextCardNode Command Runner controls", () => {
       true,
     );
 
+    const runningCog = actions.container.querySelector(".tabler-icon-settings.animate-spin");
+    expect(runningCog).toBeInTheDocument();
+    expect(runningCog).toHaveAttribute("width", "20.7");
+    expect(runningCog).toHaveStyle({ animationDuration: "1.3s" });
     await user.click(screen.getByRole("button", { name: "Stop commands" }));
     expect(actions.onStopCommands).toHaveBeenCalledWith("card-1");
   });

@@ -82,6 +82,7 @@
   ],
   "canvasGridStyle": "dots",
   "canvasGridOpacity": { "dots": 50, "lines": 15 },
+  "allowLockedElementDeletion": true,
   "discordRpcEnabled": false,
   "discordRpcShowCanvas": true,
   "minimapEnabled": true,

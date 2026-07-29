@@ -14,14 +14,14 @@
 </p>
 
 <p>
-  <a href="https://github.com/MerkDesigns/TaskMap/releases/latest/download/TaskMap_0.3.2_x64-setup.exe">Download for Windows</a>
+  <a href="https://github.com/MerkDesigns/TaskMap/releases/latest/download/TaskMap_0.3.3_x64-setup.exe">Download for Windows</a>
   ·
   <a href="https://github.com/MerkDesigns/TaskMap/releases">View all releases</a>
 </p>
 
 </div>
 
-![TaskMap desktop canvas](preview.png)
+![TaskMap desktop canvas](.github/assets/preview.png)
 
 ## About
 

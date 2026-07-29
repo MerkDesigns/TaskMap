@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_ZOOM, MIN_ZOOM } from "./constants";
 import {
   clamp,
+  findSnapOffset,
   getVirtualRowRange,
   getWheelZoom,
   isVirtualRowInRange,
@@ -27,12 +28,32 @@ describe("canvas math", () => {
     expect(getWheelZoom(1, -100)).toBeCloseTo(1.05);
     expect(getWheelZoom(1, 100)).toBeCloseTo(0.95);
     expect(getWheelZoom(1.02, 0)).toBe(1);
-    expect(getWheelZoom(2, -100)).toBeCloseTo(2.05);
+    expect(getWheelZoom(2, -100)).toBeCloseTo(2.1);
+    expect(getWheelZoom(2, 100)).toBeCloseTo(1.9);
   });
 
   it("caps a single wheel event at four steps", () => {
     expect(getWheelZoom(1, -10_000)).toBeCloseTo(1.2);
     expect(getWheelZoom(1, 10_000)).toBeCloseTo(0.8);
+  });
+
+  it("returns every element edge aligned by the selected snap offset", () => {
+    expect(
+      findSnapOffset(
+        [
+          { value: 102, kind: "start" },
+          { value: 143, kind: "end" },
+        ],
+        [
+          { value: 100, kind: "start" },
+          { value: 141, kind: "end" },
+        ],
+      ),
+    ).toEqual({
+      offset: -2,
+      guide: 100,
+      guides: [100, 141],
+    });
   });
 
   it("never crosses the fifty-percent minimum and recovers invalid legacy zoom", () => {

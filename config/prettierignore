@@ -1,0 +1,12 @@
+# Generated output
+../coverage/
+../dist/
+../node_modules/
+../src-tauri/gen/
+../src-tauri/target/
+../package-lock.json
+
+# Local examples and binary assets
+../examples/
+../**/*.png
+../**/*.ico

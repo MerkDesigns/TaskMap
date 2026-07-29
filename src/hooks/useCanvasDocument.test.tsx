@@ -51,4 +51,13 @@ describe("useCanvasDocument", () => {
     expect(result.current.activeCanvas.id).toBe(DEFAULT_CANVAS.id);
     expect(result.current.canvases.find(({ id }) => id === secondCanvas.id)?.name).toBe("Updated");
   });
+
+  it("updates pan and zoom together", () => {
+    const { result } = renderHook(() => useCanvasDocument());
+
+    act(() => result.current.setCamera({ x: 120, y: -80 }, 1.75));
+
+    expect(result.current.activeCanvas.pan).toEqual({ x: 120, y: -80 });
+    expect(result.current.activeCanvas.zoom).toBe(1.75);
+  });
 });

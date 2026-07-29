@@ -1,11 +1,11 @@
 import {
   IconDownload,
-  IconColorPicker,
   IconEye,
   IconEyeOff,
   IconGrid3x3,
   IconGridDots,
   IconKeyboard,
+  IconPalette,
   IconRefresh,
   IconRotateClockwise,
   IconSettings,
@@ -246,6 +246,8 @@ type SettingsModalProps = {
   onRememberRecentColor: (color?: string) => void;
   shadowsUnderElements: boolean;
   onShadowsUnderElementsChange: (enabled: boolean) => void;
+  allowLockedElementDeletion: boolean;
+  onAllowLockedElementDeletionChange: (enabled: boolean) => void;
   onExportData: (password: string) => Promise<boolean>;
   onImportData: (file: File, password: string) => Promise<void>;
   discordRpcEnabled: boolean;
@@ -314,6 +316,8 @@ export function SettingsModal({
   onRememberRecentColor,
   shadowsUnderElements,
   onShadowsUnderElementsChange,
+  allowLockedElementDeletion,
+  onAllowLockedElementDeletionChange,
   onExportData,
   onImportData,
   discordRpcEnabled,
@@ -570,7 +574,7 @@ export function SettingsModal({
                 </div>
                 <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
                   <div className="mb-1 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                    <IconColorPicker size={16} stroke={2} />
+                    <IconPalette size={16} stroke={2} />
                     <span>Default element colors</span>
                   </div>
                   <div className="mb-3 text-[11px] text-white/38">
@@ -689,6 +693,26 @@ export function SettingsModal({
             {activeTab === "misc" && (
               <div className="flex min-h-[198px] flex-col">
                 <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
+                  <span className="flex flex-col">
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
+                      Allow removing locked elements
+                    </span>
+                    <span className="mt-0.5 text-[12px] text-white/45">
+                      Lock canvas interactions without preventing removal.
+                    </span>
+                  </span>
+                  <input
+                    className="peer sr-only"
+                    type="checkbox"
+                    checked={allowLockedElementDeletion}
+                    onChange={(event) => onAllowLockedElementDeletionChange(event.target.checked)}
+                  />
+                  <span
+                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
+                    aria-hidden="true"
+                  />
+                </label>
+                <label className="settings-island left-panel-card left-panel-card-static mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
                   <span className="flex flex-col">
                     <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
                       Discord status

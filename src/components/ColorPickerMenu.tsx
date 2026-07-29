@@ -207,6 +207,7 @@ export function ColorPickerMenu({
   return createPortal(
     <div
       ref={menuRef}
+      data-context-menu
       data-color-picker-menu
       className="context-menu-enter fixed z-[1002] w-[286px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
       style={position}

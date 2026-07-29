@@ -5,11 +5,11 @@ import {
   IconInfoCircle,
   IconNotes,
   IconPhoto,
-  IconPencil,
   IconPuzzle,
   IconSearch,
   IconShieldLock,
   IconStar,
+  IconTextSize,
 } from "@tabler/icons-react";
 import { RefObject, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -36,7 +36,7 @@ type ExtensionsPanelProps = {
 const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof IconBox }> = {
   container: { title: "Containers", Icon: IconBox },
   "text-block": { title: "Text blocks", Icon: IconNotes },
-  "text-card": { title: "Text cards", Icon: IconPencil },
+  "text-card": { title: "Text cards", Icon: IconTextSize },
   image: { title: "Images", Icon: IconPhoto },
 };
 

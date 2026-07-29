@@ -33,6 +33,7 @@ const createData = (canvas: TaskCanvas): AppData => ({
   defaultElementColors: DEFAULT_ELEMENT_COLORS,
   recentColors: [],
   shadowsUnderElements: true,
+  allowLockedElementDeletion: true,
   discordRpcEnabled: false,
   discordRpcShowCanvas: true,
   minimapEnabled: true,

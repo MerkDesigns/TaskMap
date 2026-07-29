@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import sharedAppDataFixture from "../../fixtures/app-data-v1.json";
+import sharedAppDataFixture from "../../examples/app-data-v1.json";
 import { DEFAULT_CONTAINER_ACCENT, DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { AppData } from "../types";
 import { normalizeAppData } from "./appData";
@@ -19,6 +19,7 @@ describe("app data migration and validation", () => {
     expect(data.defaultElementColors).toEqual(DEFAULT_ELEMENT_COLORS);
     expect(data.recentColors).toEqual([]);
     expect(data.shadowsUnderElements).toBe(false);
+    expect(data.allowLockedElementDeletion).toBe(true);
   });
 
   it("migrates legacy top-level content to schema version 1", () => {
@@ -70,6 +71,14 @@ describe("app data migration and validation", () => {
     expect(data.schemaVersion).toBe(1);
     expect(data.canvases[0].textCards).toEqual([]);
     expect(data.discordRpcShowCanvas).toBe(true);
+    expect(data.allowLockedElementDeletion).toBe(true);
+  });
+
+  it("defaults locked element removal to allowed for existing data", () => {
+    const current = structuredClone(sharedAppDataFixture);
+    Reflect.deleteProperty(current, "allowLockedElementDeletion");
+
+    expect(normalizeAppData(current, preview).allowLockedElementDeletion).toBe(true);
   });
 
   it("rejects future schemas and malformed canvases", () => {

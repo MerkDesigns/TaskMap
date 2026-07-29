@@ -7,7 +7,7 @@ import {
   IconCalendarRepeat,
   IconChevronLeft,
   IconChevronRight,
-  IconColorPicker,
+  IconPalette,
   IconClipboardCopy,
   IconClipboardText,
   IconDotsVertical,
@@ -21,7 +21,6 @@ import {
   IconSearch,
   IconSortAZ,
   IconSortZA,
-  IconPalette,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -462,7 +461,7 @@ function ContainerNodeComponent({
           onPointerDown={(event) => event.stopPropagation()}
           title="Open color picker"
         >
-          <IconColorPicker size={22} stroke={2} />
+          <IconPalette size={22} stroke={2} />
         </button>
       );
     }

@@ -580,7 +580,7 @@ mod tests {
     use serde_json::json;
 
     fn valid_app_data() -> AppData {
-        serde_json::from_str(include_str!("../../fixtures/app-data-v1.json"))
+        serde_json::from_str(include_str!("../../examples/app-data-v1.json"))
             .expect("shared AppDataV1 fixture should be valid JSON")
     }
 

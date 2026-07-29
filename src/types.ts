@@ -243,6 +243,7 @@ export type AppData = {
   defaultElementColors: DefaultElementColors;
   recentColors: string[];
   shadowsUnderElements: boolean;
+  allowLockedElementDeletion: boolean;
   discordRpcEnabled: boolean;
   discordRpcShowCanvas: boolean;
   minimapEnabled: boolean;
@@ -345,6 +346,7 @@ export type DragState =
       width: number;
       height: number;
       snapping: boolean;
+      trueSize: boolean;
     }
   | {
       type: "image-move";

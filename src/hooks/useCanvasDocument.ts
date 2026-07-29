@@ -28,7 +28,8 @@ type CanvasDocumentAction =
       type: "set-value";
       key: CanvasValueKey;
       value: SetStateAction<TaskCanvas[CanvasValueKey]>;
-    };
+    }
+  | { type: "set-camera"; pan: TaskCanvas["pan"]; zoom: number };
 
 const resolveUpdate = <T>(value: SetStateAction<T>, current: T): T =>
   typeof value === "function" ? (value as (previous: T) => T)(current) : value;
@@ -82,6 +83,14 @@ const canvasDocumentReducer = (
       };
       return { ...state, canvases: replaceCanvas(state.canvases, nextActiveCanvas) };
     }
+    case "set-camera": {
+      const nextActiveCanvas = {
+        ...activeCanvas,
+        pan: action.pan,
+        zoom: action.zoom,
+      };
+      return { ...state, canvases: replaceCanvas(state.canvases, nextActiveCanvas) };
+    }
   }
 };
 
@@ -128,6 +137,9 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
   const setActiveCanvas = useCallback<Dispatch<SetStateAction<TaskCanvas>>>((value) => {
     dispatch({ type: "set-active-canvas", value });
   }, []);
+  const setCamera = useCallback((pan: TaskCanvas["pan"], zoom: number) => {
+    dispatch({ type: "set-camera", pan, zoom });
+  }, []);
 
   const setters = useMemo(
     () => ({
@@ -152,6 +164,7 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
     zoom: activeCanvas.zoom,
     setActiveCanvas,
     setCanvases,
+    setCamera,
     ...setters,
   } satisfies {
     activeCanvas: TaskCanvas;
@@ -164,6 +177,7 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
     zoom: number;
     setActiveCanvas: Dispatch<SetStateAction<TaskCanvas>>;
     setCanvases: Dispatch<SetStateAction<TaskCanvas[]>>;
+    setCamera: (pan: TaskCanvas["pan"], zoom: number) => void;
     setElements: Dispatch<SetStateAction<ContainerElement[]>>;
     setTextCards: Dispatch<SetStateAction<TextCardElement[]>>;
     setTextBlocks: Dispatch<SetStateAction<TextBlockElement[]>>;

@@ -31,6 +31,15 @@ pub(crate) fn migrate_app_data(mut data: AppData) -> Result<AppData, String> {
         }
     }
 
+    let object = data
+        .as_object_mut()
+        .ok_or_else(|| "App data must be a JSON object".to_string())?;
+    set_default_if_null(
+        object,
+        "allowLockedElementDeletion",
+        serde_json::json!(true),
+    );
+
     validate_app_data_v1(&data)?;
     Ok(data)
 }
@@ -193,6 +202,11 @@ fn migrate_app_data_v0(data: &mut AppData) -> Result<(), String> {
     set_default_if_null(object, "minimapEnabled", serde_json::json!(true));
     set_default_if_null(object, "privacyModeEnabled", serde_json::json!(false));
     set_default_if_null(object, "toolbarButtonsVisible", serde_json::json!(false));
+    set_default_if_null(
+        object,
+        "allowLockedElementDeletion",
+        serde_json::json!(true),
+    );
     if object
         .get("dismissedUpdateVersion")
         .is_some_and(serde_json::Value::is_null)
@@ -625,6 +639,7 @@ pub(crate) fn validate_app_data_v1(data: &AppData) -> Result<(), String> {
         "minimapEnabled",
         "privacyModeEnabled",
         "toolbarButtonsVisible",
+        "allowLockedElementDeletion",
     ] {
         if object
             .get(field)
@@ -665,7 +680,7 @@ mod tests {
     use serde_json::json;
 
     fn valid_app_data() -> AppData {
-        serde_json::from_str(include_str!("../../fixtures/app-data-v1.json"))
+        serde_json::from_str(include_str!("../../examples/app-data-v1.json"))
             .expect("shared AppDataV1 fixture should be valid JSON")
     }
 
@@ -690,6 +705,7 @@ mod tests {
         assert_eq!(migrated["schemaVersion"], json!(1));
         assert_eq!(migrated["canvasGridStyle"], json!("dots"));
         assert_eq!(migrated["discordRpcShowCanvas"], json!(true));
+        assert_eq!(migrated["allowLockedElementDeletion"], json!(true));
     }
 
     #[test]

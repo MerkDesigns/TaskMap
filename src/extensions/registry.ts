@@ -7,7 +7,7 @@ import {
   IconCheckbox,
   IconChecklist,
   IconTerminal2,
-  IconColorPicker,
+  IconPalette,
   IconColorSwatch,
   IconLock,
   IconSearch,
@@ -58,7 +58,7 @@ export const EXTENSIONS = [
   defineExtension({
     id: "lock",
     label: "Lock",
-    description: "Lock move, resize & deletion",
+    description: "Lock move and resize",
     Icon: IconLock,
     targets: ["container", "text-block", "text-card", "image"],
     createDefault: () => ({ enabled: true }),
@@ -67,8 +67,8 @@ export const EXTENSIONS = [
     id: "colorPicker",
     label: "Extra colors",
     description: "Fine-tune and reuse accent colors",
-    Icon: IconColorPicker,
-    targets: ["container", "text-block"],
+    Icon: IconPalette,
+    targets: ["container", "text-block", "text-card"],
     createDefault: () => ({ enabled: true }),
   }),
   defineExtension({
