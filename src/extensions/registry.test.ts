@@ -26,6 +26,15 @@ describe("extension registry", () => {
     expect(isExtensionCompatible("checkbox", "text-block")).toBe(false);
     expect(isExtensionCompatible("privacy", "text-block")).toBe(true);
     expect(isExtensionCompatible("colorPicker", "text-card")).toBe(true);
+    expect(isExtensionCompatible("lock", "mindmap")).toBe(true);
+    expect(isExtensionCompatible("colorPicker", "mindmap")).toBe(true);
+    expect(isExtensionCompatible("checkbox", "mindmap")).toBe(false);
+    expect(isExtensionCompatible("commandRunner", "mindmap")).toBe(false);
+    expect(
+      EXTENSIONS.filter((extension) => extension.targets.includes("mindmap")).map(
+        (extension) => extension.id,
+      ),
+    ).toEqual(["lock", "colorPicker"]);
     expect(isExtensionCompatible("copyPasteJson", "container")).toBe(true);
     expect(isExtensionCompatible("copyPasteJson", "text-card")).toBe(false);
     expect(EXTENSION_REGISTRY.copyPasteJson.description).toBe("Edit cards with AI");

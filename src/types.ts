@@ -103,6 +103,7 @@ export type ImageElement = {
 
 export type TextCardElement = {
   id: string;
+  kind?: "mindmap";
   layer?: number;
   text: string;
   x: number;
@@ -112,6 +113,16 @@ export type TextCardElement = {
   containerId?: string;
   order?: number;
   extensions?: ElementExtensions;
+};
+
+export type MindmapPort = "left" | "right" | "top" | "bottom";
+
+export type MindmapConnection = {
+  id: string;
+  sourceId: string;
+  sourcePort: MindmapPort;
+  targetId: string;
+  targetPort: MindmapPort;
 };
 
 export type TextBlockElement = {
@@ -138,16 +149,21 @@ export type CopiedContainer = Pick<
   ContainerElement,
   "name" | "width" | "height" | "accent" | "extensions" | "headerButtonsVisible"
 > & {
+  sourceId?: string;
   x?: number;
   y?: number;
   textCards: Array<
-    Pick<TextCardElement, "text" | "accent" | "link" | "order" | "extensions"> & {
+    Pick<TextCardElement, "kind" | "text" | "accent" | "link" | "order" | "extensions"> & {
       sourceId?: string;
     }
   >;
 };
 
-export type CopiedTextCard = Pick<TextCardElement, "text" | "accent" | "link" | "extensions"> & {
+export type CopiedTextCard = Pick<
+  TextCardElement,
+  "kind" | "text" | "accent" | "link" | "extensions"
+> & {
+  sourceId?: string;
   x?: number;
   y?: number;
   containerId?: string;
@@ -166,6 +182,7 @@ export type CopiedImage = Pick<
   | "background"
   | "extensions"
 > & {
+  sourceId?: string;
   x?: number;
   y?: number;
 };
@@ -174,9 +191,15 @@ export type CopiedTextBlock = Pick<
   TextBlockElement,
   "name" | "text" | "width" | "height" | "accent" | "extensions" | "headerButtonsVisible"
 > & {
+  sourceId?: string;
   x?: number;
   y?: number;
 };
+
+export type CopiedMindmapConnection = Pick<
+  MindmapConnection,
+  "sourceId" | "sourcePort" | "targetId" | "targetPort"
+>;
 
 export type CopiedCanvasItem =
   | {
@@ -202,6 +225,7 @@ export type CopiedCanvasItem =
         textCards: CopiedTextCard[];
         textBlocks: CopiedTextBlock[];
         images: CopiedImage[];
+        mindmapConnections: CopiedMindmapConnection[];
       };
     };
 
@@ -212,6 +236,7 @@ export type DefaultElementColors = {
   textCard: string;
   textBlock: string;
   image: string;
+  mindmap: string;
 };
 
 export type TaskCanvas = {
@@ -223,6 +248,7 @@ export type TaskCanvas = {
   textCards: TextCardElement[];
   textBlocks: TextBlockElement[];
   images: ImageElement[];
+  mindmapConnections: MindmapConnection[];
   pan: {
     x: number;
     y: number;
@@ -235,7 +261,7 @@ export type TaskCanvas = {
 };
 
 export type AppData = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   activeCanvasId: string;
   canvases: TaskCanvas[];
   canvasGridStyle: CanvasGridStyle;

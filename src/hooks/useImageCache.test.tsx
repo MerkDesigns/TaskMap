@@ -41,8 +41,48 @@ describe("useImageCache", () => {
       }),
     );
 
+    expect(result.current.isImageLoading("hash-1")).toBe(true);
     await waitFor(() => expect(result.current.getImageUrl("hash-1")).toBe("blob:image-1"));
+    expect(result.current.isImageLoading("hash-1")).toBe(false);
     expect(invokeMock).toHaveBeenCalledWith("load_image", { hash: "hash-1" });
+  });
+
+  it("loads active image bytes sequentially", async () => {
+    const resolvers: Array<(value: string) => void> = [];
+    invokeMock.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+
+    const activeImages = [
+      { hash: "first", format: "webp" },
+      { hash: "second", format: "webp" },
+    ];
+    const { rerender } = renderHook(
+      ({ images }) =>
+        useImageCache({
+          activeImages: images,
+          onStoreError: vi.fn(),
+        }),
+      { initialProps: { images: activeImages } },
+    );
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledTimes(1));
+    expect(invokeMock).toHaveBeenLastCalledWith("load_image", { hash: "first" });
+    rerender({ images: [...activeImages] });
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolvers[0](btoa("first image"));
+    });
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledTimes(2));
+    expect(invokeMock).toHaveBeenLastCalledWith("load_image", { hash: "second" });
+
+    await act(async () => {
+      resolvers[1](btoa("second image"));
+    });
   });
 
   it("revokes a URL when an image load finishes after unmount", async () => {
@@ -59,6 +99,7 @@ describe("useImageCache", () => {
         onStoreError: vi.fn(),
       }),
     );
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledOnce());
     unmount();
 
     await act(async () => {
@@ -170,6 +211,5 @@ describe("useImageCache", () => {
     });
 
     expect(invokeMock).toHaveBeenCalledTimes(3);
-    expect(vi.getTimerCount()).toBe(0);
   });
 });

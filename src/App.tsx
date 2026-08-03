@@ -19,6 +19,7 @@ import {
   ContainerContentContextMenu,
   ContainerContextMenu,
   ImageContextMenu,
+  MindmapConnectionContextMenu,
   TextBlockContextMenu,
   TextCardContextMenu,
 } from "./components/ContextMenus";
@@ -29,6 +30,8 @@ import type { FrostedGlassValues, LeftPanelCardValues } from "./components/Frost
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
 import { Minimap } from "./components/Minimap";
+import { MindmapConnectors } from "./components/MindmapConnectors";
+import { MindmapConnections } from "./components/MindmapConnections";
 import { TextCardNode } from "./components/TextCardNode";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
@@ -40,6 +43,7 @@ import {
   MIN_IMAGE_SIZE,
   MIN_WIDTH,
   MINIMAP_MAX_SIZE,
+  getTextCardAccent,
 } from "./constants";
 import {
   clamp,
@@ -62,11 +66,14 @@ import {
   ElementExtensions,
   ImageElement,
   ImageMeta,
+  MindmapConnection,
+  MindmapPort,
   TaskCanvas,
   TextBlockElement,
   TextCardElement,
   ToastMessage,
 } from "./types";
+import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
 import {
   cloneExtensions,
   getLocalDateKey,
@@ -162,6 +169,7 @@ type ExtensionDropRipple = {
     | { type: "container"; id: string }
     | { type: "text-block"; id: string }
     | { type: "text-card"; id: string }
+    | { type: "mindmap"; id: string }
     | { type: "image"; id: string };
   offsetX: number;
   offsetY: number;
@@ -205,6 +213,22 @@ type PendingCanvasDeletions = {
   textCards: Set<string>;
   textBlocks: Set<string>;
   images: Set<string>;
+};
+
+type MindmapConnectionDrag = {
+  pointerId: number;
+  sourceId: string;
+  sourcePort: MindmapPort;
+  source: { x: number; y: number };
+  target: { x: number; y: number };
+  targetId?: string;
+  targetPort?: MindmapPort;
+};
+
+type MeasuredMindmapSize = {
+  canvasId: string;
+  width: number;
+  height: number;
 };
 
 type StorageErrorState = {
@@ -297,6 +321,7 @@ const createAppMetadata = (data: AppData): AppData => ({
     textCards: [],
     textBlocks: [],
     images: [],
+    mindmapConnections: [],
   })),
 });
 
@@ -412,7 +437,7 @@ function App() {
   const latestDataGetterRef = useRef<() => AppData>(() => latestAppDataRef.current);
   const closeInProgressRef = useRef(false);
   const latestAppDataRef = useRef<AppData>({
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeCanvasId: DEFAULT_CANVAS.id,
     canvases: [DEFAULT_CANVAS],
     canvasGridStyle: "dots",
@@ -434,12 +459,14 @@ function App() {
     canvases,
     elements,
     images,
+    mindmapConnections,
     pan,
     setActiveCanvas,
     setCanvases,
     setCamera,
     setElements,
     setImages,
+    setMindmapConnections,
     setPan,
     setTextBlocks,
     setTextCards,
@@ -492,6 +519,11 @@ function App() {
     left: number;
     top: number;
   } | null>(null);
+  const [mindmapConnectionMenu, setMindmapConnectionMenu] = useState<{
+    id: string;
+    left: number;
+    top: number;
+  } | null>(null);
   const [canvasMenu, setCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
   const [closingCanvasMenu, setClosingCanvasMenu] = useState<{
     clientX: number;
@@ -503,6 +535,13 @@ function App() {
   const [textCardDraft, setTextCardDraft] = useState("");
   const [editingTextBlockId, setEditingTextBlockId] = useState<string | null>(null);
   const [textBlockDraft, setTextBlockDraft] = useState("");
+  const [mindmapConnectionMode, setMindmapConnectionMode] = useState(false);
+  const [mindmapConnectionDrag, setMindmapConnectionDrag] = useState<MindmapConnectionDrag | null>(
+    null,
+  );
+  const [measuredMindmapSizes, setMeasuredMindmapSizes] = useState<
+    Record<string, MeasuredMindmapSize>
+  >({});
   const [copiedItem, setCopiedItem] = useState<CopiedCanvasItem | null>(null);
   const [containerJsonEditor, setContainerJsonEditor] = useState<{
     containerId: string;
@@ -565,6 +604,21 @@ function App() {
     containerId: string;
     index: number;
   } | null>(null);
+
+  const rememberMindmapSize = useCallback((id: string, size: { width: number; height: number }) => {
+    const canvasId = activeCanvasIdRef.current;
+    setMeasuredMindmapSizes((current) => {
+      const previous = current[id];
+      if (
+        previous?.canvasId === canvasId &&
+        previous.width === size.width &&
+        previous.height === size.height
+      ) {
+        return current;
+      }
+      return { ...current, [id]: { canvasId, ...size } };
+    });
+  }, []);
 
   useEffect(() => {
     const resetDailyCheckboxes = () => {
@@ -642,6 +696,41 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const handleConnectionKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        event.code !== "KeyC" ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isEditableKeyboardTarget(target) ||
+        isKeyboardFocusableControl(target) ||
+        settingsOpen ||
+        clearModalOpen ||
+        Boolean(pendingExtensionConflict)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setMindmapConnectionMode(true);
+    };
+    const stopConnectionMode = (event?: KeyboardEvent) => {
+      if (event && event.code !== "KeyC") return;
+      setMindmapConnectionMode(false);
+      setMindmapConnectionDrag(null);
+    };
+    const handleBlur = () => stopConnectionMode();
+    window.addEventListener("keydown", handleConnectionKeyDown, true);
+    window.addEventListener("keyup", stopConnectionMode, true);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("keydown", handleConnectionKeyDown, true);
+      window.removeEventListener("keyup", stopConnectionMode, true);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [clearModalOpen, pendingExtensionConflict, settingsOpen]);
+
   useEffect(
     () => () => {
       if (textCardDragFrameRef.current !== null) {
@@ -690,6 +779,10 @@ function App() {
   }, [textCards]);
   const looseTextCards = useMemo(() => textCards.filter((card) => !card.containerId), [textCards]);
   const imagesById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
+  const mindmapConnectionsById = useMemo(
+    () => new Map(mindmapConnections.map((connection) => [connection.id, connection])),
+    [mindmapConnections],
+  );
   const looseImages = useMemo(() => images.filter((image) => !image.containerId), [images]);
   const isElementLocked = (id: string) =>
     Boolean(
@@ -700,6 +793,11 @@ function App() {
         imagesById.get(id)
       )?.extensions?.lock?.enabled,
     );
+  const isConnectableElement = (id: string) =>
+    containersById.has(id) ||
+    textBlocksById.has(id) ||
+    imagesById.has(id) ||
+    textCardsById.get(id)?.kind === "mindmap";
   const isElementDeletionLocked = (id: string) =>
     !allowLockedElementDeletion &&
     (isElementLocked(id) ||
@@ -817,7 +915,7 @@ function App() {
       ),
     [images],
   );
-  const { imageUrlVersion, getImageUrl, storeImageFromBytes } = useImageCache({
+  const { imageUrlVersion, getImageUrl, isImageLoading, storeImageFromBytes } = useImageCache({
     activeImages: activeCachedImages,
     onStoreError: (error) => {
       showToast({
@@ -861,6 +959,17 @@ function App() {
         (element) => !pending.textBlocks.has(element.id),
       ),
       images: (canvas.images ?? []).filter((image) => !pending.images.has(image.id)),
+      mindmapConnections: canvas.mindmapConnections.filter(
+        (connection) =>
+          !pending.containers.has(connection.sourceId) &&
+          !pending.containers.has(connection.targetId) &&
+          !pending.textCards.has(connection.sourceId) &&
+          !pending.textCards.has(connection.targetId) &&
+          !pending.textBlocks.has(connection.sourceId) &&
+          !pending.textBlocks.has(connection.targetId) &&
+          !pending.images.has(connection.sourceId) &&
+          !pending.images.has(connection.targetId),
+      ),
     };
   };
 
@@ -871,6 +980,7 @@ function App() {
       textCards,
       textBlocks,
       images,
+      mindmapConnections,
       pan,
       zoom,
       previewViewport: {
@@ -887,7 +997,7 @@ function App() {
   };
 
   const getCurrentAppData = (): AppData => ({
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeCanvasId: activeCanvas.id,
     canvases: getPersistedCanvases(),
     canvasGridStyle,
@@ -1064,6 +1174,7 @@ function App() {
     setCanvases,
     setElements,
     setImages,
+    setMindmapConnections,
     setPan,
     setTextBlocks,
     setTextCards,
@@ -1087,6 +1198,7 @@ function App() {
     discordRpcShowCanvas,
     elements,
     images,
+    mindmapConnections,
     minimapEnabled,
     pan,
     privacyModeEnabled,
@@ -1108,6 +1220,7 @@ function App() {
     activeCanvas.width,
     elements,
     images,
+    mindmapConnections,
     textBlocks,
     textCards,
     lifecycleActions,
@@ -1131,7 +1244,7 @@ function App() {
     }
     const currentVersion = dirtyCanvasVersionsRef.current.get(activeCanvas.id) ?? 0;
     dirtyCanvasVersionsRef.current.set(activeCanvas.id, currentVersion + 1);
-  }, [activeCanvas.id, elements, images, textBlocks, textCards]);
+  }, [activeCanvas.id, elements, images, mindmapConnections, textBlocks, textCards]);
 
   useEffect(() => {
     latestCameraRef.current = { pan, zoom };
@@ -1173,6 +1286,7 @@ function App() {
       dismissedUpdateVersion,
       elements,
       images,
+      mindmapConnections,
       minimapEnabled,
       pan,
       privacyModeEnabled,
@@ -1401,6 +1515,7 @@ function App() {
 
       return null;
     });
+    setMindmapConnectionMenu(null);
   };
 
   const updateTextCardDropPreview = (preview: { containerId: string; index: number } | null) => {
@@ -2106,7 +2221,14 @@ function App() {
         setCanvases((current) =>
           current.map((canvas) =>
             canvas.id === canvasId
-              ? { ...canvas, images: (canvas.images ?? []).filter((image) => !idSet.has(image.id)) }
+              ? {
+                  ...canvas,
+                  images: (canvas.images ?? []).filter((image) => !idSet.has(image.id)),
+                  mindmapConnections: canvas.mindmapConnections.filter(
+                    (connection) =>
+                      !idSet.has(connection.sourceId) && !idSet.has(connection.targetId),
+                  ),
+                }
               : canvas,
           ),
         );
@@ -2188,6 +2310,11 @@ function App() {
       () => {
         const containedTextCardIdSet = new Set(containedTextCardIds);
         const containedImageIdSet = new Set(containedImageIds);
+        const removedConnectionEndpointIds = new Set([
+          ...idsToRemove,
+          ...containedTextCardIds,
+          ...containedImageIds,
+        ]);
         setCanvases((current) =>
           current.map((canvas) =>
             canvas.id === canvasId
@@ -2201,6 +2328,11 @@ function App() {
                   ),
                   images: (canvas.images ?? []).filter(
                     (image) => !containedImageIdSet.has(image.id),
+                  ),
+                  mindmapConnections: canvas.mindmapConnections.filter(
+                    (connection) =>
+                      !removedConnectionEndpointIds.has(connection.sourceId) &&
+                      !removedConnectionEndpointIds.has(connection.targetId),
                   ),
                 }
               : canvas,
@@ -2261,6 +2393,10 @@ function App() {
                   textCards: normalizeTextCardOrders(
                     canvas.textCards.filter((card) => !idSet.has(card.id)),
                   ),
+                  mindmapConnections: canvas.mindmapConnections.filter(
+                    (connection) =>
+                      !idSet.has(connection.sourceId) && !idSet.has(connection.targetId),
+                  ),
                 }
               : canvas,
           ),
@@ -2298,6 +2434,10 @@ function App() {
               ? {
                   ...canvas,
                   textBlocks: (canvas.textBlocks ?? []).filter((element) => !idSet.has(element.id)),
+                  mindmapConnections: canvas.mindmapConnections.filter(
+                    (connection) =>
+                      !idSet.has(connection.sourceId) && !idSet.has(connection.targetId),
+                  ),
                 }
               : canvas,
           ),
@@ -2313,6 +2453,11 @@ function App() {
       },
       160,
     );
+  };
+
+  const removeMindmapConnection = (id: string) => {
+    setMindmapConnections((current) => current.filter((connection) => connection.id !== id));
+    setMindmapConnectionMenu(null);
   };
 
   const deleteCanvasSelection = (actionIds: string[]) => {
@@ -2555,25 +2700,82 @@ function App() {
   ]);
 
   const getLooseTextCardSelectionBounds = (card: TextCardElement) => {
-    const estimatedTextWidth = Math.max(44, Math.min(520, card.text.length * 9 + 48));
+    const node = worldRef.current?.querySelector<HTMLElement>(`[data-text-card-id="${card.id}"]`);
+    const measuredSize = measuredMindmapSizes[card.id];
+    const stableMindmapSize =
+      card.kind === "mindmap" && measuredSize?.canvasId === activeCanvas.id
+        ? measuredSize
+        : undefined;
+    const textLines = card.text.split("\n");
+    const longestLineLength = Math.max(1, ...textLines.map((line) => line.length));
+    const estimatedTextWidth = Math.max(44, Math.min(520, longestLineLength * 9 + 48));
+    const estimatedWrappedLines = textLines.reduce(
+      (count, line) => count + Math.max(1, Math.ceil((line.length * 9) / 472)),
+      0,
+    );
+    const estimatedHeight =
+      card.kind === "mindmap"
+        ? CONTAINER_TEXT_CARD_ROW_HEIGHT + (estimatedWrappedLines - 1) * 24
+        : CONTAINER_TEXT_CARD_ROW_HEIGHT;
 
     return {
       left: card.x,
       top: card.y,
-      width: estimatedTextWidth,
-      height: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+      width: stableMindmapSize?.width || node?.offsetWidth || estimatedTextWidth,
+      height: stableMindmapSize?.height || node?.offsetHeight || estimatedHeight,
     };
   };
 
-  const getLooseTextCardAlignmentBounds = (card: TextCardElement) => {
-    const node = worldRef.current?.querySelector<HTMLElement>(`[data-text-card-id="${card.id}"]`);
-    const fallback = getLooseTextCardSelectionBounds(card);
+  const getLooseTextCardAlignmentBounds = (card: TextCardElement) =>
+    getLooseTextCardSelectionBounds(card);
 
-    return {
-      ...fallback,
-      width: node?.offsetWidth || fallback.width,
-      height: node?.offsetHeight || fallback.height,
-    };
+  const getConnectableElementBounds = (id: string): MindmapBounds | null => {
+    const container = containersById.get(id);
+    if (container) {
+      return { x: container.x, y: container.y, width: container.width, height: container.height };
+    }
+    const textBlock = textBlocksById.get(id);
+    if (textBlock) {
+      return {
+        x: textBlock.x,
+        y: textBlock.y,
+        width: textBlock.width,
+        height: textBlock.height,
+      };
+    }
+    const image = imagesById.get(id);
+    if (image) {
+      return { x: image.x, y: image.y, width: image.width, height: image.height };
+    }
+    const card = textCardsById.get(id);
+    if (card?.kind === "mindmap") {
+      const bounds = getLooseTextCardSelectionBounds(card);
+      return { x: bounds.left, y: bounds.top, width: bounds.width, height: bounds.height };
+    }
+    return null;
+  };
+
+  const getAvailableMindmapEndpoint = (clientX: number, clientY: number, sourceId: string) => {
+    const targetNode = document
+      .elementFromPoint(clientX, clientY)
+      ?.closest<HTMLElement>("[data-connection-port]");
+    const targetId = targetNode?.dataset.connectionPortOwner;
+    const targetPort = targetNode?.dataset.connectionPort as MindmapPort | undefined;
+    if (
+      !targetId ||
+      !targetPort ||
+      targetId === sourceId ||
+      !isConnectableElement(targetId) ||
+      mindmapConnections.some(
+        (connection) =>
+          (connection.sourceId === sourceId && connection.targetId === targetId) ||
+          (connection.sourceId === targetId && connection.targetId === sourceId),
+      )
+    ) {
+      return null;
+    }
+
+    return { id: targetId, port: targetPort };
   };
 
   const getMeasuredTextCardBounds = (card: TextCardElement): ExtensionRippleBounds | null => {
@@ -2766,10 +2968,16 @@ function App() {
         return axis === "x"
           ? [
               { value: bounds.left, kind: "start" as const },
+              ...(card.kind === "mindmap"
+                ? [{ value: bounds.left + bounds.width / 2, kind: "center" as const }]
+                : []),
               { value: bounds.left + bounds.width, kind: "end" as const },
             ]
           : [
               { value: bounds.top, kind: "start" as const },
+              ...(card.kind === "mindmap"
+                ? [{ value: bounds.top + bounds.height / 2, kind: "center" as const }]
+                : []),
               { value: bounds.top + bounds.height, kind: "end" as const },
             ];
       }),
@@ -2837,9 +3045,11 @@ function App() {
     pointer: { x: number; y: number },
     excludeIds: Set<string> = new Set([activeId]),
   ) => {
+    const activeMindmap = textCardsById.get(activeId)?.kind === "mindmap";
     const xSnap = findSnapOffset(
       [
         { value: nextX, kind: "start" },
+        ...(activeMindmap ? [{ value: nextX + width / 2, kind: "center" as const }] : []),
         { value: nextX + width, kind: "end" },
       ],
       getCanvasAlignmentTargets(excludeIds, "x"),
@@ -2847,6 +3057,7 @@ function App() {
     const ySnap = findSnapOffset(
       [
         { value: nextY, kind: "start" },
+        ...(activeMindmap ? [{ value: nextY + height / 2, kind: "center" as const }] : []),
         { value: nextY + height, kind: "end" },
       ],
       getCanvasAlignmentTargets(excludeIds, "y"),
@@ -3315,24 +3526,45 @@ function App() {
     closeContextMenus();
   };
 
-  const createTextCard = (clientX: number, clientY: number) => {
+  const createLooseTextCard = (
+    clientX: number,
+    clientY: number,
+    text: string,
+    kind?: TextCardElement["kind"],
+    startEditing = true,
+  ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = createEntityId("text-card");
+    const id = createEntityId(kind ?? "text-card");
     const card: TextCardElement = {
       id,
-      text: "Text card",
+      kind,
+      text,
       x: clamp(point.x, 0, canvasWidth),
       y: clamp(point.y, 0, canvasHeight),
-      accent: defaultElementColors.textCard,
+      accent: kind === "mindmap" ? defaultElementColors.mindmap : defaultElementColors.textCard,
     };
 
     setTextCards((current) => [...current, card]);
     animateTextCardIn(id);
-    setEditingTextCardId(id);
-    setTextCardDraft(card.text);
+    if (startEditing) {
+      setEditingTextCardId(id);
+      setTextCardDraft(card.text);
+    } else {
+      setEditingTextCardId(null);
+      setTextCardDraft("");
+    }
     setSelectedIds([]);
     closeContextMenus();
     setRenamingId(null);
+    return id;
+  };
+
+  const createTextCard = (clientX: number, clientY: number) => {
+    createLooseTextCard(clientX, clientY, "Text card");
+  };
+
+  const createMindmap = (clientX: number, clientY: number) => {
+    createLooseTextCard(clientX, clientY, "Mindmap", "mindmap");
   };
 
   const createTextBlock = (clientX: number, clientY: number) => {
@@ -3601,7 +3833,8 @@ function App() {
     }
 
     const pointerPoint = canvasPointFromEvent(sample);
-    const dropContainer = getTextCardDropContainer(pointerPoint);
+    const standaloneMindmap = textCardsById.get(currentDrag.id)?.kind === "mindmap";
+    const dropContainer = standaloneMindmap ? null : getTextCardDropContainer(pointerPoint);
     const draggedCenterPoint = {
       ...pointerPoint,
       y: pointerPoint.y - currentDrag.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
@@ -3765,6 +3998,29 @@ function App() {
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (mindmapConnectionDrag?.pointerId === event.pointerId) {
+      const endpoint = getAvailableMindmapEndpoint(
+        event.clientX,
+        event.clientY,
+        mindmapConnectionDrag.sourceId,
+      );
+      const targetBounds = endpoint ? getConnectableElementBounds(endpoint.id) : null;
+      const target =
+        endpoint && targetBounds
+          ? getMindmapPortPoint(targetBounds, endpoint.port)
+          : canvasPointFromEvent(event);
+      setMindmapConnectionDrag((current) =>
+        current
+          ? {
+              ...current,
+              target,
+              targetId: endpoint?.id,
+              targetPort: endpoint?.port,
+            }
+          : current,
+      );
+      return;
+    }
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
     }
@@ -4056,6 +4312,51 @@ function App() {
   };
 
   const stopDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (mindmapConnectionDrag?.pointerId === event.pointerId) {
+      const endpoint = getAvailableMindmapEndpoint(
+        event.clientX,
+        event.clientY,
+        mindmapConnectionDrag.sourceId,
+      );
+      if (endpoint) {
+        setMindmapConnections((current) => [
+          ...current,
+          {
+            id: createEntityId("mindmap-connection"),
+            sourceId: mindmapConnectionDrag.sourceId,
+            sourcePort: mindmapConnectionDrag.sourcePort,
+            targetId: endpoint.id,
+            targetPort: endpoint.port,
+          },
+        ]);
+      } else if (textCardsById.get(mindmapConnectionDrag.sourceId)?.kind === "mindmap") {
+        const targetId = createLooseTextCard(
+          event.clientX,
+          event.clientY,
+          "Mindmap",
+          "mindmap",
+          false,
+        );
+        const oppositePort: Record<MindmapPort, MindmapPort> = {
+          left: "right",
+          right: "left",
+          top: "bottom",
+          bottom: "top",
+        };
+        setMindmapConnections((current) => [
+          ...current,
+          {
+            id: createEntityId("mindmap-connection"),
+            sourceId: mindmapConnectionDrag.sourceId,
+            sourcePort: mindmapConnectionDrag.sourcePort,
+            targetId,
+            targetPort: oppositePort[mindmapConnectionDrag.sourcePort],
+          },
+        ]);
+      }
+      setMindmapConnectionDrag(null);
+      return;
+    }
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
     }
@@ -4087,7 +4388,8 @@ function App() {
       );
       const droppedWithoutMoving = movedDistance < 3;
       const endPoint = canvasPointFromEvent(event);
-      const dropContainer = getTextCardDropContainer(endPoint);
+      const standaloneMindmap = textCardsById.get(stoppedDragState.id)?.kind === "mindmap";
+      const dropContainer = standaloneMindmap ? null : getTextCardDropContainer(endPoint);
       const draggedCenterPoint = {
         ...endPoint,
         y: endPoint.y - stoppedDragState.pointerOffsetY + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2,
@@ -4520,7 +4822,7 @@ function App() {
       type: "move",
       pointerId: event.pointerId,
       id: element.id,
-      ids: [...movingContainerIds, ...movingTextBlockIds],
+      ids: movingIds,
       activeWidth: element.width,
       activeHeight: element.height,
       startClientX: event.clientX,
@@ -4554,6 +4856,30 @@ function App() {
           y: image.y,
         })),
     });
+  };
+
+  const startMindmapConnection = (
+    event: PointerEvent<HTMLButtonElement>,
+    ownerId: string,
+    port: MindmapPort,
+  ) => {
+    if (event.button !== 0 || !mindmapConnectionMode) return;
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
+      event.pointerId,
+    );
+    const bounds = getConnectableElementBounds(ownerId);
+    if (!bounds) return;
+    const source = getMindmapPortPoint(bounds, port);
+    setMindmapConnectionDrag({
+      pointerId: event.pointerId,
+      sourceId: ownerId,
+      sourcePort: port,
+      source,
+      target: source,
+    });
+    closeContextMenus();
   };
 
   const startResize = (
@@ -4591,6 +4917,12 @@ function App() {
   const startTextCardMove = (event: PointerEvent<HTMLElement>, card: TextCardElement) => {
     if (event.button !== 0 || editingTextCardId === card.id) {
       return;
+    }
+
+    if (textCardReleaseAnimation) {
+      const releasingIds = new Set(textCardReleaseAnimation.cards.map(({ card }) => card.id));
+      setTextCardReleaseAnimation(null);
+      setSettlingTextCardIds((current) => current.filter((id) => !releasingIds.has(id)));
     }
 
     if (event.shiftKey) {
@@ -4640,7 +4972,7 @@ function App() {
         type: "move",
         pointerId: event.pointerId,
         id: card.id,
-        ids: [...movingContainerIds, ...movingTextBlockIds],
+        ids: movingIds,
         activeWidth: cardWidth,
         activeHeight: cardHeight,
         startClientX: event.clientX,
@@ -4800,7 +5132,7 @@ function App() {
         type: "move",
         pointerId: event.pointerId,
         id: image.id,
-        ids: [...movingContainerIds, ...movingTextBlockIds],
+        ids: movingIds,
         activeWidth: image.width,
         activeHeight: image.height,
         startClientX: event.clientX,
@@ -4936,8 +5268,6 @@ function App() {
       return undefined;
     }
 
-    // Local file paths are kept as-is so they can be opened with the file handler.
-    // Windows drive (C:\ or C:/), UNC (\\server\share), or a file:// URI.
     const windowsDrive = /^[a-zA-Z]:[\\/]/.test(trimmed);
     const uncPath = /^\\\\[^\\]/.test(trimmed);
     if (windowsDrive || uncPath) {
@@ -4952,7 +5282,6 @@ function App() {
     }
 
     const withProtocol = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
-
     try {
       const url = new URL(withProtocol);
       return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol)
@@ -4967,14 +5296,24 @@ function App() {
     const normalizedLink = normalizeTextCardLink(link);
     setTextCards((current) =>
       current.map((card) =>
-        card.id === id
-          ? {
-              ...card,
-              link: normalizedLink,
-            }
-          : card,
+        card.id === id && card.kind !== "mindmap" ? { ...card, link: normalizedLink } : card,
       ),
     );
+  };
+
+  const openMindmapConnectionMenu = (
+    event: PointerEvent<SVGPathElement>,
+    connection: MindmapConnection,
+  ) => {
+    if (!mindmapConnectionMode) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenus();
+    setMindmapConnectionMenu({
+      id: connection.id,
+      left: event.clientX + 8,
+      top: event.clientY + 8,
+    });
   };
 
   const openTextBlockMenu = (
@@ -5121,6 +5460,7 @@ function App() {
         containers: elements
           .filter((element) => actionSet.has(element.id))
           .map((element) => ({
+            sourceId: element.id,
             name: element.name,
             x: element.x,
             y: element.y,
@@ -5130,9 +5470,10 @@ function App() {
             headerButtonsVisible: element.headerButtonsVisible,
             extensions: cloneExtensions(element.extensions),
             textCards: getOrderedContainerTextCards(element.id).map((card) => ({
+              kind: card.kind,
               text: card.text,
               accent: card.accent,
-              link: card.link,
+              link: card.kind === "mindmap" ? undefined : card.link,
               order: card.order,
               extensions: cloneExtensions(card.extensions),
               sourceId: card.id,
@@ -5147,9 +5488,11 @@ function App() {
           .map((card) => {
             const position = getTextCardCopyPosition(card);
             return {
+              kind: card.kind,
+              sourceId: card.id,
               text: card.text,
               accent: card.accent,
-              link: card.link,
+              link: card.kind === "mindmap" ? undefined : card.link,
               x: position.x,
               y: position.y,
               order: card.order,
@@ -5159,6 +5502,7 @@ function App() {
         textBlocks: textBlocks
           .filter((element) => actionSet.has(element.id))
           .map((element) => ({
+            sourceId: element.id,
             name: element.name,
             text: element.text,
             x: element.x,
@@ -5176,6 +5520,7 @@ function App() {
               (!image.containerId || !selectedContainerIds.has(image.containerId)),
           )
           .map((image) => ({
+            sourceId: image.id,
             imageId: image.imageId,
             format: image.format,
             x: image.x,
@@ -5187,6 +5532,17 @@ function App() {
             accent: image.accent,
             background: image.background,
             extensions: cloneExtensions(image.extensions),
+          })),
+        mindmapConnections: mindmapConnections
+          .filter(
+            (connection) =>
+              actionSet.has(connection.sourceId) && actionSet.has(connection.targetId),
+          )
+          .map(({ sourceId, sourcePort, targetId, targetPort }) => ({
+            sourceId,
+            sourcePort,
+            targetId,
+            targetPort,
           })),
       },
     });
@@ -5211,9 +5567,10 @@ function App() {
         headerButtonsVisible: element.headerButtonsVisible,
         extensions: cloneExtensions(element.extensions),
         textCards: getOrderedContainerTextCards(element.id).map((card) => ({
+          kind: card.kind,
           text: card.text,
           accent: card.accent,
-          link: card.link,
+          link: card.kind === "mindmap" ? undefined : card.link,
           order: card.order,
           extensions: cloneExtensions(card.extensions),
           sourceId: card.id,
@@ -5232,9 +5589,10 @@ function App() {
     setCopiedItem({
       type: "text-card",
       item: {
+        kind: card.kind,
         text: card.text,
         accent: card.accent,
-        link: card.link,
+        link: card.kind === "mindmap" ? undefined : card.link,
         x: position.x,
         y: position.y,
         extensions: cloneExtensions(card.extensions),
@@ -5298,13 +5656,14 @@ function App() {
         id: card.sourceId
           ? (textCardIdMap.get(card.sourceId) ?? `text-card-${pasteSeed}-${index}`)
           : `text-card-${pasteSeed}-${index}`,
+        kind: card.kind,
         text: card.text,
         x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
         y:
           getContainerCardStackTop(duplicate) +
           index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
         accent: card.accent,
-        link: card.link,
+        link: card.kind === "mindmap" ? undefined : card.link,
         containerId: id,
         order: card.order ?? index,
         extensions: cloneExtensions(card.extensions),
@@ -5315,11 +5674,15 @@ function App() {
       setSelectedIds([id]);
       animateContainerIn(id);
     } else if (copiedItem.type === "text-card") {
-      const targetContainer = targetContainerId ? containersById.get(targetContainerId) : null;
+      const targetContainer =
+        copiedItem.item.kind === "mindmap" || !targetContainerId
+          ? null
+          : containersById.get(targetContainerId);
       const id = createEntityId("text-card");
       const copiedExtensions = cloneExtensions(copiedItem.item.extensions);
       const duplicate = {
         ...copiedItem.item,
+        link: copiedItem.item.kind === "mindmap" ? undefined : copiedItem.item.link,
         id,
         x: targetContainer ? targetContainer.x + CONTAINER_TEXT_CARD_PADDING : point.x,
         y: targetContainer ? getContainerCardStackTop(targetContainer) : point.y,
@@ -5446,13 +5809,14 @@ function App() {
             ? (containerTextCardIdMaps[containerIndex].get(card.sourceId) ??
               `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`)
             : `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`,
+          kind: card.kind,
           text: card.text,
           x: container.x + CONTAINER_TEXT_CARD_PADDING,
           y:
             getContainerCardStackTop(container) +
             cardIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
           accent: card.accent,
-          link: card.link,
+          link: card.kind === "mindmap" ? undefined : card.link,
           containerId: container.id,
           order: card.order ?? cardIndex,
           extensions: cloneExtensions(card.extensions),
@@ -5462,9 +5826,10 @@ function App() {
         const id = `text-card-${pasteSeed}-selection-${index}`;
         nextSelectedIds.push(id);
         return {
+          kind: card.kind,
           text: card.text,
           accent: card.accent,
-          link: card.link,
+          link: card.kind === "mindmap" ? undefined : card.link,
           id,
           x: clamp((card.x ?? point.x) + offsetX, 0, canvasWidth),
           y: clamp((card.y ?? point.y) + offsetY, 0, canvasHeight),
@@ -5495,11 +5860,55 @@ function App() {
           extensions: cloneExtensions(image.extensions),
         };
       });
+      const connectionEndpointIdMap = new Map<string, string>();
+      copiedSelection.containers.forEach((container, index) => {
+        if (container.sourceId) {
+          connectionEndpointIdMap.set(container.sourceId, pastedContainers[index].id);
+        }
+      });
+      copiedSelection.textBlocks.forEach((block, index) => {
+        if (block.sourceId) {
+          connectionEndpointIdMap.set(block.sourceId, pastedTextBlocks[index].id);
+        }
+      });
+      copiedSelection.images.forEach((image, index) => {
+        if (image.sourceId) {
+          connectionEndpointIdMap.set(image.sourceId, pastedImages[index].id);
+        }
+      });
+      const mindmapIdMap = new Map(
+        copiedSelection.textCards.flatMap((card, index) =>
+          card.kind === "mindmap" && card.sourceId
+            ? [[card.sourceId, pastedTextCards[index].id] as const]
+            : [],
+        ),
+      );
+      mindmapIdMap.forEach((targetId, sourceId) => {
+        connectionEndpointIdMap.set(sourceId, targetId);
+      });
+      const pastedMindmapConnections = copiedSelection.mindmapConnections.flatMap(
+        (connection, index) => {
+          const sourceId = connectionEndpointIdMap.get(connection.sourceId);
+          const targetId = connectionEndpointIdMap.get(connection.targetId);
+          return sourceId && targetId
+            ? [
+                {
+                  id: `mindmap-connection-${pasteSeed}-${index}`,
+                  sourceId,
+                  sourcePort: connection.sourcePort,
+                  targetId,
+                  targetPort: connection.targetPort,
+                },
+              ]
+            : [];
+        },
+      );
 
       setElements((current) => [...current, ...pastedContainers]);
       setTextCards((current) => [...current, ...pastedContainerCards, ...pastedTextCards]);
       setTextBlocks((current) => [...current, ...pastedTextBlocks]);
       setImages((current) => [...current, ...pastedImages]);
+      setMindmapConnections((current) => [...current, ...pastedMindmapConnections]);
       pastedContainers.forEach((container) => animateContainerIn(container.id));
       [...pastedContainerCards, ...pastedTextCards].forEach((card) => animateTextCardIn(card.id));
       pastedTextBlocks.forEach((block) => animateTextBlockIn(block.id));
@@ -5820,7 +6229,12 @@ function App() {
   }, [clipboardShortcutActions, copiedItem]);
 
   const installExtensions = (extensionId: ExtensionId, ids: string[], replaceConflicts = false) => {
-    const targetIds = new Set(ids);
+    const targetIds = new Set(
+      ids.filter((id) => {
+        const targetType = getExtensionTargetType(id);
+        return targetType ? EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType) : false;
+      }),
+    );
     if (targetIds.size === 0) {
       return false;
     }
@@ -5829,7 +6243,7 @@ function App() {
     if (!replaceConflicts && conflictIds.size > 0) {
       const presentConflicts = new Set<ExtensionId>();
       let affectedCount = 0;
-      ids.forEach((id) => {
+      targetIds.forEach((id) => {
         const item =
           containersById.get(id) ??
           textBlocksById.get(id) ??
@@ -6283,8 +6697,9 @@ function App() {
     if (textBlocksById.has(id)) {
       return "text-block";
     }
-    if (textCardsById.has(id)) {
-      return "text-card";
+    const textCard = textCardsById.get(id);
+    if (textCard) {
+      return textCard.kind === "mindmap" ? "mindmap" : "text-card";
     }
     if (imagesById.has(id)) {
       return "image";
@@ -6425,6 +6840,10 @@ function App() {
       extensionId === "commandRunner"
     ) {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
+        const targetType = card.kind === "mindmap" ? "mindmap" : "text-card";
+        if (!EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType)) {
+          return false;
+        }
         const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
         return (
           point.x >= bounds.left &&
@@ -6436,11 +6855,12 @@ function App() {
 
       if (targetTextCard) {
         const bounds = getTextCardRippleBounds(targetTextCard);
-        if (bounds) {
+        const targetType = getExtensionTargetType(targetTextCard.id);
+        if (bounds && (targetType === "text-card" || targetType === "mindmap")) {
           applyDroppedExtension(
             extensionId,
             point,
-            { type: "text-card", id: targetTextCard.id },
+            { type: targetType, id: targetTextCard.id },
             bounds,
           );
         }
@@ -6774,7 +7194,7 @@ function App() {
     await persistenceQueueRef.current.catch(() => undefined);
     await invoke("reset_local_database");
     const data: AppData = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       activeCanvasId: DEFAULT_CANVAS.id,
       canvases: [DEFAULT_CANVAS],
       canvasGridStyle: "dots",
@@ -6814,6 +7234,7 @@ function App() {
       textCards: [],
       textBlocks: [],
       images: [],
+      mindmapConnections: [],
       pan: DEFAULT_PAN,
       zoom: 1,
       previewViewport: {
@@ -7303,7 +7724,57 @@ function App() {
     : null;
   const imageContextElement = imageMenu ? imagesById.get(imageMenu.id) : null;
   const closingImageContextElement = closingImageMenu ? imagesById.get(closingImageMenu.id) : null;
+  const mindmapConnectionContextElement = mindmapConnectionMenu
+    ? mindmapConnectionsById.get(mindmapConnectionMenu.id)
+    : null;
   const textCardDropPreviewPosition = getTextCardDropPreviewPosition();
+  const connectableBoundsById = new Map<string, MindmapBounds>();
+  elements.forEach((element) => {
+    connectableBoundsById.set(element.id, {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    });
+  });
+  textBlocks.forEach((element) => {
+    connectableBoundsById.set(element.id, {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    });
+  });
+  looseImages.forEach((image) => {
+    connectableBoundsById.set(image.id, {
+      x: image.x,
+      y: image.y,
+      width: image.width,
+      height: image.height,
+    });
+  });
+  looseTextCards
+    .filter((card) => card.kind === "mindmap")
+    .forEach((card) => {
+      const bounds = getLooseTextCardSelectionBounds(card);
+      if (dragState?.type !== "text-card-move" || !dragState.ids.includes(card.id)) {
+        connectableBoundsById.set(card.id, {
+          x: bounds.left,
+          y: bounds.top,
+          width: bounds.width,
+          height: bounds.height,
+        });
+        return;
+      }
+
+      const offset = dragState.cardOffsets.find((current) => current.id === card.id);
+      connectableBoundsById.set(card.id, {
+        x: dragState.currentX + (offset?.x ?? 0),
+        y: dragState.currentY + (offset?.y ?? 0),
+        width: card.id === dragState.id ? dragState.width : bounds.width,
+        height: card.id === dragState.id ? dragState.height : bounds.height,
+      });
+    });
   const canvasElementShadows: CanvasElementShadow[] = [
     ...renderedElements
       .filter((element) => !deletingIds.includes(element.id))
@@ -7587,6 +8058,15 @@ function App() {
                   </div>
                 );
               })}
+              <MindmapConnections
+                connections={mindmapConnections}
+                connectableBoundsById={connectableBoundsById}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                connectionMode={mindmapConnectionMode}
+                preview={mindmapConnectionDrag}
+                onConnectionClick={openMindmapConnectionMenu}
+              />
               {shadowsUnderElements && (
                 <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
                   {canvasElementShadows.map((shadow) => (
@@ -7762,6 +8242,10 @@ function App() {
                         <TextCardNode
                           key={card.id}
                           card={card}
+                          accentBar={card.kind !== "mindmap"}
+                          multiline={card.kind === "mindmap"}
+                          overflowVisible={card.kind === "mindmap"}
+                          onSizeChange={card.kind === "mindmap" ? rememberMindmapSize : undefined}
                           editing={editingTextCardId === card.id}
                           draft={editingTextCardId === card.id ? textCardDraft : ""}
                           position={position}
@@ -7858,6 +8342,10 @@ function App() {
                   <TextCardNode
                     key={card.id}
                     card={card}
+                    accentBar={card.kind !== "mindmap"}
+                    multiline={card.kind === "mindmap"}
+                    overflowVisible={card.kind === "mindmap"}
+                    onSizeChange={card.kind === "mindmap" ? rememberMindmapSize : undefined}
                     editing={editingTextCardId === card.id}
                     draft={editingTextCardId === card.id ? textCardDraft : ""}
                     position={position}
@@ -7894,7 +8382,7 @@ function App() {
                   key={image.id}
                   image={image}
                   url={getImageUrl(image.imageId, image.format)}
-                  loading={loadingImageIds.includes(image.id)}
+                  loading={loadingImageIds.includes(image.id) || isImageLoading(image.imageId)}
                   entering={enteringImageIds.includes(image.id)}
                   deleting={deletingImageIds.includes(image.id)}
                   dragging={dragState?.type === "image-move" && dragState.id === image.id}
@@ -7941,6 +8429,10 @@ function App() {
                       <TextCardNode
                         key={`drag-overlay-${card.id}`}
                         card={card}
+                        accentBar={card.kind !== "mindmap"}
+                        multiline={card.kind === "mindmap"}
+                        overflowVisible={card.kind === "mindmap"}
+                        onSizeChange={card.kind === "mindmap" ? rememberMindmapSize : undefined}
                         editing={false}
                         draft={card.text}
                         position={{
@@ -7987,10 +8479,15 @@ function App() {
                   <TextCardNode
                     key={`release-overlay-${card.id}`}
                     card={card}
+                    accentBar={card.kind !== "mindmap"}
+                    multiline={card.kind === "mindmap"}
+                    overflowVisible={card.kind === "mindmap"}
+                    onSizeChange={card.kind === "mindmap" ? rememberMindmapSize : undefined}
                     editing={false}
                     draft={card.text}
                     position={textCardReleaseAnimation.active ? to : from}
                     settling
+                    forceInteractive
                     selected={outlinedIds.includes(card.id)}
                     linksDisabled
                     shadowsUnderElements={shadowsUnderElements}
@@ -8005,6 +8502,57 @@ function App() {
                     onStopCommands={canvasNodeActions.stopTextCardCommands}
                   />
                 ))}
+              </div>
+            )}
+            {mindmapConnectionMode && (
+              <div
+                className="pointer-events-none absolute left-0 top-0 z-[110] overflow-visible"
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                {Array.from(connectableBoundsById.entries()).map(([ownerId, bounds]) => {
+                  const mindmap = textCardsById.get(ownerId);
+                  const accent =
+                    containersById.get(ownerId)?.accent ??
+                    textBlocksById.get(ownerId)?.accent ??
+                    imagesById.get(ownerId)?.accent ??
+                    (mindmap?.kind === "mindmap"
+                      ? getTextCardAccent(mindmap.accent)
+                      : defaultElementColors.mindmap);
+                  return (
+                    <div
+                      key={ownerId}
+                      className="pointer-events-none absolute"
+                      style={{
+                        left: bounds.x,
+                        top: bounds.y,
+                        width: bounds.width,
+                        height: bounds.height,
+                      }}
+                    >
+                      <MindmapConnectors
+                        ownerId={ownerId}
+                        accent={accent}
+                        connectionMode
+                        activeSourcePort={
+                          mindmapConnectionDrag?.sourceId === ownerId
+                            ? mindmapConnectionDrag.sourcePort
+                            : undefined
+                        }
+                        activeTargetPort={
+                          mindmapConnectionDrag?.targetId === ownerId
+                            ? mindmapConnectionDrag.targetPort
+                            : undefined
+                        }
+                        onStartConnection={startMindmapConnection}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
             {selectionScreenBounds && (
@@ -8125,6 +8673,7 @@ function App() {
               recentColors={recentColors}
               onRememberRecentColor={canvasNodeActions.rememberRecentColor}
               onUpdateLink={updateTextCardLink}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
               onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
@@ -8152,6 +8701,7 @@ function App() {
               recentColors={recentColors}
               onRememberRecentColor={canvasNodeActions.rememberRecentColor}
               onUpdateLink={updateTextCardLink}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
               onCut={cutTextCard}
               onCopy={copyTextCard}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
@@ -8220,6 +8770,7 @@ function App() {
               onReplace={pickImageForElement}
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
               onMoveLayer={moveCanvasLayers}
               onCut={cutImage}
               onCopy={copyImage}
@@ -8241,11 +8792,20 @@ function App() {
               onReplace={pickImageForElement}
               onUpdateAccent={updateContextAccent}
               onToggleBackground={toggleImageBackground}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
               onMoveLayer={moveCanvasLayers}
               onCut={cutImage}
               onCopy={copyImage}
               onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
               onDelete={deleteContextSelection}
+            />
+          )}
+
+          {mindmapConnectionMenu && mindmapConnectionContextElement && (
+            <MindmapConnectionContextMenu
+              menu={mindmapConnectionMenu}
+              connection={mindmapConnectionContextElement}
+              onDelete={removeMindmapConnection}
             />
           )}
 
@@ -8260,6 +8820,7 @@ function App() {
               onCreateTextCard={createTextCard}
               onCreateTextBlock={createTextBlock}
               onCreateImage={createImageFromMenu}
+              onCreateMindmap={createMindmap}
               onClear={requestClearCanvas}
             />
           )}
@@ -8275,6 +8836,7 @@ function App() {
               onCreateTextCard={createTextCard}
               onCreateTextBlock={createTextBlock}
               onCreateImage={createImageFromMenu}
+              onCreateMindmap={createMindmap}
               onClear={requestClearCanvas}
             />
           )}
@@ -8426,6 +8988,7 @@ function App() {
               textBlocks={textBlocks}
               textCards={looseTextCards}
               images={looseImages}
+              mindmapConnections={mindmapConnections}
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
               visible={minimapVisible}

@@ -32,6 +32,7 @@ const canvas: TaskCanvas = {
     },
   ],
   images: [{ id: "image", x: 2900, y: 2900, width: 500, height: 400, accent: "#333" }],
+  mindmapConnections: [],
   pan: { x: 10, y: 20 },
   zoom: 1.2,
 };

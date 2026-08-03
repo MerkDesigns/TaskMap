@@ -2,7 +2,7 @@ import { z } from "zod";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { AppData } from "../types";
 
-export const APP_DATA_SCHEMA_VERSION = 1 as const;
+export const APP_DATA_SCHEMA_VERSION = 2 as const;
 
 const finiteNumber = z.number().finite();
 const positiveNumber = finiteNumber.positive();
@@ -75,6 +75,7 @@ const containerSchema = z
 const textCardSchema = z
   .object({
     id: z.string().min(1),
+    kind: z.literal("mindmap").optional(),
     layer: optionalLayer,
     text: z.string(),
     x: finiteNumber,
@@ -123,6 +124,18 @@ const imageSchema = z
   })
   .passthrough();
 
+const mindmapPortSchema = z.enum(["left", "right", "top", "bottom"]);
+
+const mindmapConnectionSchema = z
+  .object({
+    id: z.string().min(1),
+    sourceId: z.string().min(1),
+    sourcePort: mindmapPortSchema,
+    targetId: z.string().min(1),
+    targetPort: mindmapPortSchema,
+  })
+  .passthrough();
+
 const taskCanvasSchema = z
   .object({
     id: z.string().min(1),
@@ -133,6 +146,7 @@ const taskCanvasSchema = z
     textCards: z.array(textCardSchema),
     textBlocks: z.array(textBlockSchema),
     images: z.array(imageSchema),
+    mindmapConnections: z.array(mindmapConnectionSchema),
     pan: z.object({ x: finiteNumber, y: finiteNumber }),
     zoom: positiveNumber,
     previewViewport: z
@@ -150,12 +164,55 @@ const taskCanvasSchema = z
       ...canvas.textBlocks.map(({ id }) => id),
       ...canvas.images.map(({ id }) => id),
     ];
-    if (new Set(ids).size !== ids.length) {
+    const elementIds = new Set(ids);
+    if (elementIds.size !== ids.length) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Element IDs must be unique within a canvas",
       });
     }
+
+    const connectableIds = new Set([
+      ...canvas.containers.map(({ id }) => id),
+      ...canvas.textBlocks.map(({ id }) => id),
+      ...canvas.images.map(({ id }) => id),
+      ...canvas.textCards.filter(({ kind }) => kind === "mindmap").map(({ id }) => id),
+    ]);
+    const connectionIds = new Set<string>();
+    const connectedPairs = new Set<string>();
+    canvas.mindmapConnections.forEach((connection, index) => {
+      const path = ["mindmapConnections", index];
+      if (elementIds.has(connection.id) || !connectionIds.add(connection.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [...path, "id"],
+          message: "Connection IDs must be unique",
+        });
+      }
+      if (!connectableIds.has(connection.sourceId) || !connectableIds.has(connection.targetId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path,
+          message: "Connection endpoints must reference connectable elements",
+        });
+      }
+      if (connection.sourceId === connection.targetId) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path,
+          message: "Elements cannot connect to themselves",
+        });
+      }
+      const pair = [connection.sourceId, connection.targetId].sort().join("\u0000");
+      if (connectedPairs.has(pair)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path,
+          message: "Elements can only have one connection per pair",
+        });
+      }
+      connectedPairs.add(pair);
+    });
   });
 
 export const appDataSchema = z
@@ -174,6 +231,7 @@ export const appDataSchema = z
         textCard: z.string().min(1),
         textBlock: z.string().min(1),
         image: z.string().min(1),
+        mindmap: z.string().min(1).default(DEFAULT_ELEMENT_COLORS.mindmap),
       })
       .default(DEFAULT_ELEMENT_COLORS),
     recentColors: z.array(z.string().min(1)).max(8).default([]),

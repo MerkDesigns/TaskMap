@@ -284,6 +284,7 @@ const DEFAULT_COLOR_OPTIONS: Array<{
   { label: "Text cards", value: "textCard" },
   { label: "Text blocks", value: "textBlock" },
   { label: "Images", value: "image" },
+  { label: "Mindmaps", value: "mindmap" },
 ];
 
 const SHORTCUTS = [
@@ -299,6 +300,7 @@ const SHORTCUTS = [
   { label: "Enable alignment snapping", keys: ["Shift", "Drag"] },
   { label: "Open context menu", keys: ["Right-click"] },
   { label: "Box select", keys: ["Left-drag empty canvas"] },
+  { label: "Connect mindmaps", keys: ["Hold C", "Drag point"] },
 ] as const;
 
 const SETTINGS_TABS = import.meta.env.DEV

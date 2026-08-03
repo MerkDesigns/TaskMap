@@ -32,7 +32,7 @@ export type ExtensionId =
   | "pickCard"
   | "copyPasteJson";
 
-export type ExtensionTargetType = "container" | "text-block" | "text-card" | "image";
+export type ExtensionTargetType = "container" | "text-block" | "text-card" | "mindmap" | "image";
 
 export type ExtensionDefinition<Id extends ExtensionId = ExtensionId> = {
   id: Id;
@@ -60,7 +60,7 @@ export const EXTENSIONS = [
     label: "Lock",
     description: "Lock move and resize",
     Icon: IconLock,
-    targets: ["container", "text-block", "text-card", "image"],
+    targets: ["container", "text-block", "text-card", "mindmap", "image"],
     createDefault: () => ({ enabled: true }),
   }),
   defineExtension({
@@ -68,7 +68,7 @@ export const EXTENSIONS = [
     label: "Extra colors",
     description: "Fine-tune and reuse accent colors",
     Icon: IconPalette,
-    targets: ["container", "text-block", "text-card"],
+    targets: ["container", "text-block", "text-card", "mindmap"],
     createDefault: () => ({ enabled: true }),
   }),
   defineExtension({

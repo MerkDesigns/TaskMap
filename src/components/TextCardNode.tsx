@@ -6,7 +6,8 @@ import {
   IconPlayerStopFilled,
   IconSettings,
 } from "@tabler/icons-react";
-import { MouseEvent, PointerEvent, memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import type { MouseEvent, PointerEvent, ReactNode } from "react";
 import { getTextCardAccent } from "../constants";
 import { TextCardElement } from "../types";
 
@@ -18,8 +19,14 @@ type TextCardNodeProps = {
     x: number;
     y: number;
     width?: number;
+    height?: number;
     maxWidth?: number;
   };
+  multiline?: boolean;
+  accentBar?: boolean;
+  overflowVisible?: boolean;
+  overlay?: ReactNode;
+  onSizeChange?: (id: string, size: { width: number; height: number }) => void;
   entering?: boolean;
   deleting?: boolean;
   pulsing?: boolean;
@@ -36,6 +43,7 @@ type TextCardNodeProps = {
   settling?: boolean;
   selected?: boolean;
   interactionDisabled?: boolean;
+  forceInteractive?: boolean;
   linksDisabled?: boolean;
   privacyHidden?: boolean;
   shadowsUnderElements: boolean;
@@ -53,7 +61,7 @@ type TextCardNodeProps = {
 function tintTowardWhite(hexColor: string, amount = 0.61) {
   const hex = hexColor.replace("#", "");
   const value = Number.parseInt(
-    hex.length === 3 ? hex.replace(/./g, (char) => `${char}${char}`) : hex,
+    hex.length === 3 ? hex.replace(/./g, (character) => `${character}${character}`) : hex,
     16,
   );
 
@@ -65,7 +73,6 @@ function tintTowardWhite(hexColor: string, amount = 0.61) {
   const green = (value >> 8) & 255;
   const blue = value & 255;
   const mix = (channel: number) => Math.round(channel + (255 - channel) * amount);
-
   return `rgb(${mix(red)}, ${mix(green)}, ${mix(blue)})`;
 }
 
@@ -74,6 +81,11 @@ function TextCardNodeComponent({
   editing,
   draft,
   position,
+  multiline = false,
+  accentBar = true,
+  overflowVisible = false,
+  overlay,
+  onSizeChange,
   entering = false,
   deleting = false,
   pulsing = false,
@@ -90,6 +102,7 @@ function TextCardNodeComponent({
   settling = false,
   selected = false,
   interactionDisabled = false,
+  forceInteractive = false,
   linksDisabled = false,
   privacyHidden = false,
   shadowsUnderElements,
@@ -104,15 +117,17 @@ function TextCardNodeComponent({
   onStopCommands,
 }: TextCardNodeProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
   const commandAnimationTimeoutRef = useRef<number | null>(null);
   const commandLaunchTimeoutRef = useRef<number | null>(null);
   const [commandPlayAnimating, setCommandPlayAnimating] = useState(false);
   const accent = getTextCardAccent(card.accent);
   const selectedAccent = selected ? `color-mix(in srgb, ${accent} 72%, white 28%)` : accent;
   const linkedTextColor = tintTowardWhite(accent);
-  const checkboxInstalled = Boolean(card.extensions?.checkbox);
+  const checkboxInstalled = card.kind !== "mindmap" && Boolean(card.extensions?.checkbox);
   const checkboxChecked = Boolean(card.extensions?.checkbox?.checked);
-  const commandRunnerInstalled = Boolean(card.extensions?.commandRunner);
+  const commandRunnerInstalled = card.kind !== "mindmap" && Boolean(card.extensions?.commandRunner);
   const hasCommands = Boolean(card.extensions?.commandRunner?.commands.length);
   const checkedTextClass = checkboxChecked ? "opacity-55 line-through" : "";
 
@@ -122,10 +137,11 @@ function TextCardNodeComponent({
     }
 
     requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
+      const editor = multiline ? textareaRef.current : inputRef.current;
+      editor?.focus();
+      editor?.select();
     });
-  }, [editing]);
+  }, [editing, multiline]);
 
   useEffect(
     () => () => {
@@ -139,17 +155,28 @@ function TextCardNodeComponent({
     [],
   );
 
-  const openLink = () => {
-    if (!card.link) {
+  useEffect(() => {
+    const node = articleRef.current;
+    if (!node || !onSizeChange) {
       return;
     }
 
-    // Local file paths (Windows drive or UNC) open with the system file handler;
-    // everything else is treated as a URL.
+    const reportSize = () =>
+      onSizeChange(card.id, { width: node.offsetWidth, height: node.offsetHeight });
+    reportSize();
+    const observer = new ResizeObserver(reportSize);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [card.id, onSizeChange]);
+
+  const openLink = () => {
+    if (card.kind === "mindmap" || !card.link) {
+      return;
+    }
+
     const isLocalPath = /^[a-zA-Z]:[\\/]/.test(card.link) || /^\\\\[^\\]/.test(card.link);
     const command = isLocalPath ? "plugin:opener|open_path" : "plugin:opener|open_url";
     const args = isLocalPath ? { path: card.link } : { url: card.link };
-
     invoke(command, args).catch((error) => {
       console.error("Failed to open text card link", error);
     });
@@ -157,8 +184,11 @@ function TextCardNodeComponent({
 
   return (
     <article
+      ref={articleRef}
       data-text-card-id={card.id}
-      className={`absolute inline-flex cursor-grab select-none items-center overflow-hidden rounded-lg border border-l-[6px] bg-[color:var(--container-bg)] py-[7px] pl-[15px] pr-[17px] text-[17px] font-normal text-white active:cursor-grabbing ${
+      className={`absolute inline-flex cursor-grab select-none items-center rounded-lg border bg-[color:var(--container-bg)] py-[7px] text-[17px] font-normal text-white active:cursor-grabbing ${
+        accentBar ? "border-l-[6px] pl-[15px] pr-[17px]" : "px-[17px]"
+      } ${overflowVisible ? "overflow-visible" : "overflow-hidden"} ${
         dragging
           ? `z-30 cursor-grabbing opacity-95 ${
               dragPrimary
@@ -176,7 +206,9 @@ function TextCardNodeComponent({
         deleting ? "text-card-exit pointer-events-none" : ""
       } ${pulsing ? "text-card-pulse" : ""} ${glowing ? "text-card-picked-glow" : ""} ${
         interactionDisabled ? "pointer-events-none" : ""
-      } ${privacyHidden ? "select-none blur-[5px]" : ""} ${
+      } ${forceInteractive ? "pointer-events-auto" : ""} ${
+        privacyHidden ? "select-none blur-[5px]" : ""
+      } ${
         shadowsUnderElements
           ? ""
           : `canvas-attached-shadow-card ${dragging || moving ? "canvas-attached-drag-shadow" : ""}`
@@ -191,6 +223,7 @@ function TextCardNodeComponent({
           left: position?.x ?? card.x,
           top: position?.y ?? card.y,
           width: position?.width,
+          height: position?.height,
           maxWidth: position?.maxWidth,
           borderColor: selectedAccent,
           backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
@@ -299,7 +332,37 @@ function TextCardNodeComponent({
           </button>
         </div>
       )}
-      {editing ? (
+      {editing && multiline ? (
+        <span className="relative grid min-w-[1ch] max-w-[484px]">
+          <span
+            className="invisible col-start-1 row-start-1 min-w-[1ch] whitespace-pre-wrap break-words leading-6"
+            aria-hidden
+          >
+            {draft ? `${draft}\u200b` : " "}
+          </span>
+          <textarea
+            ref={textareaRef}
+            className="absolute inset-0 m-0 h-full w-full resize-none overflow-hidden whitespace-pre-wrap break-words bg-transparent p-0 leading-6 text-white outline-none selection:bg-white/25"
+            value={draft}
+            spellCheck={false}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onBlur={() => onSave(card.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                onSave(card.id);
+              }
+
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onCancel();
+              }
+            }}
+          />
+        </span>
+      ) : editing ? (
         <span className={`relative grid ${position?.width ? "w-full" : "max-w-[480px]"}`}>
           <span
             className="invisible col-start-1 row-start-1 min-w-[1ch] whitespace-pre"
@@ -327,44 +390,50 @@ function TextCardNodeComponent({
             }}
           />
         </span>
-      ) : card.link ? (
-        <button
-          type="button"
-          className={`inline-flex min-w-0 items-center gap-1.5 text-left transition-opacity hover:opacity-85 ${
+      ) : card.kind !== "mindmap" && card.link ? (
+        <span
+          className={`inline-flex h-6 min-w-0 items-center gap-1.5 ${
             position?.width || position?.maxWidth ? "w-full" : "max-w-full"
-          } ${linksDisabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+          }`}
           style={{ color: linkedTextColor }}
-          onPointerDown={(event) => {
-            if (!linksDisabled) {
-              event.stopPropagation();
-            }
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (linksDisabled) {
-              return;
-            }
-
-            openLink();
-          }}
         >
-          <span
-            className={`min-w-0 ${checkedTextClass} ${
-              position?.width || position?.maxWidth
-                ? "block truncate"
-                : "whitespace-pre-wrap break-words"
-            }`}
+          <button
+            type="button"
+            className={`h-5 min-w-0 text-left leading-5 transition-opacity hover:opacity-85 ${
+              position?.width || position?.maxWidth ? "flex-1" : "max-w-full"
+            } ${linksDisabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+            onPointerDown={(event) => {
+              if (!linksDisabled) {
+                event.stopPropagation();
+              }
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!linksDisabled) {
+                openLink();
+              }
+            }}
           >
-            {card.text}
-          </span>
-          <IconLink size={15} stroke={2} className="shrink-0 opacity-70" />
-        </button>
+            <span
+              className={`min-w-0 ${checkedTextClass} ${
+                position?.width || position?.maxWidth
+                  ? "block truncate"
+                  : "whitespace-pre-wrap break-words"
+              }`}
+            >
+              {card.text}
+            </span>
+          </button>
+          <IconLink size={15} stroke={2} className="pointer-events-none shrink-0 opacity-70" />
+        </span>
       ) : (
         <span
           className={`min-w-0 ${checkedTextClass} ${
-            position?.width || position?.maxWidth
-              ? "block truncate"
-              : "whitespace-pre-wrap break-words"
+            multiline
+              ? "block whitespace-pre-wrap break-words leading-6"
+              : position?.width || position?.maxWidth
+                ? "block truncate"
+                : "whitespace-pre-wrap break-words"
           }`}
         >
           {card.text}
@@ -379,10 +448,11 @@ function TextCardNodeComponent({
             "--selection-overlay-top": "-1px",
             "--selection-overlay-right": "-1px",
             "--selection-overlay-bottom": "-1px",
-            "--selection-overlay-left": "-6px",
+            "--selection-overlay-left": accentBar ? "-6px" : "-1px",
           } as React.CSSProperties
         }
       />
+      {overlay}
     </article>
   );
 }
@@ -394,6 +464,7 @@ const areTextCardPropsEqual = (previous: TextCardNodeProps, next: TextCardNodePr
     previousPosition?.x !== nextPosition?.x ||
     previousPosition?.y !== nextPosition?.y ||
     previousPosition?.width !== nextPosition?.width ||
+    previousPosition?.height !== nextPosition?.height ||
     previousPosition?.maxWidth !== nextPosition?.maxWidth
   ) {
     return false;

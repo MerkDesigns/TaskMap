@@ -2,9 +2,15 @@ use std::collections::HashSet;
 
 pub(crate) type AppData = serde_json::Value;
 
-pub(crate) const APP_DATA_SCHEMA_VERSION: u64 = 1;
-pub(crate) const CANVAS_CONTENT_FIELDS: [&str; 4] =
-    ["containers", "textCards", "textBlocks", "images"];
+pub(crate) const APP_DATA_SCHEMA_VERSION: u64 = 2;
+const ELEMENT_FIELDS: [&str; 4] = ["containers", "textCards", "textBlocks", "images"];
+pub(crate) const CANVAS_CONTENT_FIELDS: [&str; 5] = [
+    "containers",
+    "textCards",
+    "textBlocks",
+    "images",
+    "mindmapConnections",
+];
 const DEFAULT_CANVAS_WIDTH: u64 = 3000;
 const DEFAULT_CANVAS_HEIGHT: u64 = 3000;
 const DEFAULT_CONTAINER_ACCENT: &str = "#476FA8";
@@ -23,6 +29,7 @@ pub(crate) fn migrate_app_data(mut data: AppData) -> Result<AppData, String> {
 
     match version {
         None | Some(0) => migrate_app_data_v0(&mut data)?,
+        Some(1) => migrate_app_data_v1(&mut data)?,
         Some(APP_DATA_SCHEMA_VERSION) => {}
         Some(version) => {
             return Err(format!(
@@ -30,6 +37,8 @@ pub(crate) fn migrate_app_data(mut data: AppData) -> Result<AppData, String> {
             ))
         }
     }
+
+    migrate_removed_canvas_elements(&mut data)?;
 
     let object = data
         .as_object_mut()
@@ -40,8 +49,71 @@ pub(crate) fn migrate_app_data(mut data: AppData) -> Result<AppData, String> {
         serde_json::json!(true),
     );
 
-    validate_app_data_v1(&data)?;
+    validate_app_data_v2(&data)?;
     Ok(data)
+}
+
+fn migrate_canvas_elements(
+    canvas: &mut serde_json::Map<String, serde_json::Value>,
+) -> Result<(), String> {
+    let removed_mindmaps = canvas.remove("mindmaps");
+    let text_cards = canvas
+        .entry("textCards".to_string())
+        .or_insert_with(|| serde_json::json!([]))
+        .as_array_mut()
+        .ok_or_else(|| "Canvas textCards must be an array".to_string())?;
+
+    if let Some(removed_mindmaps) = removed_mindmaps {
+        let removed_mindmaps = removed_mindmaps
+            .as_array()
+            .ok_or_else(|| "Canvas mindmaps must be an array".to_string())?;
+        for removed_mindmap in removed_mindmaps {
+            let mut card = removed_mindmap.clone();
+            if let Some(card) = card.as_object_mut() {
+                card.remove("width");
+                card.remove("height");
+                card.remove("containerId");
+                card.remove("order");
+                card.insert("kind".to_string(), serde_json::json!("mindmap"));
+            }
+            text_cards.push(card);
+        }
+    }
+
+    for card in text_cards {
+        let Some(card) = card.as_object_mut() else {
+            continue;
+        };
+        if card.get("kind").and_then(serde_json::Value::as_str) == Some("mindmap-new") {
+            card.insert("kind".to_string(), serde_json::json!("mindmap"));
+        }
+        if card.get("kind").and_then(serde_json::Value::as_str) == Some("mindmap") {
+            card.remove("link");
+        }
+    }
+
+    Ok(())
+}
+
+fn migrate_removed_canvas_elements(data: &mut AppData) -> Result<(), String> {
+    let canvases = data
+        .get_mut("canvases")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or_else(|| "App data canvases must be an array".to_string())?;
+    for canvas in canvases {
+        let canvas = canvas
+            .as_object_mut()
+            .ok_or_else(|| "Canvas must be an object".to_string())?;
+        migrate_canvas_elements(canvas)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn migrate_canvas_content(data: &mut AppData) -> Result<(), String> {
+    let canvas = data
+        .as_object_mut()
+        .ok_or_else(|| "Canvas content must be an object".to_string())?;
+    migrate_canvas_elements(canvas)
 }
 
 fn default_grid_opacity() -> serde_json::Value {
@@ -78,7 +150,7 @@ fn normalize_v0_element_arrays(canvas: &mut serde_json::Map<String, serde_json::
         }
     }
 
-    for field in CANVAS_CONTENT_FIELDS {
+    for field in ELEMENT_FIELDS {
         let Some(elements) = canvas
             .get_mut(field)
             .and_then(serde_json::Value::as_array_mut)
@@ -105,6 +177,37 @@ fn normalize_v0_element_arrays(canvas: &mut serde_json::Map<String, serde_json::
     {
         canvas.remove("previewViewport");
     }
+}
+
+fn migrate_app_data_v1(data: &mut AppData) -> Result<(), String> {
+    let object = data
+        .as_object_mut()
+        .ok_or_else(|| "App data must be a JSON object".to_string())?;
+    let canvases = object
+        .get_mut("canvases")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or_else(|| "App data canvases must be an array".to_string())?;
+    for canvas in canvases {
+        let canvas = canvas
+            .as_object_mut()
+            .ok_or_else(|| "Canvas must be an object".to_string())?;
+        set_default_if_null(canvas, "mindmapConnections", serde_json::json!([]));
+    }
+    if let Some(colors) = object
+        .get_mut("defaultElementColors")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        let fallback = colors
+            .get("textCard")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!(DEFAULT_CONTAINER_ACCENT));
+        set_default_if_null(colors, "mindmap", fallback);
+    }
+    object.insert(
+        "schemaVersion".to_string(),
+        serde_json::Value::Number(APP_DATA_SCHEMA_VERSION.into()),
+    );
+    Ok(())
 }
 
 fn migrate_app_data_v0(data: &mut AppData) -> Result<(), String> {
@@ -495,6 +598,12 @@ fn validate_elements(
         if field == "containers" || field == "textBlocks" {
             optional_boolean(object, "headerButtonsVisible", &context)?;
         }
+        if field == "textCards"
+            && object.get("kind").is_some()
+            && object.get("kind").and_then(serde_json::Value::as_str) != Some("mindmap")
+        {
+            return Err(format!("{context}.kind must be mindmap"));
+        }
         if field == "textCards" {
             optional_string(object, "link", &context, false)?;
         }
@@ -512,18 +621,98 @@ fn validate_elements(
     Ok(())
 }
 
+fn validate_mindmap_connections(
+    canvas: &serde_json::Map<String, serde_json::Value>,
+    canvas_context: &str,
+    element_ids: &HashSet<String>,
+) -> Result<(), String> {
+    let connections = canvas
+        .get("mindmapConnections")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| format!("{canvas_context}.mindmapConnections must be an array"))?;
+    let mut connectable_ids: HashSet<&str> = ["containers", "textBlocks", "images"]
+        .into_iter()
+        .flat_map(|field| {
+            canvas
+                .get(field)
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+        })
+        .filter_map(|item| item.get("id").and_then(serde_json::Value::as_str))
+        .collect();
+    connectable_ids.extend(
+        canvas
+            .get("textCards")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter(|item| item.get("kind").and_then(serde_json::Value::as_str) == Some("mindmap"))
+            .filter_map(|item| item.get("id").and_then(serde_json::Value::as_str)),
+    );
+    let mut connection_ids = HashSet::new();
+    let mut pairs = HashSet::new();
+    for (index, connection) in connections.iter().enumerate() {
+        let context = format!("{canvas_context}.mindmapConnections[{index}]");
+        let object = connection
+            .as_object()
+            .ok_or_else(|| format!("{context} must be an object"))?;
+        let id = required_string(object, "id", &context)?;
+        if element_ids.contains(id) || !connection_ids.insert(id.to_string()) {
+            return Err(format!(
+                "{canvas_context} contains duplicate connection ID {id}"
+            ));
+        }
+        let source_id = required_string(object, "sourceId", &context)?;
+        let target_id = required_string(object, "targetId", &context)?;
+        if source_id == target_id {
+            return Err(format!("{context} cannot connect an element to itself"));
+        }
+        if !connectable_ids.contains(source_id) || !connectable_ids.contains(target_id) {
+            return Err(format!(
+                "{context} endpoints must reference connectable elements"
+            ));
+        }
+        for field in ["sourcePort", "targetPort"] {
+            if !matches!(
+                object.get(field).and_then(serde_json::Value::as_str),
+                Some("left" | "right" | "top" | "bottom")
+            ) {
+                return Err(format!(
+                    "{context}.{field} must be left, right, top, or bottom"
+                ));
+            }
+        }
+        let pair = if source_id < target_id {
+            format!("{source_id}\0{target_id}")
+        } else {
+            format!("{target_id}\0{source_id}")
+        };
+        if !pairs.insert(pair) {
+            return Err(format!(
+                "{context} duplicates an existing element connection"
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_canvas_content_payload(canvas: &AppData) -> Result<&str, String> {
     let object = canvas
         .as_object()
         .ok_or_else(|| "Canvas content must be an object".to_string())?;
     let id = required_string(object, "id", "canvasContent")?;
     let mut element_ids = HashSet::new();
-    for field in CANVAS_CONTENT_FIELDS {
+    for field in ELEMENT_FIELDS {
         if !object.contains_key(field) {
             return Err(format!("canvasContent.{field} is required"));
         }
         validate_elements(object, field, "canvasContent", &mut element_ids)?;
     }
+    if !object.contains_key("mindmapConnections") {
+        return Err("canvasContent.mindmapConnections is required".to_string());
+    }
+    validate_mindmap_connections(object, "canvasContent", &element_ids)?;
     Ok(id)
 }
 
@@ -575,17 +764,21 @@ fn validate_canvases(value: &serde_json::Value) -> Result<(), String> {
         }
 
         let mut element_ids = HashSet::new();
-        for field in CANVAS_CONTENT_FIELDS {
+        for field in ELEMENT_FIELDS {
             if !object.contains_key(field) {
                 return Err(format!("{context}.{field} is required"));
             }
             validate_elements(object, field, &context, &mut element_ids)?;
         }
+        if !object.contains_key("mindmapConnections") {
+            return Err(format!("{context}.mindmapConnections is required"));
+        }
+        validate_mindmap_connections(object, &context, &element_ids)?;
     }
     Ok(())
 }
 
-pub(crate) fn validate_app_data_v1(data: &AppData) -> Result<(), String> {
+pub(crate) fn validate_app_data_v2(data: &AppData) -> Result<(), String> {
     let object = data
         .as_object()
         .ok_or_else(|| "App data must be a JSON object".to_string())?;
@@ -685,7 +878,7 @@ mod tests {
     }
 
     #[test]
-    fn migrates_unversioned_app_data_to_v1() {
+    fn migrates_unversioned_app_data_to_v2() {
         let data = json!({
             "activeCanvasId": "one",
             "canvases": [{
@@ -702,7 +895,9 @@ mod tests {
             }]
         });
         let migrated = migrate_app_data(data).expect("v0 data should migrate");
-        assert_eq!(migrated["schemaVersion"], json!(1));
+        assert_eq!(migrated["schemaVersion"], json!(2));
+        assert!(migrated["canvases"][0].get("mindmaps").is_none());
+        assert_eq!(migrated["canvases"][0]["mindmapConnections"], json!([]));
         assert_eq!(migrated["canvasGridStyle"], json!("dots"));
         assert_eq!(migrated["discordRpcShowCanvas"], json!(true));
         assert_eq!(migrated["allowLockedElementDeletion"], json!(true));
@@ -733,13 +928,20 @@ mod tests {
             migrated["canvases"][0]["textBlocks"][0]["name"],
             json!("Text block 1")
         );
-        validate_app_data_v1(&migrated).expect("migrated legacy data should be valid v1");
+        validate_app_data_v2(&migrated).expect("migrated legacy data should be valid v2");
     }
 
     #[test]
     fn shared_v1_fixture_matches_backend_contract() {
         let fixture = valid_app_data();
-        assert_eq!(migrate_app_data(fixture.clone()).unwrap(), fixture);
+        let migrated = migrate_app_data(fixture).unwrap();
+        assert_eq!(migrated["schemaVersion"], json!(2));
+        assert!(migrated["canvases"][0].get("mindmaps").is_none());
+        assert_eq!(migrated["canvases"][0]["mindmapConnections"], json!([]));
+        assert_eq!(
+            migrated["canvases"][0]["textCards"][0]["link"],
+            json!("https://example.com")
+        );
     }
 
     #[test]
@@ -805,8 +1007,96 @@ mod tests {
     }
 
     #[test]
+    fn validates_mindmap_connections() {
+        let mut data = migrate_app_data(valid_app_data()).unwrap();
+        data["canvases"][0]["textCards"] = json!([
+            {
+                "id": "mindmap-one",
+                "kind": "mindmap",
+                "text": "One",
+                "x": 100,
+                "y": 100,
+                "accent": "#476FA8"
+            },
+            {
+                "id": "mindmap-two",
+                "kind": "mindmap",
+                "text": "Two",
+                "x": 400,
+                "y": 100,
+                "accent": "#476FA8"
+            }
+        ]);
+        data["canvases"][0]["mindmapConnections"] = json!([{
+            "id": "connection-one",
+            "sourceId": "mindmap-one",
+            "sourcePort": "right",
+            "targetId": "mindmap-two",
+            "targetPort": "left"
+        }]);
+        validate_app_data_v2(&data).expect("valid mindmap connection should pass");
+
+        data["canvases"][0]["mindmapConnections"][0]["sourceId"] =
+            data["canvases"][0]["containers"][0]["id"].clone();
+        data["canvases"][0]["mindmapConnections"][0]["targetId"] =
+            data["canvases"][0]["images"][0]["id"].clone();
+        validate_app_data_v2(&data).expect("mixed element connection should pass");
+
+        data["canvases"][0]["mindmapConnections"][0]["targetId"] = json!("missing");
+        assert!(validate_app_data_v2(&data).is_err());
+    }
+
+    #[test]
+    fn migrates_removed_mindmap_nodes_without_losing_connections() {
+        let mut data = valid_app_data();
+        data["canvases"][0]["mindmaps"] = json!([
+            {
+                "id": "old-one",
+                "text": "One",
+                "x": 100,
+                "y": 100,
+                "width": 128,
+                "height": 44,
+                "accent": "#476FA8",
+                "link": "https://example.com"
+            },
+            {
+                "id": "old-two",
+                "text": "Two",
+                "x": 400,
+                "y": 100,
+                "width": 128,
+                "height": 44,
+                "accent": "#476FA8"
+            }
+        ]);
+        data["canvases"][0]["mindmapConnections"] = json!([{
+            "id": "old-connection",
+            "sourceId": "old-one",
+            "sourcePort": "right",
+            "targetId": "old-two",
+            "targetPort": "left"
+        }]);
+
+        let migrated = migrate_app_data(data).expect("old mindmaps should migrate");
+
+        assert!(migrated["canvases"][0].get("mindmaps").is_none());
+        assert_eq!(
+            migrated["canvases"][0]["textCards"][1]["kind"],
+            json!("mindmap")
+        );
+        assert!(migrated["canvases"][0]["textCards"][1]
+            .get("link")
+            .is_none());
+        assert_eq!(
+            migrated["canvases"][0]["mindmapConnections"][0]["sourceId"],
+            json!("old-one")
+        );
+    }
+
+    #[test]
     fn rejects_future_and_malformed_schema_versions() {
-        assert!(migrate_app_data(json!({"schemaVersion": 2, "canvases": []})).is_err());
+        assert!(migrate_app_data(json!({"schemaVersion": 3, "canvases": []})).is_err());
         assert!(migrate_app_data(json!({"schemaVersion": "1", "canvases": []})).is_err());
         assert!(migrate_app_data(json!([])).is_err());
         assert!(migrate_app_data(json!({"schemaVersion": 1, "canvases": []})).is_err());

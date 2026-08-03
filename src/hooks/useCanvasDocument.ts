@@ -3,6 +3,7 @@ import { DEFAULT_CANVAS } from "../app/defaultData";
 import type {
   ContainerElement,
   ImageElement,
+  MindmapConnection,
   TaskCanvas,
   TextBlockElement,
   TextCardElement,
@@ -13,7 +14,8 @@ type CanvasDocumentState = {
   canvases: TaskCanvas[];
 };
 
-type CanvasCollectionKey = "containers" | "textCards" | "textBlocks" | "images";
+type CanvasCollectionKey =
+  "containers" | "textCards" | "textBlocks" | "images" | "mindmapConnections";
 type CanvasValueKey = "pan" | "zoom";
 
 type CanvasDocumentAction =
@@ -147,6 +149,7 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
       setTextCards: createCollectionSetter(dispatch, "textCards"),
       setTextBlocks: createCollectionSetter(dispatch, "textBlocks"),
       setImages: createCollectionSetter(dispatch, "images"),
+      setMindmapConnections: createCollectionSetter(dispatch, "mindmapConnections"),
       setPan: createValueSetter(dispatch, "pan"),
       setZoom: createValueSetter(dispatch, "zoom"),
     }),
@@ -160,6 +163,7 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
     textCards: activeCanvas.textCards,
     textBlocks: activeCanvas.textBlocks,
     images: activeCanvas.images,
+    mindmapConnections: activeCanvas.mindmapConnections,
     pan: activeCanvas.pan,
     zoom: activeCanvas.zoom,
     setActiveCanvas,
@@ -173,6 +177,7 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
     textCards: TextCardElement[];
     textBlocks: TextBlockElement[];
     images: ImageElement[];
+    mindmapConnections: MindmapConnection[];
     pan: TaskCanvas["pan"];
     zoom: number;
     setActiveCanvas: Dispatch<SetStateAction<TaskCanvas>>;
@@ -182,6 +187,7 @@ export const useCanvasDocument = (initialCanvas: TaskCanvas = DEFAULT_CANVAS) =>
     setTextCards: Dispatch<SetStateAction<TextCardElement[]>>;
     setTextBlocks: Dispatch<SetStateAction<TextBlockElement[]>>;
     setImages: Dispatch<SetStateAction<ImageElement[]>>;
+    setMindmapConnections: Dispatch<SetStateAction<MindmapConnection[]>>;
     setPan: Dispatch<SetStateAction<TaskCanvas["pan"]>>;
     setZoom: Dispatch<SetStateAction<number>>;
   };

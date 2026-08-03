@@ -8,6 +8,7 @@ import {
   IconPuzzle,
   IconSearch,
   IconShieldLock,
+  IconSitemap,
   IconStar,
   IconTextSize,
 } from "@tabler/icons-react";
@@ -37,6 +38,7 @@ const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof Ico
   container: { title: "Containers", Icon: IconBox },
   "text-block": { title: "Text blocks", Icon: IconNotes },
   "text-card": { title: "Text cards", Icon: IconTextSize },
+  mindmap: { title: "Mindmaps", Icon: IconSitemap },
   image: { title: "Images", Icon: IconPhoto },
 };
 

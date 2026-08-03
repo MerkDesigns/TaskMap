@@ -55,6 +55,7 @@ const canvas: TaskCanvas = {
   textCards: cards,
   textBlocks: [],
   images: [],
+  mindmapConnections: [],
   pan: { x: 0, y: 0 },
   zoom: 1,
 };
@@ -190,7 +191,7 @@ describe("Copy/Paste JSON extension", () => {
       initial.historyByCanvasId,
       initial.historyIndexByCanvasId,
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         activeCanvasId: canvas.id,
         canvases: [replacement!],
         canvasGridStyle: "dots",

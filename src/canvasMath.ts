@@ -27,7 +27,7 @@ export function getWheelZoom(currentZoom: number, deltaY: number) {
 
 type AlignmentGuide = {
   value: number;
-  kind: "start" | "end";
+  kind: "start" | "center" | "end";
 };
 
 export function findSnapOffset(movingGuides: AlignmentGuide[], targetGuides: AlignmentGuide[]) {

@@ -88,30 +88,97 @@ const stripRemovedExtensions = (data: AppData): AppData => {
   return changed ? { ...data, canvases } : data;
 };
 
+const normalizeStandaloneMindmapCards = (data: AppData): AppData => {
+  let changed = false;
+  const canvases = data.canvases.map((canvas) => ({
+    ...canvas,
+    textCards: canvas.textCards.map((card) => {
+      if (card.kind !== "mindmap") {
+        return card;
+      }
+
+      const hasIncompatibleExtension = Boolean(
+        card.extensions &&
+        Object.keys(card.extensions).some((key) => key !== "lock" && key !== "colorPicker"),
+      );
+      const needsDetach = Boolean(card.containerId || card.order !== undefined);
+      const needsLinkRemoval = card.link !== undefined;
+      if (!hasIncompatibleExtension && !needsDetach && !needsLinkRemoval) {
+        return card;
+      }
+
+      const { containerId: _containerId, order: _order, link: _link, ...standaloneCard } = card;
+      changed = true;
+      return hasIncompatibleExtension
+        ? {
+            ...standaloneCard,
+            extensions: {
+              ...(card.extensions?.lock ? { lock: card.extensions.lock } : {}),
+              ...(card.extensions?.colorPicker ? { colorPicker: card.extensions.colorPicker } : {}),
+            },
+          }
+        : standaloneCard;
+    }),
+  }));
+
+  return changed ? { ...data, canvases } : data;
+};
+
 const normalizeValidatedAppData = (data: AppData) =>
-  stripRemovedExtensions(normalizeCanvasZooms(data));
+  normalizeStandaloneMindmapCards(stripRemovedExtensions(normalizeCanvasZooms(data)));
+
+const prepareTextCard = (value: unknown) => {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  return value.kind === "mindmap-new" ? { ...value, kind: "mindmap" } : value;
+};
+
+const prepareLegacyMindmap = (value: unknown) => {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const {
+    width: _width,
+    height: _height,
+    containerId: _containerId,
+    order: _order,
+    ...card
+  } = value;
+  return { ...card, kind: "mindmap" };
+};
 
 const prepareCanvas = (
   value: unknown,
   getPreviewViewport: () => NonNullable<TaskCanvas["previewViewport"]>,
+  fillDefaults = true,
 ) => {
   if (!isRecord(value)) {
     return value;
   }
 
-  const containers = value.containers === undefined ? [] : value.containers;
-  const textCards = value.textCards === undefined ? [] : value.textCards;
-  const textBlocks = value.textBlocks === undefined ? [] : value.textBlocks;
-  const images = value.images === undefined ? [] : value.images;
+  const containers = value.containers === undefined && fillDefaults ? [] : value.containers;
+  const textCards = value.textCards === undefined && fillDefaults ? [] : value.textCards;
+  const textBlocks = value.textBlocks === undefined && fillDefaults ? [] : value.textBlocks;
+  const images = value.images === undefined && fillDefaults ? [] : value.images;
+  const legacyMindmaps = value.mindmaps === undefined ? [] : value.mindmaps;
+  const mindmapConnections =
+    value.mindmapConnections === undefined && fillDefaults ? [] : value.mindmapConnections;
+  const { mindmaps: _removedMindmaps, ...canvas } = value;
 
   return {
-    ...value,
+    ...canvas,
     containers: Array.isArray(containers)
       ? containers.map((element) =>
           isRecord(element) ? { ...element, extensions: element.extensions ?? {} } : element,
         )
       : containers,
-    textCards,
+    textCards:
+      Array.isArray(textCards) && Array.isArray(legacyMindmaps)
+        ? [...textCards.map(prepareTextCard), ...legacyMindmaps.map(prepareLegacyMindmap)]
+        : textCards,
     textBlocks: Array.isArray(textBlocks)
       ? textBlocks.map((element, index) =>
           isRecord(element)
@@ -124,7 +191,10 @@ const prepareCanvas = (
         )
       : textBlocks,
     images,
-    previewViewport: value.previewViewport ?? getPreviewViewport(),
+    mindmapConnections,
+    previewViewport: fillDefaults
+      ? (value.previewViewport ?? getPreviewViewport())
+      : value.previewViewport,
   };
 };
 
@@ -139,13 +209,17 @@ export const normalizeAppData = (
   if (
     "schemaVersion" in data &&
     data.schemaVersion !== undefined &&
+    data.schemaVersion !== 1 &&
     data.schemaVersion !== APP_DATA_SCHEMA_VERSION
   ) {
     throw new Error(`Unsupported TaskMap data schema version: ${String(data.schemaVersion)}`);
   }
 
   if (data.schemaVersion === APP_DATA_SCHEMA_VERSION) {
-    return normalizeValidatedAppData(validateAppData(data));
+    const canvases = Array.isArray(data.canvases)
+      ? data.canvases.map((canvas) => prepareCanvas(canvas, getPreviewViewport, false))
+      : data.canvases;
+    return normalizeValidatedAppData(validateAppData({ ...data, canvases }));
   }
 
   if ("canvases" in data) {
@@ -205,6 +279,7 @@ export const normalizeAppData = (
               : element,
           ),
           images: [],
+          mindmapConnections: [],
           pan: legacy.pan ?? DEFAULT_PAN,
           zoom: legacy.zoom ?? 1,
           previewViewport: getPreviewViewport(),

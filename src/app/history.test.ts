@@ -18,6 +18,7 @@ const createCanvas = (overrides: Partial<TaskCanvas> = {}): TaskCanvas => ({
   textCards: [],
   textBlocks: [],
   images: [],
+  mindmapConnections: [],
   pan: { x: -520, y: -420 },
   zoom: 1.5,
   previewViewport: { width: 1280, height: 820 },
@@ -25,7 +26,7 @@ const createCanvas = (overrides: Partial<TaskCanvas> = {}): TaskCanvas => ({
 });
 
 const createData = (canvas: TaskCanvas): AppData => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   activeCanvasId: canvas.id,
   canvases: [canvas],
   canvasGridStyle: "dots",

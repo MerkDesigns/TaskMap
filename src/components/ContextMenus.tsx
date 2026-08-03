@@ -7,6 +7,8 @@ import {
   IconCut,
   IconCheck,
   IconLink,
+  IconLock,
+  IconLockOpen,
   IconPencil,
   IconPlus,
   IconNotes,
@@ -14,6 +16,7 @@ import {
   IconPhoto,
   IconSquare,
   IconSquareOff,
+  IconSitemap,
   IconTerminal2,
   IconTextSize,
   IconTrash,
@@ -32,6 +35,7 @@ import {
   ContainerElement,
   ContainerMenuState,
   ImageElement,
+  MindmapConnection,
   TextBlockElement,
   TextCardElement,
 } from "../types";
@@ -323,6 +327,7 @@ type CanvasContextMenuProps = {
   onCreateTextCard: (clientX: number, clientY: number) => void;
   onCreateTextBlock: (clientX: number, clientY: number) => void;
   onCreateImage: (clientX: number, clientY: number) => void;
+  onCreateMindmap: (clientX: number, clientY: number) => void;
   onClear: () => void;
 };
 
@@ -361,11 +366,13 @@ export function ContainerContentContextMenu({
       {hasCopiedItem && (
         <>
           <button
-            className={MENU_ITEM_CLASS}
+            className={`${MENU_ITEM_CLASS} group`}
             onClick={() => onPaste(menu.clientX, menu.clientY, menu.containerId)}
           >
             <IconCopy size={17} stroke={2} />
-            <span>Paste</span>
+            <span className="text-[#7debe1] transition-colors group-hover:text-[#9af3eb]">
+              Paste
+            </span>
           </button>
           <div className={MENU_DIVIDER_CLASS} />
         </>
@@ -390,6 +397,7 @@ export function CanvasContextMenu({
   onCreateTextCard,
   onCreateTextBlock,
   onCreateImage,
+  onCreateMindmap,
   onClear,
 }: CanvasContextMenuProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -409,6 +417,20 @@ export function CanvasContextMenu({
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
+      {hasCopiedItem && (
+        <>
+          <button
+            className={`${MENU_ITEM_CLASS} group`}
+            onClick={() => onPaste(menu.clientX, menu.clientY)}
+          >
+            <IconCopy size={17} stroke={2} />
+            <span className="text-[#7debe1] transition-colors group-hover:text-[#9af3eb]">
+              Paste
+            </span>
+          </button>
+          <div className={MENU_DIVIDER_CLASS} />
+        </>
+      )}
       <button
         className={MENU_ITEM_CLASS}
         onClick={() => onCreateTextCard(menu.clientX, menu.clientY)}
@@ -417,15 +439,6 @@ export function CanvasContextMenu({
         <span>Create text card</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
-      {hasCopiedItem && (
-        <>
-          <button className={MENU_ITEM_CLASS} onClick={() => onPaste(menu.clientX, menu.clientY)}>
-            <IconCopy size={17} stroke={2} />
-            <span>Paste</span>
-          </button>
-          <div className={MENU_DIVIDER_CLASS} />
-        </>
-      )}
       <button className={MENU_ITEM_CLASS} onClick={() => onCreate(menu.clientX, menu.clientY)}>
         <IconPlus size={17} stroke={2} />
         <span>Create container</span>
@@ -439,6 +452,14 @@ export function CanvasContextMenu({
         <span>Create text block</span>
       </button>
       <div className={MENU_DIVIDER_CLASS} />
+      <button
+        className={MENU_ITEM_CLASS}
+        onClick={() => onCreateMindmap(menu.clientX, menu.clientY)}
+      >
+        <IconSitemap size={17} stroke={2} />
+        <span>Create mindmap</span>
+      </button>
+      <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCreateImage(menu.clientX, menu.clientY)}>
         <IconPhoto size={17} stroke={2} />
         <span>Create image</span>
@@ -447,6 +468,36 @@ export function CanvasContextMenu({
       <button className={MENU_DANGER_ITEM_CLASS} onClick={onClear}>
         <IconTrash size={17} stroke={2} />
         <span>Clear canvas</span>
+      </button>
+    </div>
+  );
+}
+
+type MindmapConnectionContextMenuProps = {
+  menu: { id: string; left: number; top: number };
+  connection: MindmapConnection;
+  onDelete: (id: string) => void;
+};
+
+export function MindmapConnectionContextMenu({
+  menu,
+  connection,
+  onDelete,
+}: MindmapConnectionContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
+  return (
+    <div
+      ref={menuRef}
+      data-context-menu
+      className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter`}
+      style={position}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button className={MENU_DANGER_ITEM_CLASS} onClick={() => onDelete(connection.id)}>
+        <IconTrash size={17} stroke={2} />
+        <span>Delete connection</span>
       </button>
     </div>
   );
@@ -620,6 +671,7 @@ type TextCardContextMenuProps = {
   recentColors: string[];
   onRememberRecentColor: (color?: string) => void;
   onUpdateLink: (id: string, link: string) => void;
+  onToggleLock: (id: string) => void;
   onCut: (card: TextCardElement) => void;
   onCopy: (card: TextCardElement) => void;
   onRemoveLockExtension: (id: string) => void;
@@ -642,6 +694,7 @@ export function TextCardContextMenu({
   recentColors,
   onRememberRecentColor,
   onUpdateLink,
+  onToggleLock,
   onCut,
   onCopy,
   onRemoveLockExtension,
@@ -655,8 +708,8 @@ export function TextCardContextMenu({
   const extensions = extensionState ?? {
     lock: Boolean(card.extensions?.lock),
     colorPicker: Boolean(card.extensions?.colorPicker),
-    checkbox: Boolean(card.extensions?.checkbox),
-    commandRunner: Boolean(card.extensions?.commandRunner),
+    checkbox: card.kind !== "mindmap" && Boolean(card.extensions?.checkbox),
+    commandRunner: card.kind !== "mindmap" && Boolean(card.extensions?.commandRunner),
   };
   const presets = ACCENT_PRESETS;
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -676,8 +729,8 @@ export function TextCardContextMenu({
   } | null>(null);
 
   useEffect(() => {
-    setLinkDraft(card.link ?? "");
-  }, [card.id, card.link]);
+    setLinkDraft(card.kind === "mindmap" ? "" : (card.link ?? ""));
+  }, [card.id, card.kind, card.link]);
 
   useLayoutEffect(() => {
     if (!linkMenuOpen) {
@@ -696,7 +749,9 @@ export function TextCardContextMenu({
   }, [linkMenuOpen, position.left, position.top]);
 
   const saveLink = () => {
-    onUpdateLink(card.id, linkDraft);
+    if (card.kind !== "mindmap") {
+      onUpdateLink(card.id, linkDraft);
+    }
   };
 
   return (
@@ -727,10 +782,20 @@ export function TextCardContextMenu({
             <span>Open color picker</span>
           </button>
         )}
-        {card.extensions?.commandRunner && (
+        {card.kind !== "mindmap" && card.extensions?.commandRunner && (
           <button className={MENU_ITEM_CLASS} onClick={() => onEditCommand(card.id)}>
             <IconTerminal2 size={17} stroke={2} />
             <span>Edit Command</span>
+          </button>
+        )}
+        {card.extensions?.lock && (
+          <button className={MENU_ITEM_CLASS} onClick={() => onToggleLock(card.id)}>
+            {card.extensions.lock.enabled ? (
+              <IconLock size={17} stroke={2} />
+            ) : (
+              <IconLockOpen size={17} stroke={2} />
+            )}
+            <span>{card.extensions.lock.enabled ? "Locked" : "Unlocked"}</span>
           </button>
         )}
         <div className={MENU_DIVIDER_CLASS} />
@@ -789,15 +854,19 @@ export function TextCardContextMenu({
             <div className={MENU_DIVIDER_CLASS} />
           </>
         )}
-        <button
-          ref={linkButtonRef}
-          className={MENU_ITEM_CLASS}
-          onClick={() => setLinkMenuOpen((current) => !current)}
-        >
-          <IconLink size={17} stroke={2} />
-          <span>Hyperlink</span>
-        </button>
-        <div className={MENU_DIVIDER_CLASS} />
+        {card.kind !== "mindmap" && (
+          <>
+            <button
+              ref={linkButtonRef}
+              className={MENU_ITEM_CLASS}
+              onClick={() => setLinkMenuOpen((current) => !current)}
+            >
+              <IconLink size={17} stroke={2} />
+              <span>Hyperlink</span>
+            </button>
+            <div className={MENU_DIVIDER_CLASS} />
+          </>
+        )}
         <button className={MENU_ITEM_CLASS} onClick={() => onCut(card)}>
           <IconCut size={17} stroke={2} />
           <span>{isMultiTarget ? "Cut selected" : "Cut"}</span>
@@ -855,11 +924,11 @@ export function TextCardContextMenu({
         </button>
       </div>
 
-      {linkMenuOpen && !closing && (
+      {linkMenuOpen && card.kind !== "mindmap" && !closing && (
         <div
           ref={linkMenuRef}
           data-context-menu
-          className="context-menu-panel context-menu-enter fixed z-30 w-[230px] rounded-[9px] border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-[12px] text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] [&_svg]:scale-[1.08]"
+          className="context-menu-panel context-menu-enter fixed z-[201] w-[230px] rounded-[9px] border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-[12px] text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] [&_svg]:scale-[1.08]"
           style={linkMenuPosition}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
@@ -900,6 +969,7 @@ export function TextCardContextMenu({
           </div>
         </div>
       )}
+
       {colorPickerPosition && !closing && (
         <ColorPickerMenu
           color={activeAccent}
@@ -926,6 +996,7 @@ type ImageContextMenuProps = {
   onReplace: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onToggleBackground: (id: string) => void;
+  onToggleLock: (id: string) => void;
   onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
   onCut: (image: ImageElement) => void;
   onCopy: (image: ImageElement) => void;
@@ -942,6 +1013,7 @@ export function ImageContextMenu({
   onReplace,
   onUpdateAccent,
   onToggleBackground,
+  onToggleLock,
   onMoveLayer,
   onCut,
   onCopy,
@@ -970,6 +1042,16 @@ export function ImageContextMenu({
         <IconPhoto size={17} stroke={2} />
         <span>Replace image</span>
       </button>
+      {image.extensions?.lock && (
+        <button className={MENU_ITEM_CLASS} onClick={() => onToggleLock(image.id)}>
+          {image.extensions.lock.enabled ? (
+            <IconLock size={17} stroke={2} />
+          ) : (
+            <IconLockOpen size={17} stroke={2} />
+          )}
+          <span>{image.extensions.lock.enabled ? "Locked" : "Unlocked"}</span>
+        </button>
+      )}
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-1 pb-2 pt-1.5">
         <div className="grid grid-cols-8 gap-1">

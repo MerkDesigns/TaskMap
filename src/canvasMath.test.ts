@@ -56,6 +56,19 @@ describe("canvas math", () => {
     });
   });
 
+  it("aligns center guides independently of differently sized edges", () => {
+    expect(
+      findSnapOffset(
+        [{ value: 202, kind: "center" }],
+        [
+          { value: 150, kind: "start" },
+          { value: 200, kind: "center" },
+          { value: 250, kind: "end" },
+        ],
+      ),
+    ).toEqual({ offset: -2, guide: 200, guides: [200] });
+  });
+
   it("never crosses the fifty-percent minimum and recovers invalid legacy zoom", () => {
     expect(getWheelZoom(0.5, 100)).toBe(MIN_ZOOM);
     expect(getWheelZoom(0.55, 10_000)).toBe(MIN_ZOOM);

@@ -45,10 +45,15 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
   const imageUrlRetryTimersRef = useRef<Map<string, number>>(new Map());
   const failedImageHashesRef = useRef<Set<string>>(new Set());
   const activeImageHashesRef = useRef<Set<string>>(new Set());
+  const queuedImageHashesRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
   const cacheEpochRef = useRef(0);
   const onStoreErrorRef = useRef(onStoreError);
-  const loadImageUrlRef = useRef<(hash: string, format?: string) => void>(() => undefined);
+  const imageLoadSequenceRef = useRef<Promise<void>>(Promise.resolve());
+  const loadImageUrlRef = useRef<(hash: string, format?: string) => Promise<string | null>>(
+    async () => null,
+  );
+  const queueImageLoadRef = useRef<(hash: string, format?: string) => void>(() => undefined);
   const [imageUrlVersion, setImageUrlVersion] = useState(0);
 
   useEffect(() => {
@@ -57,6 +62,7 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
     const imageUrlRetryCounts = imageUrlRetryCountsRef.current;
     const imageUrlRetryTimers = imageUrlRetryTimersRef.current;
     const failedImageHashes = failedImageHashesRef.current;
+    const queuedImageHashes = queuedImageHashesRef.current;
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
@@ -68,6 +74,7 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
       imageUrlRetryCounts.clear();
       imageUrlRetryTimers.clear();
       failedImageHashes.clear();
+      queuedImageHashes.clear();
     };
   }, []);
 
@@ -88,13 +95,16 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
 
   const loadImageUrl = useCallback(
     (hash: string, format?: string) => {
-      if (
-        imageUrlCacheRef.current.has(hash) ||
-        imageUrlPendingRef.current.has(hash) ||
-        imageUrlRetryTimersRef.current.has(hash) ||
-        failedImageHashesRef.current.has(hash)
-      ) {
-        return;
+      const cached = imageUrlCacheRef.current.get(hash);
+      if (cached) {
+        return Promise.resolve(cached.url);
+      }
+      const existingPending = imageUrlPendingRef.current.get(hash);
+      if (existingPending) {
+        return existingPending;
+      }
+      if (imageUrlRetryTimersRef.current.has(hash) || failedImageHashesRef.current.has(hash)) {
+        return Promise.resolve(null);
       }
 
       const resolvedFormat = format ?? "webp";
@@ -135,6 +145,7 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
           if (retryCount >= MAX_IMAGE_LOAD_RETRIES) {
             failedImageHashesRef.current.add(hash);
             console.error("Failed to load image", error);
+            setImageUrlVersion((version) => version + 1);
             return null;
           }
 
@@ -143,17 +154,46 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
           const timer = window.setTimeout(() => {
             imageUrlRetryTimersRef.current.delete(hash);
             if (mountedRef.current && activeImageHashesRef.current.has(hash)) {
-              loadImageUrlRef.current(hash, resolvedFormat);
+              queueImageLoadRef.current(hash, resolvedFormat);
             }
           }, IMAGE_LOAD_RETRY_DELAY_MS * nextRetryCount);
           imageUrlRetryTimersRef.current.set(hash, timer);
           return null;
         });
       imageUrlPendingRef.current.set(hash, pending);
+      return pending;
     },
     [pruneUnusedUrls],
   );
   loadImageUrlRef.current = loadImageUrl;
+
+  const queueImageLoad = useCallback((hash: string, format?: string) => {
+    if (
+      imageUrlCacheRef.current.has(hash) ||
+      imageUrlPendingRef.current.has(hash) ||
+      imageUrlRetryTimersRef.current.has(hash) ||
+      failedImageHashesRef.current.has(hash) ||
+      queuedImageHashesRef.current.has(hash)
+    ) {
+      return;
+    }
+
+    queuedImageHashesRef.current.add(hash);
+    imageLoadSequenceRef.current = imageLoadSequenceRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          if (!mountedRef.current || !activeImageHashesRef.current.has(hash)) {
+            return;
+          }
+          await loadImageUrlRef.current(hash, format);
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        } finally {
+          queuedImageHashesRef.current.delete(hash);
+        }
+      });
+  }, []);
+  queueImageLoadRef.current = queueImageLoad;
 
   useEffect(() => {
     const activeHashes = new Set(activeImages.map((image) => image.hash));
@@ -174,9 +214,10 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
         failedImageHashesRef.current.delete(hash);
       }
     });
-    activeImages.forEach((image) => loadImageUrl(image.hash, image.format));
+    const uniqueImages = new Map(activeImages.map((image) => [image.hash, image]));
+    uniqueImages.forEach((image) => queueImageLoad(image.hash, image.format));
     pruneUnusedUrls();
-  }, [activeImages, loadImageUrl, pruneUnusedUrls]);
+  }, [activeImages, pruneUnusedUrls, queueImageLoad]);
 
   const getImageUrl = useCallback((hash: string | undefined, _format?: string): string | null => {
     if (!hash) {
@@ -191,6 +232,14 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
 
     return null;
   }, []);
+
+  const isImageLoading = useCallback(
+    (hash: string | undefined) =>
+      Boolean(
+        hash && !imageUrlCacheRef.current.has(hash) && !failedImageHashesRef.current.has(hash),
+      ),
+    [],
+  );
 
   const storeImageFromBytes = useCallback(
     async (buffer: ArrayBuffer): Promise<ImageMeta | null> => {
@@ -208,6 +257,7 @@ export function useImageCache({ activeImages, onStoreError }: UseImageCacheOptio
   return {
     imageUrlVersion,
     getImageUrl,
+    isImageLoading,
     storeImageFromBytes,
   };
 }

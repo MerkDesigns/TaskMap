@@ -1,7 +1,7 @@
 use crate::error::{command_result, CommandResult};
 use crate::model::{
-    migrate_app_data, validate_app_data_v1, validate_canvas_content_payload, AppData,
-    APP_DATA_SCHEMA_VERSION, CANVAS_CONTENT_FIELDS,
+    migrate_app_data, migrate_canvas_content, validate_app_data_v2,
+    validate_canvas_content_payload, AppData, APP_DATA_SCHEMA_VERSION, CANVAS_CONTENT_FIELDS,
 };
 use aes_gcm::aead::{Aead, OsRng};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
@@ -472,7 +472,13 @@ fn hydrate_canvas_content(
         let Some(value) = query_app_data_value(connection, &canvas_storage_key(&id))? else {
             return Err(format!("Stored canvas {id} is missing its content row"));
         };
-        let content = decrypt_database_value(&value, key)?;
+        let mut content = decrypt_database_value(&value, key)?;
+        migrate_canvas_content(&mut content)?;
+        if let Some(object) = content.as_object_mut() {
+            object
+                .entry("mindmapConnections".to_string())
+                .or_insert_with(|| serde_json::json!([]));
+        }
         let content_id = validate_canvas_content_payload(&content)?;
         if content_id != id {
             return Err(format!(
@@ -498,7 +504,7 @@ pub(crate) fn load_app_data_from_database(
             != Some(APP_DATA_SCHEMA_VERSION);
         let mut metadata = migrate_app_data(metadata)?;
         hydrate_canvas_content(&connection, &key, &mut metadata)?;
-        validate_app_data_v1(&metadata)?;
+        validate_app_data_v2(&metadata)?;
         drop(connection);
         if needs_migration {
             save_app_data_to_database(app, session, &metadata)?;
@@ -613,9 +619,10 @@ mod tests {
                 "id": "one",
                 "name": "Canvas",
                 "containers": [{"id": "container"}],
-                "textCards": [{"id": "card"}],
+                "textCards": [{"id": "card", "link": "https://example.com"}],
                 "textBlocks": [],
-                "images": []
+                "images": [],
+                "mindmapConnections": []
             }]
         });
         let (mut metadata, contents) = split_app_data(&data);

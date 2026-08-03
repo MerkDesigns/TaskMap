@@ -29,6 +29,7 @@ export const DEFAULT_CANVAS: TaskCanvas = {
   textCards: [],
   textBlocks: [],
   images: [],
+  mindmapConnections: [],
   pan: DEFAULT_PAN,
   zoom: 1,
 };

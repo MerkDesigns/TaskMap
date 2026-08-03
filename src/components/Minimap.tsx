@@ -1,6 +1,13 @@
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { getTextCardAccent, MINIMAP_MAX_SIZE } from "../constants";
-import { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "../types";
+import { getMindmapConnectionPath, getMindmapPortPoint } from "../mindmapMath";
+import {
+  ContainerElement,
+  ImageElement,
+  MindmapConnection,
+  TextBlockElement,
+  TextCardElement,
+} from "../types";
 
 const TEXT_CARD_PREVIEW_WIDTH = 220;
 const TEXT_CARD_PREVIEW_HEIGHT = 52;
@@ -10,6 +17,7 @@ type MinimapProps = {
   textBlocks: TextBlockElement[];
   textCards: TextCardElement[];
   images: ImageElement[];
+  mindmapConnections: MindmapConnection[];
   canvasWidth: number;
   canvasHeight: number;
   visible: boolean;
@@ -28,6 +36,7 @@ export function Minimap({
   textBlocks,
   textCards,
   images,
+  mindmapConnections,
   canvasWidth,
   canvasHeight,
   visible,
@@ -44,6 +53,36 @@ export function Minimap({
     canvasAspect >= 1
       ? Math.max(72, Math.round(MINIMAP_MAX_SIZE / canvasAspect))
       : MINIMAP_MAX_SIZE;
+  const scaledMindmaps = new Map(
+    textCards
+      .filter((card) => card.kind === "mindmap")
+      .map((card) => {
+        const longestLineLength = Math.max(1, ...card.text.split("\n").map((line) => line.length));
+        const width = Math.max(44, Math.min(520, longestLineLength * 9 + 48));
+        const lineCount = card.text
+          .split("\n")
+          .reduce((count, line) => count + Math.max(1, Math.ceil((line.length * 9) / 472)), 0);
+        const height = 43 + (lineCount - 1) * 24;
+        return [
+          card.id,
+          {
+            x: (card.x / canvasWidth) * minimapWidth,
+            y: (card.y / canvasHeight) * minimapHeight,
+            width: Math.max((width / canvasWidth) * minimapWidth, 3),
+            height: Math.max((height / canvasHeight) * minimapHeight, 3),
+          },
+        ] as const;
+      }),
+  );
+  const scaledConnectables = new Map(scaledMindmaps);
+  [...elements, ...textBlocks, ...images].forEach((element) => {
+    scaledConnectables.set(element.id, {
+      x: (element.x / canvasWidth) * minimapWidth,
+      y: (element.y / canvasHeight) * minimapHeight,
+      width: Math.max((element.width / canvasWidth) * minimapWidth, 3),
+      height: Math.max((element.height / canvasHeight) * minimapHeight, 3),
+    });
+  });
 
   return (
     <div
@@ -65,6 +104,31 @@ export function Minimap({
         className="pointer-events-none relative overflow-hidden rounded-md"
         style={{ width: minimapWidth, height: minimapHeight }}
       >
+        <svg
+          className="absolute inset-0 overflow-visible"
+          width={minimapWidth}
+          height={minimapHeight}
+        >
+          {mindmapConnections.map((connection) => {
+            const source = scaledConnectables.get(connection.sourceId);
+            const target = scaledConnectables.get(connection.targetId);
+            if (!source || !target) return null;
+            return (
+              <path
+                key={connection.id}
+                d={getMindmapConnectionPath(
+                  getMindmapPortPoint(source, connection.sourcePort),
+                  connection.sourcePort,
+                  getMindmapPortPoint(target, connection.targetPort),
+                  connection.targetPort,
+                )}
+                fill="none"
+                stroke="rgba(220, 226, 235, 0.52)"
+                strokeWidth={0.8}
+              />
+            );
+          })}
+        </svg>
         {elements.map((element) => (
           <div
             key={element.id}
@@ -95,15 +159,20 @@ export function Minimap({
         ))}
         {textCards.map((card) => {
           const accent = getTextCardAccent(card.accent);
+          const mindmap = scaledMindmaps.get(card.id);
           return (
             <div
               key={card.id}
               className="absolute rounded-[2px] border"
               style={{
-                left: (card.x / canvasWidth) * minimapWidth,
-                top: (card.y / canvasHeight) * minimapHeight,
-                width: Math.max((TEXT_CARD_PREVIEW_WIDTH / canvasWidth) * minimapWidth, 3),
-                height: Math.max((TEXT_CARD_PREVIEW_HEIGHT / canvasHeight) * minimapHeight, 3),
+                left: mindmap?.x ?? (card.x / canvasWidth) * minimapWidth,
+                top: mindmap?.y ?? (card.y / canvasHeight) * minimapHeight,
+                width:
+                  mindmap?.width ??
+                  Math.max((TEXT_CARD_PREVIEW_WIDTH / canvasWidth) * minimapWidth, 3),
+                height:
+                  mindmap?.height ??
+                  Math.max((TEXT_CARD_PREVIEW_HEIGHT / canvasHeight) * minimapHeight, 3),
                 borderColor: accent,
                 backgroundColor: `${accent}26`,
               }}
