@@ -14,7 +14,7 @@ The encrypted document payload includes:
 - Element positions, sizes, layers, and relationships
 - Extension configuration
 - Workflow definitions
-- Original media filenames and semantic metadata
+- Media semantic metadata such as alt text; original filenames and source paths are not persisted
 - Which media belongs to which element or canvas
 - Document-specific settings
 

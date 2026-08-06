@@ -1,5 +1,4 @@
-import { inspectDocumentInvariants } from "../../domain/document/documentInvariants";
-import { parseTaskMapDocument } from "../../domain/document/documentSchema";
+import { validateTaskMapDocument } from "../../domain/document/validateDocument";
 import type { TaskMapDocument } from "../../domain/document/documentTypes";
 import type { PlatformResult } from "../platformErrors";
 
@@ -7,11 +6,8 @@ export function decodeDatabaseDocument(
   serializedDocument: string,
 ): PlatformResult<TaskMapDocument> {
   try {
-    const document = parseTaskMapDocument(JSON.parse(serializedDocument));
-    if (inspectDocumentInvariants(document).length > 0) {
-      return invalidDocumentResult();
-    }
-    return { ok: true, value: document };
+    const validated = validateTaskMapDocument(JSON.parse(serializedDocument));
+    return validated.ok ? { ok: true, value: validated.document } : invalidDocumentResult();
   } catch {
     return invalidDocumentResult();
   }
@@ -19,11 +15,10 @@ export function decodeDatabaseDocument(
 
 export function encodeDatabaseDocument(document: TaskMapDocument): PlatformResult<string> {
   try {
-    const validated = parseTaskMapDocument(document);
-    if (inspectDocumentInvariants(validated).length > 0) {
-      return invalidDocumentResult();
-    }
-    return { ok: true, value: JSON.stringify(validated) };
+    const validated = validateTaskMapDocument(document);
+    return validated.ok
+      ? { ok: true, value: JSON.stringify(validated.document) }
+      : invalidDocumentResult();
   } catch {
     return invalidDocumentResult();
   }

@@ -32,7 +32,11 @@ describe("saveThenLockPhase2Document", () => {
 
     const result = await saveThenLockPhase2Document(
       client,
-      createPhase2TestDocument("database", "development", () => "fixed"),
+      createPhase2TestDocument(
+        "database-00000000-0000-4000-8000-000000000001",
+        "development",
+        () => "00000000-0000-4000-8000-000000000001",
+      ),
       1,
     );
 
@@ -49,7 +53,11 @@ describe("saveThenLockPhase2Document", () => {
 
     const result = await saveThenLockPhase2Document(
       { saveDocument, lockDatabase },
-      createPhase2TestDocument("database", "development", () => "fixed"),
+      createPhase2TestDocument(
+        "database-00000000-0000-4000-8000-000000000001",
+        "development",
+        () => "00000000-0000-4000-8000-000000000001",
+      ),
       1,
     );
 

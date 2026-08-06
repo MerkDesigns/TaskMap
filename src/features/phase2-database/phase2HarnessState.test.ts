@@ -21,7 +21,11 @@ describe("Phase 2 frontend state", () => {
   });
 
   it("purges the decrypted document on lock and follows session transitions", () => {
-    const document = createPhase2TestDocument("database", "development", () => "fixed");
+    const document = createPhase2TestDocument(
+      "database-00000000-0000-4000-8000-000000000001",
+      "development",
+      () => "00000000-0000-4000-8000-000000000001",
+    );
     const loaded = phase2HarnessReducer(INITIAL_PHASE2_HARNESS_STATE, {
       type: "documentReceived",
       session: unlocked,

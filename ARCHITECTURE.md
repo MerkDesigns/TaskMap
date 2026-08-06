@@ -131,19 +131,30 @@ The decrypted TaskMap document is owned by TypeScript and validated at the appli
 
 ```ts
 type TaskMapDocument = {
-  schemaVersion: number;
-  databaseId: string;
+  schemaVersion: 1;
+  id: DocumentId;
+  databaseId: DatabaseId;
   databasePurpose: "production" | "development";
-  activeCanvasId: string;
-  canvases: Record<string, Canvas>;
-  elements: Record<string, CanvasElement>;
-  connections: Record<string, MindmapConnection>;
+  activeCanvasId: CanvasId | null;
+  canvasOrder: CanvasId[];
+  canvases: Record<CanvasId, CanvasRecord>;
+  elements: Record<ElementId, DocumentElement>;
+  connections: Record<ConnectionId, DocumentConnection>;
+  mediaReferences: Record<MediaId, MediaReference>;
+  extensionInstallations: Record<ExtensionInstanceId, ExtensionInstallation>;
   documentSettings: DocumentSettings;
-  mediaReferences: Record<string, MediaReference>;
 };
 ```
 
-Media references contain opaque media IDs and presentation metadata. They do not contain raw bytes. The media table is outside the encrypted payload.
+Canvas and element entity order is represented separately from entity records: `canvasOrder` is the
+stable canvas order and each canvas owns a complete back-to-front `elementOrder`. Element and
+connection module data and extension configuration are bounded JSON objects; concrete modules own
+their later schema fragments, and the generic document model does not import their registries.
+
+Media references contain opaque media IDs and presentation metadata. They do not contain raw bytes,
+original filenames, or local paths. The media table is outside the encrypted payload. Viewport,
+selection, pointer, window, device, and session state is not part of this model. See
+`docs/DATA-FORMAT.md` for the exact current-version structure, limits, and validation stages.
 
 Application preferences such as window state, recent database paths, UI theme, update preferences, and inactivity-lock preference are stored separately in the edition-specific configuration directory and can be exported or imported.
 
@@ -245,7 +256,9 @@ The database contains:
 - Unencrypted media BLOBs addressed by random opaque IDs
 - Minimal non-sensitive media transport fields
 
-The encrypted document includes all relationships, filenames, card text, links, canvas names, positions, extension states, and document settings.
+The encrypted document includes all media relationships, card text, links, canvas names, positions,
+alt text, extension states, and document settings. Original media filenames and local paths are not
+persisted.
 
 Normal document saves update only the encrypted document row. Existing media BLOBs remain untouched. Large GIFs and images are loaded lazily when visible.
 

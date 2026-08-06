@@ -117,11 +117,15 @@ Phase 2 exit criteria are complete. Production tray UX, native Windows session-l
 
 ### Work
 
-- Implement canvases, normalized element entities, connections, media references, and document settings.
+- [x] Implement canvases, normalized element entities, connections, media references, extension
+      installations, document settings, conservative limits, and current-version validation (Phase
+      3A).
 - Implement named application commands.
 - Implement Immer patch history.
 - Implement dirty tracking and debounced persistence.
-- Implement document validation and current-version schema.
+
+Phase 3A is complete. Phase 3 remains open: command execution, transaction history, dirty tracking,
+debounced persistence, and their phase exit criteria belong to Phases 3B and 3C.
 
 ### Exit criteria
 

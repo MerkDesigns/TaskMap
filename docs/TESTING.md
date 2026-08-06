@@ -6,6 +6,17 @@
 
 Cover document commands, schemas, invariants, extension compatibility, element capabilities, history patches, workflow validation, and configuration validation without React or Tauri.
 
+### Phase 3A implemented coverage
+
+Pure Node-environment tests cover minimal current-version creation through an injected UUID source,
+strict structural parsing, JSON round trips, input immutability, multiple-canvas order, normalized
+element layer order, same-canvas connections, missing canvas and element references, cross-canvas
+connection rejection, duplicate and missing order entries, active-canvas rules, malformed IDs,
+unsupported schema versions, unknown fields, media filename/path exclusion, JSON safety, conservative
+string/collection limits, extension target references, and the separation between structural and
+semantic validation. Existing Phase 2 codec and lifecycle tests continue to exercise the same domain
+boundary with canonical Phase 3A fixture documents.
+
 ### Component tests
 
 Cover element renderers, extension controls, menus, edit sessions, focus behavior, and accessibility with platform clients mocked.

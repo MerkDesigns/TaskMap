@@ -21,7 +21,11 @@ const unlockedSession: DatabaseSessionStatus = {
 const pendingSession: DatabaseSessionStatus = { ...unlockedSession, phase: "pending_unlock" };
 
 function validSerializedDocument(purpose: "development" | "production" = "development") {
-  const document = createPhase2TestDocument(databaseId, purpose, () => "fixed");
+  const document = createPhase2TestDocument(
+    databaseId,
+    purpose,
+    () => "00000000-0000-4000-8000-000000000001",
+  );
   const encoded = encodeDatabaseDocument(document);
   if (!encoded.ok) throw new Error("test document should encode");
   return encoded.value;

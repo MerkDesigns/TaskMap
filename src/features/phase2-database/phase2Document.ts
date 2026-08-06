@@ -17,20 +17,33 @@ export function createPhase2TestDocument(
     databaseId,
     databasePurpose: purpose,
     activeCanvasId: canvasId,
+    canvasOrder: [canvasId],
     canvases: {
-      [canvasId]: { id: canvasId, name: "Phase 2 test canvas" },
+      [canvasId]: {
+        id: canvasId,
+        name: "Phase 2 test canvas",
+        settings: { width: 3_000, height: 3_000 },
+        elementOrder: [elementId],
+      },
     },
     elements: {
       [elementId]: {
         id: elementId,
         canvasId,
         type: "phase2-test-record",
-        state: { text: "Phase 2 encrypted text" },
+        geometry: { x: 0, y: 0, width: 320, height: 180 },
+        data: { text: "Phase 2 encrypted text" },
       },
     },
     connections: {},
     mediaReferences: {},
-    settings: {},
+    extensionInstallations: {},
+    documentSettings: {
+      grid: { style: "dots", opacityPercent: { dots: 50, lines: 15 } },
+      showElementShadows: false,
+      allowLockedElementDeletion: true,
+      minimapEnabled: true,
+    },
   });
 }
 
@@ -38,7 +51,7 @@ export function readPhase2TestText(document: TaskMapDocument): string {
   const element = Object.values(document.elements).find(
     (candidate) => candidate.type === "phase2-test-record",
   );
-  return typeof element?.state.text === "string" ? element.state.text : "";
+  return typeof element?.data.text === "string" ? element.data.text : "";
 }
 
 export function updatePhase2TestText(document: TaskMapDocument, text: string): TaskMapDocument {
@@ -53,7 +66,7 @@ export function updatePhase2TestText(document: TaskMapDocument, text: string): T
       ...document.elements,
       [id]: {
         ...element,
-        state: { ...element.state, text },
+        data: { ...element.data, text },
       },
     },
   };

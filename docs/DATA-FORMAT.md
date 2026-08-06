@@ -6,6 +6,77 @@ A TaskMap database is one SQLite file with the `.tmapdb` extension. The TypeScri
 
 Version 1 uses SQLite `STRICT` tables, rollback-journal `DELETE` mode, `synchronous=FULL`, and in-memory SQLite temporary storage. Document plaintext is never supplied to SQLite, so the active database, rollback journal, recovery rows, and online backups contain only authenticated ciphertext. Media remains plaintext everywhere it is copied.
 
+## Decrypted document schema version 1
+
+TypeScript owns the one canonical current-version document. The JSON object is strict at every
+defined record boundary and has this normalized shape:
+
+```text
+schemaVersion = 1
+id = "document-<canonical lower-case UUID>"
+databaseId = "database-<canonical lower-case UUID>"
+databasePurpose = "production" | "development"
+activeCanvasId = CanvasId | null
+canvasOrder = CanvasId[]
+canvases = Record<CanvasId, {
+  id, name,
+  settings: { width, height },
+  elementOrder: ElementId[]
+}>
+elements = Record<ElementId, {
+  id, canvasId, type,
+  geometry: { x, y, width, height },
+  data: JsonObject
+}>
+connections = Record<ConnectionId, {
+  id, canvasId, type,
+  source: { elementId, portId },
+  target: { elementId, portId },
+  data: JsonObject
+}>
+mediaReferences = Record<MediaId, {
+  id, mimeType, byteLength, pixelWidth, pixelHeight, altText
+}>
+extensionInstallations = Record<ExtensionInstanceId, {
+  id, extensionId, target, enabled, configuration: JsonObject
+}>
+documentSettings = {
+  grid: { style, opacityPercent: { dots, lines } },
+  showElementShadows,
+  allowLockedElementDeletion,
+  minimapEnabled
+}
+```
+
+`canvasOrder` is the stable canvas order. Each canvas's `elementOrder` is its complete back-to-front
+layer order; every element appears exactly once in the order of its owning canvas. Connections and
+both endpoints must share a canvas. A non-empty document has exactly one existing active canvas; an
+empty document has `activeCanvasId = null`.
+
+Element `type`/`data`, connection `type`/`data`, and extension `extensionId`/`configuration` are
+generic module boundaries. The generic document validator checks only JSON safety and shared
+references; element and extension modules add their own schemas in later phases. The document does
+not import either registry and does not enumerate future element implementations.
+
+Media references contain opaque 24-character base64url IDs and presentation/integrity metadata
+only. They never contain bytes, original local paths, or original filenames. Document values contain
+no `Date`, `Map`, `Set`, class, function, symbol, bigint, `undefined`, non-finite number, sparse array,
+or cyclic reference.
+
+The schema intentionally contains no document timestamps or legacy migration fields. Window state,
+recent database paths, theme/update choices, inactivity settings, viewport interaction state, and
+other application/device/session preferences remain outside the decrypted document.
+
+Structural parsing enforces exact fields, scalar shapes, ID formats, JSON safety, and conservative
+limits. Semantic validation then checks normalized keys, ordering completeness and uniqueness,
+active-canvas validity, ownership, connection locality, and extension target references. No legacy
+shape is defaulted or migrated by the parser.
+
+The conservative TypeScript limits are 256 canvases, 20,000 elements, 40,000 connections, 20,000
+media references, 40,000 extension installations, 256-character canvas names, 128-character type
+identifiers, 1 MiB per generic JSON string, 20,000 entries per generic JSON container, 32 levels,
+and 250,000 JSON nodes. The encrypted document's separate 64 MiB envelope limit still applies.
+
 ## Version 1 limits
 
 The reader checks structure and lengths before fetching variable-size BLOBs or invoking Argon2:
@@ -92,7 +163,9 @@ bytes
 created_at
 ```
 
-Media IDs are random and reveal no filename. Loads verify both declared length and SHA-256. Original filenames, relationships, placement, and semantic metadata remain in the encrypted document.
+Media IDs are random and reveal no filename. Loads verify both declared length and SHA-256. Original
+filenames and local paths are not persisted; relationships, placement, alt text, and other semantic
+metadata remain in the encrypted document.
 
 Phase 2 deliberately exposes no media byte-array IPC command. The repository and integrity tests exist now; chunked/streaming frontend transport is Phase 5 work.
 
