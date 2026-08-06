@@ -88,7 +88,7 @@ function createDocument(name, elementCount) {
       textCard: "#476FA8",
       textBlock: "#476FA8",
       image: "#476FA8",
-      mindmap: "#476FA8"
+      mindmap: "#476FA8",
     },
     recentColors: [],
     shadowsUnderElements: false,

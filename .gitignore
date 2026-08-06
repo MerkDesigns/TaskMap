@@ -11,3 +11,5 @@ src-tauri/target/
 Thumbs.db
 AGENTS.md
 CLAUDE.md
+
+fixtures/baseline/*.json

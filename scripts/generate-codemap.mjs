@@ -62,7 +62,10 @@ const generated = [
   "",
   "| File | Lines | Responsibility |",
   "|---|---:|---|",
-  ...rows.map(({ path: file, lines, summary }) => `| \`${file}\` | ${lines} | ${summary.replaceAll("|", "\\|")} |`),
+  ...rows.map(
+    ({ path: file, lines, summary }) =>
+      `| \`${file}\` | ${lines} | ${summary.replaceAll("|", "\\|")} |`,
+  ),
   "",
   END,
 ].join("\n");

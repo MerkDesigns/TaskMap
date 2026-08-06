@@ -4,7 +4,16 @@ import process from "node:process";
 
 const ROOT = process.cwd();
 const SOURCE_ROOT = path.join(ROOT, "src");
-const TARGET_DIRS = ["app", "domain", "canvas", "elements", "extensions", "features", "platform", "ui"];
+const TARGET_DIRS = [
+  "app",
+  "domain",
+  "canvas",
+  "elements",
+  "extensions",
+  "features",
+  "platform",
+  "ui",
+];
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function pathExists(target) {
@@ -38,7 +47,9 @@ function importsTauri(source) {
 }
 
 function importsReactOrDom(source) {
-  return /(?:from\s+["']react(?:-dom)?(?:\/[^"']*)?["']|lib\.dom|\bdocument\.|\bwindow\.)/.test(source);
+  return /(?:from\s+["']react(?:-dom)?(?:\/[^"']*)?["']|lib\.dom|\bdocument\.|\bwindow\.)/.test(
+    source,
+  );
 }
 
 function importsUi(source) {

@@ -27,21 +27,26 @@ src/elements/<element-name>/
 ### Required responsibilities
 
 `model.ts`
+
 - Element-specific fields and discriminant
 - No React or Tauri imports
 
 `schema.ts`
+
 - Runtime validation fragment
 - Defaults and current-version constraints
 
 `commands.ts`
+
 - Element-specific document mutations
 - No component state or DOM access
 
 `selectors.ts`
+
 - Narrow selectors for rendering and derived behavior
 
 `definition.ts`
+
 - Registry metadata
 - Default creation
 - Schema reference
@@ -49,15 +54,18 @@ src/elements/<element-name>/
 - Geometry adapter and capability declarations
 
 `View.tsx`
+
 - Rendering and local presentation behavior only
 - Dispatches named commands or interaction intents
 - Does not directly mutate document collections
 
 `Menu.tsx`
+
 - Element-specific menu contributions only
 - Shared actions such as delete, layer movement, lock, and copy remain generic
 
 `test.ts`
+
 - Creation defaults
 - Validation
 - Commands
@@ -106,6 +114,7 @@ src/extensions/<extension-name>/
 ### Required responsibilities
 
 `definition.ts`
+
 - ID, label, description
 - Compatible element types
 - Conflicts
@@ -113,18 +122,23 @@ src/extensions/<extension-name>/
 - Control and menu contributions
 
 `model.ts`
+
 - Extension state type
 
 `schema.ts`
+
 - Runtime validation
 
 `commands.ts`
+
 - Extension-specific mutations beyond generic install/remove
 
 `selectors.ts`
+
 - Derived extension behavior
 
 `controls.tsx`
+
 - Header, inline, context-menu, or settings contribution
 
 ### Registration

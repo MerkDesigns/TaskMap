@@ -111,11 +111,11 @@ Capture enough evidence to support legacy migration reporting, but do not port t
 
 For each generated fixture, record cold startup, canvas switch, pan, zoom, drag, selection, and memory use.
 
-| Fixture | Elements | Expected use |
-|---|---:|---|
-| Small | 40 | Functional tests and visual inspection |
-| Normal | 2,000 | Required 60 FPS interaction target |
-| Stress | 10,000 | Target maximum document behavior |
+| Fixture | Elements | Expected use                           |
+| ------- | -------: | -------------------------------------- |
+| Small   |       40 | Functional tests and visual inspection |
+| Normal  |    2,000 | Required 60 FPS interaction target     |
+| Stress  |   10,000 | Target maximum document behavior       |
 
 Run `npm run fixtures:baseline` to generate deterministic fixture documents under `fixtures/baseline/`.
 
