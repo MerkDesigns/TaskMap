@@ -40,17 +40,24 @@
 
 ### Work
 
-- Create `AppShell`, typed platform clients, Redux store, command pipeline, selector conventions, interaction service interface, and shared UI foundations.
-- Implement `FrostedSurface` using the existing visual treatment.
-- Create explicit element and extension registries.
-- Add error boundaries and structured application errors.
+- [x] Create the composition-only `AppShell` around a temporary legacy adapter.
+- [x] Create typed database, media, settings, and workflow platform client contracts without backend adapters.
+- [x] Create the Redux store, typed provider/hooks, command-dispatch contract, and selector convention.
+- [x] Create the pure current-version domain document, command, history, transaction, and ID foundations.
+- [x] Implement `FrostedSurface` using fixed values from the existing production visual treatment.
+- [x] Create explicit, initially empty element and architecture extension registries.
+- [x] Add structured platform errors.
+- [ ] Add the transient interaction service interface; no pointer behavior is moved in this skeleton change.
+- [ ] Add application error boundaries without changing the active legacy error behavior.
 
 ### Exit criteria
 
-- Shell contains no business logic.
-- Domain packages have no React or Tauri imports.
-- Only `src/platform/` imports Tauri APIs.
-- Empty application starts under stable and development identities.
+- [x] Shell contains no business logic.
+- [x] Domain packages have no React, Tauri, UI, element, extension, platform, DOM, or browser dependencies.
+- [x] Architecture checks prevent new Tauri imports outside `src/platform/`; named legacy imports remain temporarily allow-listed.
+- [x] The new shell builds under the existing stable and development identities while rendering the unchanged legacy application boundary.
+
+The requested Phase 1 skeleton is implemented without porting features or replacing the legacy UI. The broader roadmap phase remains open while the two unchecked work items above are unresolved.
 
 ## Phase 2 — Database, encryption, and session vertical slice
 

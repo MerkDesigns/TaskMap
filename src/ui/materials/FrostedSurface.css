@@ -1,0 +1,7 @@
+.taskmap-frosted-surface {
+  background: rgb(27 27 30 / 0%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 55%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
