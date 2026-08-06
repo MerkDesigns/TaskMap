@@ -90,11 +90,23 @@ Test:
 - Close window retains unlocked background session
 - Reopen window without password during session
 - Explicit lock requires password
-- Windows session lock triggers TaskMap lock
-- Inactivity timeout triggers lock
+- Windows session lock triggers TaskMap lock (deferred until native event integration)
+- Inactivity timeout triggers lock (deferred until timeout integration)
 - Quit clears session
 - Application restart requires password
 - Save pending during lock
+
+### Phase 2 implemented coverage
+
+Rust tests use temporary directories exclusively and cover strict version-1 envelope preflight, malicious Argon2 values, malformed SQLite types, missing/duplicate singleton rows, wrong fixed-field lengths, maximum password/document/media/MIME/ID limits, empty and Unicode passwords, wrong-password and corruption behavior, every authenticated metadata field, rapid nonce uniqueness, zeroizing ownership and explicit clear paths, pending-unlock denial/cancel/timeout/bad confirmation, invalid identity confirmation, concurrent saves, save versus lock/close, transaction rollback, five-generation rotation and recovery, explicit online-backup restore/failure, media length/hash verification, plaintext artifact scans, keeper-failure closure, and edition-specific settings.
+
+Windows-specific Rust tests cover relative/absolute paths, case variants, hard links, symlinks when permitted, a database handle that prevents replacement, stable/development contention, non-contention lock errors, real child-process contention, forced child termination, and stale diagnostic metadata. The routine-save test installs media mutation guards and an 8 MiB media row to prove a document-only save neither copies nor changes media.
+
+TypeScript tests cover typed raw-transport error mapping, validation before save and after read, validation-failure relocking, database-ID and purpose confirmation, password exclusion from Redux, decrypted-document removal on lock/close, secure save-then-lock coordination, valid harness transitions, and production entry exclusion. `npm run production:inspect` builds stable and fails if the stable identifier, capability, Rust registration, bundle, or assets expose Phase 2 command/harness strings.
+
+The Phase 2 manual lifecycle was completed successfully on 2026-08-06 using `Ctrl+Shift+F2` in TaskMap Dev and a disposable `.tmapdb`. The pass covered database creation with a temporary password; document edit, save, revision advance, and readback; explicit lock closing the document-bearing harness; reopening in a locked state without plaintext; password unlock restoring the saved document; closing the visible window while the unlocked process remained alive; single-instance relaunch recreating the window and restoring the unlocked document without another password; explicit full backup without changing the active revision; quit terminating the background process; and a new process starting closed, then opening the recent database with its password and restoring the saved document.
+
+Native Windows session-lock delivery, inactivity locking, final tray UX, scheduled full-backup policy, and streaming/chunked media transport are not Phase 2 claims and remain deferred.
 
 ## History tests
 

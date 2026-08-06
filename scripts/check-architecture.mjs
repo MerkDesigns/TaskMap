@@ -4,6 +4,7 @@ import process from "node:process";
 
 const ROOT = process.cwd();
 const SOURCE_ROOT = path.join(ROOT, "src");
+const RUST_ROOT = path.join(ROOT, "src-tauri", "src");
 const TARGET_DIRS = [
   "app",
   "domain",
@@ -144,7 +145,13 @@ for (const file of targetFiles) {
 
   if (rel === "src/app/AppShell.tsx") {
     if (lines >= 250) violations.push(`${rel}: AppShell must remain below 250 lines`);
-    const allowedImports = new Set(["../legacy/LegacyApplication", "./AppProviders"]);
+    const allowedImports = new Set([
+      "react",
+      "../features/phase2-database/DevelopmentPhase2Entry",
+      "../legacy/LegacyApplication",
+      "./AppProviders",
+      "./windowCloseCoordinator",
+    ]);
     for (const specifier of importSpecifiers(source)) {
       if (!allowedImports.has(specifier)) {
         violations.push(`${rel}: AppShell may contain composition imports only`);
@@ -154,6 +161,53 @@ for (const file of targetFiles) {
 
   if (lines > 400 && !LEGACY_TARGET_FILES.has(rel)) {
     violations.push(`${rel}: new architecture files must not exceed 400 lines`);
+  }
+}
+
+const reduxStateFiles = targetFiles.filter((file) => {
+  const rel = relative(file);
+  return rel === "src/app/store.ts" || /(?:Slice|Store)\.ts$/.test(rel);
+});
+for (const file of reduxStateFiles) {
+  const source = await readFile(file, "utf8");
+  if (/\bpassword\w*\s*[?:]/i.test(source)) {
+    violations.push(`${relative(file)}: raw password fields must not enter Redux state`);
+  }
+}
+
+const newRustRoots = ["commands", "crypto", "database", "files", "session", "settings"];
+const newRustFiles = (
+  await Promise.all(
+    newRustRoots.map((directory) =>
+      collectFiles(path.join(RUST_ROOT, directory), new Set([".rs"])),
+    ),
+  )
+).flat();
+for (const file of newRustFiles) {
+  const source = await readFile(file, "utf8");
+  const rel = relative(file);
+  const lines = source.split(/\r?\n/).length;
+  if (lines > 400) {
+    violations.push(`${rel}: new Rust architecture files must not exceed 400 lines`);
+  }
+  if (/\b(?:keyring|pbkdf2)\b|\b(?:migrate|migration|legacy)_\w*/i.test(source)) {
+    violations.push(
+      `${rel}: new Phase 2 modules must not contain legacy migration or keyring code`,
+    );
+  }
+}
+
+for (const legacyFile of ["storage.rs", "model.rs"]) {
+  const file = path.join(RUST_ROOT, legacyFile);
+  const source = await readFile(file, "utf8");
+  if (
+    /\b(?:argon2|chacha20poly1305|zeroize|fs2)\b|\b(?:format_info|encrypted_document)\b/.test(
+      source,
+    )
+  ) {
+    violations.push(
+      `${relative(file)}: Phase 2 database, crypto, session, and locking logic belongs in new Rust modules`,
+    );
   }
 }
 

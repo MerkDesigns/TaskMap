@@ -67,13 +67,16 @@ Prove the complete secure persistence lifecycle before porting features.
 
 ### Work
 
-- Implement SQLite `.tmapdb` schema.
-- Implement Argon2id key derivation and authenticated document encryption.
-- Implement create, open, save, backup, lock, and quit.
-- Implement file locking and wrong-password/corruption distinctions.
-- Implement recent-database configuration.
-- Implement tray session and Windows lock integration.
-- Implement config export/import.
+- [x] Implement the current-version SQLite `.tmapdb` envelope and unencrypted media table.
+- [x] Implement Argon2id key derivation and XChaCha20-Poly1305 document encryption.
+- [x] Implement pending create/unlock, TypeScript confirmation, read, transactional save with encrypted generations, explicit full backup, lock, close, and quit.
+- [x] Implement Windows file-identity writer ownership and pre-derivation structural-corruption versus non-oracular authentication-failure handling.
+- [x] Implement edition-specific recent/default-database configuration storage.
+- [x] Preserve an unlocked process session when the visible legacy window closes, with single-instance reopen behavior.
+- [x] Exclude the Phase 2 harness, command registration, and sensitive capability from stable production builds.
+- [x] Replace renderer-supplied database paths with expiring, one-use backend authorization tokens.
+- [ ] Add the production tray controls and Windows session-lock event integration. Only an internal Rust lock method exists; no renderer command or Windows event source is wired in Phase 2.
+- [ ] Add config import/export UI. Phase 2 keeps the versioned settings schema and edition isolation only.
 
 ### Vertical slice
 
@@ -83,8 +86,7 @@ Create database
 -> create one canvas
 -> create one text card
 -> edit text
--> undo and redo
--> autosave
+-> save encrypted document
 -> close window
 -> reopen without password during session
 -> lock
@@ -94,10 +96,18 @@ Create database
 
 ### Exit criteria
 
-- Raw passwords are never stored or logged.
-- Explicit lock purges key and decrypted document state.
-- Media table exists but contains no required ported behavior yet.
-- Atomic save and backup recovery tests pass.
+- [x] Version-1 algorithms, KDF parameters, singleton counts, storage classes, fixed lengths, and conservative input sizes are rejected before expensive work or large reads.
+- [x] Raw passwords are never persisted or logged; application-controlled password, derivation, key, and decrypted Rust buffers use zeroizing ownership where practical and documented limitations remain explicit.
+- [x] A candidate session cannot become unlocked until the TypeScript document, database ID, schema version, and development purpose are confirmed.
+- [x] Explicit lock, close, quit, pending rejection/timeout, and keeper failure purge backend keys, release writer ownership, and remove the harness plaintext.
+- [x] Media bytes remain outside Redux and are stored unencrypted under opaque IDs without original filenames.
+- [x] Routine save transactionally retains five encrypted document generations and remains independent of total media size; full SQLite backup is explicit only.
+- [x] Stable production builds contain no Phase 2 plaintext IPC commands or harness chunk.
+- [x] Real Windows path-alias and child-process tests prove file-identity writer exclusion and stale-metadata recovery.
+- [x] The full Phase 2 automated validation matrix passes after the final implementation changes.
+- [x] The disposable-database native window/keeper lifecycle is manually exercised and recorded.
+
+Phase 2 exit criteria are complete. Production tray UX, native Windows session-lock event delivery, inactivity locking, config import/export UI, streaming media transport, scheduled full backups, and production autosave remain accurately deferred.
 
 ## Phase 3 — Document core and history
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-create-database"
+description = "Enables the phase2_create_database command without any pre-configured scope."
+commands.allow = ["phase2_create_database"]
+
+[[permission]]
+identifier = "deny-phase2-create-database"
+description = "Denies the phase2_create_database command without any pre-configured scope."
+commands.deny = ["phase2_create_database"]

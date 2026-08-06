@@ -27,7 +27,7 @@ The SQLite envelope exposes:
 - Encryption algorithm identifiers
 - Random media IDs
 - Media MIME type, size, hash, and bytes
-- Non-sensitive maintenance timestamps
+- Maintenance timestamps, which are unauthenticated and treated as untrusted
 
 Anyone possessing the file can extract unencrypted images and GIFs. The database creation screen and security settings must state this clearly.
 
@@ -35,11 +35,12 @@ Anyone possessing the file can extract unencrypted images and GIFs. The database
 
 1. The user enters the password in the unlock UI.
 2. The frontend transfers it to the Rust command over the local Tauri boundary.
-3. Rust derives a key with Argon2id using database-specific parameters.
-4. The raw password buffer is cleared as soon as derivation completes.
-5. Only the derived key remains in the session manager.
+3. Rust rejects unsupported envelope parameters and size limits before invoking Argon2, then derives a key with the fixed version-1 parameters.
+4. Rust's command-owned password string uses zeroizing ownership and is cleared when the command completes. JavaScript strings and compiler-created copies cannot be reliably zeroized.
+5. The derived key begins in zeroizing Rust ownership and moves into a pending session without cloning.
 6. The key decrypts and authenticates the document payload.
-7. The frontend receives the decrypted document, never the derived key.
+7. The frontend receives the decrypted document, never the derived key, and validates its current TypeScript schema, invariants, database ID, and purpose.
+8. Only an explicit confirmation promotes the pending Rust session to unlocked. Rejection, timeout, window close, or failed confirmation closes the candidate session and clears its key.
 
 The raw password must never be written to disk, logs, analytics, crash reports, Redux, browser storage, or application configuration.
 
@@ -47,7 +48,9 @@ The raw password must never be written to disk, logs, analytics, crash reports, 
 
 ### Close window
 
-Closing the visible window keeps the background TaskMap tray/session process active. The derived key remains in protected process memory, so reopening the window during that session does not require the password.
+Closing the visible window keeps the background TaskMap development session active. Dirty Phase 2 harness state is validated and saved before destruction; if that save fails, close is prevented. The derived key remains in process memory, so reopening the window during that session does not require the password.
+
+Phase 2 uses a hidden, content-free session-keeper webview instead of production tray controls. Launching the same edition again activates the single-instance callback and recreates or shows the main window. If recreation cannot produce a safe document window, the backend closes the session, destroys the keeper, and exits instead of leaving an inaccessible unlocked process.
 
 ### Explicit lock
 
@@ -68,19 +71,21 @@ TaskMap locks when:
 - The configured TaskMap inactivity timeout expires
 - The user selects Lock Database
 
+Only explicit frontend lock is wired in Phase 2. Rust has an internal session-lock method for future native event delivery, but there is no renderer-callable substitute. Windows event delivery and inactivity timers are deferred and are not claimed as complete.
+
 ### Quit
 
 Quit terminates the visible window and background process, clears key material, releases database and process locks, and requires the password on the next launch.
 
 ## Key memory
 
-- Use a memory container that zeroizes on drop.
-- Avoid accidental key copies.
+- Password command values, derived output, application-controlled Argon2 work memory, pending keys, active keys, and decrypted Rust document buffers use zeroizing ownership where practical.
+- Keys move between ownership states and are not cloned.
 - Keep key lifetime inside the Rust session manager.
 - Do not return key material through Tauri commands.
 - Treat crash dumps as a residual risk of any unlocked desktop password manager-style session.
 
-The implementation must document platform limitations honestly; it must not claim that ordinary process memory is immune to an administrator, debugger, malware, or a full memory dump.
+Zeroizing ownership reduces lifetime; it does not prove complete memory erasure. The Argon2 implementation and dependencies may create internal copies. Allocators, compiler transformations, immutable JavaScript strings, Tauri/serde transport buffers, operating-system swap, crash dumps, and debugger or administrator access can retain or observe secrets. TaskMap does not claim protection against a compromised unlocked process.
 
 ## Cryptography
 
@@ -93,13 +98,15 @@ Required baseline:
 - Header fields authenticated as associated data
 - Cryptographically secure random database and media IDs
 
+Version 1 selects Argon2id v0x13 with 65,536 KiB memory, three iterations, one lane, a 16-byte salt, and a 32-byte derived key. Document and key-check envelopes use XChaCha20-Poly1305 with independent random 24-byte nonces. Document associated data authenticates format version, document schema version, database ID, and save revision.
+
 Algorithm and parameter changes require an ADR and database-format version consideration.
 
 ## Wrong password versus corruption
 
 The key-check record permits a clear distinction:
 
-- Key check fails: incorrect password
+- Structurally valid key check fails: incorrect password or damage to that authenticated key-check record; these cases intentionally share one non-oracular result
 - Key check succeeds but document authentication fails: corrupted or tampered document
 - SQLite envelope invalid: unsupported or corrupted database
 
@@ -113,6 +120,8 @@ Do not expose cryptographic implementation details in normal user error messages
 - Never create plaintext document temporary files.
 - Never export decrypted content implicitly.
 - Do not follow untrusted paths from document content without user action.
+
+Routine saves never copy the whole database. In the same transaction as a save, TaskMap retains five prior authenticated encrypted-document generations; unchanged media is untouched. An explicit full-backup command uses SQLite's online backup API, an identity-owned partial file, and a non-replacing final move. Internal generations help recover document payloads but do not protect against whole-file loss, broad SQLite corruption, or media loss, so external full backups remain necessary. Automatic full-backup scheduling is deferred.
 
 ## Workflow Runner security
 
@@ -129,7 +138,11 @@ Do not expose cryptographic implementation details in normal user error messages
 
 Stable and development builds use different identities and session managers. TaskMap Dev must not automatically open the stable database.
 
-Opening a production-marked database from TaskMap Dev requires a warning and must not bypass the database writer lock.
+TaskMap Dev rejects a production-purpose decrypted document after validation and closes the candidate session. Stable builds do not contain the Phase 2 harness, Rust command registration, or Phase 2 capability. Both editions still contend on the same underlying database file identity.
+
+## Tauri boundary
+
+Phase 2 IPC is compiled and registered only with the development Cargo feature, and its capability is present only in the development configuration overlay. The stable default capability contains none of the sensitive commands. Create, open, and explicit-backup commands redeem short-lived, one-use, process- and edition-scoped path tokens issued by the backend picker or recent-list resolver; a renderer cannot pass a raw filesystem path. Raw request bodies are rejected above conservative limits before JSON deserialization. Phase 2 exposes no full-memory media byte-array IPC; streaming transport is Phase 5 work.
 
 ## Logging
 
@@ -158,8 +171,6 @@ At minimum test:
 - Corrupt encrypted document
 - Modified authenticated header
 - Lock while save is pending
-- Windows lock event
-- Inactivity lock
 - Window close without lock
 - Full quit
 - Concurrent database opening
@@ -167,3 +178,5 @@ At minimum test:
 - Imported untrusted workflow
 - Backup restoration
 - Absence of plaintext document fragments in database and temporary files
+
+Windows session-lock delivery and inactivity locking remain required before their later production milestones, but are explicitly deferred from this development-only Phase 2 slice.

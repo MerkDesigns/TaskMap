@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-confirm-unlock"
+description = "Enables the phase2_confirm_unlock command without any pre-configured scope."
+commands.allow = ["phase2_confirm_unlock"]
+
+[[permission]]
+identifier = "deny-phase2-confirm-unlock"
+description = "Denies the phase2_confirm_unlock command without any pre-configured scope."
+commands.deny = ["phase2_confirm_unlock"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-choose-database-path"
+description = "Enables the phase2_choose_database_path command without any pre-configured scope."
+commands.allow = ["phase2_choose_database_path"]
+
+[[permission]]
+identifier = "deny-phase2-choose-database-path"
+description = "Denies the phase2_choose_database_path command without any pre-configured scope."
+commands.deny = ["phase2_choose_database_path"]

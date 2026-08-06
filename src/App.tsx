@@ -392,7 +392,11 @@ const useCanvasLayers = <T extends { id: string; layer?: number }>(
   }, [items, layerMap]);
 };
 
-function App() {
+interface AppProps {
+  readonly onBeforeClose?: () => Promise<void>;
+}
+
+function App({ onBeforeClose }: AppProps = {}) {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({
@@ -1326,6 +1330,7 @@ function App() {
         markCanvasDirty(latestData.activeCanvasId);
 
         try {
+          await onBeforeClose?.();
           await flushAutosave();
           await appWindow.destroy();
         } catch (error) {
@@ -1354,7 +1359,7 @@ function App() {
       disposed = true;
       unlisten?.();
     };
-  }, [appDataLoaded, flushAutosave, showToast]);
+  }, [appDataLoaded, flushAutosave, onBeforeClose, showToast]);
 
   useDiscordRpc({
     appDataLoaded,

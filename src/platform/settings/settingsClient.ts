@@ -1,7 +1,13 @@
 import type { PlatformResult } from "../platformErrors";
-import type { SaveSettingsRequest, SettingsSnapshot } from "./settingsTypes";
+import type {
+  AuthorizedDatabasePath,
+  DatabasePathMode,
+  RecentDatabaseSettings,
+} from "./settingsTypes";
 
 export interface SettingsClient {
-  load(): Promise<PlatformResult<SettingsSnapshot>>;
-  save(request: SaveSettingsRequest): Promise<PlatformResult<SettingsSnapshot>>;
+  chooseDatabasePath(
+    mode: DatabasePathMode,
+  ): Promise<PlatformResult<AuthorizedDatabasePath | null>>;
+  listRecentDatabases(): Promise<PlatformResult<RecentDatabaseSettings>>;
 }

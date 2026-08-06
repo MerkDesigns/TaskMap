@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-list-recent-databases"
+description = "Enables the phase2_list_recent_databases command without any pre-configured scope."
+commands.allow = ["phase2_list_recent_databases"]
+
+[[permission]]
+identifier = "deny-phase2-list-recent-databases"
+description = "Denies the phase2_list_recent_databases command without any pre-configured scope."
+commands.deny = ["phase2_list_recent_databases"]

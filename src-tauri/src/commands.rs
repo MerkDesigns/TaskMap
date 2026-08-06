@@ -1,3 +1,11 @@
+#[cfg(feature = "phase2-development")]
+pub(crate) mod database_command_types;
+#[cfg(feature = "phase2-development")]
+pub(crate) mod database_commands;
+pub(crate) mod database_window_commands;
+#[cfg(feature = "phase2-development")]
+pub(crate) mod phase2_ipc;
+
 use crate::error::{command_result, CommandResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

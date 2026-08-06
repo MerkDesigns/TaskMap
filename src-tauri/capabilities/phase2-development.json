@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "phase2-development",
+  "description": "Development-edition-only Phase 2 encrypted database harness permissions",
+  "windows": ["main"],
+  "permissions": [
+    "allow-phase2-create-database",
+    "allow-phase2-open-database",
+    "allow-phase2-unlock-database",
+    "allow-phase2-confirm-unlock",
+    "allow-phase2-cancel-pending-unlock",
+    "allow-phase2-read-document",
+    "allow-phase2-save-document",
+    "allow-phase2-full-backup",
+    "allow-phase2-lock-database",
+    "allow-phase2-close-database",
+    "allow-phase2-quit-application",
+    "allow-phase2-get-session-status",
+    "allow-phase2-choose-database-path",
+    "allow-phase2-list-recent-databases"
+  ]
+}

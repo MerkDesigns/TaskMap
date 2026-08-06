@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-full-backup"
+description = "Enables the phase2_full_backup command without any pre-configured scope."
+commands.allow = ["phase2_full_backup"]
+
+[[permission]]
+identifier = "deny-phase2-full-backup"
+description = "Denies the phase2_full_backup command without any pre-configured scope."
+commands.deny = ["phase2_full_backup"]

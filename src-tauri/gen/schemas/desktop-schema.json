@@ -375,6 +375,90 @@
           "markdownDescription": "Enables the load_image command without any pre-configured scope."
         },
         {
+          "description": "Enables the phase2_cancel_pending_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-cancel-pending-unlock",
+          "markdownDescription": "Enables the phase2_cancel_pending_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_choose_database_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-choose-database-path",
+          "markdownDescription": "Enables the phase2_choose_database_path command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_close_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-close-database",
+          "markdownDescription": "Enables the phase2_close_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_confirm_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-confirm-unlock",
+          "markdownDescription": "Enables the phase2_confirm_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_create_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-create-database",
+          "markdownDescription": "Enables the phase2_create_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_full_backup command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-full-backup",
+          "markdownDescription": "Enables the phase2_full_backup command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_get_session_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-get-session-status",
+          "markdownDescription": "Enables the phase2_get_session_status command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_list_recent_databases command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-list-recent-databases",
+          "markdownDescription": "Enables the phase2_list_recent_databases command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_lock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-lock-database",
+          "markdownDescription": "Enables the phase2_lock_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_open_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-open-database",
+          "markdownDescription": "Enables the phase2_open_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_quit_application command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-quit-application",
+          "markdownDescription": "Enables the phase2_quit_application command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_read_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-read-document",
+          "markdownDescription": "Enables the phase2_read_document command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_save_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-save-document",
+          "markdownDescription": "Enables the phase2_save_document command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the phase2_unlock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-phase2-unlock-database",
+          "markdownDescription": "Enables the phase2_unlock_database command without any pre-configured scope."
+        },
+        {
           "description": "Enables the pick_command_working_directory command without any pre-configured scope.",
           "type": "string",
           "const": "allow-pick-command-working-directory",
@@ -457,6 +541,90 @@
           "type": "string",
           "const": "deny-load-image",
           "markdownDescription": "Denies the load_image command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_cancel_pending_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-cancel-pending-unlock",
+          "markdownDescription": "Denies the phase2_cancel_pending_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_choose_database_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-choose-database-path",
+          "markdownDescription": "Denies the phase2_choose_database_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_close_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-close-database",
+          "markdownDescription": "Denies the phase2_close_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_confirm_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-confirm-unlock",
+          "markdownDescription": "Denies the phase2_confirm_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_create_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-create-database",
+          "markdownDescription": "Denies the phase2_create_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_full_backup command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-full-backup",
+          "markdownDescription": "Denies the phase2_full_backup command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_get_session_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-get-session-status",
+          "markdownDescription": "Denies the phase2_get_session_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_list_recent_databases command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-list-recent-databases",
+          "markdownDescription": "Denies the phase2_list_recent_databases command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_lock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-lock-database",
+          "markdownDescription": "Denies the phase2_lock_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_open_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-open-database",
+          "markdownDescription": "Denies the phase2_open_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_quit_application command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-quit-application",
+          "markdownDescription": "Denies the phase2_quit_application command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_read_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-read-document",
+          "markdownDescription": "Denies the phase2_read_document command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_save_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-save-document",
+          "markdownDescription": "Denies the phase2_save_document command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the phase2_unlock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-phase2-unlock-database",
+          "markdownDescription": "Denies the phase2_unlock_database command without any pre-configured scope."
         },
         {
           "description": "Denies the pick_command_working_directory command without any pre-configured scope.",

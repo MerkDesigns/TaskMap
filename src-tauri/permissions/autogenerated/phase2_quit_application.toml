@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-quit-application"
+description = "Enables the phase2_quit_application command without any pre-configured scope."
+commands.allow = ["phase2_quit_application"]
+
+[[permission]]
+identifier = "deny-phase2-quit-application"
+description = "Denies the phase2_quit_application command without any pre-configured scope."
+commands.deny = ["phase2_quit_application"]

@@ -10,6 +10,10 @@ vi.mock("../legacy/LegacyApplication", () => ({
   LegacyApplication: () => <div>Legacy application boundary</div>,
 }));
 
+vi.mock("../features/phase2-database/DevelopmentPhase2Entry", () => ({
+  DevelopmentPhase2Entry: () => null,
+}));
+
 afterEach(cleanup);
 
 describe("AppShell", () => {

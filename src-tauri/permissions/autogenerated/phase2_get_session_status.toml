@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-phase2-get-session-status"
+description = "Enables the phase2_get_session_status command without any pre-configured scope."
+commands.allow = ["phase2_get_session_status"]
+
+[[permission]]
+identifier = "deny-phase2-get-session-status"
+description = "Denies the phase2_get_session_status command without any pre-configured scope."
+commands.deny = ["phase2_get_session_status"]

@@ -1,18 +1,13 @@
 export type ApplicationEdition = "stable" | "development";
+export type DatabasePathMode = "create" | "open" | "full_backup";
 
-export interface ApplicationSettings {
+export interface AuthorizedDatabasePath {
+  readonly authorizationToken: string;
+  readonly displayPath: string;
+}
+
+export interface RecentDatabaseSettings {
+  readonly version: number;
   readonly edition: ApplicationEdition;
-  readonly recentDatabasePaths: readonly string[];
-  readonly updateChecksEnabled: boolean;
-  readonly inactivityLockMinutes: number | null;
-}
-
-export interface SettingsSnapshot {
-  readonly revision: number;
-  readonly settings: ApplicationSettings;
-}
-
-export interface SaveSettingsRequest {
-  readonly expectedRevision: number;
-  readonly settings: ApplicationSettings;
+  readonly recentDatabases: readonly AuthorizedDatabasePath[];
 }

@@ -1,17 +1,27 @@
 export type PlatformErrorCode =
+  | "already_exists"
+  | "file_not_found"
+  | "permission_denied"
+  | "writer_lock_contention"
+  | "unsupported_database_format"
+  | "corrupt_database"
+  | "wrong_password"
+  | "invalid_document_payload"
+  | "invalid_input"
+  | "database_purpose_mismatch"
+  | "session_locked"
+  | "session_not_open"
+  | "session_already_open"
+  | "revision_conflict"
+  | "save_failure"
+  | "backup_failure"
   | "cancelled"
-  | "not-found"
-  | "permission-denied"
-  | "conflict"
-  | "invalid-request"
-  | "unavailable"
   | "unexpected";
 
 export interface PlatformError {
   readonly code: PlatformErrorCode;
   readonly message: string;
   readonly retryable: boolean;
-  readonly details?: Readonly<Record<string, unknown>>;
 }
 
 export type PlatformResult<Value> =
