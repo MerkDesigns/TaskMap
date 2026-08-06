@@ -19,8 +19,17 @@
     "format:check": "prettier --check . --ignore-path config/prettierignore",
     "test": "vitest run --config config/vite.config.ts",
     "test:watch": "vitest --config config/vite.config.ts",
+    "app:dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "app:stable": "tauri dev",
+    "bundle:dev": "tauri build --config src-tauri/tauri.dev.conf.json",
+    "bundle:stable": "tauri build",
+    "architecture:check": "node scripts/check-architecture.mjs",
+    "codemap": "node scripts/generate-codemap.mjs",
+    "codemap:check": "node scripts/generate-codemap.mjs --check",
+    "filesizes": "node scripts/report-file-sizes.mjs",
+    "fixtures:baseline": "node scripts/generate-baseline-fixtures.mjs",
     "check:version": "node scripts/check-version.mjs",
-    "check": "npm run check:version && npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build",
+    "check": "npm run check:version && npm run format:check && npm run typecheck && npm run lint && npm run test && npm run architecture:check && npm run build",
     "tauri": "tauri"
   },
   "dependencies": {
