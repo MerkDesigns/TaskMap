@@ -38,7 +38,7 @@ These paths are created during the roadmap and become the only approved ownershi
 
 ### `src/app/`
 
-Application composition, Redux store setup, command dispatch, selectors, and lifecycle coordination. `AppShell.tsx` remains thin. Phase 1 wires `AppShell.tsx` and `AppProviders.tsx` to the temporary `src/legacy/LegacyApplication.tsx` boundary; the older files already under `src/app/` remain legacy behavior references.
+Application composition, Redux store setup, transient interaction access, command dispatch, selectors, error reporting, and lifecycle coordination. `AppShell.tsx` remains thin. Phase 1 keeps the temporary `src/legacy/LegacyApplication.tsx` adapter outside the new-architecture error boundary, while `AppProviders.tsx` composes Redux and transient interaction providers for new features; the older files already under `src/app/` remain legacy behavior references.
 
 ### `src/domain/`
 
@@ -71,6 +71,9 @@ Typed frontend boundary for database, media, settings, and structured workflow o
 Shared presentation primitives. `src/ui/materials/FrostedSurface.tsx` fixes the current production material tokens behind one reusable root class. Legacy surfaces remain unchanged until later parity-covered ports.
 
 ## Phase 1 architecture foundation
+
+- `src/app/interactions/` - read-only transient interaction snapshot/subscription contract, idle default, provider, and typed hooks; no legacy pointer behavior is moved.
+- `src/app/errors/` - typed new-architecture render-failure reporting and deterministic error boundary; legacy errors remain outside it.
 
 - `src/app/AppShell.tsx`, `AppProviders.tsx`, `store.ts`, and `hooks.ts` — composition-only shell and typed Redux access.
 - `src/app/commands/` and `src/app/selectors/` — named command dispatch and selector boundaries.
@@ -163,7 +166,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 
 | File                                                           | Lines | Responsibility                                                                |
 | -------------------------------------------------------------- | ----: | ----------------------------------------------------------------------------- |
-| `scripts/check-architecture.mjs`                               |   234 | Repository maintenance script                                                 |
+| `scripts/check-architecture.mjs`                               |   236 | Repository maintenance script                                                 |
 | `scripts/check-phase2-production-exclusion.mjs`                |    62 | Repository maintenance script                                                 |
 | `scripts/check-version.mjs`                                    |    56 | Repository maintenance script                                                 |
 | `scripts/generate-baseline-fixtures.mjs`                       |   115 | Repository maintenance script                                                 |
@@ -214,9 +217,9 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/appData.test.ts`                                      |   355 | Tests for the adjacent module                                                 |
 | `src/app/appData.ts`                                           |   299 | TypeScript application module                                                 |
 | `src/app/appDataSchema.ts`                                     |   274 | TypeScript application module                                                 |
-| `src/app/AppProviders.tsx`                                     |    13 | React component or typed UI module                                            |
-| `src/app/AppShell.test.tsx`                                    |    43 | Tests for the adjacent module                                                 |
-| `src/app/AppShell.tsx`                                         |    26 | React component or typed UI module                                            |
+| `src/app/AppProviders.tsx`                                     |    28 | React component or typed UI module                                            |
+| `src/app/AppShell.test.tsx`                                    |    65 | Tests for the adjacent module                                                 |
+| `src/app/AppShell.tsx`                                         |    32 | React component or typed UI module                                            |
 | `src/app/canvasDocument.test.ts`                               |   122 | Tests for the adjacent module                                                 |
 | `src/app/canvasDocument.ts`                                    |    80 | TypeScript application module                                                 |
 | `src/app/commandError.test.ts`                                 |    24 | Tests for the adjacent module                                                 |
@@ -224,9 +227,17 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/commands/commandDispatcher.ts`                        |    31 | TypeScript application module                                                 |
 | `src/app/commands/commandTypes.ts`                             |    14 | TypeScript application module                                                 |
 | `src/app/defaultData.ts`                                       |    36 | TypeScript application module                                                 |
+| `src/app/errors/ApplicationErrorBoundary.test.tsx`             |    62 | Tests for the adjacent module                                                 |
+| `src/app/errors/ApplicationErrorBoundary.tsx`                  |    44 | React component or typed UI module                                            |
+| `src/app/errors/applicationErrorReporter.test.ts`              |    24 | Tests for the adjacent module                                                 |
+| `src/app/errors/applicationErrorReporter.ts`                   |    27 | Deliberately omit the error message, stack, and component data: they may      |
 | `src/app/history.test.ts`                                      |   161 | Tests for the adjacent module                                                 |
 | `src/app/history.ts`                                           |    88 | TypeScript application module                                                 |
 | `src/app/hooks.ts`                                             |     6 | TypeScript application module                                                 |
+| `src/app/interactions/TransientInteractionProvider.test.tsx`   |    68 | Tests for the adjacent module                                                 |
+| `src/app/interactions/TransientInteractionProvider.tsx`        |    26 | React component or typed UI module                                            |
+| `src/app/interactions/transientInteractionService.ts`          |    32 | TypeScript application module                                                 |
+| `src/app/interactions/useTransientInteraction.ts`              |    20 | TypeScript application module                                                 |
 | `src/app/selectors/applicationSelectors.ts`                    |     5 | TypeScript application module                                                 |
 | `src/app/store.ts`                                             |    30 | TypeScript application module                                                 |
 | `src/app/windowCloseCoordinator.ts`                            |    15 | TypeScript application module                                                 |

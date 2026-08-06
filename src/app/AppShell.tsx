@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react";
 import { LegacyApplication } from "../legacy/LegacyApplication";
 import { AppProviders } from "./AppProviders";
+import { ApplicationErrorBoundary } from "./errors/ApplicationErrorBoundary";
+import { defaultApplicationErrorReporter } from "./errors/applicationErrorReporter";
 import { runWindowCloseGuard } from "./windowCloseCoordinator";
 
 const DevelopmentPhase2Entry =
@@ -13,13 +15,17 @@ const DevelopmentPhase2Entry =
 
 export default function AppShell() {
   return (
-    <AppProviders>
+    <>
       <LegacyApplication onBeforeClose={runWindowCloseGuard} />
-      {DevelopmentPhase2Entry ? (
-        <Suspense fallback={null}>
-          <DevelopmentPhase2Entry enabled />
-        </Suspense>
-      ) : null}
-    </AppProviders>
+      <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
+        <AppProviders>
+          {DevelopmentPhase2Entry ? (
+            <Suspense fallback={null}>
+              <DevelopmentPhase2Entry enabled />
+            </Suspense>
+          ) : null}
+        </AppProviders>
+      </ApplicationErrorBoundary>
+    </>
   );
 }

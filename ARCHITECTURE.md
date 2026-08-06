@@ -174,9 +174,17 @@ The interaction subsystem owns:
 
 It does not write Redux on every pointer frame. It publishes an interaction preview through a narrow subscription API and dispatches one domain command at completion.
 
+The application-facing transient interaction service is read-only: consumers call `getSnapshot` and `subscribe`. The interaction controller introduced in Phase 4 will own writes. The Phase 1 default always returns an idle snapshot and exists only to establish provider and dependency boundaries; it contains no document state and does not replace legacy interaction behavior.
+
 ### Local component state
 
 Components may own ephemeral presentation details such as an open local submenu or an input draft when no other subsystem needs it. Component state must not become the source of truth for document content.
+
+## Application failure boundary
+
+New providers and feature architecture render inside an application error boundary with a typed reporting contract and a deterministic, non-sensitive fallback. The default reporter logs only a failure classification, never the error message, stack, component stack, or document content.
+
+While the legacy application remains active, `LegacyApplication` is a sibling outside this boundary. Errors thrown inside its component tree therefore continue to propagate according to the existing legacy behavior. The boundary moves outward only as a feature is deliberately ported into the new architecture.
 
 ## Application commands
 

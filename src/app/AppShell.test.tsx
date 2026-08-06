@@ -6,15 +6,24 @@ import AppShell from "./AppShell";
 import { selectActiveApplicationBoundary } from "./selectors/applicationSelectors";
 import { createAppStore } from "./store";
 
+const legacyTestState = vi.hoisted(() => ({ shouldFail: false }));
+
 vi.mock("../legacy/LegacyApplication", () => ({
-  LegacyApplication: () => <div>Legacy application boundary</div>,
+  LegacyApplication: () => {
+    if (legacyTestState.shouldFail) throw new Error("Legacy render failure");
+    return <div>Legacy application boundary</div>;
+  },
 }));
 
 vi.mock("../features/phase2-database/DevelopmentPhase2Entry", () => ({
   DevelopmentPhase2Entry: () => null,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  legacyTestState.shouldFail = false;
+  vi.restoreAllMocks();
+});
 
 describe("AppShell", () => {
   it("renders the temporary legacy application boundary", () => {
@@ -38,5 +47,18 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByText("legacy")).toBeInTheDocument();
+  });
+
+  it("does not intercept errors from inside LegacyApplication", () => {
+    legacyTestState.shouldFail = true;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const preventExpectedError = (event: ErrorEvent) => event.preventDefault();
+    window.addEventListener("error", preventExpectedError);
+
+    try {
+      expect(() => render(<AppShell />)).toThrow("Legacy render failure");
+    } finally {
+      window.removeEventListener("error", preventExpectedError);
+    }
   });
 });

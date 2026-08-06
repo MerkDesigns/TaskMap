@@ -13,7 +13,11 @@ Redux Toolkit is the application state foundation. It provides a conventional st
 
 High-frequency interaction state will remain outside Redux. Pointer samples, drag and resize previews, selection rectangles, snap guides, and other per-frame state belong to a dedicated interaction subsystem. That subsystem will publish transient previews and dispatch one named domain command when an interaction completes, avoiding Redux updates, serialization, persistence, or history entries on pointer frames.
 
-The current `App.tsx` remains active behind `LegacyApplication`. `AppShell` only composes `AppProviders` and that temporary adapter. This preserves the legacy DOM and feature behavior while creating the final entrypoint and provider boundary; feature logic will move only through later parity-tested vertical slices.
+The application-facing interaction contract exposes only a current snapshot and subscription. The Phase 1 provider supplies an idle default and permits an injected implementation; mutation remains private to the future Phase 4 controller.
+
+The current `App.tsx` remains active behind `LegacyApplication`. `AppShell` only composes the temporary adapter and an error-guarded new-architecture provider tree. `LegacyApplication` remains outside the new error boundary so its component errors are not deliberately intercepted. This preserves the legacy DOM and feature behavior while creating the final entrypoint and provider boundary; feature logic will move only through later parity-tested vertical slices.
+
+New providers and features report otherwise-unhandled React render failures through one typed application contract. The default reporter emits only a non-sensitive classification, and the fallback contains no error internals. There is no automatic reload, storage, session, or toast side effect.
 
 TypeScript owns the decrypted current-version document schema and domain invariants. The application needs those types directly for commands, selectors, element modules, extension modules, and history. Later Rust storage code will validate the database and encryption envelope while treating the encrypted document payload as opaque bytes, avoiding a second domain schema with divergent rules.
 
@@ -23,6 +27,7 @@ Typed platform interfaces are introduced before backend implementation. Applicat
 
 - The Redux store initially contains only shell-level state; document state and history arrive in later phases.
 - Transient interaction state cannot be placed in Redux merely for convenience.
+- New-architecture render failures are isolated without changing active legacy error propagation.
 - New frontend Tauri imports are restricted to `src/platform/`; the architecture checker explicitly allow-lists existing legacy imports until their owning features are ported.
 - The architecture element and extension registries are explicit and initially empty, so importing them has no registration side effects.
 - `FrostedSurface` is available for later ports but does not replace legacy surfaces during Phase 1.

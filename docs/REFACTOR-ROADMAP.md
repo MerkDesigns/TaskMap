@@ -47,8 +47,8 @@
 - [x] Implement `FrostedSurface` using fixed values from the existing production visual treatment.
 - [x] Create explicit, initially empty element and architecture extension registries.
 - [x] Add structured platform errors.
-- [ ] Add the transient interaction service interface; no pointer behavior is moved in this skeleton change.
-- [ ] Add application error boundaries without changing the active legacy error behavior.
+- [x] Add the transient interaction service interface; no pointer behavior is moved in this skeleton change.
+- [x] Add application error boundaries without changing the active legacy error behavior.
 
 ### Exit criteria
 
@@ -57,7 +57,7 @@
 - [x] Architecture checks prevent new Tauri imports outside `src/platform/`; named legacy imports remain temporarily allow-listed.
 - [x] The new shell builds under the existing stable and development identities while rendering the unchanged legacy application boundary.
 
-The requested Phase 1 skeleton is implemented without porting features or replacing the legacy UI. The broader roadmap phase remains open while the two unchecked work items above are unresolved.
+Phase 1 is complete. The skeleton establishes the provider, command, selector, domain, platform, registry, transient-interaction, presentation, and error-reporting boundaries without porting features or replacing the legacy UI. Focused tests prove the new error boundary does not deliberately intercept errors inside `LegacyApplication`.
 
 ## Phase 2 — Database, encryption, and session vertical slice
 

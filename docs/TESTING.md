@@ -157,6 +157,10 @@ CI must fail when:
 - A file exceeds the configured review threshold without allow-list documentation
 - A second backdrop-filter implementation appears outside `FrostedSurface`
 
+### Phase 1 skeleton coverage
+
+TypeScript component tests cover the transient interaction provider's idle default, injected service, and external-store subscription updates. Error-boundary tests cover unchanged successful rendering, deterministic fallback rendering, typed failure reporting, omission of error internals from the default console report, and propagation of errors thrown inside `LegacyApplication` outside the new-architecture boundary.
+
 ## Phase gates
 
 Every roadmap phase has explicit exit criteria. A phase is not complete until:

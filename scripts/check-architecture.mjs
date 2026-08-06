@@ -150,6 +150,8 @@ for (const file of targetFiles) {
       "../features/phase2-database/DevelopmentPhase2Entry",
       "../legacy/LegacyApplication",
       "./AppProviders",
+      "./errors/ApplicationErrorBoundary",
+      "./errors/applicationErrorReporter",
       "./windowCloseCoordinator",
     ]);
     for (const specifier of importSpecifiers(source)) {
