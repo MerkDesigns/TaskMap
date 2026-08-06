@@ -17,6 +17,29 @@ string/collection limits, extension target references, and the separation betwee
 semantic validation. Existing Phase 2 codec and lifecycle tests continue to exercise the same domain
 boundary with canonical Phase 3A fixture documents.
 
+### Phase 3B implemented coverage
+
+Pure Node-environment tests cover explicit handler registration and duplicate rejection, unknown
+commands, strict runtime payload validation, JSON safety without getter invocation, atomic handler
+and invariant failures, input and payload immutability, injected transaction identity/time, static
+non-sensitive labels, forward/inverse Immer patches, no-ops, and explicit history-ignore behavior.
+
+The generic current-version command suite covers canvas creation/rename/settings/activation/order
+and deterministic removal; element insertion/geometry/data/order/removal; same-canvas connection
+insertion/data/removal; media-reference registration/allowed metadata/removal; extension
+installation/enabled state/configuration/removal; and supported document settings. Destructive tests
+verify that canvas removal cascades only to its normalized elements, connections, and canvas/element
+extension targets, while element removal cascades only to endpoint connections and element-targeted
+extension installations.
+
+History tests cover empty state, recording, multi-step undo/redo, future invalidation, no-op and
+ignored-command behavior, optional injected capacity, clearing, unrelated ignored-field
+preservation, empty/mismatched transactions, bidirectional round-trip compatibility, and fail-closed
+corrupt/incompatible patches without serialization. A deterministic 10,000-element test
+updates one element, asserts there is no JSON serialization, and verifies that the transaction
+contains localized patches rather than document snapshots; it deliberately has no fragile
+wall-clock threshold.
+
 ### Component tests
 
 Cover element renderers, extension controls, menus, edit sessions, focus behavior, and accessibility with platform clients mocked.

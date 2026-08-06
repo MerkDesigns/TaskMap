@@ -1,30 +1,17 @@
-import type { CommandResult } from "../../domain/commands/commandResult";
-import type {
-  ApplicationCommand,
-  ApplicationCommandHandler,
-  CommandDispatcher,
-} from "./commandTypes";
+import { executeDocumentCommand } from "../../domain/commands/executeDocumentCommand";
+import type { TransactionDependencies } from "../../domain/commands/executeDocumentCommand";
+import { createCommandHandlerRegistry } from "../../domain/commands/commandRegistry";
+import type { TaskMapDocument } from "../../domain/document/documentTypes";
+import type { ApplicationCommandHandler, CommandDispatcher } from "./commandTypes";
 
-export function createCommandDispatcher<Document>(
-  handlers: Readonly<Record<string, ApplicationCommandHandler<Document>>>,
-): CommandDispatcher<Document> {
+export function createCommandDispatcher(
+  handlers: readonly ApplicationCommandHandler[],
+  dependencies: TransactionDependencies,
+): CommandDispatcher {
+  const registry = createCommandHandlerRegistry(handlers);
   return {
-    dispatch(command: ApplicationCommand, document: Document): CommandResult<Document> {
-      const handler = handlers[command.type];
-      if (!handler) {
-        return {
-          ok: false,
-          issues: [
-            {
-              code: "unknown-command",
-              path: "command.type",
-              message: `No handler is registered for ${command.type}`,
-            },
-          ],
-        };
-      }
-
-      return handler(command, document);
+    dispatch(command: unknown, document: TaskMapDocument) {
+      return executeDocumentCommand(registry, dependencies, command, document);
     },
   };
 }

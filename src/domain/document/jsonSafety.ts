@@ -155,5 +155,17 @@ function isPlainObject(value: object): value is Record<string, unknown> {
 }
 
 function joinPath(parent: string, key: string): string {
-  return /^[A-Za-z_$][\w$]*$/.test(key) ? `${parent}.${key}` : `${parent}[${JSON.stringify(key)}]`;
+  return /^[A-Za-z_$][\w$]*$/.test(key) ? `${parent}.${key}` : `${parent}["${escapePathKey(key)}"]`;
+}
+
+function escapePathKey(key: string): string {
+  let escaped = "";
+  for (const character of key) {
+    if (character === "\\") escaped += "\\\\";
+    else if (character === '"') escaped += '\\"';
+    else if (character.charCodeAt(0) <= 0x1f) {
+      escaped += `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
+    } else escaped += character;
+  }
+  return escaped;
 }

@@ -67,6 +67,11 @@ The schema intentionally contains no document timestamps or legacy migration fie
 recent database paths, theme/update choices, inactivity settings, viewport interaction state, and
 other application/device/session preferences remain outside the decrypted document.
 
+Undo/redo history is session-only application state and is not serialized into the decrypted
+document or any SQLite table. History entries contain only in-memory Immer forward/inverse patches
+plus non-sensitive transaction metadata. Durable history would require a later explicit
+architecture decision.
+
 Structural parsing enforces exact fields, scalar shapes, ID formats, JSON safety, and conservative
 limits. Semantic validation then checks normalized keys, ordering completeness and uniqueness,
 active-canvas validity, ownership, connection locality, and extension target references. No legacy

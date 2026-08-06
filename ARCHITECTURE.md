@@ -219,9 +219,22 @@ DeleteCanvas
 UpdateCanvas
 ```
 
-A command handler validates invariants, produces the next document state, emits Immer patches and inverse patches, marks the document dirty, and exposes a user-facing history label.
+A command handler declares a runtime payload schema, a static non-sensitive label, and an explicit
+history policy, then describes one mutation against an Immer draft. An explicitly composed handler
+registry rejects duplicate stable command identifiers and remains extensible without a central
+feature-command union or global registration side effects.
+
+The central domain executor validates the plain-data command, captures forward and inverse Immer
+patches, validates the complete candidate document, and constructs at most one transaction using an
+injected transaction-ID source and clock. Expected failures return typed issues and the original
+document; zero-patch commands return no transaction. Dirty tracking belongs to Phase 3C application
+orchestration, not handlers or the Phase 3B domain executor.
 
 React components dispatch commands; they do not directly update arrays or entity maps.
+Command execution is only for committed persistent operations. Pointer-frame pan, zoom, drag,
+resize, hover, and selection previews stay in the transient interaction subsystem; a future
+completed drag or resize dispatches one final geometry command and therefore creates one history
+entry.
 
 ## History
 
@@ -243,6 +256,10 @@ Rules:
 - Text editing commits according to an explicit edit transaction, not each keystroke.
 - Pan, zoom, selection, hover, menus, and visibility changes are excluded.
 - History is in memory for the active session unless a later ADR explicitly adds durable history.
+- Undo applies inverse patches and moves one entry from past to future; redo applies forward patches
+  and moves it back. Both fail closed if patches cannot produce a valid current-version document.
+- A recorded branch clears redo history. Zero-patch and explicitly ignored commands do not alter
+  history.
 - Autosave follows undo and redo like any other document transaction.
 
 ## Persistence and database

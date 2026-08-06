@@ -1,14 +1,22 @@
+import { asEntityId } from "../ids/entityIds";
+
 export const TEST_IDS = Object.freeze({
-  document: "document-00000000-0000-4000-8000-000000000001",
-  database: "database-00000000-0000-4000-8000-000000000002",
-  canvasA: "canvas-00000000-0000-4000-8000-000000000003",
-  canvasB: "canvas-00000000-0000-4000-8000-000000000004",
-  elementA: "element-00000000-0000-4000-8000-000000000005",
-  elementB: "element-00000000-0000-4000-8000-000000000006",
-  connection: "connection-00000000-0000-4000-8000-000000000007",
-  extensionA: "extension-instance-00000000-0000-4000-8000-000000000008",
-  extensionB: "extension-instance-00000000-0000-4000-8000-000000000009",
-  media: "abcdefghijklmnopqrstuvwx",
+  document: asEntityId("document", "document-00000000-0000-4000-8000-000000000001"),
+  database: asEntityId("database", "database-00000000-0000-4000-8000-000000000002"),
+  canvasA: asEntityId("canvas", "canvas-00000000-0000-4000-8000-000000000003"),
+  canvasB: asEntityId("canvas", "canvas-00000000-0000-4000-8000-000000000004"),
+  elementA: asEntityId("element", "element-00000000-0000-4000-8000-000000000005"),
+  elementB: asEntityId("element", "element-00000000-0000-4000-8000-000000000006"),
+  connection: asEntityId("connection", "connection-00000000-0000-4000-8000-000000000007"),
+  extensionA: asEntityId(
+    "extension-instance",
+    "extension-instance-00000000-0000-4000-8000-000000000008",
+  ),
+  extensionB: asEntityId(
+    "extension-instance",
+    "extension-instance-00000000-0000-4000-8000-000000000009",
+  ),
+  media: asEntityId("media", "abcdefghijklmnopqrstuvwx"),
 });
 
 interface TestCanvasInput {

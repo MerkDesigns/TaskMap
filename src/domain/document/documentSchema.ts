@@ -7,16 +7,16 @@ import { inspectJsonSafety } from "./jsonSafety";
 
 export { CURRENT_DOCUMENT_SCHEMA_VERSION } from "./documentVersion";
 
-const entityIdSchema = <Kind extends EntityIdKind>(kind: Kind) =>
+export const entityIdSchema = <Kind extends EntityIdKind>(kind: Kind) =>
   z.string().refine((value): value is EntityId<Kind> => isEntityId(kind, value), {
     message: `Invalid ${kind} ID`,
   });
 
 const canvasIdSchema = entityIdSchema("canvas");
 const elementIdSchema = entityIdSchema("element");
-const finiteNumber = z.number().finite();
+export const finiteNumberSchema = z.number().finite();
 const positiveInteger = z.number().int().positive();
-const moduleIdSchema = z
+export const moduleIdSchema = z
   .string()
   .min(1)
   .max(DOCUMENT_LIMITS.typeIdentifierLength)
@@ -26,50 +26,50 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([
     z.null(),
     z.boolean(),
-    finiteNumber,
+    finiteNumberSchema,
     z.string().max(DOCUMENT_LIMITS.jsonStringLength),
     z.array(jsonValueSchema).max(DOCUMENT_LIMITS.jsonArrayLength),
     z.record(z.string().max(DOCUMENT_LIMITS.jsonStringLength), jsonValueSchema),
   ]),
 );
-const jsonObjectSchema: z.ZodType<JsonObject> = z.record(
+export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(
   z.string().max(DOCUMENT_LIMITS.jsonStringLength),
   jsonValueSchema,
 );
 
-const canvasSchema = z
+export const canvasRecordSchema = z
   .object({
     id: canvasIdSchema,
     name: z.string().min(1).max(DOCUMENT_LIMITS.canvasNameLength),
     settings: z
       .object({
-        width: finiteNumber.positive().max(DOCUMENT_LIMITS.canvasDimension),
-        height: finiteNumber.positive().max(DOCUMENT_LIMITS.canvasDimension),
+        width: finiteNumberSchema.positive().max(DOCUMENT_LIMITS.canvasDimension),
+        height: finiteNumberSchema.positive().max(DOCUMENT_LIMITS.canvasDimension),
       })
       .strict(),
     elementOrder: z.array(elementIdSchema).max(DOCUMENT_LIMITS.elementCount),
   })
   .strict();
 
-const geometrySchema = z
+export const elementGeometrySchema = z
   .object({
-    x: finiteNumber
+    x: finiteNumberSchema
       .min(-DOCUMENT_LIMITS.elementCoordinateMagnitude)
       .max(DOCUMENT_LIMITS.elementCoordinateMagnitude),
-    y: finiteNumber
+    y: finiteNumberSchema
       .min(-DOCUMENT_LIMITS.elementCoordinateMagnitude)
       .max(DOCUMENT_LIMITS.elementCoordinateMagnitude),
-    width: finiteNumber.positive().max(DOCUMENT_LIMITS.elementDimension),
-    height: finiteNumber.positive().max(DOCUMENT_LIMITS.elementDimension),
+    width: finiteNumberSchema.positive().max(DOCUMENT_LIMITS.elementDimension),
+    height: finiteNumberSchema.positive().max(DOCUMENT_LIMITS.elementDimension),
   })
   .strict();
 
-const elementSchema = z
+export const documentElementSchema = z
   .object({
     id: elementIdSchema,
     canvasId: canvasIdSchema,
     type: moduleIdSchema,
-    geometry: geometrySchema,
+    geometry: elementGeometrySchema,
     data: jsonObjectSchema,
   })
   .strict();
@@ -81,7 +81,7 @@ const endpointSchema = z
   })
   .strict();
 
-const connectionSchema = z
+export const documentConnectionSchema = z
   .object({
     id: entityIdSchema("connection"),
     canvasId: canvasIdSchema,
@@ -92,7 +92,7 @@ const connectionSchema = z
   })
   .strict();
 
-const mediaReferenceSchema = z
+export const mediaReferenceSchema = z
   .object({
     id: entityIdSchema("media"),
     mimeType: z
@@ -107,13 +107,13 @@ const mediaReferenceSchema = z
   })
   .strict();
 
-const extensionTargetSchema = z.discriminatedUnion("kind", [
+export const extensionTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("document"), documentId: entityIdSchema("document") }).strict(),
   z.object({ kind: z.literal("canvas"), canvasId: canvasIdSchema }).strict(),
   z.object({ kind: z.literal("element"), elementId: elementIdSchema }).strict(),
 ]);
 
-const extensionInstallationSchema = z
+export const extensionInstallationSchema = z
   .object({
     id: entityIdSchema("extension-instance"),
     extensionId: entityIdSchema("extension"),
@@ -123,13 +123,16 @@ const extensionInstallationSchema = z
   })
   .strict();
 
-const documentSettingsSchema = z
+export const documentSettingsSchema = z
   .object({
     grid: z
       .object({
         style: z.enum(["dots", "lines"]),
         opacityPercent: z
-          .object({ dots: finiteNumber.min(0).max(100), lines: finiteNumber.min(0).max(100) })
+          .object({
+            dots: finiteNumberSchema.min(0).max(100),
+            lines: finiteNumberSchema.min(0).max(100),
+          })
           .strict(),
       })
       .strict(),
@@ -147,9 +150,9 @@ export const taskMapDocumentSchema = z
     databasePurpose: z.enum(["production", "development"]),
     activeCanvasId: canvasIdSchema.nullable(),
     canvasOrder: z.array(canvasIdSchema).max(DOCUMENT_LIMITS.canvasCount),
-    canvases: limitedRecord(canvasSchema, DOCUMENT_LIMITS.canvasCount),
-    elements: limitedRecord(elementSchema, DOCUMENT_LIMITS.elementCount),
-    connections: limitedRecord(connectionSchema, DOCUMENT_LIMITS.connectionCount),
+    canvases: limitedRecord(canvasRecordSchema, DOCUMENT_LIMITS.canvasCount),
+    elements: limitedRecord(documentElementSchema, DOCUMENT_LIMITS.elementCount),
+    connections: limitedRecord(documentConnectionSchema, DOCUMENT_LIMITS.connectionCount),
     mediaReferences: limitedRecord(mediaReferenceSchema, DOCUMENT_LIMITS.mediaReferenceCount),
     extensionInstallations: limitedRecord(
       extensionInstallationSchema,

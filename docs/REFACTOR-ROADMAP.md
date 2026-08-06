@@ -120,18 +120,20 @@ Phase 2 exit criteria are complete. Production tray UX, native Windows session-l
 - [x] Implement canvases, normalized element entities, connections, media references, extension
       installations, document settings, conservative limits, and current-version validation (Phase
       3A).
-- Implement named application commands.
-- Implement Immer patch history.
+- [x] Implement named application commands (Phase 3B).
+- [x] Implement atomic Immer patch transactions, undo, and redo (Phase 3B).
 - Implement dirty tracking and debounced persistence.
 
-Phase 3A is complete. Phase 3 remains open: command execution, transaction history, dirty tracking,
-debounced persistence, and their phase exit criteria belong to Phases 3B and 3C.
+Phases 3A and 3B are complete. Phase 3 remains open: dirty tracking, persistence coordination,
+debounced saves, revision handling, and the remaining persistence-specific exit criteria belong to
+Phase 3C. Phase 3B does not activate the normalized document or history engine in Redux or the
+production UI.
 
 ### Exit criteria
 
-- Domain tests cover invariants and command behavior.
-- One interaction creates one history entry.
-- Pan, zoom, selection, and menus do not enter history.
+- [x] Domain tests cover current-version invariants and Phase 3B generic command behavior.
+- [x] One committed geometry command creates one history entry; interaction wiring remains Phase 4.
+- [x] Pan, zoom, selection, and menus are excluded from the document command/history API.
 - Saving does not block synthetic interaction tests.
 
 ## Phase 4 — Canvas and interaction engine
