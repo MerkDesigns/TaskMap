@@ -12,6 +12,7 @@ This file is the high-level navigation entrypoint for Codex and human contributo
 - `docs/DATA-FORMAT.md` — New `.tmapdb` SQLite envelope and encrypted document model.
 - `docs/SECURITY.md` — Password, key, lock, media privacy, logging, and workflow security.
 - `docs/TESTING.md` — Test layers, fixtures, performance budgets, and phase gates.
+- `docs/BASELINE-CAPTURE.md` — Required screenshots, recordings, behavior descriptions, and performance evidence for retained legacy behavior.
 
 ## Current legacy implementation
 
@@ -97,6 +98,15 @@ Database writer locks and transactionally safe file operations.
 
 Edition-specific external application configuration import/export and persistence.
 
+## Phase 0 tooling
+
+- `src-tauri/tauri.dev.conf.json` — Development-edition identity override for running beside the stable app.
+- `scripts/check-architecture.mjs` — Enforces dependency boundaries for new architecture directories.
+- `scripts/report-file-sizes.mjs` — Reports source files above the 250-line target and 400-line review threshold.
+- `scripts/generate-codemap.mjs` — Generates the detailed repository inventory below.
+- `scripts/generate-baseline-fixtures.mjs` — Produces deterministic 40, 2,000, and 10,000-element documents.
+- `fixtures/baseline/` — Generated performance and behavior fixtures; regenerate rather than editing manually.
+
 ## Tools
 
 ### `tools/taskmap-migrator/`
@@ -113,6 +123,12 @@ Standalone graphical converter from the legacy database/keyring format to the ne
 6. Do not scan all components or all domain files unless the task genuinely crosses their contracts.
 7. Update this file when ownership or paths change.
 
-## Planned generated section
+## Generated inventory
 
-Phase 0 adds a script that generates a detailed inventory below this heading with file path, responsibility, public exports, approximate line count, and dependency classification. The generated section must not replace the manually maintained ownership map above.
+Run `npm run codemap` after adding, moving, or deleting source files. CI can verify the generated section with `npm run codemap:check` after the first inventory has been committed.
+
+<!-- GENERATED-INVENTORY:START -->
+
+The detailed inventory has not been generated in the connector environment yet. Run `npm run codemap` in a local checkout.
+
+<!-- GENERATED-INVENTORY:END -->
