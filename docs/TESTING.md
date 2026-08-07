@@ -40,6 +40,27 @@ updates one element, asserts there is no JSON serialization, and verifies that t
 contains localized patches rather than document snapshots; it deliberately has no fragile
 wall-clock threshold.
 
+### Phase 3C implemented coverage
+
+Node-environment application integration tests cover atomic validated workspace load/replacement/
+clear, revision bounds, epoch advancement, clean sequence initialization, command no-op/failure
+preservation, recordable and ignored-history changes, injected transaction identity/time, input
+immutability, and atomic undo/redo including fail-closed history application and preservation of
+unrelated ignored fields.
+
+A controllable scheduler proves the named 350 ms default, one-timer debounce coalescing, no save or
+encoding before timeout, latest-document capture, cancellation, and explicit flush without
+wall-clock assertions. Controllable promises cover one in-flight save, synchronous commands during
+unresolved database work, sequence-specific acknowledgment, revision 4 -> 5 -> 6 follow-up saves,
+and final cleanliness only after the newest sequence is persisted.
+
+Failure tests cover encoder rejection without a database call, retryable save/session failures,
+explicit retry against the latest document and acknowledged revision, mutation after a non-conflict
+failure, sanitized error state, and revision conflicts that preserve edits/history while blocking
+automatic and ordinary retry saves. Workspace replacement, clear, and coordinator disposal tests
+prove obsolete success/failure completions cannot dispatch into the current epoch. The existing
+deterministic 10,000-element Phase 3B test remains part of the full frontend suite.
+
 ### Component tests
 
 Cover element renderers, extension controls, menus, edit sessions, focus behavior, and accessibility with platform clients mocked.

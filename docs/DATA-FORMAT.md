@@ -72,6 +72,12 @@ document or any SQLite table. History entries contain only in-memory Immer forwa
 plus non-sensitive transaction metadata. Durable history would require a later explicit
 architecture decision.
 
+Backend revision, workspace epoch, local-change and acknowledged-persisted sequences, dirty state,
+save phase, sanitized persistence errors, revision-conflict status, scheduled timers, and in-flight
+save state are also application/session metadata. None is a `TaskMapDocument` field or encrypted
+document payload field. The backend revision remains envelope metadata used as the expected-revision
+predicate for saves.
+
 Structural parsing enforces exact fields, scalar shapes, ID formats, JSON safety, and conservative
 limits. Semantic validation then checks normalized keys, ordering completeness and uniqueness,
 active-canvas validity, ownership, connection locality, and extension target references. No legacy

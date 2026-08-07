@@ -167,9 +167,18 @@ Redux Toolkit owns:
 - Decrypted document state
 - Active database identity and status
 - Document-level settings
-- Undo/redo availability
+- Session-only transaction history and undo/redo availability
+- Backend revision, workspace epoch, local-change sequence, acknowledged-persisted sequence, and
+  serializable save status
 - Trusted workflow definitions and execution summaries
 - Stable UI state that must survive view changes
+
+The Phase 3C `documentWorkspace` state is dormant while `LegacyApplication` remains the active
+boundary. Loading a workspace validates the complete current-version document before Redux receives
+it, records its backend revision, clears history, and starts with matching local and persisted
+sequences. Replacing or clearing a workspace advances its epoch so obsolete asynchronous results
+cannot affect the new session. Serialized documents, clients, timers, promises, credentials, and key
+material are never Redux state.
 
 ### Transient interaction state
 
@@ -236,6 +245,13 @@ resize, hover, and selection previews stay in the transient interaction subsyste
 completed drag or resize dispatches one final geometry command and therefore creates one history
 entry.
 
+Phase 3C application orchestration composes the core handler registry through
+`createCommandDispatcher`. A successful changed command commits its document and optional history
+transaction in one Redux action; ignored-history commands still count as persistent changes. Undo
+and redo likewise commit document and history together. Each successful document change increments
+one monotonic local sequence for the current workspace. Failed and no-op operations dispatch
+nothing.
+
 ## History
 
 History stores completed document transactions as Immer patches and inverse patches.
@@ -280,6 +296,21 @@ persisted.
 Normal document saves update only the encrypted document row. Existing media BLOBs remain untouched. Large GIFs and images are loaded lazily when visible.
 
 Rust owns SQLite access, file locking, backups, encryption, password derivation, and key lifetime. TypeScript owns the decrypted schema and domain validation.
+
+Phase 3C persistence is owned by one dependency-injected application coordinator outside Redux
+reducers and domain code. It schedules the existing 350 ms parity delay through an injected timer
+abstraction, maintains at most one timer and one save request in flight for the current workspace,
+and calls `encodeDatabaseDocument` only when a save begins. A save captures the workspace epoch,
+document reference, local sequence, and current acknowledged backend revision. The database request
+uses that revision as `expectedRevision`.
+
+Success acknowledges only the captured local sequence. If a newer command committed while the save
+was running, the returned backend revision is accepted, the newer document remains dirty, and a
+follow-up save uses the new revision. Epoch checks discard success or failure completions from a
+replaced, cleared, or disposed workspace. Revision conflicts preserve document and history, block
+automatic and ordinary retry saves, and wait for a later explicit conflict-resolution workflow;
+Phase 3C does not guess a revision, reload, or add resolution UI. Other failures remain dirty and
+may be retried explicitly against the latest document and last acknowledged revision.
 
 ## Encryption and session lifecycle
 

@@ -1,4 +1,13 @@
 import { configureStore, createSlice } from "@reduxjs/toolkit";
+import type { TransactionDependencies } from "../domain/commands/executeDocumentCommand";
+import { createEntityId } from "../domain/ids/entityIds";
+import {
+  createDocumentPersistenceCoordinator,
+  type DocumentPersistenceDependencies,
+} from "./persistence/documentPersistenceCoordinator";
+import { createWorkspaceOperations } from "./workspace/workspaceOperations";
+import { documentWorkspaceSlice } from "./workspace/workspaceSlice";
+import type { HistoryCapacity } from "../domain/history/historyTypes";
 
 export interface ApplicationState {
   readonly activeBoundary: "legacy";
@@ -14,10 +23,38 @@ const applicationSlice = createSlice({
   reducers: {},
 });
 
-export function createAppStore() {
-  return configureStore({
+export interface CreateAppStoreOptions {
+  readonly transactionDependencies?: TransactionDependencies;
+  readonly persistence?: DocumentPersistenceDependencies;
+  readonly historyCapacity?: HistoryCapacity;
+}
+
+const defaultTransactionDependencies: TransactionDependencies = {
+  nextTransactionId: () =>
+    createEntityId("transaction", { nextUuid: () => globalThis.crypto.randomUUID() }),
+  now: () => Date.now(),
+};
+
+export function createAppStore(options: CreateAppStoreOptions = {}) {
+  const store = configureStore({
     reducer: {
       application: applicationSlice.reducer,
+      documentWorkspace: documentWorkspaceSlice.reducer,
+    },
+  });
+  const persistence = options.persistence
+    ? createDocumentPersistenceCoordinator(store, options.persistence)
+    : null;
+  const workspace = createWorkspaceOperations(
+    store,
+    options.transactionDependencies ?? defaultTransactionDependencies,
+    persistence,
+    options.historyCapacity,
+  );
+  return Object.assign(store, {
+    workspace,
+    disposeWorkspace() {
+      persistence?.dispose();
     },
   });
 }

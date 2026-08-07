@@ -190,6 +190,11 @@ Text editing should use an explicit edit session so one meaningful edit becomes 
 
 The persistence coordinator observes committed document transactions. Feature modules do not call save directly.
 
+Phase 3C owns this dormant wiring under `src/app/workspace/` and `src/app/persistence/`. Future
+feature UI dispatches the narrow workspace operations and reads selectors; it must not dispatch the
+slice's internal lifecycle actions. Revision-conflict resolution remains a future application
+workflow that replaces or explicitly reconciles the workspace before automatic saves can resume.
+
 Media import is the exception because bytes are persisted by the backend before the document receives a media reference. The media service owns rollback/cleanup if the reference is never committed.
 
 ## Security wiring

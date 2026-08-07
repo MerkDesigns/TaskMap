@@ -130,6 +130,24 @@ Shared presentation primitives. `src/ui/materials/FrostedSurface.tsx` fixes the 
 - `src/domain/ids/entityIds.ts` - opaque branded IDs, canonical external formats, and injectable
   prefixed-ID creation.
 
+## Phase 3C Redux workspace and persistence orchestration
+
+- `src/app/workspace/workspaceSlice.ts` and `workspaceTypes.ts` own the serializable normalized
+  document, session-only history, revision, epoch, local/persisted sequences, save phase, sanitized
+  error, conflict, scheduling, and in-flight state.
+- `src/app/workspace/workspaceOperations.ts` is the narrow synchronous load/clear/command/undo/redo
+  boundary. It composes the Phase 3B dispatcher and history engine and notifies persistence only for
+  actual document changes.
+- `src/app/persistence/documentPersistenceCoordinator.ts` owns the dependency-injected debounce,
+  just-in-time codec call, one-current-workspace-save rule, expected revisions, follow-up saves,
+  retry, conflict blocking, epoch correlation, and disposal.
+- `src/app/persistence/persistenceScheduler.ts` owns the named 350 ms parity default and injectable
+  timer contract; timers never enter Redux.
+- `src/app/selectors/workspaceSelectors.ts` exposes document, history, dirty/sequence, revision,
+  conflict, and save lifecycle state without serialization or deep comparison.
+- `src/app/store.ts` composes these pieces. Its exported singleton has no database dependency, so
+  production remains on the unchanged legacy boundary and importing the store starts no save work.
+
 ## Target Rust ownership
 
 ### `src-tauri/src/commands/`
@@ -270,9 +288,22 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/interactions/TransientInteractionProvider.tsx`           |    26 | React component or typed UI module                                              |
 | `src/app/interactions/transientInteractionService.ts`             |    32 | TypeScript application module                                                   |
 | `src/app/interactions/useTransientInteraction.ts`                 |    20 | TypeScript application module                                                   |
+| `src/app/persistence/documentPersistenceCoordinator.test.ts`      |   162 | @vitest-environment node                                                        |
+| `src/app/persistence/documentPersistenceCoordinator.ts`           |   207 | TypeScript application module                                                   |
+| `src/app/persistence/documentPersistenceFailures.test.ts`         |   201 | @vitest-environment node                                                        |
+| `src/app/persistence/persistenceErrors.ts`                        |    36 | TypeScript application module                                                   |
+| `src/app/persistence/persistenceScheduler.ts`                     |    16 | TypeScript application module                                                   |
 | `src/app/selectors/applicationSelectors.ts`                       |     5 | TypeScript application module                                                   |
-| `src/app/store.ts`                                                |    30 | TypeScript application module                                                   |
+| `src/app/selectors/workspaceSelectors.test.ts`                    |    68 | @vitest-environment node                                                        |
+| `src/app/selectors/workspaceSelectors.ts`                         |    35 | TypeScript application module                                                   |
+| `src/app/store.ts`                                                |    67 | TypeScript application module                                                   |
 | `src/app/windowCloseCoordinator.ts`                               |    15 | TypeScript application module                                                   |
+| `src/app/workspace/workspaceCommandsHistory.test.ts`              |   199 | @vitest-environment node                                                        |
+| `src/app/workspace/workspaceInitialization.test.ts`               |   100 | @vitest-environment node                                                        |
+| `src/app/workspace/workspaceOperations.ts`                        |   146 | TypeScript application module                                                   |
+| `src/app/workspace/workspaceSlice.ts`                             |   157 | TypeScript application module                                                   |
+| `src/app/workspace/workspaceTestSupport.ts`                       |    96 | TypeScript application module                                                   |
+| `src/app/workspace/workspaceTypes.ts`                             |    67 | TypeScript application module                                                   |
 | `src/canvasMath.test.ts`                                          |   159 | Tests for the adjacent module                                                   |
 | `src/canvasMath.ts`                                               |   128 | TypeScript application module                                                   |
 | `src/components/CanvasManager.tsx`                                |  1089 | Pointer capture is best-effort; document listeners still clean up the drag.     |
@@ -322,8 +353,9 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/domain/commands/core/extensionCommands.ts`                   |   104 | TypeScript application module                                                   |
 | `src/domain/commands/core/mediaCommands.ts`                       |    59 | TypeScript application module                                                   |
 | `src/domain/commands/core/mediaExtensionSettingsCommands.test.ts` |   169 | @vitest-environment node                                                        |
+| `src/domain/commands/currentDocumentValidation.test.ts`           |   146 | @vitest-environment node                                                        |
 | `src/domain/commands/domainCommand.ts`                            |     5 | TypeScript application module                                                   |
-| `src/domain/commands/executeDocumentCommand.ts`                   |   118 | TypeScript application module                                                   |
+| `src/domain/commands/executeDocumentCommand.ts`                   |   121 | TypeScript application module                                                   |
 | `src/domain/document/createDocument.test.ts`                      |    29 | @vitest-environment node                                                        |
 | `src/domain/document/createDocument.ts`                           |    43 | TypeScript application module                                                   |
 | `src/domain/document/documentInvariants.test.ts`                  |   160 | @vitest-environment node                                                        |
@@ -338,11 +370,14 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/domain/document/invariants/connectionInvariants.ts`          |    55 | TypeScript application module                                                   |
 | `src/domain/document/invariants/entityRecordInvariants.ts`        |    56 | TypeScript application module                                                   |
 | `src/domain/document/invariants/extensionInvariants.ts`           |    52 | TypeScript application module                                                   |
+| `src/domain/document/jsonDeepEqual.test.ts`                       |    75 | @vitest-environment node                                                        |
+| `src/domain/document/jsonDeepEqual.ts`                            |    84 | TypeScript application module                                                   |
 | `src/domain/document/jsonSafety.ts`                               |   172 | TypeScript application module                                                   |
 | `src/domain/document/validateDocument.ts`                         |    36 | TypeScript application module                                                   |
-| `src/domain/history/historyEngine.test.ts`                        |   182 | @vitest-environment node                                                        |
-| `src/domain/history/historyEngine.ts`                             |   116 | TypeScript application module                                                   |
-| `src/domain/history/historyTypes.ts`                              |    19 | TypeScript application module                                                   |
+| `src/domain/history/historyCompatibility.test.ts`                 |    91 | @vitest-environment node                                                        |
+| `src/domain/history/historyEngine.test.ts`                        |   187 | @vitest-environment node                                                        |
+| `src/domain/history/historyEngine.ts`                             |   131 | TypeScript application module                                                   |
+| `src/domain/history/historyTypes.ts`                              |    20 | TypeScript application module                                                   |
 | `src/domain/history/immerPatchSupport.ts`                         |    10 | TypeScript application module                                                   |
 | `src/domain/history/transactionTypes.ts`                          |    11 | TypeScript application module                                                   |
 | `src/domain/ids/entityIds.test.ts`                                |    29 | @vitest-environment node                                                        |

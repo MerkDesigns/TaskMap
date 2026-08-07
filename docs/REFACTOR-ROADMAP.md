@@ -122,19 +122,21 @@ Phase 2 exit criteria are complete. Production tray UX, native Windows session-l
       3A).
 - [x] Implement named application commands (Phase 3B).
 - [x] Implement atomic Immer patch transactions, undo, and redo (Phase 3B).
-- Implement dirty tracking and debounced persistence.
+- [x] Implement Redux workspace orchestration, sequence-based dirty tracking, and revision-aware
+      debounced persistence (Phase 3C).
 
-Phases 3A and 3B are complete. Phase 3 remains open: dirty tracking, persistence coordination,
-debounced saves, revision handling, and the remaining persistence-specific exit criteria belong to
-Phase 3C. Phase 3B does not activate the normalized document or history engine in Redux or the
-production UI.
+Phases 3A, 3B, and 3C are complete. Phase 3C activates the normalized document, command, history,
+dirty, revision, and save lifecycle only through dependency-injected application operations used by
+tests and future features. Production feature UI remains on `LegacyApplication` until Phase 4 and
+later parity slices; the Phase 2 development harness and legacy autosave remain unchanged.
 
 ### Exit criteria
 
 - [x] Domain tests cover current-version invariants and Phase 3B generic command behavior.
 - [x] One committed geometry command creates one history entry; interaction wiring remains Phase 4.
 - [x] Pan, zoom, selection, and menus are excluded from the document command/history API.
-- Saving does not block synthetic interaction tests.
+- [x] Saving does not block synthetic rapid-command tests; debounce, encoding, and unresolved
+      database work remain outside synchronous command execution.
 
 ## Phase 4 — Canvas and interaction engine
 
