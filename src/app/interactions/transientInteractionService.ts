@@ -1,8 +1,11 @@
-export type TransientInteractionKind = "pointer" | "drag" | "resize" | "selection-box" | "viewport";
+export type TransientInteractionKind =
+  "pointer" | "drag" | "move" | "resize" | "selection-box" | "pan" | "viewport";
 
 export interface TransientInteractionSnapshot {
   readonly activeInteraction: {
     readonly kind: TransientInteractionKind;
+    readonly pointerId?: number;
+    readonly targetIds?: readonly string[];
   } | null;
 }
 
@@ -11,8 +14,8 @@ export type UnsubscribeTransientInteraction = () => void;
 
 /**
  * Read-only application boundary for frame-frequency interaction previews.
- * The Phase 4 controller will own writes and commit persistent results through
- * application commands rather than through this service or Redux.
+ * The Phase 4 controller owns writes and commits persistent results through a
+ * narrow completion port rather than through this service or Redux.
  */
 export interface TransientInteractionService {
   readonly getSnapshot: () => TransientInteractionSnapshot;

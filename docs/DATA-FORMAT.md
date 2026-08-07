@@ -67,6 +67,11 @@ The schema intentionally contains no document timestamps or legacy migration fie
 recent database paths, theme/update choices, inactivity settings, viewport interaction state, and
 other application/device/session preferences remain outside the decrypted document.
 
+During the transitional legacy production phase, settled pan/zoom may still be synchronized to the
+active legacy `TaskCanvas` solely to preserve remembered per-canvas camera behavior. This is not a
+`TaskMapDocument` field or conversion rule. Selection, interaction previews, snap guides, culling
+sets, and minimap projections are never document data.
+
 Undo/redo history is session-only application state and is not serialized into the decrypted
 document or any SQLite table. History entries contain only in-memory Immer forward/inverse patches
 plus non-sensitive transaction metadata. Durable history would require a later explicit

@@ -182,7 +182,17 @@ Every persistent command declares:
 - Whether it creates a new transaction
 - Patch and inverse-patch generation
 
-Pointer interactions begin a transient preview and dispatch one command on completion.
+Pointer interactions begin a transient preview and emit one semantic completion through
+`CanvasInteractionCommitPort`. Normalized production implementations dispatch one named command on
+completion. While `LegacyApplication` still owns production element/document state, the temporary
+adapter under `src/legacy/interactions/` performs one legacy canvas replacement instead. Generic
+controllers never import that adapter or legacy types.
+
+Legacy camera, selection-setter, element-geometry, and text-card placement/presentation bridges are
+kept beside that adapter. They correlate or translate existing production state at the boundary;
+they are not generic feature APIs and may not be imported by new domain or feature modules. The
+text-card bridge stores only the active bundle's bounded presentation/placement data, never a
+mutable `TaskCanvas` shadow, and its final decision is consumed by the one completion-port call.
 
 Text editing should use an explicit edit session so one meaningful edit becomes one undo step rather than one step per keystroke.
 
@@ -242,3 +252,8 @@ Reject the implementation when any answer is yes:
 - Does a file exceed 400 lines without a clear subsystem reason?
 - Does the feature add legacy compatibility to the main app?
 - Can imported workflow data execute before trust?
+
+The Phase 4 adapter does not relax the legacy-compatibility rule. It lives in the existing legacy
+production boundary, implements a generic new-architecture contract, and must not be imported by new
+feature, application-domain, or domain modules. It is not a database migration/conversion layer and
+must be deleted progressively with Phase 5 ownership migration.

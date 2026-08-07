@@ -28,30 +28,30 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 
 ## Canvas
 
-| Feature             | Decision          | Required behavior                                             | Status         |
-| ------------------- | ----------------- | ------------------------------------------------------------- | -------------- |
-| Multiple canvases   | Keep              | Preserve creation, switching, editing, deletion, and previews | Not documented |
-| Pan and zoom        | Keep              | Preserve feel, limits, centering, and shortcuts               | Not documented |
-| Selection rectangle | Keep              | Preserve additive and multi-selection behavior                | Not documented |
-| Move and resize     | Keep              | Preserve interaction feel and constraints                     | Not documented |
-| Snapping and guides | Keep              | Preserve activation, guide appearance, and placement results  | Not documented |
-| Layers              | Keep              | Preserve send back/backward/forward/front behavior            | Not documented |
-| Minimap             | Keep and rewire   | Preserve appearance and useful navigation behavior            | Not documented |
-| Grid styles         | Keep              | Preserve retained grid appearance and settings                | Not documented |
-| Shadows             | Keep              | Preserve retained visual setting                              | Not documented |
-| Undo and redo       | Keep and redesign | Equivalent user-visible results using transaction history     | Not documented |
+| Feature             | Decision          | Required behavior                                                        | Status                                                        |
+| ------------------- | ----------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Multiple canvases   | Keep              | Preserve creation, switching, editing, deletion, and previews            | Not documented                                                |
+| Pan and zoom        | Keep              | Middle/Ctrl-left pan; 0.5–2.5 anchored wheel zoom; centered reset        | Automated Phase 4 characterization; manual pending            |
+| Selection rectangle | Keep              | Shift adds; partial intersection; <4 world-unit clear; locked selectable | Automated Phase 4 characterization; manual pending            |
+| Move and resize     | Keep              | Preview-only frames; one completion; retained constraints                | Automated Phase 4 controller/adapter coverage; manual pending |
+| Snapping and guides | Keep              | Shift enables; 8 world units; retained edge/center guides                | Automated Phase 4 snapping coverage; manual pending           |
+| Layers              | Keep              | Ordered selected group; lock allowed; drag does not reorder              | Automated Phase 4 adapter coverage; manual pending            |
+| Minimap             | Keep and rewire   | Top-level bounds/connections, world viewport, reset zoom only            | Automated projection coverage; manual pending                 |
+| Grid styles         | Keep              | Preserve retained grid appearance and settings                           | Not documented                                                |
+| Shadows             | Keep              | Preserve retained visual setting                                         | Not documented                                                |
+| Undo and redo       | Keep and redesign | Equivalent user-visible results using transaction history                | Not documented                                                |
 
 ## Elements
 
-| Feature              | Decision                     | Required behavior                                                                | Status         |
-| -------------------- | ---------------------------- | -------------------------------------------------------------------------------- | -------------- |
-| Containers           | Keep                         | Preserve rendering, header, card content, scrolling, resizing, and menus         | Not documented |
-| Text cards           | Keep                         | Preserve inline editing, links, drag behavior, contained/loose states, and menus | Not documented |
-| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors, and menus                            | Not documented |
-| Images               | Keep                         | Preserve import, display, move, resize, background option, and menus             | Not documented |
-| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                | Not documented |
-| Mind-map nodes       | Keep and redesign internally | Preserve current user workflow and appearance                                    | Not documented |
-| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion, and rendering                                | Not documented |
+| Feature              | Decision                     | Required behavior                                                                                                                          | Status                                                                 |
+| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Containers           | Keep                         | Preserve rendering, header, card content, scrolling, resizing, and menus                                                                   | Not documented                                                         |
+| Text cards           | Keep                         | Preserve inline editing, links, bundle pickup/sway, insertion/reparent/detach previews, settle behavior, contained/loose states, and menus | Automated Phase 4 transient-placement characterization; manual pending |
+| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors, and menus                                                                                      | Not documented                                                         |
+| Images               | Keep                         | Preserve import, display, move, resize, background option, and menus                                                                       | Not documented                                                         |
+| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                                                                          | Not documented                                                         |
+| Mind-map nodes       | Keep and redesign internally | Preserve current user workflow and appearance                                                                                              | Not documented                                                         |
+| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion, and rendering                                                                                          | Not documented                                                         |
 
 ## Extensions
 

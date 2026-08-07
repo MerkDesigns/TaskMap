@@ -30,7 +30,10 @@ React UI
   -> Rust database, crypto, file lock, backup, and session services
 ```
 
-A separate interaction controller handles pointer movement, drag previews, snapping, selection rectangles, and resize previews. It commits one application command when the interaction completes.
+A separate interaction controller handles pointer movement, drag previews, snapping, selection
+rectangles, and resize previews. It emits one semantic operation through
+`CanvasInteractionCommitPort` when an interaction completes; the persistent document owner decides
+how that operation is committed.
 
 ## Target repository structure
 
@@ -182,7 +185,7 @@ material are never Redux state.
 
 ### Transient interaction state
 
-The interaction subsystem owns:
+The Phase 4 interaction subsystem owns:
 
 - Active pointer and gesture
 - Drag and resize preview
@@ -192,9 +195,51 @@ The interaction subsystem owns:
 - High-frequency pointer samples
 - Temporary animation state directly tied to the gesture
 
-It does not write Redux on every pointer frame. It publishes an interaction preview through a narrow subscription API and dispatches one domain command at completion.
+It does not write Redux or legacy document collections on pointer frames. It publishes bounded
+geometry and viewport previews through a narrow subscription API. Pan, zoom, selection, hover, and
+snap guides never call the persistent commit port. Changed move and resize gestures call the port
+once at completion; cancellation and canonical no-ops do not call it.
 
-The application-facing transient interaction service is read-only: consumers call `getSnapshot` and `subscribe`. The interaction controller introduced in Phase 4 will own writes. The Phase 1 default always returns an idle snapshot and exists only to establish provider and dependency boundaries; it contains no document state and does not replace legacy interaction behavior.
+The application-facing transient interaction service remains read-only: consumers call
+`getSnapshot` and `subscribe`. `canvasInteractionController.ts` is its mutable implementation and
+uses a discriminated primary-gesture state so pan, selection box, move, and resize cannot overlap.
+The snapshot contains only the current canvas key, viewport, selected IDs, active pointer/targets,
+selection rectangle, bounded geometry overrides, and snap guides. It never contains a document,
+history, backend client, promise, timer, or persistence metadata.
+
+Pure viewport math under `src/canvas/geometry/` is the source of truth for screen/world conversion,
+anchored zoom, translation, viewport rectangles, and finite-number protection. Selection hit
+testing, move/resize calculations, and snapping are framework-independent interaction modules.
+`src/canvas/virtualization/` owns the 480-screen-pixel overscan conversion and pinned-element
+culling. `src/features/minimap/minimapProjection.ts` projects canvas, element, and world-viewport
+bounds; the minimap has no independent camera or navigation state.
+
+### Transitional production interaction commits
+
+Phase 4 controllers are document-model agnostic. `CanvasInteractionCommitPort` exposes only named
+move, resize, and layer-order operations; it is not an arbitrary patch API. Current production still
+owns its document in `LegacyApplication`, so
+`src/legacy/interactions/legacyCanvasInteractionCommitAdapter.ts` temporarily applies completed
+operations as one `TaskCanvas` replacement. Legacy geometry mapping, camera correlation, selection
+compatibility, and bounded text-card placement presentation also live under
+`src/legacy/interactions/`; those transitional bridge modules are the only Phase 4 code that imports
+legacy element/document types. Generic controllers, geometry, culling, and minimap modules do not.
+
+This adapter is temporary migration infrastructure, not legacy data migration support. It does not
+parse or convert database formats, create an `AppData`/`TaskMapDocument` conversion, or maintain a
+shadow normalized document. Pointer frames never enter the adapter. Existing per-canvas camera
+parity is preserved by a canvas-correlated, bounded render-frame synchronization in the legacy
+React integration. Text-card bundle pickup, sway, insertion projection, reparent/detach decisions,
+and release animation are bounded transient presentation state in the legacy bridge; only the exact
+settled placement decision reaches the commit adapter. Neither bridge mutates collections during a
+pointer frame. Camera synchronization and text-card presentation remain transitional concerns;
+camera state remains session/UI state in the target normalized architecture and is not added to
+`TaskMapDocument`.
+
+As Phase 5 moves each element slice to normalized production ownership, its legacy geometry mapping
+and commit behavior are replaced by an implementation of the same semantic port backed by named
+commands/workspace operations. New features must not import or build on the legacy adapter. The
+remaining adapter is deleted when all production element/document ownership has left `TaskCanvas`.
 
 ### Local component state
 

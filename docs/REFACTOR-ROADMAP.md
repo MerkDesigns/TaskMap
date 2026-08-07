@@ -143,18 +143,39 @@ later parity slices; the Phase 2 development harness and legacy autosave remain 
 ### Goals
 
 - Replace the god-component interaction logic with explicit controllers.
+- Keep controllers document-model agnostic behind a narrow semantic commit port.
 
 ### Work
 
-- Implement viewport transforms, pan, zoom, selection, movement, resize, layers, snapping, and viewport culling.
-- Commit persistent changes only at interaction completion.
-- Add minimap data pipeline after viewport behavior is stable.
+- [x] Implement canonical viewport transforms, pan, anchored wheel zoom, and reset zoom.
+- [x] Implement click/additive/box selection and single-primary interaction arbitration.
+- [x] Implement transient single/multi movement, bottom-right resize, lock rules, and Shift-enabled snapping.
+- [x] Commit changed move/resize/layer operations only once at interaction completion.
+- [x] Fix `pointercancel` so it discards preview and makes no persistent commit.
+- [x] Implement 480-screen-pixel overscan culling with selected/edited/active pinning.
+- [x] Add a pure minimap data pipeline; preserve reset-only behavior without inventing navigation.
+- [x] Integrate production through the temporary legacy commit adapter and delete superseded pointer algorithms from `App.tsx`.
+
+Production document ownership is still legacy during Phase 4. The narrow adapter may replace the
+active `TaskCanvas` once per completed operation, allowing current legacy history/autosave to observe
+one mutation. This does not require normalized production workspace activation and does not create a
+legacy-format conversion or shadow `TaskMapDocument`. The controller architecture and commit port
+are final; the legacy adapter is temporary. Canvas-correlated camera writeback and bounded legacy
+text-card placement presentation live beside the adapter. They preserve current production parity
+without frame-time collection mutation and are deleted progressively as Phase 5 transfers the
+corresponding ownership to normalized feature slices.
 
 ### Exit criteria
 
-- 60 FPS target passes normal performance fixture.
-- Pointer frames perform no serialization, encryption, database calls, or history commits.
-- Multi-selection and locked-element rules match parity evidence.
+- [ ] 60 FPS target receives a release-mode visual/manual measurement. Deterministic hot-path and
+      10,000-element culling fixtures pass, but they do not by themselves prove rendered FPS.
+- [x] Pointer frames perform no serialization, cloning, persistence, database calls, or history commits.
+- [x] Multi-selection and locked-element rules match characterized parity in deterministic tests.
+- [ ] Production manual parity checklist passes. Browser control was unavailable in the Phase 4
+      implementation environment, so this gate remains open rather than being inferred.
+
+Phase 4 implementation is present, but the phase is not formally closed until the two unchecked
+acceptance gates above are performed.
 
 ## Phase 5 — Element modules
 
@@ -167,6 +188,12 @@ Port one complete element at a time:
 5. Mind-map node and connections
 
 Each port includes model, schema, commands, selectors, renderer, context menu, tests, history behavior, persistence behavior, and parity acceptance.
+
+Each Phase 5 slice also replaces its corresponding legacy geometry mapping/commit behavior with a
+normalized command/workspace-backed implementation of the Phase 4 commit contract. Text-card
+ownership removes legacy bundle/reparent adaptation; container/text-block/image ownership removes
+their geometry/resize mapping; the final element slice removes the adapter itself. No new persistent
+feature may be added to legacy collections.
 
 ### Exit criteria
 
@@ -225,6 +252,7 @@ Preserve the useful Command Runner workflow without its unsafe raw-shell archite
 - Config import/export
 - Database picker and recent files
 - Error recovery and backup restoration
+- Remaining product-shell production activation after element/document ownership has migrated
 
 ### Exit criteria
 
@@ -244,6 +272,9 @@ Preserve the useful Command Runner workflow without its unsafe raw-shell archite
 - Convert supported elements and retained extensions.
 - Report removed features and unsupported records.
 - Write new `.tmapdb` with user-selected password.
+
+Phase 9 exclusively owns old database-format conversion. The temporary Phase 4 production commit
+adapter neither reads old formats nor belongs to the migrator.
 
 ### Exit criteria
 

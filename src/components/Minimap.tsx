@@ -1,6 +1,7 @@
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { getTextCardAccent, MINIMAP_MAX_SIZE } from "../constants";
 import { getMindmapConnectionPath, getMindmapPortPoint } from "../mindmapMath";
+import { createMinimapProjection } from "../features/minimap/minimapProjection";
 import {
   ContainerElement,
   ImageElement,
@@ -22,7 +23,7 @@ type MinimapProps = {
   canvasHeight: number;
   visible: boolean;
   zoom: number;
-  viewport: {
+  viewportWorld: {
     x: number;
     y: number;
     width: number;
@@ -41,48 +42,42 @@ export function Minimap({
   canvasHeight,
   visible,
   zoom,
-  viewport,
+  viewportWorld,
   onResetZoom,
 }: MinimapProps) {
-  const canvasAspect = canvasWidth / canvasHeight;
-  const minimapWidth =
-    canvasAspect >= 1
-      ? MINIMAP_MAX_SIZE
-      : Math.max(72, Math.round(MINIMAP_MAX_SIZE * canvasAspect));
-  const minimapHeight =
-    canvasAspect >= 1
-      ? Math.max(72, Math.round(MINIMAP_MAX_SIZE / canvasAspect))
-      : MINIMAP_MAX_SIZE;
-  const scaledMindmaps = new Map(
-    textCards
-      .filter((card) => card.kind === "mindmap")
-      .map((card) => {
-        const longestLineLength = Math.max(1, ...card.text.split("\n").map((line) => line.length));
-        const width = Math.max(44, Math.min(520, longestLineLength * 9 + 48));
-        const lineCount = card.text
-          .split("\n")
-          .reduce((count, line) => count + Math.max(1, Math.ceil((line.length * 9) / 472)), 0);
-        const height = 43 + (lineCount - 1) * 24;
-        return [
-          card.id,
-          {
-            x: (card.x / canvasWidth) * minimapWidth,
-            y: (card.y / canvasHeight) * minimapHeight,
-            width: Math.max((width / canvasWidth) * minimapWidth, 3),
-            height: Math.max((height / canvasHeight) * minimapHeight, 3),
-          },
-        ] as const;
-      }),
-  );
-  const scaledConnectables = new Map(scaledMindmaps);
-  [...elements, ...textBlocks, ...images].forEach((element) => {
-    scaledConnectables.set(element.id, {
-      x: (element.x / canvasWidth) * minimapWidth,
-      y: (element.y / canvasHeight) * minimapHeight,
-      width: Math.max((element.width / canvasWidth) * minimapWidth, 3),
-      height: Math.max((element.height / canvasHeight) * minimapHeight, 3),
-    });
+  const cardGeometry = textCards.map((card) => {
+    const longestLineLength = Math.max(1, ...card.text.split("\n").map((line) => line.length));
+    const lineCount = card.text
+      .split("\n")
+      .reduce((count, line) => count + Math.max(1, Math.ceil((line.length * 9) / 472)), 0);
+    return {
+      id: card.id,
+      geometry: {
+        x: card.x,
+        y: card.y,
+        width:
+          card.kind === "mindmap"
+            ? Math.max(44, Math.min(520, longestLineLength * 9 + 48))
+            : TEXT_CARD_PREVIEW_WIDTH,
+        height: card.kind === "mindmap" ? 43 + (lineCount - 1) * 24 : TEXT_CARD_PREVIEW_HEIGHT,
+      },
+      minimumPixels: 3,
+    };
   });
+  const projection = createMinimapProjection(
+    { width: canvasWidth, height: canvasHeight },
+    viewportWorld,
+    [
+      ...elements.map((element) => ({ id: element.id, geometry: element, minimumPixels: 4 })),
+      ...textBlocks.map((element) => ({ id: element.id, geometry: element, minimumPixels: 4 })),
+      ...cardGeometry,
+      ...images.map((image) => ({ id: image.id, geometry: image, minimumPixels: 3 })),
+    ],
+    MINIMAP_MAX_SIZE,
+  );
+  const scaledConnectables = projection.elements;
+  const minimapWidth = projection.size.width;
+  const minimapHeight = projection.size.height;
 
   return (
     <div
@@ -134,10 +129,10 @@ export function Minimap({
             key={element.id}
             className="absolute rounded-[2px] border"
             style={{
-              left: (element.x / canvasWidth) * minimapWidth,
-              top: (element.y / canvasHeight) * minimapHeight,
-              width: Math.max((element.width / canvasWidth) * minimapWidth, 4),
-              height: Math.max((element.height / canvasHeight) * minimapHeight, 4),
+              left: projection.elements.get(element.id)?.x,
+              top: projection.elements.get(element.id)?.y,
+              width: projection.elements.get(element.id)?.width,
+              height: projection.elements.get(element.id)?.height,
               borderColor: element.accent,
               backgroundColor: `${element.accent}26`,
             }}
@@ -148,10 +143,10 @@ export function Minimap({
             key={element.id}
             className="absolute rounded-[2px] border"
             style={{
-              left: (element.x / canvasWidth) * minimapWidth,
-              top: (element.y / canvasHeight) * minimapHeight,
-              width: Math.max((element.width / canvasWidth) * minimapWidth, 4),
-              height: Math.max((element.height / canvasHeight) * minimapHeight, 4),
+              left: projection.elements.get(element.id)?.x,
+              top: projection.elements.get(element.id)?.y,
+              width: projection.elements.get(element.id)?.width,
+              height: projection.elements.get(element.id)?.height,
               borderColor: element.accent,
               backgroundColor: `${element.accent}26`,
             }}
@@ -159,20 +154,16 @@ export function Minimap({
         ))}
         {textCards.map((card) => {
           const accent = getTextCardAccent(card.accent);
-          const mindmap = scaledMindmaps.get(card.id);
+          const bounds = projection.elements.get(card.id);
           return (
             <div
               key={card.id}
               className="absolute rounded-[2px] border"
               style={{
-                left: mindmap?.x ?? (card.x / canvasWidth) * minimapWidth,
-                top: mindmap?.y ?? (card.y / canvasHeight) * minimapHeight,
-                width:
-                  mindmap?.width ??
-                  Math.max((TEXT_CARD_PREVIEW_WIDTH / canvasWidth) * minimapWidth, 3),
-                height:
-                  mindmap?.height ??
-                  Math.max((TEXT_CARD_PREVIEW_HEIGHT / canvasHeight) * minimapHeight, 3),
+                left: bounds?.x,
+                top: bounds?.y,
+                width: bounds?.width,
+                height: bounds?.height,
                 borderColor: accent,
                 backgroundColor: `${accent}26`,
               }}
@@ -184,10 +175,10 @@ export function Minimap({
             key={image.id}
             className="absolute rounded-[2px] border"
             style={{
-              left: (image.x / canvasWidth) * minimapWidth,
-              top: (image.y / canvasHeight) * minimapHeight,
-              width: Math.max((image.width / canvasWidth) * minimapWidth, 3),
-              height: Math.max((image.height / canvasHeight) * minimapHeight, 3),
+              left: projection.elements.get(image.id)?.x,
+              top: projection.elements.get(image.id)?.y,
+              width: projection.elements.get(image.id)?.width,
+              height: projection.elements.get(image.id)?.height,
               borderColor: image.accent,
               backgroundColor: `${image.accent}26`,
             }}
@@ -196,10 +187,10 @@ export function Minimap({
         <div
           className="absolute rounded-[2px] border border-[#c8dae8]/85 bg-[#7aa2c8]/10"
           style={{
-            left: viewport.x,
-            top: viewport.y,
-            width: viewport.width,
-            height: viewport.height,
+            left: projection.viewport.x,
+            top: projection.viewport.y,
+            width: projection.viewport.width,
+            height: projection.viewport.height,
           }}
         />
       </div>

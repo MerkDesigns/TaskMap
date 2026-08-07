@@ -216,6 +216,42 @@ CI must fail when:
 
 TypeScript component tests cover the transient interaction provider's idle default, injected service, and external-store subscription updates. Error-boundary tests cover unchanged successful rendering, deterministic fallback rendering, typed failure reporting, omission of error internals from the default console report, and propagation of errors thrown inside `LegacyApplication` outside the new-architecture boundary.
 
+### Phase 4 canvas interaction coverage
+
+Pure viewport tests cover screen/world round trips, current zoom bounds and quantization, wheel
+direction/magnitude, anchored zoom, translation, reset-at-center, world rectangles, and non-finite
+input protection. Controller tests cover subscriptions, pointer identity, pan lifecycle, disposal,
+canvas replacement, selection/additive/partial-intersection/tiny-box semantics, single and atomic
+multi-move, zoom-correct deltas, locked/mixed groups, resize constraints/aspect ratio, snapping,
+layer completion, cancellation, no-op completion, and the corrected `pointercancel` discard path.
+
+Legacy-boundary integration tests drive many transient samples through the generic controller and
+prove that persistent `TaskCanvas` state, history stand-ins, and autosave spies are untouched until
+one completion-port call. Cancellation and no-op completion call the adapter zero times. Adapter
+tests cover atomic collection movement, text-card reparenting, resize, ordered-group layers, lock
+capabilities, and bounded render-only projection. StrictMode coverage proves the production-owned
+controller remains subscribed after React's development effect probe, and selection compatibility
+tests prove consecutive functional updates read the live controller snapshot. Camera-correlation
+tests cover queued-write invalidation across canvas replacement, same-ID stored-camera replacement,
+controller-write acknowledgement, and pan-cancel rollback without a legacy write.
+
+Legacy text-card placement characterization covers the three-screen-pixel commit threshold,
+directional same-container insertion, cross-container reparenting, detach-to-loose behavior,
+filtered-to-real insertion mapping, stable bundle order, locked-member exclusion, current preview
+projection, cancellation, frame-time immutability, and one final canvas replacement.
+
+The deterministic performance fixture prepares 5,000 snap candidates and executes 120 pointer
+updates while spying on JSON serialization/parsing, `structuredClone`, commit calls, and source
+geometry. All forbidden boundaries remain at zero and only one preview geometry is published. A
+separate 10,000-element culling fixture proves the visible candidate set remains below 40 for the
+chosen viewport while pinned off-screen elements remain present. These are architectural CI gates,
+not a machine-dependent `<16.67 ms` assertion and not a claim of measured release-mode FPS.
+
+The minimap projection tests cover landscape/portrait sizing, element minimum pixels, and viewport
+projection. Production minimap interaction remains reset-only; click/drag navigation is intentionally
+absent. The required manual production parity pass was not performed in the Phase 4 implementation
+environment because no controllable browser backend was available. It remains an open phase gate.
+
 ## Phase gates
 
 Every roadmap phase has explicit exit criteria. A phase is not complete until:
