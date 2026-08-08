@@ -4,9 +4,14 @@ These rules apply to all automated and human changes on the `architecture-v1` br
 
 ## Product contract
 
-TaskMap is a fast, local-first Windows canvas application. The refactor must preserve the appearance and user-facing behavior of every retained feature while replacing the existing internal architecture.
+TaskMap is a fast, local-first Windows canvas application. The refactor must preserve the
+user-facing behavior of every retained feature while replacing the existing internal architecture.
+Intentional visual changes are governed by `docs/VISUAL-SYSTEM.md` and
+`docs/FEATURE-PARITY.md`.
 
-Retained features include canvases, containers, text cards, text blocks, images and GIFs, mind-map connections, minimap, search, checkbox, lock, privacy, color tools, AI JSON copy/paste, updater support, and the existing frosted-glass appearance.
+Retained features include canvases, containers, text cards, text blocks, images and GIFs, mind-map
+connections, minimap, search, checkbox, lock, privacy, color tools, AI JSON copy/paste, updater
+support, and the approved TaskMap visual/material system.
 
 Removed features are Discord Rich Presence, daily reset, sorting, pick-a-card, the frosted-glass tuner, legacy migrations inside the main app, keyring-based encryption, and the old raw Command Runner.
 
@@ -79,7 +84,12 @@ Each extension owns its definition, state schema, commands, selectors, controls/
 - Cull or virtualize elements outside the viewport.
 - Load images and GIFs only when visible or imminently visible.
 - Do not decode large media on the main interaction path.
-- Avoid nested backdrop filters. All retained frosted surfaces use the shared `FrostedSurface` component.
+- `MaterialSurface` is the feature-facing material boundary. Features may not implement backdrop
+  filters, acrylic compositors, or material rendering strategies.
+- Add internal material definitions through the static material system. Exact visual constants and
+  compositor performance rules live in `docs/VISUAL-SYSTEM.md`, not this file.
+- High-frequency material/compositor work follows the same interaction rules: no persistent
+  dispatch, serialization, history, persistence, or database work per pointer sample.
 - Add performance tests for changes affecting rendering, selectors, interaction, serialization, or media.
 
 ## Security rules

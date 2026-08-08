@@ -1,6 +1,7 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { findMaterialArchitectureViolations } from "./material-architecture-rules.mjs";
 
 const ROOT = process.cwd();
 const SOURCE_ROOT = path.join(ROOT, "src");
@@ -17,6 +18,7 @@ const TARGET_DIRS = [
   "ui",
 ];
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
+const MATERIAL_SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
 const LEGACY_TAURI_IMPORTS = new Set([
   "src/App.tsx",
   "src/components/CommandRunnerModals.test.tsx",
@@ -213,18 +215,14 @@ for (const legacyFile of ["storage.rs", "model.rs"]) {
   }
 }
 
-const cssFiles = await collectFiles(SOURCE_ROOT, new Set([".css"]));
-for (const file of cssFiles) {
-  const source = await readFile(file, "utf8");
-  const rel = relative(file);
-  if (
-    /(?:-webkit-)?backdrop-filter\s*:/.test(source) &&
-    rel !== "src/index.css" &&
-    rel !== "src/ui/materials/FrostedSurface.css"
-  ) {
-    violations.push(`${rel}: frosted blur must be implemented by FrostedSurface`);
-  }
-}
+const materialSourceFiles = await collectFiles(SOURCE_ROOT, MATERIAL_SOURCE_EXTENSIONS);
+const materialSources = await Promise.all(
+  materialSourceFiles.map(async (file) => ({
+    path: relative(file),
+    source: await readFile(file, "utf8"),
+  })),
+);
+violations.push(...findMaterialArchitectureViolations(materialSources));
 
 if (violations.length) {
   console.error("Architecture boundary violations:\n");

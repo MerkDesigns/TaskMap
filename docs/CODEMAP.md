@@ -4,6 +4,10 @@ This file is the high-level navigation entrypoint for Codex and human contributo
 
 ## Governing documents
 
+`docs/VISUAL-SYSTEM.md` is the normative target theme, material-definition, compositor-constant,
+invalidation, fallback, and performance contract. Read it before changing application chrome or
+materials.
+
 - `AGENTS.md` — Mandatory implementation, dependency, security, performance, and file-size rules.
 - `ARCHITECTURE.md` — Normative target architecture and runtime boundaries.
 - `docs/REFACTOR-ROADMAP.md` — Ordered implementation phases and exit criteria.
@@ -69,7 +73,10 @@ Typed frontend boundary for database, media, settings, and structured workflow o
 
 ### `src/ui/`
 
-Shared presentation primitives. `src/ui/materials/FrostedSurface.tsx` fixes the current production material tokens behind one reusable root class. Legacy surfaces remain unchanged until later parity-covered ports.
+Shared presentation primitives. `src/ui/theme/` owns scoped target theme tokens;
+`src/ui/materials/` owns `MaterialSurface`, the static typed material registry, exact definitions,
+and the future compositor boundary. The old `FrostedSurface` remains frozen migration debt until
+Phase 4.5C/4.5D.
 
 ## Phase 1 architecture foundation
 
@@ -83,7 +90,8 @@ Shared presentation primitives. `src/ui/materials/FrostedSurface.tsx` fixes the 
 - `src/platform/database/`, `media/`, `settings/`, and `workflow/` — dependency-injected frontend client contracts without implementations.
 - `src/elements/registry.ts` and `src/extensions/architectureRegistry.ts` — explicit target registries, initially empty.
 - `src/legacy/LegacyApplication.tsx` — temporary behavior-preserving adapter to the existing `App.tsx`.
-- `src/ui/materials/FrostedSurface.tsx` — shared retained frosted-glass primitive; not yet substituted into legacy panels.
+- `src/ui/materials/FrostedSurface.tsx` — historical Phase 1 primitive, superseded by ADR 003 and
+  retained temporarily for its existing development-harness consumer.
 - `docs/decisions/001-application-state-and-boundaries.md` — application-state and boundary rationale.
 
 ## Phase 4 canvas and interaction engine
@@ -104,6 +112,22 @@ Shared presentation primitives. `src/ui/materials/FrostedSurface.tsx` fixes the 
 - `src/App.tsx` — still the legacy feature/render composition boundary, but no longer owns generic
   pan, zoom, box selection, movement, resize, snapping, layer, culling, or minimap projection
   algorithms.
+
+## Phase 4.5 visual-system foundation
+
+- `src/ui/theme/theme.css` — exact target foundation, application-chrome, semantic, and spatial
+  tokens, scoped and intentionally inactive until Phase 4.5C.
+- `src/ui/materials/materialTypes.ts` and `materialDefinitions.ts` — minimal discriminated material
+  contract, exact Large/Small/Cutout overlays, and the one shared acrylic cache profile.
+- `src/ui/materials/materialRegistry.ts` — explicit internal registry with duplicate rejection and
+  safe unknown lookup/require behavior.
+- `src/ui/materials/MaterialSurface.tsx`, `MaterialSurface.css`, and `MaterialPlane.tsx` —
+  feature-facing material, geometry/elevation, semantic element, ref, and base/modal inheritance
+  boundary; no compositor runtime exists in 4.5A.
+- `scripts/material-architecture-rules.mjs` — narrow count-sensitive frozen allowlist for exact
+  legacy blur/frosted occurrences and ownership check for future acrylic Canvas2D code.
+- `docs/VISUAL-SYSTEM.md` and `docs/decisions/003-adaptive-acrylic-compositor.md` — normative values
+  and decision rationale.
 
 ## Phase 2 encrypted database vertical slice
 
@@ -236,11 +260,13 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 
 | File                                                                   | Lines | Responsibility                                                                  |
 | ---------------------------------------------------------------------- | ----: | ------------------------------------------------------------------------------- |
-| `scripts/check-architecture.mjs`                                       |   236 | Repository maintenance script                                                   |
+| `scripts/check-architecture.mjs`                                       |   234 | Repository maintenance script                                                   |
 | `scripts/check-phase2-production-exclusion.mjs`                        |    62 | Repository maintenance script                                                   |
 | `scripts/check-version.mjs`                                            |    56 | Repository maintenance script                                                   |
 | `scripts/generate-baseline-fixtures.mjs`                               |   115 | Repository maintenance script                                                   |
 | `scripts/generate-codemap.mjs`                                         |   103 | Repository maintenance script                                                   |
+| `scripts/material-architecture-rules.mjs`                              |    95 | Repository maintenance script                                                   |
+| `scripts/material-architecture-rules.test.mjs`                         |    91 | Tests for the adjacent module                                                   |
 | `scripts/report-file-sizes.mjs`                                        |    46 | Repository maintenance script                                                   |
 | `src-tauri/src/commands.rs`                                            |   566 | Rust backend module                                                             |
 | `src-tauri/src/commands/database_command_types.rs`                     |    65 | Rust backend module                                                             |
@@ -494,6 +520,14 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/FrostedSurface.test.tsx`                             |    22 | Tests for the adjacent module                                                   |
 | `src/ui/materials/FrostedSurface.tsx`                                  |    15 | React component or typed UI module                                              |
 | `src/ui/materials/frostedSurfaceTypes.ts`                              |     6 | TypeScript application module                                                   |
+| `src/ui/materials/materialDefinitions.ts`                              |    77 | TypeScript application module                                                   |
+| `src/ui/materials/MaterialPlane.tsx`                                   |    18 | React component or typed UI module                                              |
+| `src/ui/materials/materialRegistry.test.ts`                            |    89 | Tests for the adjacent module                                                   |
+| `src/ui/materials/materialRegistry.ts`                                 |    38 | TypeScript application module                                                   |
+| `src/ui/materials/MaterialSurface.test.tsx`                            |   107 | Tests for the adjacent module                                                   |
+| `src/ui/materials/MaterialSurface.tsx`                                 |    93 | React component or typed UI module                                              |
+| `src/ui/materials/materialTypes.ts`                                    |    73 | TypeScript application module                                                   |
+| `src/ui/theme/theme.test.tsx`                                          |    47 | Tests for the adjacent module                                                   |
 | `src/useClampedFixedPosition.ts`                                       |    36 | TypeScript application module                                                   |
 | `src/utils/date.ts`                                                    |     5 | TypeScript application module                                                   |
 

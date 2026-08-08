@@ -1,0 +1,66 @@
+.taskmap-material-surface {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--taskmap-material-radius);
+  box-shadow: var(--taskmap-material-shadow);
+}
+
+.taskmap-material-surface[data-material-strategy="cached-acrylic"] {
+  background:
+    radial-gradient(
+      ellipse calc(100% * var(--taskmap-material-highlight-radius))
+        calc(100% * var(--taskmap-material-highlight-radius)) at 0 0,
+      rgb(
+          255 255 255 /
+            calc(
+              var(--taskmap-material-highlight) * var(--taskmap-material-highlight-start-multiplier)
+            )
+        )
+        var(--taskmap-material-highlight-start-offset),
+      rgb(
+          255 255 255 /
+            calc(
+              var(--taskmap-material-highlight) *
+                var(--taskmap-material-highlight-middle-multiplier)
+            )
+        )
+        var(--taskmap-material-highlight-middle-offset),
+      rgb(
+          255 255 255 /
+            calc(
+              var(--taskmap-material-highlight) * var(--taskmap-material-highlight-end-multiplier)
+            )
+        )
+        var(--taskmap-material-highlight-end-offset)
+    ),
+    rgb(var(--taskmap-material-tint-rgb) / var(--taskmap-material-tint-opacity));
+}
+
+.taskmap-material-surface[data-material-strategy="cached-acrylic"]::after {
+  position: absolute;
+  z-index: 1;
+  padding: var(--taskmap-material-border-width);
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / var(--taskmap-material-border-top)) 0%,
+    rgb(255 255 255 / var(--taskmap-material-border-bottom)) 100%
+  );
+  content: "";
+  inset: 0;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.taskmap-material-surface[data-material-strategy="css"] {
+  border: var(--taskmap-material-border-width) solid
+    rgb(var(--taskmap-material-border-rgb) / var(--taskmap-material-border-alpha));
+  background: rgb(var(--taskmap-material-fill-rgb));
+}

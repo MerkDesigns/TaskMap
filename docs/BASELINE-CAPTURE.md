@@ -2,6 +2,11 @@
 
 This checklist records the legacy application's retained user-facing behavior before implementation changes. Screenshots and recordings should be stored outside the production bundle under `docs/baseline-assets/` or attached to the tracking pull request.
 
+The Phase 0 captures remain historical evidence of legacy behavior and appearance. ADR 003 later
+approved an intentional Phase 4.5 visual redesign, so existing frosted-glass captures are not the
+future material acceptance target. Phase 4.5 acceptance uses `docs/VISUAL-SYSTEM.md` and the approved
+local/reference capture without rewriting or deleting this historical record.
+
 ## Capture rules
 
 - Use the current stable build from `main`, not a partially refactored build.

@@ -1,0 +1,31 @@
+/* Phase 4.5A target tokens. Activate on the production root only during Phase 4.5C. */
+.taskmap-target-theme {
+  /* Foundation */
+  --taskmap-void-bg: #0b0b0c;
+  --taskmap-canvas-bg: #0f1011;
+  --taskmap-canvas-dot-rgb: 70 79 96;
+  --taskmap-canvas-border: rgb(255 255 255 / 0.15);
+  --taskmap-container-bg: #1b1b1e;
+  --taskmap-text: rgb(255 255 255 / 0.88);
+  --taskmap-muted: rgb(255 255 255 / 0.45);
+  --taskmap-font-family: "Segoe UI", Inter, system-ui, sans-serif;
+
+  /* Application chrome */
+  --taskmap-accent: #d87a2d;
+  --taskmap-accent-rgb: 216 122 45;
+  --taskmap-focus: var(--taskmap-accent);
+  --taskmap-active: var(--taskmap-accent);
+  --taskmap-selection: var(--taskmap-accent);
+  --taskmap-switch-on: var(--taskmap-accent);
+  --taskmap-tab-active: var(--taskmap-accent);
+  --taskmap-control-accent: var(--taskmap-accent);
+
+  /* Semantic colors remain purpose-specific and do not inherit the chrome accent. */
+  --taskmap-danger: #ff4949;
+  --taskmap-warning: #e39343;
+  --taskmap-success: #51d88b;
+  --taskmap-info: #5684e0;
+  --taskmap-link: #65d7e4;
+  --taskmap-minimap-element: #7aa2c8;
+  --taskmap-minimap-viewport: #c8dae8;
+}

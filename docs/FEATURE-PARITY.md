@@ -28,30 +28,30 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 
 ## Canvas
 
-| Feature             | Decision          | Required behavior                                                        | Status                                                        |
-| ------------------- | ----------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Multiple canvases   | Keep              | Preserve creation, switching, editing, deletion, and previews            | Not documented                                                |
-| Pan and zoom        | Keep              | Middle/Ctrl-left pan; 0.5–2.5 anchored wheel zoom; centered reset        | Automated Phase 4 characterization; manual pending            |
-| Selection rectangle | Keep              | Shift adds; partial intersection; <4 world-unit clear; locked selectable | Automated Phase 4 characterization; manual pending            |
-| Move and resize     | Keep              | Preview-only frames; one completion; retained constraints                | Automated Phase 4 controller/adapter coverage; manual pending |
-| Snapping and guides | Keep              | Shift enables; 8 world units; retained edge/center guides                | Automated Phase 4 snapping coverage; manual pending           |
-| Layers              | Keep              | Ordered selected group; lock allowed; drag does not reorder              | Automated Phase 4 adapter coverage; manual pending            |
-| Minimap             | Keep and rewire   | Top-level bounds/connections, world viewport, reset zoom only            | Automated projection coverage; manual pending                 |
-| Grid styles         | Keep              | Preserve retained grid appearance and settings                           | Not documented                                                |
-| Shadows             | Keep              | Preserve retained visual setting                                         | Not documented                                                |
-| Undo and redo       | Keep and redesign | Equivalent user-visible results using transaction history                | Not documented                                                |
+| Feature             | Decision          | Required behavior                                                        | Status                                                               |
+| ------------------- | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Multiple canvases   | Keep              | Preserve creation, switching, editing, deletion, and previews            | Not documented                                                       |
+| Pan and zoom        | Keep              | Middle/Ctrl-left pan; 0.5–2.5 anchored wheel zoom; centered reset        | Phase 4 automated + manual interaction accepted                      |
+| Selection rectangle | Keep              | Shift adds; partial intersection; <4 world-unit clear; locked selectable | Phase 4 automated + manual interaction accepted                      |
+| Move and resize     | Keep              | Preview-only frames; one completion; retained constraints                | Phase 4 automated + manual interaction accepted                      |
+| Snapping and guides | Keep              | Shift enables; 8 world units; retained edge/center guides                | Phase 4 automated + manual interaction accepted                      |
+| Layers              | Keep              | Ordered selected group; lock allowed; drag does not reorder              | Phase 4 automated + manual interaction accepted                      |
+| Minimap             | Keep and rewire   | Top-level bounds/connections, world viewport, reset zoom only            | Phase 4 projection + manual interaction accepted; 4.5 visual pending |
+| Grid styles         | Keep              | Preserve retained grid appearance and settings                           | Not documented                                                       |
+| Shadows             | Keep              | Preserve retained visual setting                                         | Not documented                                                       |
+| Undo and redo       | Keep and redesign | Equivalent user-visible results using transaction history                | Not documented                                                       |
 
 ## Elements
 
-| Feature              | Decision                     | Required behavior                                                                                                                          | Status                                                                 |
-| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Containers           | Keep                         | Preserve rendering, header, card content, scrolling, resizing, and menus                                                                   | Not documented                                                         |
-| Text cards           | Keep                         | Preserve inline editing, links, bundle pickup/sway, insertion/reparent/detach previews, settle behavior, contained/loose states, and menus | Automated Phase 4 transient-placement characterization; manual pending |
-| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors, and menus                                                                                      | Not documented                                                         |
-| Images               | Keep                         | Preserve import, display, move, resize, background option, and menus                                                                       | Not documented                                                         |
-| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                                                                          | Not documented                                                         |
-| Mind-map nodes       | Keep and redesign internally | Preserve current user workflow and appearance                                                                                              | Not documented                                                         |
-| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion, and rendering                                                                                          | Not documented                                                         |
+| Feature              | Decision                     | Required behavior                                                                                                                          | Status                                                              |
+| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Containers           | Keep                         | Preserve rendering, header, card content, scrolling, resizing, and menus                                                                   | Not documented                                                      |
+| Text cards           | Keep                         | Preserve inline editing, links, bundle pickup/sway, insertion/reparent/detach previews, settle behavior, contained/loose states, and menus | Phase 4 transient placement automated + manual interaction accepted |
+| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors, and menus                                                                                      | Not documented                                                      |
+| Images               | Keep                         | Preserve import, display, move, resize, background option, and menus                                                                       | Not documented                                                      |
+| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                                                                          | Not documented                                                      |
+| Mind-map nodes       | Keep and redesign internally | Preserve current user workflow and appearance                                                                                              | Not documented                                                      |
+| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion, and rendering                                                                                          | Not documented                                                      |
 
 ## Extensions
 
@@ -83,13 +83,14 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 
 ## Visual system
 
-| Feature                           | Decision | Required behavior                                                 | Status              |
-| --------------------------------- | -------- | ----------------------------------------------------------------- | ------------------- |
-| Existing frosted-glass appearance | Keep     | Centralize current effect without visual redesign                 | Not documented      |
-| Frosted-glass tuner               | Remove   | No production or development tuner remains                        | Removed by decision |
-| Menus and modals                  | Keep     | Preserve current appearance, motion, and placement where retained | Not documented      |
-| Element animations                | Keep     | Preserve useful entry, delete, drag, and settle behavior          | Not documented      |
-| Toasts and feedback               | Keep     | Preserve clear operation and error feedback                       | Not documented      |
+| Feature                           | Decision                         | Required behavior                                                                        | Status                                 |
+| --------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------- |
+| Adaptive acrylic visual system    | Redesign approved                | Match `docs/VISUAL-SYSTEM.md` and the approved local reference while preserving behavior | Phase 4.5A contract; migration pending |
+| Existing frosted-glass appearance | Supersede by decision            | Retain only as historical baseline evidence until migration                              | Phase 4.5C migration pending           |
+| Frosted-glass tuner               | Remove                           | No production or development tuner remains                                               | Removed by decision                    |
+| Menus and modals                  | Keep behavior; redesign material | Preserve motion, placement, semantics, and workflow; use approved materials              | Phase 4.5C visual migration pending    |
+| Element animations                | Keep                             | Preserve useful entry, delete, drag, and settle behavior                                 | Not documented                         |
+| Toasts and feedback               | Keep                             | Preserve clear operation and error feedback                                              | Not documented                         |
 
 ## Persistence and configuration
 
@@ -116,3 +117,9 @@ For each retained feature:
 6. Mark `Accepted` only after direct manual verification.
 
 Compilation or unit tests alone are insufficient for parity acceptance.
+
+The Phase 4 production interaction checklist was manually completed by the user after commit
+`9a34a23`. This accepts the retained interaction behavior recorded above; it is not a rendered FPS
+measurement and does not mark Phase 4.5 visual migration complete. Future material acceptance uses
+`docs/VISUAL-SYSTEM.md` plus the approved local/reference capture. Historical Phase 0 frosted
+evidence remains useful for behavior and regression context but is no longer the target appearance.

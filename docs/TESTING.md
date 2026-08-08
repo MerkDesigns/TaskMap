@@ -210,7 +210,14 @@ CI must fail when:
 - `AppShell.tsx` gains prohibited dependencies
 - A feature imports another feature's internal file instead of its public contract
 - A file exceeds the configured review threshold without allow-list documentation
-- A second backdrop-filter implementation appears outside `FrostedSurface`
+- A direct `backdrop-filter`, Tailwind `backdrop-blur-*`, legacy frosted class/consumer, or independent
+  acrylic Canvas2D implementation grows beyond the exact Phase 4.5A frozen legacy allowlist
+
+The Phase 4.5A material rule freezes path-specific occurrence counts rather than exempting broad
+directories. Removing a legacy occurrence is allowed; adding one in the same or another file fails.
+Phase 4.5D removes this transitional allowlist entirely. Acrylic Canvas2D implementation is owned
+specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains valid
+elsewhere.
 
 ### Phase 1 skeleton coverage
 
@@ -249,8 +256,63 @@ not a machine-dependent `<16.67 ms` assertion and not a claim of measured releas
 
 The minimap projection tests cover landscape/portrait sizing, element minimum pixels, and viewport
 projection. Production minimap interaction remains reset-only; click/drag navigation is intentionally
-absent. The required manual production parity pass was not performed in the Phase 4 implementation
-environment because no controllable browser backend was available. It remains an open phase gate.
+absent. The user completed the Phase 4 production manual parity checklist after commit `9a34a23` and
+accepted the retained interaction behavior. The release-mode rendered 60 FPS measurement was not
+performed. Because Phase 4.5 replaces the rendering/material path, that measurement is performed once
+after Phase 4.5D against the final compositor.
+
+### Phase 4.5A visual-system foundation coverage
+
+TypeScript tests lock the exact material IDs, Large and Small definitions, shared acrylic cache
+profile identity and values, Cutout definition, highlight stops, duplicate registration rejection,
+and safe unknown-ID behavior. Component tests cover registered material selection, ordinary DOM
+props, bounded semantic elements, ref forwarding, default/inherited/overridden plane, default and
+geometry-specific radius, explicit no-shadow elevation, Cutout inset presentation, and the absence
+of feature-facing blur/cache/worker/tint props.
+
+Architecture-rule fixtures prove the exact frozen legacy occurrences remain temporarily accepted,
+new direct backdrop-filter declarations and Tailwind backdrop-blur utilities fail, and even a frozen
+file cannot grow beyond its recorded count. There are no compositor runtime tests in Phase 4.5A.
+
+### Phase 4.5B deterministic compositor gates
+
+Phase 4.5B must add deterministic tests proving:
+
+- 120 pan samples within accepted coverage cause zero expensive blur rebuilds.
+- 120 zoom samples within the `0.68`–`1.47` tolerance reuse the cache; crossing a zoom or 30%
+  margin-safety coverage threshold coalesces the required rebuild even during an active gesture.
+- Expensive scene rasterization/blur never runs once per animation frame or pointer sample.
+- At most one compositor `requestAnimationFrame` callback is queued and at most one expensive build
+  is active; the queue retains only the newest relevant request.
+- Newer queued state supersedes obsolete output, rejected/replaced `ImageBitmap` objects are closed,
+  and lifecycle/canvas/viewport identity prevents stale acceptance.
+- Surface mount, visibility, animation, and resize dirty masks/overlays without automatically dirtying
+  the backdrop scene or rebuilding its cache each frame.
+- Drag and resize pointer samples do not rebuild the expensive cache; one relevant settled mutation
+  invalidates once. Coverage-required camera rebuilds remain allowed and coalesced.
+- Worker failure selects the controlled cache-based main-thread fallback; inability to produce full
+  acrylic selects overlay-only degradation and never per-surface backdrop-filter.
+- Disposal cancels owned frames, terminates the worker, disconnects observers, and closes bitmaps.
+- The 10,000-element fixture culls before worker transfer so primitive count is bounded to viewport,
+  cache margin, and necessary pinned presentation.
+- Spies keep JSON serialization/parsing, `structuredClone`, document cloning, persistent Redux
+  dispatch, history, persistence, encryption, and database calls at zero in the compositor hot path.
+
+These are state/count/invariant CI gates, not fragile wall-clock assertions. Real media beneath
+acrylic is a required visual acceptance case; if needed, tests cover a generic raster/thumbnail
+primitive rather than an Image/GIF-specific compositor branch.
+
+### Phase 4.5D visual and performance acceptance
+
+Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and
+display scaling. Compare target theme, typography, exact material overlays, geometry, base/modal
+stacking, animated surfaces, worker/fallback/degraded modes, and real media under acrylic against
+`docs/VISUAL-SYSTEM.md` and the approved reference capture.
+
+Measure release-mode rendered pan, zoom, drag, and resize on the normal fixture and record hardware,
+Windows/WebView2 versions, display scaling, refresh rate, window size, build/commit, traces, and
+compositor diagnostics. The acceptance target remains 60 FPS. Stress-fixture behavior is recorded
+separately. CI deterministic tests do not claim FPS or a `<16.67 ms` wall-clock threshold.
 
 ## Phase gates
 

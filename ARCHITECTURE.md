@@ -2,7 +2,10 @@
 
 ## Purpose
 
-TaskMap is a local-first Windows desktop application for arranging modular content on large visual canvases. Users work with containers, text cards, text blocks, media, mind-map connections, and optional element extensions. The application must remain responsive with large documents and must preserve the visual identity and behavior of all retained features from the legacy application.
+TaskMap is a local-first Windows desktop application for arranging modular content on large visual
+canvases. Users work with containers, text cards, text blocks, media, mind-map connections, and
+optional element extensions. The application must remain responsive with large documents, preserve
+retained behavior, and implement intentional visual changes through the normative visual contract.
 
 This document defines the target architecture for the complete refactor. It is normative: new code must fit this structure unless an architecture decision record explicitly changes it.
 
@@ -90,7 +93,12 @@ src/
 │   ├── settingsClient.ts
 │   └── updaterClient.ts
 ├── ui/
-│   ├── materials/FrostedSurface.tsx
+│   ├── theme/
+│   ├── materials/
+│   │   ├── MaterialSurface.tsx
+│   │   ├── materialDefinitions.ts
+│   │   ├── materialRegistry.ts
+│   │   └── compositor/ (Phase 4.5B)
 │   ├── menus/
 │   ├── dialogs/
 │   ├── controls/
@@ -440,16 +448,42 @@ First-version restrictions:
 - Imported workflows are disabled until trusted
 - TaskMap stops only processes it launched and tracks
 
-## Frosted glass
+## Material system and compositor boundary
 
-The current blur appearance is retained through one shared `FrostedSurface` component. The refactor does not introduce WebGL blur or change the product's visual material.
+`docs/VISUAL-SYSTEM.md` is the normative source for theme tokens, exact material definitions,
+adaptive quality constants, invalidation rules, fallback behavior, and material usage. Feature UI
+selects a registered internal material through `MaterialSurface`; it does not implement backgrounds,
+borders, shadows, blur, or compositor behavior independently.
 
-Rules:
+```text
+feature UI
+  -> MaterialSurface / static material registry
+  -> material compositor public boundary
+  -> adaptive cached Canvas2D implementation
+```
 
-- No nested backdrop filters
-- No separate blur implementations in feature modules
-- Fixed production tokens replace the removed development tuner
-- Compositor fixes may improve artifacts but must preserve the existing appearance
+The material registry owns stable definitions and rendering strategies. `MaterialSurface` owns the
+feature-facing material, `base`/`modal` plane, geometry, and elevation contract. Phase 4.5B adds the
+bounded surface registry, cache scheduler, worker/fallback, and compositor canvases behind that
+boundary; features do not receive compositor tuning controls.
+
+The compositor consumes a generic `BackdropScene` presentation contract assembled from cullable
+visual primitives. It imports no domain, persistence, database, feature business logic, element
+modules, or legacy `TaskCanvas` types and contains no element-type switches. Phase 4.5A does not add
+a final contribution method to `ElementDefinition`; normalized element/canvas presentation assembly
+will be finalized after the Phase 4.5B scene boundary is proven. Transitional type-aware translation
+stays in a legacy presentation adapter outside the compositor.
+
+Persistent and transient ownership rules continue unchanged. Camera frames may cheaply reproject a
+cache and may coalesce a coverage-required rebuild during a long gesture, but they do not scan/build
+the scene, blur, dispatch persistent commands, serialize, create history, or invoke storage once per
+pointer sample. Expensive cache, viewport transform, surface geometry, material overlay, and shared
+blur invalidations remain independently testable.
+
+Direct/nested backdrop filters and `FrostedSurface` are superseded. Their exact existing occurrences
+remain frozen migration debt only so Phase 4.5A does not change production appearance. Phase 4.5C
+migrates consumers; Phase 4.5D deletes the old implementation and removes the transitional
+architecture allowlist.
 
 ## Stable and development editions
 

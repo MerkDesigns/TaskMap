@@ -163,6 +163,44 @@ Features such as minimap, database picker, settings, updates, or Workflow Runner
 
 A feature may depend on application commands, selectors, UI primitives, and platform interfaces. It may not bypass the platform layer or mutate the document outside the command pipeline.
 
+## Selecting and adding materials
+
+Feature UI selects an existing internal material with `MaterialSurface`:
+
+```tsx
+<MaterialSurface material="acrylic-large">...</MaterialSurface>
+<MaterialSurface material="acrylic-small" radius={8}>...</MaterialSurface>
+<MaterialSurface material="cutout" radius={6}>...</MaterialSurface>
+```
+
+The surface defaults to the inherited `base` plane. Modal roots establish `modal` through
+`MaterialPlaneProvider`, including when content renders through a portal. Use `elevation="none"` only
+for a geometry whose contract suppresses the material's external shadow, such as the toolbar. Keep
+accessibility roles, labels, events, and content in the feature; keep blur, cache, worker, tint,
+border, shadow, mask, and compositor implementation in `src/ui/materials/`.
+
+To add an internal material using an existing strategy:
+
+1. Add one typed definition to the static registry boundary.
+2. Add exact definition, registry, presentation, and visual tests.
+3. Update `docs/VISUAL-SYSTEM.md` and the code map.
+4. Update generic material implementation only when the existing strategy cannot render the new
+   definition; never branch on the requesting feature or element type.
+
+Add an ADR when changing compositor strategy, dependency direction, plane semantics, shared cache
+behavior, or performance invariants. A routine variant using an established strategy does not need
+an ADR.
+
+The future compositor receives a generic, culled `BackdropScene` from presentation assembly. Do not
+query the whole DOM, import feature models into the compositor, or add element-type switches. Phase
+4.5A intentionally leaves the normalized element scene-contribution API unspecified; it will be
+finalized against the proven contract during Phase 4.5B/Phase 5.
+
+Material work preserves the interaction contract: no persistent dispatch, scene scan/build, blur,
+serialization, history, persistence, or database access once per pointer sample. A long pan/zoom may
+coalesce a cache rebuild when coverage requires it. See `docs/VISUAL-SYSTEM.md` for the normative
+quality and invalidation contract.
+
 ## Adding a platform operation
 
 1. Define or extend a typed TypeScript client under `src/platform/`.
@@ -248,7 +286,7 @@ Reject the implementation when any answer is yes:
 - Does pointer movement save or create history?
 - Does a generic menu gain one callback specifically for this feature?
 - Does the feature duplicate validation in TypeScript and Rust?
-- Does the feature introduce a second blur implementation?
+- Does the feature bypass `MaterialSurface` or introduce blur/compositor/material implementation?
 - Does a file exceed 400 lines without a clear subsystem reason?
 - Does the feature add legacy compatibility to the main app?
 - Can imported workflow data execute before trust?

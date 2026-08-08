@@ -168,14 +168,71 @@ corresponding ownership to normalized feature slices.
 ### Exit criteria
 
 - [ ] 60 FPS target receives a release-mode visual/manual measurement. Deterministic hot-path and
-      10,000-element culling fixtures pass, but they do not by themselves prove rendered FPS.
+      10,000-element culling fixtures pass, but they do not by themselves prove rendered FPS. Phase
+      4.5 changes the rendering path, so the final measurement is intentionally performed once after
+      Phase 4.5D against the accepted compositor.
 - [x] Pointer frames perform no serialization, cloning, persistence, database calls, or history commits.
 - [x] Multi-selection and locked-element rules match characterized parity in deterministic tests.
-- [ ] Production manual parity checklist passes. Browser control was unavailable in the Phase 4
-      implementation environment, so this gate remains open rather than being inferred.
+- [x] Production manual parity checklist passed after commit `9a34a23`; the user directly verified
+      retained Phase 4 interaction behavior.
 
-Phase 4 implementation is present, but the phase is not formally closed until the two unchecked
-acceptance gates above are performed.
+Phase 4 implementation and manual interaction parity are accepted. Formal release performance
+acceptance remains open and is deferred to the final Phase 4.5 rendering path rather than measured
+twice.
+
+## Phase 4.5 — Visual System + Adaptive Acrylic Compositor
+
+This phase establishes the final application material/theme boundary before element migration so
+Phase 5 renderers target it once. Exact values and runtime invariants live in
+`docs/VISUAL-SYSTEM.md`; ADR 003 records the foundational decision.
+
+### 4.5A — Contract / foundation
+
+- [x] Add the normative visual specification and adaptive-compositor ADR.
+- [x] Define inactive target theme tokens, typed material definitions, shared acrylic profile, and
+      explicit static registry.
+- [x] Add `MaterialSurface` with `base`/`modal` plane inheritance and no compositor tuning API.
+- [x] Freeze exact legacy blur/frosted occurrences in transitional architecture checks.
+- [x] Update agent, architecture, wiring, parity, testing, baseline, and code-map guidance.
+
+This slice does not activate the target theme, migrate a production consumer, or implement a
+Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
+
+### 4.5B — Adaptive compositor
+
+- [ ] Prove the generic `BackdropScene`, adaptive-quality, invalidation, culling, cache-scheduler,
+      surface-registry, `base`/`modal` compositor, worker, fallback, and stale-result contracts.
+- [ ] Integrate with the authoritative Phase 4 interaction controller without per-sample scene
+      building, blur, or persistent work; coalesce coverage-required rebuilds during long gestures.
+- [ ] Validate real image/GIF fidelity beneath acrylic and add a generic raster/thumbnail primitive
+      only if visual acceptance requires it.
+- [ ] Add deterministic compositor tests and development-only diagnostics.
+
+### 4.5C — Production visual migration
+
+- [ ] Activate the target theme and global orange application-chrome accent.
+- [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
+      frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
+- [ ] Preserve user-selected element colors and semantic/spatial colors.
+- [ ] Complete production visual, worker/fallback, media-under-acrylic, animation, and stacking
+      acceptance.
+
+### 4.5D — Cleanup / acceptance
+
+- [ ] Delete `FrostedSurface`, legacy frosted CSS/tuner paths, and the transitional allowlist.
+- [ ] Run the full automated matrix and final architecture/material scan.
+- [ ] Complete manual visual acceptance and the release-mode rendered 60 FPS measurement on the
+      normal fixture against the final compositor.
+- [ ] Regenerate the final code map and close Phase 4.5 documentation gates.
+
+### Exit criteria
+
+- All production chrome surfaces use the static material system; no direct/nested backdrop-filter
+  or second acrylic compositor remains.
+- Pan, zoom, drag, and resize preserve the Phase 4 high-frequency contract and pass deterministic
+  cache/culling tests.
+- Stable and development Tauri/WebView2 builds pass worker, fallback, visual, and disposal checks.
+- Manual visual acceptance and documented release-mode performance measurement pass.
 
 ## Phase 5 — Element modules
 
