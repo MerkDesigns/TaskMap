@@ -274,6 +274,29 @@ Architecture-rule fixtures prove the exact frozen legacy occurrences remain temp
 new direct backdrop-filter declarations and Tailwind backdrop-blur utilities fail, and even a frozen
 file cannot grow beyond its recorded count. There are no compositor runtime tests in Phase 4.5A.
 
+### Phase 4.5B1 pure compositor-core coverage
+
+Six Node-environment suites contain 60 deterministic cases for the pure B1 boundary. They lock the
+normative quality constants, formulas, clamps, margin cases, explicit invalid-input rejection, and
+ceil-rounded backing dimensions. Coverage cases reuse the canonical Phase 4 viewport transforms and
+exercise inclusive `0.68`/`1.47` zoom bounds, just-outside ratios, all four 30%-margin safety edges,
+dimension changes, non-1 anchors, extreme aspect ratios, and rebuild discovery during 120 active
+gesture samples.
+
+Invalidation cases classify the five normative categories and the explicit output-size category by
+expensive build, cheap compose, mask, overlay, and buffer-resize consequences. Scheduler and generic
+resource fakes prove one active/one newest queued build, chronological lifecycle/build-serial
+ordering, duplicate and stale request suppression, conflicting-identity rejection, queued
+replacement, stale result rejection, next-build start, lifecycle/scene/profile supersession,
+disposal, close-on-reject/replacement, no double close, and prevention of obsolete resource
+replacement. A pure frame state machine proves that 120 transform notifications create one logical
+pending frame, consumption uses the latest state, and a subsequent frame can be scheduled; spies
+keep JSON serialization/parsing and `structuredClone` at zero.
+
+This B1 coverage does not claim a Worker, `OffscreenCanvas`, Canvas2D renderer, `ImageBitmap`, surface
+registry, observer, React provider, fallback runtime, production integration, visual acceptance, or
+release FPS proof. Those Phase 4.5B/4.5D gates remain open below.
+
 ### Phase 4.5B deterministic compositor gates
 
 Phase 4.5B must add deterministic tests proving:

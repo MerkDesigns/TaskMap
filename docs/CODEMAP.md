@@ -113,7 +113,7 @@ Phase 4.5C/4.5D.
   pan, zoom, box selection, movement, resize, snapping, layer, culling, or minimap projection
   algorithms.
 
-## Phase 4.5 visual-system foundation
+## Phase 4.5 visual-system foundation and pure compositor core
 
 - `src/ui/theme/theme.css` — exact target foundation, application-chrome, semantic, and spatial
   tokens, scoped and intentionally inactive until Phase 4.5C.
@@ -126,6 +126,13 @@ Phase 4.5C/4.5D.
   boundary; no compositor runtime exists in 4.5A.
 - `scripts/material-architecture-rules.mjs` — narrow count-sensitive frozen allowlist for exact
   legacy blur/frosted occurrences and ownership check for future acrylic Canvas2D code.
+- `src/ui/materials/compositor/adaptiveQuality.ts` and `cacheCoverage.ts` — pure normative quality
+  sizing and canonical Phase 4 viewport-to-accepted-cache coverage math.
+- `src/ui/materials/compositor/compositorTypes.ts`, `cacheScheduler.ts`, and
+  `cacheResourceOwner.ts` — immutable build identity, one-active/one-newest scheduling, stale-result
+  acceptance, and generic disposable-resource ownership without browser resource types.
+- `src/ui/materials/compositor/compositorInvalidation.ts` and `frameCoalescing.ts` — pure semantic
+  work classification and one-pending-frame/latest-state coalescing for the later runtime.
 - `docs/VISUAL-SYSTEM.md` and `docs/decisions/003-adaptive-acrylic-compositor.md` — normative values
   and decision rationale.
 
@@ -517,6 +524,19 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                   |
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                   |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/adaptiveQuality.test.ts`                  |   125 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/adaptiveQuality.ts`                       |    83 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/cacheCoverage.test.ts`                    |   192 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/cacheCoverage.ts`                         |   143 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/cacheResourceOwner.test.ts`               |   108 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/cacheResourceOwner.ts`                    |    67 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/cacheScheduler.test.ts`                   |   246 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/cacheScheduler.ts`                        |   116 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/compositorInvalidation.test.ts`           |    78 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/compositorInvalidation.ts`                |    71 | Explicit output-buffer resize work for B2.                                      |
+| `src/ui/materials/compositor/compositorTypes.ts`                       |   175 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/frameCoalescing.test.ts`                  |    59 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/frameCoalescing.ts`                       |    59 | TypeScript application module                                                   |
 | `src/ui/materials/FrostedSurface.test.tsx`                             |    22 | Tests for the adjacent module                                                   |
 | `src/ui/materials/FrostedSurface.tsx`                                  |    15 | React component or typed UI module                                              |
 | `src/ui/materials/frostedSurfaceTypes.ts`                              |     6 | TypeScript application module                                                   |
