@@ -297,6 +297,37 @@ This B1 coverage does not claim a Worker, `OffscreenCanvas`, Canvas2D renderer, 
 registry, observer, React provider, fallback runtime, production integration, visual acceptance, or
 release FPS proof. Those Phase 4.5B/4.5D gates remain open below.
 
+### Phase 4.5B2 compositor-runtime proof coverage
+
+Nine Node-environment B2 suites contain 84 deterministic runtime cases, with five additional
+material-architecture cases. Generic scene tests prove deeply frozen structured-clone-safe data,
+bounded primitive/grid/transform inputs, and rejection of feature-specific discriminants. Grid work
+limits apply to the cache/world intersection, allowing large logical worlds while failing before
+pathological cache-local dot or line iteration. Recording Canvas2D fakes lock
+clear/background/grid/primitive order, canonical anchor pan/zoom plus cache-margin transform, rounded
+paths, cache culling, and the one shared 45 CSS-pixel blur converted to backing pixels by cache scale
+with saturation and brightness both fixed at `1`.
+
+Protocol, worker-side, and client cases preserve exact descriptor/request identity, send the scene
+separately from document data, transfer the successful bitmap as the sole transferable, close on
+failed transfer/malformed/stale/replaced/disposed results, require exact bitmap dimensions, and
+prevent stale failures or obsolete successes from disturbing newer work. Runtime cases retain B1's
+one-active/one-newest queue and prove one fatal Worker downgrade automatically continues the current
+desired build, or the newest queued build, through fallback without Worker recreation. They also
+show 120 active-interaction fallback requests invoke no expensive build until settlement, at which
+point only the newest request starts. Capability cases cover Worker/OffscreenCanvas/main-thread/
+overlay-only selection and constructor failure. Hot-path spies keep JSON serialization/parsing and
+`structuredClone` at zero; import rules reject Blob workers and feature/domain/platform/React/Redux/
+Tauri compositor dependencies.
+
+The production Vite graph includes the lazy B2 runtime without constructing it; `npm run build`
+must emit a distinct `acrylicCache.worker-*.js` module-worker asset. Tauri packaging proves that
+asset survives bundling, but neither compilation nor packaging claims successful WebView2 execution.
+An actual Worker → OffscreenCanvas → transferable ImageBitmap run remains a manual B2 acceptance
+item when no controllable Chromium/WebView2 session is available. B3 surface registration,
+compositor canvases, masks, React integration, production scene assembly, and visual migration remain
+unimplemented.
+
 ### Phase 4.5B deterministic compositor gates
 
 Phase 4.5B must add deterministic tests proving:

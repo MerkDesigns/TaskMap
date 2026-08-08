@@ -88,6 +88,27 @@ export function findMaterialArchitectureViolations(entries) {
         `${path}: acrylic Canvas2D implementation belongs under src/ui/materials/compositor`,
       );
     }
+
+    if (ownsMaterialImplementation && /\bnew\s+Blob\s*\(/.test(source)) {
+      violations.push(`${path}: acrylic workers must be Vite module workers, not Blob workers`);
+    }
+
+    if (ownsMaterialImplementation) {
+      const imports = [
+        ...source.matchAll(/\bfrom\s+["']([^"']+)["']/g),
+        ...source.matchAll(/\bimport\s*(?:\(\s*)?["']([^"']+)["']/g),
+      ].map((match) => match[1]);
+      const forbidden = imports.find(
+        (specifier) =>
+          /(?:^|\/)(?:app|domain|elements|features|legacy|platform)(?:\/|$)/.test(specifier) ||
+          /^(?:react(?:-dom)?|react-redux|@reduxjs\/toolkit|@tauri-apps\/)/.test(specifier),
+      );
+      if (forbidden) {
+        violations.push(
+          `${path}: compositor runtime must not import forbidden boundary ${forbidden}`,
+        );
+      }
+    }
   }
 
   return violations;

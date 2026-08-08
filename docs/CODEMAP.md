@@ -113,7 +113,7 @@ Phase 4.5C/4.5D.
   pan, zoom, box selection, movement, resize, snapping, layer, culling, or minimap projection
   algorithms.
 
-## Phase 4.5 visual-system foundation and pure compositor core
+## Phase 4.5 visual-system foundation and compositor runtime proof
 
 - `src/ui/theme/theme.css` — exact target foundation, application-chrome, semantic, and spatial
   tokens, scoped and intentionally inactive until Phase 4.5C.
@@ -133,6 +133,21 @@ Phase 4.5C/4.5D.
   acceptance, and generic disposable-resource ownership without browser resource types.
 - `src/ui/materials/compositor/compositorInvalidation.ts` and `frameCoalescing.ts` — pure semantic
   work classification and one-pending-frame/latest-state coalescing for the later runtime.
+- `src/ui/materials/compositor/backdropScene.ts`, `backdropSceneValidation.ts`, and
+  `sceneRasterizer.ts` — bounded structured-clone-safe generic presentation snapshots, deliberate
+  worker-boundary validation, cache-rectangle culling, and the shared world-space Canvas2D
+  rasterizer.
+- `src/ui/materials/compositor/sharedAcrylicProfile.ts`, `sharedAcrylicCacheBuilder.ts`, and the
+  Canvas backends — the sole 45 CSS-pixel blur/saturation-1/brightness-1 cache pass, with scale
+  conversion shared by OffscreenCanvas and deferred main-thread execution.
+- `src/ui/materials/compositor/acrylicCache.worker.ts`, `acrylicWorkerProtocol.ts`,
+  `acrylicWorkerRuntime.ts`, and `acrylicWorkerExecutor.ts` — Vite module worker, plain bounded
+  protocol, transferable bitmap handoff, fail-closed message execution, and one-active B1 scheduler
+  bridge.
+- `src/ui/materials/compositor/compositorCapabilities.ts`, `browserAcrylicRuntime.ts`, and
+  `acrylicCacheRuntime.ts` — injected capability probes, lazy browser construction, Worker failure
+  downgrade, interaction-aware fallback deferral, overlay-only availability, and deterministic
+  bitmap ownership. Phase 4.5B2 does not register surfaces or activate a production compositor.
 - `docs/VISUAL-SYSTEM.md` and `docs/decisions/003-adaptive-acrylic-compositor.md` — normative values
   and decision rationale.
 
@@ -272,8 +287,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `scripts/check-version.mjs`                                            |    56 | Repository maintenance script                                                   |
 | `scripts/generate-baseline-fixtures.mjs`                               |   115 | Repository maintenance script                                                   |
 | `scripts/generate-codemap.mjs`                                         |   103 | Repository maintenance script                                                   |
-| `scripts/material-architecture-rules.mjs`                              |    95 | Repository maintenance script                                                   |
-| `scripts/material-architecture-rules.test.mjs`                         |    91 | Tests for the adjacent module                                                   |
+| `scripts/material-architecture-rules.mjs`                              |   116 | Repository maintenance script                                                   |
+| `scripts/material-architecture-rules.test.mjs`                         |   132 | Tests for the adjacent module                                                   |
 | `scripts/report-file-sizes.mjs`                                        |    46 | Repository maintenance script                                                   |
 | `src-tauri/src/commands.rs`                                            |   566 | Rust backend module                                                             |
 | `src-tauri/src/commands/database_command_types.rs`                     |    65 | Rust backend module                                                             |
@@ -505,7 +520,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/legacy/interactions/legacyTextCardPlacement.test.ts`              |    53 | @vitest-environment node                                                        |
 | `src/legacy/interactions/legacyTextCardPlacement.ts`                   |   296 | TypeScript application module                                                   |
 | `src/legacy/LegacyApplication.tsx`                                     |    10 | React component or typed UI module                                              |
-| `src/main.tsx`                                                         |    11 | TypeScript application module                                                   |
+| `src/main.tsx`                                                         |    14 | TypeScript application module                                                   |
 | `src/mindmapMath.test.ts`                                              |    42 | Tests for the adjacent module                                                   |
 | `src/mindmapMath.ts`                                                   |    83 | TypeScript application module                                                   |
 | `src/platform/database/databaseClient.ts`                              |    25 | TypeScript application module                                                   |
@@ -524,19 +539,48 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                   |
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                   |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicBitmapResource.ts`                 |    30 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicBuildExecutor.ts`                  |    40 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicCache.worker.ts`                   |    23 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicCacheRuntime.test.ts`              |   289 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/acrylicCacheRuntime.ts`                   |   232 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicCanvas.ts`                         |    43 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicWorkerExecutor.test.ts`            |   263 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/acrylicWorkerExecutor.ts`                 |   176 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicWorkerFactory.ts`                  |     7 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicWorkerProtocol.test.ts`            |   107 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/acrylicWorkerProtocol.ts`                 |   209 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicWorkerRuntime.test.ts`             |    98 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/acrylicWorkerRuntime.ts`                  |    63 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/adaptiveQuality.test.ts`                  |   125 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/adaptiveQuality.ts`                       |    83 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/backdropScene.test.ts`                    |   109 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/backdropScene.ts`                         |    71 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/backdropSceneValidation.ts`               |   204 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/browserAcrylicRuntime.test.ts`            |   101 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/browserAcrylicRuntime.ts`                 |    71 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/cacheCoverage.test.ts`                    |   192 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/cacheCoverage.ts`                         |   143 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/cacheResourceOwner.test.ts`               |   108 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/cacheResourceOwner.ts`                    |    67 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/cacheScheduler.test.ts`                   |   246 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/cacheScheduler.ts`                        |   116 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/compositorCapabilities.test.ts`           |   105 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/compositorCapabilities.ts`                |   121 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/compositorInvalidation.test.ts`           |    78 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/compositorInvalidation.ts`                |    71 | Explicit output-buffer resize work for B2.                                      |
+| `src/ui/materials/compositor/compositorTestFixtures.ts`                |   235 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/compositorTypes.ts`                       |   175 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/frameCoalescing.test.ts`                  |    59 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/frameCoalescing.ts`                       |    59 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/mainThreadAcrylicBackend.ts`              |    52 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/mainThreadAcrylicExecutor.test.ts`        |    83 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/mainThreadAcrylicExecutor.ts`             |    54 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/offscreenAcrylicBackend.ts`               |    51 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/sceneRasterizer.test.ts`                  |   245 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/sceneRasterizer.ts`                       |   235 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/sharedAcrylicCacheBuilder.ts`             |    66 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/sharedAcrylicProfile.ts`                  |    56 | TypeScript application module                                                   |
 | `src/ui/materials/FrostedSurface.test.tsx`                             |    22 | Tests for the adjacent module                                                   |
 | `src/ui/materials/FrostedSurface.tsx`                                  |    15 | React component or typed UI module                                              |
 | `src/ui/materials/frostedSurfaceTypes.ts`                              |     6 | TypeScript application module                                                   |
