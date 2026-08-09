@@ -146,6 +146,19 @@ export function getLegacyTextCardFinalPosition(
   };
 }
 
+/** Read-only production ordering/filtering used by presentation projections. */
+export function getLegacyVisibleContainerTextCardPlacements(
+  container: ContainerElement,
+  cards: readonly TextCardElement[],
+  scrollOffset: number,
+): readonly { readonly card: TextCardElement; readonly x: number; readonly y: number }[] {
+  return visibleCards(container, cards).map((card, index) => ({
+    card,
+    x: container.x + PADDING,
+    y: stackTop(container) + index * (LEGACY_TEXT_CARD_ROW_HEIGHT + GAP) - scrollOffset,
+  }));
+}
+
 function dropContainer(
   state: LegacyTextCardPlacementState,
   point: { x: number; y: number },

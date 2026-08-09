@@ -200,13 +200,13 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 
 ### 4.5B — Adaptive compositor
 
-- [ ] Prove the generic `BackdropScene`, adaptive-quality, invalidation, culling, cache-scheduler,
+- [x] Prove the generic `BackdropScene`, adaptive-quality, invalidation, culling, cache-scheduler,
       surface-registry, `base`/`modal` compositor, worker, fallback, and stale-result contracts.
-- [ ] Integrate with the authoritative Phase 4 interaction controller without per-sample scene
+- [x] Integrate with the authoritative Phase 4 interaction controller without per-sample scene
       building, blur, or persistent work; coalesce coverage-required rebuilds during long gestures.
 - [ ] Validate real image/GIF fidelity beneath acrylic and add a generic raster/thumbnail primitive
       only if visual acceptance requires it.
-- [ ] Add deterministic compositor tests and development-only diagnostics.
+- [x] Add deterministic compositor tests and development-only diagnostics.
 
 ### 4.5C — Production visual migration
 

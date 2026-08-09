@@ -15,6 +15,10 @@ vi.mock("../legacy/LegacyApplication", () => ({
   },
 }));
 
+vi.mock("../ui/materials/MaterialCompositorProvider", () => ({
+  MaterialCompositorProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 vi.mock("../features/phase2-database/DevelopmentPhase2Entry", () => ({
   DevelopmentPhase2Entry: () => null,
 }));

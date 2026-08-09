@@ -463,16 +463,23 @@ feature UI
 ```
 
 The material registry owns stable definitions and rendering strategies. `MaterialSurface` owns the
-feature-facing material, `base`/`modal` plane, geometry, and elevation contract. Phase 4.5B adds the
-bounded surface registry, cache scheduler, worker/fallback, and compositor canvases behind that
-boundary; features do not receive compositor tuning controls.
+feature-facing material, explicit/inherited `base`/`modal` plane, geometry, and elevation contract.
+`MaterialCompositorProvider` owns one bounded surface registry and shared `ResizeObserver`, the two
+output canvases and mask caches, one frame scheduler, and the browser acrylic runtime. With no
+registered cached-acrylic surface the provider remains inert. Features do not receive compositor
+tuning controls. Transform-driven surface motion uses the material registration boundary's explicit
+geometry invalidation callback, which coalesces through the same compositor frame and dirties masks
+only.
 
 The compositor consumes a generic `BackdropScene` presentation contract assembled from cullable
 visual primitives. It imports no domain, persistence, database, feature business logic, element
 modules, or legacy `TaskCanvas` types and contains no element-type switches. Phase 4.5A does not add
 a final contribution method to `ElementDefinition`; normalized element/canvas presentation assembly
-will be finalized after the Phase 4.5B scene boundary is proven. Transitional type-aware translation
-stays in a legacy presentation adapter outside the compositor.
+will be finalized during Phase 5. The mixed-architecture application uses a transitional read-only
+adapter under `src/legacy/materials/`: the authoritative Phase 4 controller publishes its live
+viewport and interaction-active status through a generic presentation bridge, while the adapter
+projects only model primitives intersecting the expanded acrylic-cache rectangle. It performs no
+DOM scene capture and creates no persistent or normalized shadow document.
 
 Persistent and transient ownership rules continue unchanged. Camera frames may cheaply reproject a
 cache and may coalesce a coverage-required rebuild during a long gesture, but they do not scan/build

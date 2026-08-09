@@ -151,6 +151,8 @@ for (const file of targetFiles) {
       "react",
       "../features/phase2-database/DevelopmentPhase2Entry",
       "../legacy/LegacyApplication",
+      "../ui/materials/MaterialCompositorProvider",
+      "../ui/materials/materialCompositorPresentation",
       "./AppProviders",
       "./errors/ApplicationErrorBoundary",
       "./errors/applicationErrorReporter",

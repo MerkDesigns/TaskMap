@@ -35,6 +35,7 @@ export interface AcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap> {
   request(descriptor: CacheBuildDescriptor, scene: unknown): void;
   setInteractionActive(active: boolean): void;
   getSnapshot(): AcrylicCacheRuntimeSnapshot<Bitmap>;
+  subscribe(listener: () => void): () => void;
   dispose(): void;
 }
 
@@ -62,6 +63,8 @@ export function createAcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap
       : "overlay-only";
   let lastFailure: AcrylicBuildFailureCode | null = null;
   const resources = createCacheResourceOwner<AcrylicBitmapResource<Bitmap>>();
+  const listeners = new Set<() => void>();
+  const publish = () => listeners.forEach((listener) => listener());
 
   const currentExecutor = (): AcrylicCacheBuildExecutor<Bitmap> | null =>
     executionMode === "worker-offscreen"
@@ -100,6 +103,7 @@ export function createAcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap
       ) {
         activeStarted = false;
         startActiveBuild();
+        publish();
         return;
       }
     }
@@ -124,6 +128,7 @@ export function createAcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap
     activePayload = completion.buildToStart ? queuedPayload : null;
     queuedPayload = null;
     startActiveBuild();
+    publish();
   };
 
   const skipUnavailableBuild = () => {
@@ -197,11 +202,13 @@ export function createAcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap
       } else {
         queuedPayload = payload;
       }
+      publish();
     },
     setInteractionActive(active: boolean) {
       if (disposed || interactionActive === active) return;
       interactionActive = active;
       if (!interactionActive) startActiveBuild();
+      publish();
     },
     getSnapshot() {
       const accepted = resources.getAccepted();
@@ -215,6 +222,11 @@ export function createAcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap
         lastFailure,
       });
     },
+    subscribe(listener: () => void) {
+      if (disposed) return () => undefined;
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -226,6 +238,7 @@ export function createAcrylicCacheRuntime<Bitmap extends TransferableCacheBitmap
       mainThreadExecutor?.dispose();
       resources.dispose();
       executionMode = "overlay-only";
+      listeners.clear();
     },
   });
 }

@@ -1,0 +1,32 @@
+.taskmap-compositor-plane {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.taskmap-compositor-plane--base {
+  z-index: 40;
+}
+
+.taskmap-compositor-plane--modal {
+  z-index: 10000;
+}
+
+.taskmap-acrylic-proof {
+  position: fixed;
+  top: 84px;
+  right: 20px;
+  z-index: 41;
+  display: grid;
+  width: 240px;
+  gap: 4px;
+  padding: 14px;
+  color: rgb(255 255 255 / 0.88);
+  font-size: 12px;
+}
+
+.taskmap-acrylic-proof span {
+  color: rgb(255 255 255 / 0.55);
+}

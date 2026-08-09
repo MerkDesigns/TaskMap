@@ -1,5 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { LegacyApplication } from "../legacy/LegacyApplication";
+import { MaterialCompositorProvider } from "../ui/materials/MaterialCompositorProvider";
+import { createMaterialCompositorPresentationBridge } from "../ui/materials/materialCompositorPresentation";
 import { AppProviders } from "./AppProviders";
 import { ApplicationErrorBoundary } from "./errors/ApplicationErrorBoundary";
 import { defaultApplicationErrorReporter } from "./errors/applicationErrorReporter";
@@ -14,9 +16,13 @@ const DevelopmentPhase2Entry =
     : null;
 
 export default function AppShell() {
+  const [materialPresentation] = useState(createMaterialCompositorPresentationBridge);
   return (
-    <>
-      <LegacyApplication onBeforeClose={runWindowCloseGuard} />
+    <MaterialCompositorProvider presentation={materialPresentation}>
+      <LegacyApplication
+        onBeforeClose={runWindowCloseGuard}
+        materialPresentation={materialPresentation}
+      />
       <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
         <AppProviders>
           {DevelopmentPhase2Entry ? (
@@ -26,6 +32,6 @@ export default function AppShell() {
           ) : null}
         </AppProviders>
       </ApplicationErrorBoundary>
-    </>
+    </MaterialCompositorProvider>
   );
 }

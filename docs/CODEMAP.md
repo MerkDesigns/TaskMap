@@ -282,13 +282,13 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 
 | File                                                                   | Lines | Responsibility                                                                  |
 | ---------------------------------------------------------------------- | ----: | ------------------------------------------------------------------------------- |
-| `scripts/check-architecture.mjs`                                       |   234 | Repository maintenance script                                                   |
+| `scripts/check-architecture.mjs`                                       |   236 | Repository maintenance script                                                   |
 | `scripts/check-phase2-production-exclusion.mjs`                        |    62 | Repository maintenance script                                                   |
 | `scripts/check-version.mjs`                                            |    56 | Repository maintenance script                                                   |
 | `scripts/generate-baseline-fixtures.mjs`                               |   115 | Repository maintenance script                                                   |
 | `scripts/generate-codemap.mjs`                                         |   103 | Repository maintenance script                                                   |
-| `scripts/material-architecture-rules.mjs`                              |   116 | Repository maintenance script                                                   |
-| `scripts/material-architecture-rules.test.mjs`                         |   132 | Tests for the adjacent module                                                   |
+| `scripts/material-architecture-rules.mjs`                              |   139 | Repository maintenance script                                                   |
+| `scripts/material-architecture-rules.test.mjs`                         |   158 | Tests for the adjacent module                                                   |
 | `scripts/report-file-sizes.mjs`                                        |    46 | Repository maintenance script                                                   |
 | `src-tauri/src/commands.rs`                                            |   566 | Rust backend module                                                             |
 | `src-tauri/src/commands/database_command_types.rs`                     |    65 | Rust backend module                                                             |
@@ -331,13 +331,13 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/settings/recent_databases.rs`                           |   193 | Rust backend module                                                             |
 | `src-tauri/src/storage.rs`                                             |   722 | Rust backend module                                                             |
 | `src-tauri/src/window_state.rs`                                        |   105 | Clamp the saved geometry so the window can never restore off-screen or          |
-| `src/App.tsx`                                                          |  7421 | Latest image drop/paste handlers, refreshed each render so the once-mounted     |
+| `src/App.tsx`                                                          |  7521 | Latest image drop/paste handlers, refreshed each render so the once-mounted     |
 | `src/app/appData.test.ts`                                              |   355 | Tests for the adjacent module                                                   |
 | `src/app/appData.ts`                                                   |   299 | TypeScript application module                                                   |
 | `src/app/appDataSchema.ts`                                             |   274 | TypeScript application module                                                   |
 | `src/app/AppProviders.tsx`                                             |    28 | React component or typed UI module                                              |
-| `src/app/AppShell.test.tsx`                                            |    65 | Tests for the adjacent module                                                   |
-| `src/app/AppShell.tsx`                                                 |    32 | React component or typed UI module                                              |
+| `src/app/AppShell.test.tsx`                                            |    69 | Tests for the adjacent module                                                   |
+| `src/app/AppShell.tsx`                                                 |    38 | React component or typed UI module                                              |
 | `src/app/canvasDocument.test.ts`                                       |   122 | Tests for the adjacent module                                                   |
 | `src/app/canvasDocument.ts`                                            |    80 | TypeScript application module                                                   |
 | `src/app/commandError.test.ts`                                         |    24 | Tests for the adjacent module                                                   |
@@ -518,9 +518,13 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/legacy/interactions/legacyTextCardModifierTransition.test.ts`     |   118 | @vitest-environment node                                                        |
 | `src/legacy/interactions/legacyTextCardModifierTransition.ts`          |    38 | TypeScript application module                                                   |
 | `src/legacy/interactions/legacyTextCardPlacement.test.ts`              |    53 | @vitest-environment node                                                        |
-| `src/legacy/interactions/legacyTextCardPlacement.ts`                   |   296 | TypeScript application module                                                   |
-| `src/legacy/LegacyApplication.tsx`                                     |    10 | React component or typed UI module                                              |
-| `src/main.tsx`                                                         |    14 | TypeScript application module                                                   |
+| `src/legacy/interactions/legacyTextCardPlacement.ts`                   |   309 | TypeScript application module                                                   |
+| `src/legacy/LegacyApplication.tsx`                                     |    12 | React component or typed UI module                                              |
+| `src/legacy/materials/legacyBackdropPanelPrimitives.ts`                |    80 | TypeScript application module                                                   |
+| `src/legacy/materials/legacyBackdropScene.test.ts`                     |   227 | Tests for the adjacent module                                                   |
+| `src/legacy/materials/legacyBackdropScene.ts`                          |   234 | TypeScript application module                                                   |
+| `src/legacy/materials/legacyBackdropSceneRevision.ts`                  |    35 | TypeScript application module                                                   |
+| `src/main.tsx`                                                         |    11 | TypeScript application module                                                   |
 | `src/mindmapMath.test.ts`                                              |    42 | Tests for the adjacent module                                                   |
 | `src/mindmapMath.ts`                                                   |    83 | TypeScript application module                                                   |
 | `src/platform/database/databaseClient.ts`                              |    25 | TypeScript application module                                                   |
@@ -543,7 +547,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/compositor/acrylicBuildExecutor.ts`                  |    40 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/acrylicCache.worker.ts`                   |    23 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/acrylicCacheRuntime.test.ts`              |   289 | @vitest-environment node                                                        |
-| `src/ui/materials/compositor/acrylicCacheRuntime.ts`                   |   232 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/acrylicCacheRuntime.ts`                   |   245 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/acrylicCanvas.ts`                         |    43 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/acrylicWorkerExecutor.test.ts`            |   263 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/acrylicWorkerExecutor.ts`                 |   176 | TypeScript application module                                                   |
@@ -561,6 +565,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/compositor/browserAcrylicRuntime.ts`                 |    71 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/cacheCoverage.test.ts`                    |   192 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/cacheCoverage.ts`                         |   143 | TypeScript application module                                                   |
+| `src/ui/materials/compositor/cacheReprojection.test.ts`                |    46 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/cacheReprojection.ts`                     |    37 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/cacheResourceOwner.test.ts`               |   108 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/cacheResourceOwner.ts`                    |    67 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/cacheScheduler.test.ts`                   |   246 | @vitest-environment node                                                        |
@@ -569,6 +575,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/compositor/compositorCapabilities.ts`                |   121 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/compositorInvalidation.test.ts`           |    78 | @vitest-environment node                                                        |
 | `src/ui/materials/compositor/compositorInvalidation.ts`                |    71 | Explicit output-buffer resize work for B2.                                      |
+| `src/ui/materials/compositor/compositorOutputPlanes.test.ts`           |   123 | @vitest-environment node                                                        |
+| `src/ui/materials/compositor/compositorOutputPlanes.ts`                |   178 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/compositorTestFixtures.ts`                |   235 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/compositorTypes.ts`                       |   175 | TypeScript application module                                                   |
 | `src/ui/materials/compositor/frameCoalescing.test.ts`                  |    59 | @vitest-environment node                                                        |
@@ -584,12 +592,23 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/FrostedSurface.test.tsx`                             |    22 | Tests for the adjacent module                                                   |
 | `src/ui/materials/FrostedSurface.tsx`                                  |    15 | React component or typed UI module                                              |
 | `src/ui/materials/frostedSurfaceTypes.ts`                              |     6 | TypeScript application module                                                   |
+| `src/ui/materials/MaterialAcrylicProof.tsx`                            |    16 | React component or typed UI module                                              |
+| `src/ui/materials/materialCompositorCachePolicy.ts`                    |    80 | TypeScript application module                                                   |
+| `src/ui/materials/materialCompositorCoordinator.test.ts`               |   228 | @vitest-environment node                                                        |
+| `src/ui/materials/materialCompositorCoordinator.ts`                    |   248 | TypeScript application module                                                   |
+| `src/ui/materials/materialCompositorCoordinatorTestHarness.ts`         |   128 | TypeScript application module                                                   |
+| `src/ui/materials/materialCompositorDiagnostics.ts`                    |    72 | TypeScript application module                                                   |
+| `src/ui/materials/materialCompositorPresentation.ts`                   |    47 | TypeScript application module                                                   |
+| `src/ui/materials/MaterialCompositorProvider.tsx`                      |   130 | React component or typed UI module                                              |
 | `src/ui/materials/materialDefinitions.ts`                              |    77 | TypeScript application module                                                   |
 | `src/ui/materials/MaterialPlane.tsx`                                   |    18 | React component or typed UI module                                              |
 | `src/ui/materials/materialRegistry.test.ts`                            |    89 | Tests for the adjacent module                                                   |
 | `src/ui/materials/materialRegistry.ts`                                 |    38 | TypeScript application module                                                   |
-| `src/ui/materials/MaterialSurface.test.tsx`                            |   107 | Tests for the adjacent module                                                   |
-| `src/ui/materials/MaterialSurface.tsx`                                 |    93 | React component or typed UI module                                              |
+| `src/ui/materials/MaterialSurface.test.tsx`                            |   184 | Tests for the adjacent module                                                   |
+| `src/ui/materials/MaterialSurface.tsx`                                 |   157 | React component or typed UI module                                              |
+| `src/ui/materials/MaterialSurfaceRegistration.tsx`                     |    24 | React component or typed UI module                                              |
+| `src/ui/materials/materialSurfaceRegistry.test.ts`                     |    95 | @vitest-environment node                                                        |
+| `src/ui/materials/materialSurfaceRegistry.ts`                          |   217 | TypeScript application module                                                   |
 | `src/ui/materials/materialTypes.ts`                                    |    73 | TypeScript application module                                                   |
 | `src/ui/theme/theme.test.tsx`                                          |    47 | Tests for the adjacent module                                                   |
 | `src/useClampedFixedPosition.ts`                                       |    36 | TypeScript application module                                                   |

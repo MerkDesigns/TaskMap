@@ -109,7 +109,11 @@ import type { InteractionElement } from "./app/interactions/canvasInteractionTyp
 import { TransientInteractionProvider } from "./app/interactions/TransientInteractionProvider";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
 import { createViewport, viewportWorldRectangle } from "./canvas/geometry/viewportMath";
-import { rectanglesIntersect, type ElementGeometry } from "./canvas/geometry/canvasGeometry";
+import {
+  rectanglesIntersect,
+  type CanvasRectangle,
+  type ElementGeometry,
+} from "./canvas/geometry/canvasGeometry";
 import { getVisibleElementIds } from "./canvas/virtualization/viewportCulling";
 import { createLegacyCanvasInteractionCommitAdapter } from "./legacy/interactions/legacyCanvasInteractionCommitAdapter";
 import {
@@ -126,6 +130,12 @@ import {
 import { getLegacyTextCardDragRenderPosition } from "./legacy/interactions/legacyTextCardDragPresentation";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import { getLegacyTextCardPreviewRowOffset } from "./legacy/interactions/legacyTextCardPlacement";
+import { projectLegacyBackdropScene } from "./legacy/materials/legacyBackdropScene";
+import {
+  advanceLegacyBackdropSceneRevision,
+  type LegacyBackdropSceneRevisionState,
+} from "./legacy/materials/legacyBackdropSceneRevision";
+import type { MaterialCompositorPresentationPublisher } from "./ui/materials/materialCompositorPresentation";
 
 const CanvasManager = lazy(() =>
   import("./components/CanvasManager").then(({ CanvasManager }) => ({ default: CanvasManager })),
@@ -381,9 +391,10 @@ const useCanvasLayers = <T extends { id: string; layer?: number }>(
 
 interface AppProps {
   readonly onBeforeClose?: () => Promise<void>;
+  readonly materialPresentation?: MaterialCompositorPresentationPublisher;
 }
 
-function App({ onBeforeClose }: AppProps = {}) {
+function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({
@@ -1918,21 +1929,25 @@ function App({ onBeforeClose }: AppProps = {}) {
   }, [elements, images, textBlocks, textCards]);
 
   const previewGeometries = interactionSnapshot.geometryPreviews;
-  const layeredElements = useCanvasLayers(
-    projectLegacyGeometry(elements, previewGeometries),
-    topLevelLayerMap,
+  const settledLayeredElements = useCanvasLayers(elements, topLevelLayerMap);
+  const settledLayeredTextBlocks = useCanvasLayers(textBlocks, topLevelLayerMap);
+  const settledLayeredLooseTextCards = useCanvasLayers(renderedLooseTextCards, topLevelLayerMap);
+  const settledLayeredLooseImages = useCanvasLayers(looseImages, topLevelLayerMap);
+  const layeredElements = useMemo(
+    () => projectLegacyGeometry(settledLayeredElements, previewGeometries),
+    [previewGeometries, settledLayeredElements],
   );
-  const layeredTextBlocks = useCanvasLayers(
-    projectLegacyGeometry(textBlocks, previewGeometries),
-    topLevelLayerMap,
+  const layeredTextBlocks = useMemo(
+    () => projectLegacyGeometry(settledLayeredTextBlocks, previewGeometries),
+    [previewGeometries, settledLayeredTextBlocks],
   );
-  const layeredLooseTextCards = useCanvasLayers(
-    projectLegacyGeometry(renderedLooseTextCards, previewGeometries),
-    topLevelLayerMap,
+  const layeredLooseTextCards = useMemo(
+    () => projectLegacyGeometry(settledLayeredLooseTextCards, previewGeometries),
+    [previewGeometries, settledLayeredLooseTextCards],
   );
-  const layeredLooseImages = useCanvasLayers(
-    projectLegacyGeometry(looseImages, previewGeometries),
-    topLevelLayerMap,
+  const layeredLooseImages = useMemo(
+    () => projectLegacyGeometry(settledLayeredLooseImages, previewGeometries),
+    [previewGeometries, settledLayeredLooseImages],
   );
 
   const addIdsToSelection = (ids: string[]) => {
@@ -6114,6 +6129,91 @@ function App({ onBeforeClose }: AppProps = {}) {
   const stageHeight = stageSize.height;
   const canvasWidth = activeCanvas.width;
   const canvasHeight = activeCanvas.height;
+  const backdropTextCards = useMemo(
+    () => [
+      ...settledLayeredLooseTextCards,
+      ...textCards.filter((card) => Boolean(card.containerId)),
+    ],
+    [settledLayeredLooseTextCards, textCards],
+  );
+  const backdropCanvas = useMemo<TaskCanvas>(
+    () => ({
+      id: activeCanvas.id,
+      name: "Backdrop presentation",
+      width: activeCanvas.width,
+      height: activeCanvas.height,
+      containers: settledLayeredElements,
+      textCards: backdropTextCards,
+      textBlocks: settledLayeredTextBlocks,
+      images: settledLayeredLooseImages,
+      mindmapConnections: [],
+      pan: DEFAULT_PAN,
+      zoom: 1,
+    }),
+    [
+      activeCanvas.height,
+      activeCanvas.id,
+      activeCanvas.width,
+      backdropTextCards,
+      settledLayeredElements,
+      settledLayeredLooseImages,
+      settledLayeredTextBlocks,
+    ],
+  );
+  const backdropRevisionRef = useRef<LegacyBackdropSceneRevisionState | null>(null);
+  backdropRevisionRef.current = advanceLegacyBackdropSceneRevision(backdropRevisionRef.current, {
+    canvas: backdropCanvas,
+    gridStyle: canvasGridStyle,
+    gridOpacityPercent: canvasGridOpacity[canvasGridStyle],
+    textCardSizes: measuredInteractionCardSizes,
+  });
+  const backdropRevision = backdropRevisionRef.current.revision;
+  const buildBackdropScene = useCallback(
+    (cacheWorldBounds: CanvasRectangle, anchorZoom: number) =>
+      projectLegacyBackdropScene({
+        canvas: backdropCanvas,
+        sceneRevision: backdropRevision,
+        gridStyle: canvasGridStyle,
+        gridOpacityPercent: canvasGridOpacity[canvasGridStyle],
+        cacheWorldBounds,
+        anchorZoom,
+        textCardSizes: measuredInteractionCardSizes,
+        containerScrollOffsets,
+      }),
+    [
+      backdropCanvas,
+      backdropRevision,
+      canvasGridOpacity,
+      canvasGridStyle,
+      containerScrollOffsets,
+      measuredInteractionCardSizes,
+    ],
+  );
+  const materialBackdropPresentation = useMemo(
+    () => ({
+      sceneKey: activeCanvas.id,
+      sceneRevision: backdropRevision,
+      viewport: interactionSnapshot.viewport,
+      interactionActive: interactionSnapshot.activeInteraction !== null,
+      buildScene: buildBackdropScene,
+    }),
+    [
+      activeCanvas.id,
+      backdropRevision,
+      buildBackdropScene,
+      interactionSnapshot.activeInteraction,
+      interactionSnapshot.viewport,
+    ],
+  );
+  useLayoutEffect(() => {
+    materialPresentation?.publish(materialBackdropPresentation);
+  }, [materialBackdropPresentation, materialPresentation]);
+  useEffect(
+    () => () => {
+      materialPresentation?.clear();
+    },
+    [materialPresentation],
+  );
   const dragPinnedIds =
     interactionSnapshot.activeInteraction?.kind === "move" ||
     interactionSnapshot.activeInteraction?.kind === "resize"

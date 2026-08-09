@@ -128,4 +128,30 @@ describe("transitional material architecture rules", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("rejects compositor DOM discovery", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        {
+          path: "src/ui/materials/compositor/domCapture.ts",
+          source: 'document.querySelectorAll("[data-element]");',
+        },
+      ]),
+    ).toEqual([
+      "src/ui/materials/compositor/domCapture.ts: compositor runtime must not discover presentation through DOM scans",
+    ]);
+  });
+
+  it("rejects legacy backdrop world-element measurement", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        {
+          path: "src/legacy/materials/domBackdrop.ts",
+          source: "element.getBoundingClientRect();",
+        },
+      ]),
+    ).toEqual([
+      "src/legacy/materials/domBackdrop.ts: legacy backdrop projection must read models, not world DOM geometry",
+    ]);
+  });
 });

@@ -191,10 +191,18 @@ Add an ADR when changing compositor strategy, dependency direction, plane semant
 behavior, or performance invariants. A routine variant using an established strategy does not need
 an ADR.
 
-The future compositor receives a generic, culled `BackdropScene` from presentation assembly. Do not
-query the whole DOM, import feature models into the compositor, or add element-type switches. Phase
-4.5A intentionally leaves the normalized element scene-contribution API unspecified; it will be
-finalized against the proven contract during Phase 4.5B/Phase 5.
+The production material provider centrally registers only cached-acrylic `MaterialSurface` elements.
+Plane membership is explicit or inherited; never infer it from classes or DOM ancestry. One shared
+observer measures only those registered UI surfaces. Surface movement, resize, radius, mount, and
+plane changes invalidate a cheap plane mask, not the expensive backdrop cache.
+Transform-driven motion calls `useMaterialSurfaceGeometryInvalidation` from the material boundary;
+many notifications coalesce through the existing compositor frame and do not create a second loop.
+
+The compositor receives a generic, culled `BackdropScene` from presentation assembly. During the
+mixed architecture, the read-only legacy adapter traverses model/presentation data only and retains
+primitives intersecting the viewport-plus-cache-margin rectangle. Do not query the world DOM, import
+feature models into the compositor, or add element-type switches there. Phase 5 will define the
+normalized element scene-contribution boundary against this proven contract.
 
 Material work preserves the interaction contract: no persistent dispatch, scene scan/build, blur,
 serialization, history, persistence, or database access once per pointer sample. A long pan/zoom may

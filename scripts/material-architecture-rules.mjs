@@ -93,6 +93,29 @@ export function findMaterialArchitectureViolations(entries) {
       violations.push(`${path}: acrylic workers must be Vite module workers, not Blob workers`);
     }
 
+    const isTestSource = /(?:^|\.)test\.[cm]?[jt]sx?$/.test(path);
+    if (
+      !isTestSource &&
+      ownsMaterialImplementation &&
+      /\b(?:querySelector(?:All)?|getElementsBy(?:ClassName|TagName)|closest)\s*\(/.test(source)
+    ) {
+      violations.push(
+        `${path}: compositor runtime must not discover presentation through DOM scans`,
+      );
+    }
+
+    if (
+      !isTestSource &&
+      path.startsWith("src/legacy/materials/") &&
+      /\b(?:querySelector(?:All)?|getElementsBy(?:ClassName|TagName)|getBoundingClientRect)\s*\(/.test(
+        source,
+      )
+    ) {
+      violations.push(
+        `${path}: legacy backdrop projection must read models, not world DOM geometry`,
+      );
+    }
+
     if (ownsMaterialImplementation) {
       const imports = [
         ...source.matchAll(/\bfrom\s+["']([^"']+)["']/g),

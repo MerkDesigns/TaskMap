@@ -1,8 +1,16 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { createRef } from "react";
-import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { createRef, StrictMode } from "react";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { MaterialPlaneProvider } from "./MaterialPlane";
 import { MaterialSurface, type MaterialSurfaceProps } from "./MaterialSurface";
+import {
+  MaterialSurfaceRegistrationProvider,
+  useMaterialSurfaceGeometryInvalidation,
+} from "./MaterialSurfaceRegistration";
+import {
+  createMaterialSurfaceRegistry,
+  type MaterialSurfaceRegistry,
+} from "./materialSurfaceRegistry";
 
 afterEach(cleanup);
 
@@ -103,4 +111,73 @@ describe("MaterialSurface", () => {
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("worker");
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("tint");
   });
+
+  it("registers only cached acrylic and updates explicit plane and radius", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const closest = vi.spyOn(HTMLElement.prototype, "closest");
+    const { rerender } = render(
+      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
+        <MaterialSurface material="acrylic-large">Registered</MaterialSurface>
+      </MaterialSurfaceRegistrationProvider>,
+    );
+    expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    rerender(
+      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
+        <MaterialSurface material="acrylic-small" plane="modal" radius={8}>
+          Registered
+        </MaterialSurface>
+      </MaterialSurfaceRegistrationProvider>,
+    );
+    expect(registry.getSnapshot().surfaces[0]).toMatchObject({
+      material: "acrylic-small",
+      plane: "modal",
+      radiusPx: 8,
+    });
+    rerender(
+      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
+        <MaterialSurface material="cutout" radius={6}>
+          Registered
+        </MaterialSurface>
+      </MaterialSurfaceRegistrationProvider>,
+    );
+    expect(registry.getSnapshot().surfaces).toHaveLength(0);
+    expect(closest).not.toHaveBeenCalled();
+    closest.mockRestore();
+  });
+
+  it("keeps one live registration through the StrictMode effect probe", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const { unmount } = render(
+      <StrictMode>
+        <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
+          <MaterialSurface material="acrylic-large">Strict surface</MaterialSurface>
+        </MaterialSurfaceRegistrationProvider>
+      </StrictMode>,
+    );
+    expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    unmount();
+    expect(registry.getSnapshot().surfaces).toHaveLength(0);
+  });
+
+  it("exposes the cheap geometry invalidation seam through the material boundary", () => {
+    const notify = vi.fn();
+    const registry = createMaterialSurfaceRegistry(null);
+    function MotionProbe() {
+      const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
+      return <button onClick={invalidateGeometry}>Move surface</button>;
+    }
+    render(
+      <MaterialSurfaceRegistrationProvider value={boundary(registry, notify)}>
+        <MotionProbe />
+      </MaterialSurfaceRegistrationProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Move surface" }));
+
+    expect(notify).toHaveBeenCalledOnce();
+  });
 });
+
+function boundary(registry: MaterialSurfaceRegistry, notifySurfaceGeometryChanged = vi.fn()) {
+  return { registry, notifySurfaceGeometryChanged };
+}

@@ -320,13 +320,41 @@ overlay-only selection and constructor failure. Hot-path spies keep JSON seriali
 `structuredClone` at zero; import rules reject Blob workers and feature/domain/platform/React/Redux/
 Tauri compositor dependencies.
 
-The production Vite graph includes the lazy B2 runtime without constructing it; `npm run build`
-must emit a distinct `acrylicCache.worker-*.js` module-worker asset. Tauri packaging proves that
-asset survives bundling, but neither compilation nor packaging claims successful WebView2 execution.
-An actual Worker → OffscreenCanvas → transferable ImageBitmap run remains a manual B2 acceptance
-item when no controllable Chromium/WebView2 session is available. B3 surface registration,
-compositor canvases, masks, React integration, production scene assembly, and visual migration remain
-unimplemented.
+The production Vite graph reaches the B2 runtime through the B3 provider and must emit a distinct
+`acrylicCache.worker-*.js` module-worker asset. Tauri packaging proves that asset survives bundling,
+but neither compilation nor packaging claims successful WebView2 execution. An actual Worker to
+OffscreenCanvas to transferable ImageBitmap run remains a manual acceptance item when no
+controllable Chromium/WebView2 session is available.
+
+### Phase 4.5B3 production-integration infrastructure coverage
+
+The B3 slice adds 32 deterministic cases across registry, component-registration, output-plane,
+reprojection, coordination, legacy projection, and architecture-rule coverage. They prove one shared
+surface observer, StrictMode-safe cached-acrylic registration, explicit base/modal membership,
+independent rounded mask revisions, and no duplicate mask work across 120 unchanged measurements.
+Surface resize, radius, mount, and plane changes rebuild only affected masks and cause zero expensive
+scene-cache requests.
+
+Canonical reprojection cases cover pan, adaptive cache/compositor scales, cache margin, and non-1
+anchor/current zoom. Coordination cases prove zero work with no surfaces, 120 covered viewport
+samples produce zero expensive builds and at most one pending compositor frame, both planes compose
+from that one frame, a settled scene revision requests one asynchronous build, and unsafe coverage
+may request Worker work during an active gesture. Main-thread fallback receives the authoritative
+interaction-active state and remains deferred until settlement. Resize requests a
+dimension-compatible cache, while disposal cancels pending frame work and releases output resources.
+
+The legacy adapter cases lock the production neutral panel body, accent header, border, and current
+container/text-block header heights and radii. Loose cards, mind-map nodes, and contained cards use
+generic body geometry; contained placement reuses the existing read-only filter/order/scroll helper.
+Resolved settled layers change primitive order and presentation revision, while 120 transient samples
+do not. The 10,000-element fixture retains only expanded-cache intersections and performs zero
+world-element DOM measurements.
+
+Coordinator cases also reject cross-canvas accepted caches while allowing an older revision from the
+same scene during replacement. Explicit transform-motion invalidations coalesce 120 notifications
+into one mask-only frame using the latest registered rectangle. Focused architecture fixtures reject
+compositor DOM discovery and legacy world-element measurement. These automated cases do not claim
+production visual migration, real media fidelity, WebView2 Worker execution, or release FPS.
 
 ### Phase 4.5B deterministic compositor gates
 
