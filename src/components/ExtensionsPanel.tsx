@@ -22,7 +22,14 @@ import {
   type ExtensionTargetType,
 } from "../extensions/registry";
 import { useExtensionDrag } from "../extensions/useExtensionDrag";
-import { WorkspacePanelHeader, WorkspaceSidePanel } from "../ui/patterns/workspace";
+import {
+  ExtensionBrowserCard,
+  ExtensionIconBox,
+  WorkspacePanelHeader,
+  WorkspaceSidePanel,
+} from "../ui/patterns/workspace";
+import { IconButton } from "../ui/primitives/Button";
+import { SearchField } from "../ui/primitives/FormControls";
 import { ScrollArea } from "../ui/primitives/Layout";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
@@ -389,33 +396,36 @@ export function ExtensionsPanel({
     const ExtensionIcon = extension.Icon;
     const favorited = Boolean(favorites[extension.id]);
     const favoriteLimitReached = !favorited && favoriteCount >= MAX_EXTENSION_FAVORITES;
+    const favoriteTitle = favorited
+      ? "Remove favorite"
+      : favoriteLimitReached
+        ? `Maximum ${MAX_EXTENSION_FAVORITES} favorites`
+        : "Favorite";
 
     return (
-      <div
+      <ExtensionBrowserCard
         key={extension.id}
-        className="left-panel-card relative flex h-[58px] w-full touch-none select-none items-center gap-2.5 rounded-lg border border-white/[0.10] bg-[#15161a] p-2.5 pr-14 text-left transition-colors hover:bg-[#1d1e24]"
+        embedded={embedded}
+        data-extension-card-id={extension.id}
         onPointerDown={(event) => startExtensionDrag(event, extension.id)}
       >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/[0.12] bg-black/[0.18] text-white/72">
+        <ExtensionIconBox>
           <ExtensionIcon size={19} stroke={2} />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-white">{extension.label}</span>
-          <span className="block truncate text-xs leading-5 text-white/42">
+        </ExtensionIconBox>
+        <span className="taskmap-extension-browser-card__copy">
+          <span className="taskmap-extension-browser-card__title">{extension.label}</span>
+          <span className="taskmap-extension-browser-card__description">
             {extension.description}
           </span>
         </span>
-        <span className="absolute right-1.5 top-1.5 flex items-center gap-0.5">
+        <span className="taskmap-extension-browser-card__actions">
           <ExtensionInfoButton targets={extension.targets} />
-          <button
-            type="button"
-            className={`grid h-6 w-6 place-items-center rounded-md border transition-colors ${
-              favorited
-                ? "border-amber-300/35 bg-amber-300/12 text-amber-200"
-                : favoriteLimitReached
-                  ? "cursor-not-allowed border-white/[0.08] bg-black/[0.14] text-white/20"
-                  : "border-white/[0.10] bg-black/[0.20] text-white/42 hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-white/72"
-            }`}
+          <IconButton
+            variant="ghost"
+            size="compact"
+            className="taskmap-extension-browser-favorite"
+            data-favorited={favorited || undefined}
+            aria-label={favoriteTitle}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -427,19 +437,12 @@ export function ExtensionsPanel({
                 [extension.id]: !current[extension.id],
               }));
             }}
-            title={
-              favorited
-                ? "Remove favorite"
-                : favoriteLimitReached
-                  ? `Maximum ${MAX_EXTENSION_FAVORITES} favorites`
-                  : "Favorite"
-            }
+            title={favoriteTitle}
             disabled={favoriteLimitReached}
-          >
-            <IconStar size={15} stroke={2} fill={favorited ? "currentColor" : "none"} />
-          </button>
+            icon={<IconStar size={15} stroke={2} fill={favorited ? "currentColor" : "none"} />}
+          />
         </span>
-      </div>
+      </ExtensionBrowserCard>
     );
   };
 
@@ -447,41 +450,41 @@ export function ExtensionsPanel({
     <>
       <WorkspacePanelHeader icon={<IconPuzzle size={17} stroke={2} />} title="Extensions" />
 
-      <div className="mb-3 flex items-center gap-2">
-        <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/[0.10] bg-[#111216] px-2.5 text-white/42 focus-within:border-white/[0.20] focus-within:text-white/68">
-          <IconSearch size={16} stroke={2} />
-          <input
-            className="min-w-0 flex-1 bg-transparent text-sm text-white/82 outline-none placeholder:text-white/32"
+      <div className="taskmap-extension-browser-controls">
+        <div className="taskmap-extension-browser-search">
+          <SearchField
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search extensions"
             spellCheck={false}
+            aria-label="Search extensions"
+            prefixSlot={<IconSearch size={16} stroke={2} />}
           />
-        </label>
-        <button
+        </div>
+        <IconButton
           ref={filterButtonRef}
-          type="button"
-          className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors ${
-            allTargetsSelected
-              ? "border-white/[0.10] bg-[#111216] text-white/48 hover:border-white/[0.18] hover:text-white/78"
-              : "border-[#2dd8c8]/35 bg-[#2dd8c8]/10 text-[#7debe1]"
-          }`}
+          variant="secondary"
+          className="taskmap-extension-browser-filter"
+          data-filter-active={!allTargetsSelected || undefined}
           onClick={() => setFilterOpen((current) => !current)}
           title="Filter by element"
+          aria-label="Filter by element"
           aria-expanded={filterOpen}
-        >
-          <IconFilter size={17} stroke={2} />
-          {!allTargetsSelected && (
-            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#2dd8c8]" />
-          )}
-        </button>
+          icon={
+            <>
+              <IconFilter size={17} stroke={2} />
+              {!allTargetsSelected && <span className="taskmap-extension-browser-filter__status" />}
+            </>
+          }
+        />
       </div>
 
       {filterOpen &&
         createPortal(
           <div
             ref={filterMenuRef}
-            className="context-menu-panel context-menu-enter fixed z-[1001] w-[190px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 text-sm text-white shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
+            data-extension-filter-menu
+            className="taskmap-target-theme context-menu-panel context-menu-enter fixed z-[1001] w-[190px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 text-sm text-white shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
             style={filterPosition}
             onPointerDown={(event) => event.stopPropagation()}
           >
@@ -505,11 +508,8 @@ export function ExtensionsPanel({
                   <TargetIcon size={16} stroke={2} className="text-white/48" />
                   <span className="flex-1">{TARGET_META[target].title}</span>
                   <span
-                    className={`grid h-4 w-4 place-items-center rounded border ${
-                      selected
-                        ? "border-[#2dd8c8]/55 bg-[#2dd8c8]/18 text-[#7debe1]"
-                        : "border-white/[0.16] text-transparent"
-                    }`}
+                    className="taskmap-extension-filter-check"
+                    data-selected={selected || undefined}
                   >
                     <IconCheck size={12} stroke={2} />
                   </span>
@@ -522,17 +522,15 @@ export function ExtensionsPanel({
 
       <ScrollArea hiddenScrollbar className="min-h-0 flex-1 space-y-2">
         {favoriteExtensions.length > 0 && (
-          <div className="space-y-2">
-            <div className="px-1 text-[11px] font-semibold uppercase tracking-wide text-white/38">
-              Favorites
-            </div>
+          <div className="taskmap-extension-browser-section">
+            <div className="taskmap-extension-browser-section__heading">Favorites</div>
             {favoriteExtensions.map(renderExtensionCard)}
           </div>
         )}
         {otherExtensions.length > 0 && (
-          <div className="space-y-2">
+          <div className="taskmap-extension-browser-section">
             {favoriteExtensions.length > 0 && (
-              <div className="px-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-white/38">
+              <div className="taskmap-extension-browser-section__heading taskmap-extension-browser-section__heading--continuation">
                 Extensions
               </div>
             )}
@@ -540,9 +538,7 @@ export function ExtensionsPanel({
           </div>
         )}
         {filteredExtensions.length === 0 && (
-          <div className="left-panel-card rounded-lg border border-white/[0.10] bg-[#15161a] px-3 py-4 text-center text-sm text-white/42">
-            No extensions found
-          </div>
+          <div className="taskmap-extension-browser-empty">No extensions found</div>
         )}
       </ScrollArea>
     </>
@@ -550,6 +546,7 @@ export function ExtensionsPanel({
 
   const dragPreview = drag && (
     <div
+      data-extension-drag-preview
       className="pointer-events-none fixed z-[1000] grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.16] bg-[#15161a] text-white/78 shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
       style={{ left: drag.clientX, top: drag.clientY }}
     >

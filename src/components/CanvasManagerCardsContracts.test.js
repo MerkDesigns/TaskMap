@@ -51,7 +51,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(manager).toContain("data-new-canvas-menu");
     expect(manager).toContain("data-context-menu");
     expect(manager).not.toContain("left-panel-card");
-    expect(extensions).toContain("left-panel-card");
+    expect(extensions).toContain("<ExtensionBrowserCard");
   });
 
   it("keeps drag clones opaque/unregistered and introduces no compositor infrastructure", async () => {
@@ -76,7 +76,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
-  it("does not leak C2E+ migration into excluded production surfaces", async () => {
+  it("keeps Canvas C2D boundaries intact after the isolated C2E Extensions migration", async () => {
     const [manager, extensions] = await Promise.all([
       readFile(canvasManagerPath, "utf8"),
       readFile(extensionsPanelPath, "utf8"),
@@ -85,7 +85,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(manager).toContain("frosted-glass context-menu-panel");
     expect(manager).toContain("MENU_ITEM_CLASS");
     expect(extensions).toContain('placeholder="Search extensions"');
-    expect(extensions).toContain("left-panel-card");
+    expect(extensions).toContain("data-quick-extensions-menu");
     expect(manager).not.toMatch(/Minimap|SettingsModal/);
   });
 });

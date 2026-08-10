@@ -75,7 +75,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
-  it("migrates only shells/header/scroll while retaining embedded and portal boundaries", async () => {
+  it("retains embedded and portal boundaries as later C2 slices migrate panel contents", async () => {
     const [canvasManager, extensionsPanel] = await Promise.all([
       readFile(canvasManagerPath, "utf8"),
       readFile(extensionsPanelPath, "utf8"),
@@ -90,7 +90,8 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(canvasManager).toContain("createPortal(");
     expect(extensionsPanel).toContain("createPortal(dragPreview, document.body)");
     expect(extensionsPanel).toContain('placeholder="Search extensions"');
-    expect(extensionsPanel).toContain("left-panel-card");
+    expect(extensionsPanel).toContain("<ExtensionBrowserCard");
+    expect(extensionsPanel).toContain("data-extension-filter-menu");
     expect(canvasManager).toContain("data-canvas-card-id");
   });
 });

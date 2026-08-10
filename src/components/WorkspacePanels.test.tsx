@@ -35,7 +35,7 @@ describe("C2C workspace panels", () => {
     ).toHaveLength(2);
     expect(
       registry.getSnapshot().surfaces.filter((surface) => surface.material === "acrylic-small"),
-    ).toHaveLength(1);
+    ).toHaveLength(14);
     expect(document.querySelectorAll(".taskmap-scroll-area--hidden-scrollbar")).toHaveLength(2);
     registry.dispose();
   });

@@ -512,6 +512,22 @@ material coordinator/registry tests provide the corresponding proof that geometr
 updates do not request or rebuild the acrylic backdrop cache. These structural tests do not claim
 pixel-level or manual visual acceptance.
 
+### Phase 4.5C2E primary Extensions Browser coverage
+
+Fourteen focused cases across the Extensions panel component and architecture-contract suites lock
+the production Acrylic Small card/8px radius, Cutout 32px icon/6px radius, and embedded Opaque
+zero-acrylic mappings. Behavior coverage preserves search matching and attributes, target filtering,
+Favorites/Extensions registry ordering, localStorage toggling, the five-favorite limit, filled-star
+state, empty results, control drag suppression, pointer drag/drop callbacks, source-boundary drop
+suppression, and the unregistered body-owned preview.
+
+Static contracts require C1 SearchField/IconButton composition, token-based active-filter state with
+no legacy teal, unchanged legacy filter-portal positioning/shell ownership, and a structurally
+unmigrated Quick Extensions menu/search/rows/drag preview. They also reject new compositor, cache,
+provider, mask-update, or animation-frame ownership and migration leakage into Minimap, Settings,
+general overlays, or later extension-module work. These tests characterize DOM/material structure
+and behavior, not rendered acrylic pixels or manual visual acceptance.
+
 ### Phase 4.5D visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and

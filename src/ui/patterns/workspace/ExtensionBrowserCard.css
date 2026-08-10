@@ -1,0 +1,177 @@
+.taskmap-extension-browser-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  margin-bottom: var(--taskmap-space-3);
+}
+
+.taskmap-extension-browser-search {
+  min-width: 0;
+  flex: 1;
+}
+
+.taskmap-extension-browser-search > .taskmap-input-shell {
+  width: 100%;
+  height: var(--taskmap-control-height);
+  border-radius: var(--taskmap-radius-medium);
+}
+
+.taskmap-extension-browser-filter.taskmap-icon-button {
+  width: var(--taskmap-control-height);
+  height: var(--taskmap-control-height);
+  flex: none;
+  border-radius: var(--taskmap-radius-medium);
+}
+
+.taskmap-extension-browser-filter[data-filter-active="true"] {
+  border-color: rgb(var(--taskmap-accent-rgb) / 0.48);
+  background: var(--taskmap-state-selected);
+  color: color-mix(in srgb, var(--taskmap-accent) 76%, white);
+}
+
+.taskmap-extension-browser-filter__status {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--taskmap-radius-pill);
+  background: var(--taskmap-accent);
+}
+
+.taskmap-extension-filter-check {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 4px;
+  color: transparent;
+}
+
+.taskmap-extension-filter-check[data-selected="true"] {
+  border-color: rgb(var(--taskmap-accent-rgb) / 0.55);
+  background: rgb(var(--taskmap-accent-rgb) / 0.18);
+  color: color-mix(in srgb, var(--taskmap-accent) 76%, white);
+}
+
+.taskmap-extension-browser-section {
+  display: grid;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-extension-browser-section__heading {
+  padding-inline: var(--taskmap-space-1);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.taskmap-extension-browser-section__heading--continuation {
+  padding-top: var(--taskmap-space-1);
+}
+
+.taskmap-extension-browser-card {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 58px;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  overflow: clip;
+  padding: 10px 56px 10px 10px;
+  color: var(--taskmap-text);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.taskmap-extension-browser-card::before {
+  position: absolute;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--taskmap-state-hover);
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard);
+}
+
+.taskmap-extension-browser-card:hover::before {
+  opacity: 0.5;
+}
+
+.taskmap-extension-browser-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+.taskmap-extension-browser-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  color: var(--taskmap-muted);
+}
+
+.taskmap-extension-browser-card__copy {
+  min-width: 0;
+}
+
+.taskmap-extension-browser-card__title {
+  display: block;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 650;
+}
+
+.taskmap-extension-browser-card__description {
+  display: block;
+  overflow: hidden;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-extension-browser-card > .taskmap-extension-browser-card__actions {
+  position: absolute;
+  z-index: 3;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.taskmap-extension-browser-favorite.taskmap-icon-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-color: rgb(255 255 255 / 0.1);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.2);
+  color: var(--taskmap-muted);
+}
+
+.taskmap-extension-browser-favorite[data-favorited="true"] {
+  border-color: rgb(252 211 77 / 0.35);
+  background: rgb(252 211 77 / 0.12);
+  color: rgb(253 230 138);
+}
+
+.taskmap-extension-browser-empty {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-medium);
+  background: rgb(8 9 10 / 0.28);
+  padding: var(--taskmap-space-4) var(--taskmap-space-3);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-body-size);
+  text-align: center;
+}

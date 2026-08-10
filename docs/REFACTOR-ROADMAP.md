@@ -230,6 +230,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
       Small, preview shells to Cutout, inline controls to C1 primitives, and reorder/drag visuals to
       compositor-aware shared motion while preserving Canvas Manager projection, interaction,
       callbacks, ordering, portals, and embedded zero-acrylic behavior.
+- [x] **C2E primary Extensions Browser presentation:** migrate only the main panel search/filter
+      controls, extension cards/icon boxes, favorites, sections, and empty state to C1 primitives
+      plus Acrylic Small/Cutout patterns while preserving filtering, localStorage, ordering,
+      drag/drop, embedded zero-acrylic behavior, and legacy Quick/tooltip/filter overlay ownership.
 - [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
@@ -240,9 +244,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 C1 deliberately leaves the production root and production consumers unchanged. C2A migrates the
 scoped root and canvas frame/grid presentation, C2B migrates the floating toolbar, C2C migrates the
 outer side-panel shells/header/scroll framing, and C2D migrates only Canvas Browser card, preview,
-editor, and reorder/drag presentation. Extensions cards and search/filter internals, Settings,
-minimap, creation UI, menus, dialogs, toasts, and canvas elements remain unchanged for later
-C2/C3/Phase 5 slices. Completion and visual acceptance for 4.5C remain open.
+editor, and reorder/drag presentation. C2E migrates only the primary Extensions panel internals.
+Quick Extensions, its shared info tooltip, filter overlay shell, Settings, minimap, creation UI,
+menus, dialogs, toasts, and canvas elements remain unchanged for later C2/C3/Phase 5 slices.
+Completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance
 

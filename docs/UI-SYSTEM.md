@@ -35,7 +35,9 @@ feature or TaskMap pattern
   `WorkspaceSidePanel`/`WorkspacePanelHeader` shell. C2D adds the presentation-only
   `CanvasBrowserCard`/`CanvasPreview` patterns and composes the inline editor from C1 form/button
   primitives while leaving Canvas Manager behavior, preview projection, and portal ownership in
-  the feature. Extension cards, search/filter controls, minimap, Settings, and overlays remain
+  the feature. C2E adds `ExtensionBrowserCard`/`ExtensionIconBox` and composes the primary
+  Extensions panel search/filter/favorite controls from C1 primitives. Quick Extensions, the shared
+  info tooltip, the legacy filter portal shell, minimap, Settings, and general overlays remain
   unmigrated.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
@@ -253,6 +255,11 @@ presentation remain later work.
 | Zoom indicator          | Implement during C2        |
 | Floating canvas toolbar | C2B foundation implemented |
 | Creation menu           | Implement during C3        |
+
+The C2E Extensions Browser pattern maps primary non-embedded extension cards to Acrylic Small and
+embedded cards to Opaque, with Cutout icon boxes in both modes. It owns presentation only; registry
+ordering, filtering, favorites/localStorage, drag/drop callbacks, and overlay lifecycles remain in
+their existing feature owners. The body drag preview remains a plain unregistered representation.
 
 ## I. Settings patterns
 

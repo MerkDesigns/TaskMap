@@ -411,8 +411,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ContextMenus.test.tsx`                                 |   224 | Tests for the adjacent module                                                           |
 | `src/components/ContextMenus.tsx`                                      |  1144 | React component or typed UI module                                                      |
 | `src/components/ExtensionDropEffect.tsx`                               |   203 | React component or typed UI module                                                      |
-| `src/components/ExtensionsPanel.test.tsx`                              |    34 | Tests for the adjacent module                                                           |
-| `src/components/ExtensionsPanel.tsx`                                   |   579 | React component or typed UI module                                                      |
+| `src/components/ExtensionsPanel.test.tsx`                              |   293 | Tests for the adjacent module                                                           |
+| `src/components/ExtensionsPanel.tsx`                                   |   576 | React component or typed UI module                                                      |
 | `src/components/FloatingToolbar.test.tsx`                              |   163 | Tests for the adjacent module                                                           |
 | `src/components/FloatingToolbar.tsx`                                   |   195 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
 | `src/components/FpsCounter.tsx`                                        |    17 | React component or typed UI module                                                      |
@@ -649,8 +649,9 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/motion/reducedMotionPreference.ts`                             |    65 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    71 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/ExtensionBrowserCard.tsx`                   |    37 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                  |    37 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/index.ts`                                   |     6 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/index.ts`                                   |     7 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    85 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |

@@ -287,6 +287,18 @@ requests a shared backdrop-cache rebuild.
 - Extension icon box: `32px` square with `6px` radius
 - Search/filter controls: `36px` height with `8px` radius
 
+Phase 4.5C2E maps primary non-embedded Extensions Browser cards to Acrylic Small and embedded cards
+to the non-registering Opaque strategy. Icon boxes use Cutout in both modes; text, icons, actions,
+section headings, and empty presentation do not create additional material surfaces. Search uses
+the C1 SearchField and the filter/favorite triggers use existing button primitives. Active filter
+application state consumes the scoped target accent; the purpose-specific amber favorite state is
+retained.
+
+The shared info tooltip, coordinate-positioned filter portal shell, Quick Extensions menu, and
+body-owned drag preview remain on their existing overlay/presentation paths. The filter portal gets
+only a local target-theme scope for its token-based selected checks and is not migrated to
+MaterialSurface. Extension drag does not add compositor mask updates or visual-motion scheduling.
+
 ### Minimap
 
 - Position: `16px` from right and `16px` from bottom
