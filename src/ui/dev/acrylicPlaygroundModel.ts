@@ -123,13 +123,13 @@ function createAcrylicPlaygroundScene(): BackdropScene {
     primitives.push(rectangle(0, y, 1200, y % 180 === 70 ? 2 : 1, "#f4f7ff20"));
   }
   primitives.push(
-    rounded(92, 96, 300, 178, 26, "#d87a2d", "#ffd2ad", 2),
+    rounded(92, 96, 300, 178, 26, "#e36b55", "#ffd2ad", 2),
     rounded(310, 188, 330, 205, 18, "#182b42", "#73b7ff", 1),
     rounded(690, 74, 350, 154, 32, "#137b78", "#7fe4dd", 2),
     rectangle(760, 178, 265, 214, "#e7edf2", "#111317", 1),
     rounded(118, 438, 430, 212, 12, "#22252c", "#ffffff", 2),
     rounded(488, 512, 430, 176, 40, "#5b6473", "#d8e0eb", 1),
-    rectangle(930, 420, 18, 220, "#d87a2d"),
+    rectangle(930, 420, 18, 220, "#e36b55"),
     rectangle(964, 420, 2, 220, "#ffffff"),
     rectangle(990, 420, 1, 220, "#0a0b0d"),
     rectangle(1040, 468, 92, 32, "#55a7e8", "#eaf6ff", 1),

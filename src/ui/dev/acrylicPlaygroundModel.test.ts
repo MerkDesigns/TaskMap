@@ -87,7 +87,7 @@ describe("acrylic compositor playground model", () => {
       true,
     );
     expect(primitives.some((item) => item.stroke?.widthWorld === 2)).toBe(true);
-    expect(primitives.some((item) => item.fill === "#d87a2d")).toBe(true);
+    expect(primitives.some((item) => item.fill === "#e36b55")).toBe(true);
     expect(primitives.some((item) => item.fill === "#137b78")).toBe(true);
     expect(primitives.some((item) => item.fill === "#e7edf2")).toBe(true);
   });

@@ -16,7 +16,7 @@ describe("target theme tokens", () => {
     expect(target.getPropertyValue("--taskmap-canvas-dot-rgb")).toBe("70 79 96");
     expect(target.getPropertyValue("--taskmap-canvas-border")).toBe("rgb(255 255 255 / 0.15)");
     expect(target.getPropertyValue("--taskmap-container-bg")).toBe("#1b1b1e");
-    expect(target.getPropertyValue("--taskmap-accent")).toBe("#d87a2d");
+    expect(target.getPropertyValue("--taskmap-accent")).toBe("#e36b55");
     expect(target.getPropertyValue("--taskmap-text")).toBe("rgb(255 255 255 / 0.88)");
     expect(target.getPropertyValue("--taskmap-muted")).toBe("rgb(255 255 255 / 0.45)");
     expect(target.getPropertyValue("--taskmap-font-family")).toBe(

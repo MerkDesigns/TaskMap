@@ -5,7 +5,7 @@
   inset: 0;
   overflow: auto;
   background:
-    radial-gradient(circle at 12% 5%, rgb(216 122 45 / 0.15), transparent 30%),
+    radial-gradient(circle at 12% 5%, rgb(227 107 85 / 0.15), transparent 30%),
     linear-gradient(145deg, #111215, var(--taskmap-void-bg) 62%);
   color: var(--taskmap-text);
   font-family: var(--taskmap-font-family);

@@ -11,8 +11,8 @@
   --taskmap-font-family: "Segoe UI", Inter, system-ui, sans-serif;
 
   /* Application chrome */
-  --taskmap-accent: #d87a2d;
-  --taskmap-accent-rgb: 216 122 45;
+  --taskmap-accent: #e36b55;
+  --taskmap-accent-rgb: 227 107 85;
   --taskmap-focus: var(--taskmap-accent);
   --taskmap-active: var(--taskmap-accent);
   --taskmap-selection: var(--taskmap-accent);

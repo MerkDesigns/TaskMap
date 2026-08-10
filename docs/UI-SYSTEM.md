@@ -374,16 +374,16 @@ tablist/tab ARIA, disabled skipping, arrows, Home/End, roving tabindex, and loca
 Labels remain at unit scale; the shared moving glass surface alone expresses selection.
 
 `AcrylicToggleButton` composes a native `aria-pressed` button over Acrylic Small. Its local on-state
-now shares the normal confirm's orange wash and bright rim without changing the material strategy.
+now shares the normal confirm's accent wash and bright rim without changing the material strategy.
 It has no hover highlight. Its transform-only press/release motion shares the C1 scheduler and cheap
 surface-geometry invalidation seam.
 
 `AcrylicConfirmButton` reuses that press foundation without toggle semantics. Normal and disabled
 confirm flows keep the Acrylic Small surface without a hover highlight, and the disabled treatment
-stays subdued. The opt-in glowing treatment adds an opaque orange wash, restrained glow, and black
+stays subdued. The opt-in glowing treatment adds an opaque accent wash, restrained glow, and black
 foreground.
 
-`LiquidToggleSwitch` is a larger native switch whose dark/off and orange/on track contains one real
+`LiquidToggleSwitch` is a larger native switch whose dark/off and accent/on track contains one real
 Acrylic Small knob. The knob uses the central liquid spring: velocity makes it longer and thinner
 during travel, bounded overshoot preserves track containment, and settlement restores its exact
 circular geometry. Its compact revised geometry centers the knob vertically and transitions between

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img alt="taskmap banner" src=".github/assets/taskmap-banner.jpg">
+
 <h1>TaskMap</h1>
 
 <p><strong>A fast, flexible desktop canvas for organizing tasks, notes, and ideas.</strong></p>

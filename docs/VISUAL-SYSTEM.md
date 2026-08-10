@@ -20,14 +20,14 @@ The exact starting production values are:
 --canvas-dot-rgb: 70 79 96;
 --canvas-border: rgb(255 255 255 / 0.15);
 --container-bg: #1b1b1e;
---accent: #d87a2d;
+--accent: #e36b55;
 --text: rgb(255 255 255 / 0.88);
 --muted: rgb(255 255 255 / 0.45);
 font-family: "Segoe UI", Inter, system-ui, sans-serif;
 ```
 
 The implementation names these with the `--taskmap-` prefix in `src/ui/theme/theme.css` to make
-ownership explicit. `#d87a2d` is the global application-chrome accent for focus, active states,
+ownership explicit. `#e36b55` is the global application-chrome accent for focus, active states,
 selection chrome, enabled switches, active tabs, sliders, and ordinary controls. Teal values left in
 the prototype lab or legacy application are not normative application accents.
 
@@ -107,11 +107,11 @@ Reduced motion uses a near-immediate duration and no independently-owned animati
 The revised liquid toggle geometry is a `52px` by `30px` track with a vertically centered, settled
 `22px` Acrylic Small knob. Velocity deformation may lengthen the knob to `30px` and thin it to
 `18px`; bounded positional overshoot is at most `2px`. The off track is near-black and its knob gets
-a `20%` white contrast wash. The on track uses the bright `#d87a2d` accent with a restrained orange
+a `20%` white contrast wash. The on track uses the bright `#e36b55` accent with a restrained accent
 glow, while the on knob uses a `42%` black tint over the real acrylic.
 Settlement restores the exact circle. Confirm buttons share the `0.965` acrylic press scale. Normal
-confirms use a `27%` orange wash and brighter orange rim without a hover highlight. Their disabled
-state retains the earlier subdued `12%` wash. The glowing confirm uses an opaque orange wash, black
+confirms use a `27%` accent wash and brighter accent rim without a hover highlight. Their disabled
+state retains the earlier subdued `12%` wash. The glowing confirm uses an opaque accent wash, black
 text, and a static restrained accent glow. Animated-checkbox stroke timing uses the central
 fast/normal motion tokens.
 
