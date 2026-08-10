@@ -30,7 +30,12 @@ describe("C2C workspace panels", () => {
       expect(panel).toHaveAttribute("data-material-elevation", "default");
       expect(panel.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
     }
-    expect(registry.getSnapshot().surfaces).toHaveLength(2);
+    expect(
+      registry.getSnapshot().surfaces.filter((surface) => surface.material === "acrylic-large"),
+    ).toHaveLength(2);
+    expect(
+      registry.getSnapshot().surfaces.filter((surface) => surface.material === "acrylic-small"),
+    ).toHaveLength(1);
     expect(document.querySelectorAll(".taskmap-scroll-area--hidden-scrollbar")).toHaveLength(2);
     registry.dispose();
   });

@@ -492,6 +492,26 @@ acrylic-only registration, per-surface alpha rasterization, opacity-only plane-m
 zero cache builds, synchronized DOM/mask enter and exit opacity, immediate reduced-motion settlement,
 and no post-settlement geometry or mask work.
 
+### Phase 4.5C2D Canvas Browser coverage
+
+Fifteen focused C2D cases across the Canvas Manager card component/contracts and shared layout-
+motion suites lock the production full/minimal Acrylic Small radii, Cutout preview geometry,
+embedded zero-acrylic behavior, target-token active/cycle states, unchanged preview projection and
+user colors, inline editor focus/constraints/save/cancel/Enter/Escape behavior, and IconButton menu
+trigger ownership. Reorder characterization preserves threshold/order callbacks while proving the
+shared scheduler drives FLIP geometry refreshes only while active, stops after exact settlement,
+and settles immediately for reduced motion.
+
+Drag coverage proves the registered source mask opacity follows the hidden source DOM and returns to
+one on completion. The body-owned preview is an unregistered opaque representation with its own
+target-theme scope; cloned FLIP transform, transform-origin, and will-change presentation is removed
+before fixed positioning. Static contracts reject new card-local animation frames, backdrop
+filters, compositor/cache/provider ownership, hardcoded legacy teal application state, and
+migration leakage into Extensions, Minimap, Settings, creation UI, or context menus. Existing
+material coordinator/registry tests provide the corresponding proof that geometry- and mask-only
+updates do not request or rebuild the acrylic backdrop cache. These structural tests do not claim
+pixel-level or manual visual acceptance.
+
 ### Phase 4.5D visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and

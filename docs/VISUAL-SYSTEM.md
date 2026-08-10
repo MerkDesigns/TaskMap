@@ -266,6 +266,21 @@ settles immediately. App-owned closing flags and `120ms` unmount/switch timers r
 - Minimal card: `40px` height and `8px` radius
 - Canvas preview: `96px × 64px` with `6px` radius
 
+Phase 4.5C2D maps non-embedded full, minimal, and inline-editor cards to Acrylic Small. Embedded
+Canvas Manager cards use the non-registering Opaque strategy so embedded mode creates no cached-
+acrylic surfaces. The preview shell uses Cutout; its miniature containers, text blocks, and images
+remain cheap projected geometry and retain user-selected colors and the existing projection math.
+Active/cycle application state uses the scoped target accent tokens.
+
+Canvas Browser reorder FLIP transforms run on the shared UI scheduler. Active frames use only the
+public cheap surface-geometry invalidation seam, settle exactly, and do no further geometry work;
+reduced motion settles immediately. During pointer drag, the registered source card's compositor
+mask opacity follows its hidden DOM state and is restored on completion/cancel. The body-owned drag
+preview is an explicitly unregistered opaque representation derived from the card visual rather
+than a canonical Opaque MaterialSurface. It carries the scoped target theme, removes cloned FLIP
+presentation before fixed positioning, and does not claim a registered material ID. Neither path
+requests a shared backdrop-cache rebuild.
+
 ### Extensions
 
 - Extension card: `58px` minimum height and `8px` radius

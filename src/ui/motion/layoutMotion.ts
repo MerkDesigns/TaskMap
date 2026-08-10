@@ -1,5 +1,6 @@
 import type { MotionFrameScheduler } from "./motionFrameScheduler";
-import { MOTION_DURATION_MS, MOTION_EASING } from "./motionTokens";
+import { interpolate, normalizedProgress } from "./motionMath";
+import { MOTION_DURATION_MS } from "./motionTokens";
 
 export interface LayoutRectangle {
   readonly left: number;
@@ -33,19 +34,55 @@ export function applyLocalFlip(
   last: LayoutRectangle,
   scheduler: MotionFrameScheduler,
   reducedMotion: boolean,
+  notifyGeometryChanged: () => void = noOp,
+  onSettled: () => void = noOp,
 ): () => void {
-  if (reducedMotion) {
+  let active = true;
+  const settle = () => {
     element.style.removeProperty("transform");
-    element.style.removeProperty("transition");
+    element.style.removeProperty("transform-origin");
+    element.style.removeProperty("will-change");
+    notifyGeometryChanged();
+    onSettled();
+  };
+  if (reducedMotion) {
+    settle();
     return () => undefined;
   }
   const flip = calculateFlipTransform(first, last);
+  if (
+    Math.abs(flip.translateX) < 1 &&
+    Math.abs(flip.translateY) < 1 &&
+    Math.abs(flip.scaleX - 1) < 0.001 &&
+    Math.abs(flip.scaleY - 1) < 0.001
+  ) {
+    settle();
+    return () => undefined;
+  }
   element.style.transformOrigin = "top left";
-  element.style.transition = "none";
+  element.style.willChange = "transform";
   element.style.transform = `translate3d(${flip.translateX}px, ${flip.translateY}px, 0) scale(${flip.scaleX}, ${flip.scaleY})`;
-  return scheduler.subscribe(() => {
-    element.style.transition = `transform ${MOTION_DURATION_MS.normal}ms ${MOTION_EASING.emphasized}`;
-    element.style.transform = "translate3d(0, 0, 0) scale(1, 1)";
-    return false;
+  notifyGeometryChanged();
+  let elapsedMs = 0;
+  const unsubscribe = scheduler.subscribe(({ deltaMs }) => {
+    elapsedMs += deltaMs;
+    const progress = normalizedProgress(elapsedMs, 0, MOTION_DURATION_MS.normal);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    if (progress >= 1) {
+      active = false;
+      settle();
+      return false;
+    }
+    element.style.transform = `translate3d(${interpolate(flip.translateX, 0, eased)}px, ${interpolate(flip.translateY, 0, eased)}px, 0) scale(${interpolate(flip.scaleX, 1, eased)}, ${interpolate(flip.scaleY, 1, eased)})`;
+    notifyGeometryChanged();
+    return true;
   });
+  return () => {
+    if (!active) return;
+    active = false;
+    unsubscribe();
+    settle();
+  };
 }
+
+const noOp = () => undefined;

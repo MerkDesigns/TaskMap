@@ -400,7 +400,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/canvas/virtualization/viewportCulling.ts`                         |    49 | TypeScript application module                                                           |
 | `src/canvasMath.test.ts`                                               |   159 | Tests for the adjacent module                                                           |
 | `src/canvasMath.ts`                                                    |   128 | TypeScript application module                                                           |
-| `src/components/CanvasManager.tsx`                                     |  1102 | Pointer capture is best-effort; document listeners still clean up the drag.             |
+| `src/components/CanvasManager.tsx`                                     |  1119 | Pointer capture is best-effort; document listeners still clean up the drag.             |
+| `src/components/CanvasManagerCards.test.tsx`                           |   430 | Shared motion queues at most one next frame while work remains active.                  |
 | `src/components/ColorPickerMenu.tsx`                                   |   338 | React component or typed UI module                                                      |
 | `src/components/CommandRunnerModals.test.tsx`                          |   141 | Tests for the adjacent module                                                           |
 | `src/components/CommandRunnerModals.tsx`                               |   612 | React component or typed UI module                                                      |
@@ -429,7 +430,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/TextCardNode.test.tsx`                                 |   246 | Tests for the adjacent module                                                           |
 | `src/components/TextCardNode.tsx`                                      |   482 | React component or typed UI module                                                      |
 | `src/components/ToastStack.tsx`                                        |    53 | React component or typed UI module                                                      |
-| `src/components/WorkspacePanels.test.tsx`                              |   123 | Tests for the adjacent module                                                           |
+| `src/components/WorkspacePanels.test.tsx`                              |   128 | Tests for the adjacent module                                                           |
 | `src/constants.ts`                                                     |    58 | TypeScript application module                                                           |
 | `src/domain/commands/commandExecution.stress.test.ts`                  |    44 | @vitest-environment node                                                                |
 | `src/domain/commands/commandExecution.test.ts`                         |   204 | @vitest-environment node                                                                |
@@ -631,8 +632,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialSurfaceRegistry.test.ts`                     |   114 | @vitest-environment node                                                                |
 | `src/ui/materials/materialSurfaceRegistry.ts`                          |   240 | TypeScript application module                                                           |
 | `src/ui/materials/materialTypes.ts`                                    |    86 | TypeScript application module                                                           |
-| `src/ui/motion/layoutMotion.test.ts`                                   |    23 | Tests for the adjacent module                                                           |
-| `src/ui/motion/layoutMotion.ts`                                        |    52 | TypeScript application module                                                           |
+| `src/ui/motion/layoutMotion.test.ts`                                   |   104 | One shared frame remains pending only while motion subscribers are active.              |
+| `src/ui/motion/layoutMotion.ts`                                        |    89 | TypeScript application module                                                           |
 | `src/ui/motion/liquidIndicatorMotion.test.ts`                          |   144 | Tests for the adjacent module                                                           |
 | `src/ui/motion/liquidIndicatorMotion.ts`                               |   112 | TypeScript application module                                                           |
 | `src/ui/motion/liquidMaterialIntegration.test.ts`                      |    39 | @vitest-environment node                                                                |
@@ -646,9 +647,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/motion/motionTokens.ts`                                        |    41 | Central Phase 4.5C motion values; these are UI-motion values, not compositor constants. |
 | `src/ui/motion/reducedMotionPreference.test.ts`                        |    55 | Tests for the adjacent module                                                           |
 | `src/ui/motion/reducedMotionPreference.ts`                             |    65 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    71 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                  |    37 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/index.ts`                                   |     5 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/index.ts`                                   |     6 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    85 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |

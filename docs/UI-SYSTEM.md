@@ -32,8 +32,11 @@ feature or TaskMap pattern
   first production boundary is the C2A workspace root, backdrop/chrome layers, and canvas-frame
   foundation. C2B adds only `FloatingCanvasToolbar` and `ToolbarGroup`, leaving panels, minimap,
   Settings, and overlays with their existing production owners. C2C adds the shared production
-  `WorkspaceSidePanel`/`WorkspacePanelHeader` shell while leaving card, search/filter, portal, and
-  embedded-mode behavior with the existing features.
+  `WorkspaceSidePanel`/`WorkspacePanelHeader` shell. C2D adds the presentation-only
+  `CanvasBrowserCard`/`CanvasPreview` patterns and composes the inline editor from C1 form/button
+  primitives while leaving Canvas Manager behavior, preview projection, and portal ownership in
+  the feature. Extension cards, search/filter controls, minimap, Settings, and overlays remain
+  unmigrated.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
@@ -215,15 +218,16 @@ Nested menus, portals, generalized collision systems, and production menu migrat
 
 ## H. TaskMap canvas patterns
 
-These were cataloged in C1. C2A implements only the production canvas frame/grid foundation; canvas
-cards, chrome, minimap, and element presentation remain later work.
+These were cataloged in C1. C2A implements the production canvas frame/grid foundation and C2D
+implements only Canvas Browser card/preview/editor presentation; minimap and canvas-world element
+presentation remain later work.
 
 | Capability              | Status                     |
 | ----------------------- | -------------------------- |
 | Canvas surface/frame    | C2A foundation implemented |
-| Canvas browser card     | Implement during C2        |
-| Compact canvas card     | Implement during C2        |
-| Canvas preview          | Implement during C2        |
+| Canvas browser card     | C2D foundation implemented |
+| Compact canvas card     | C2D foundation implemented |
+| Canvas preview          | C2D foundation implemented |
 | Text-card shell         | Feature-specific Phase 5+  |
 | Container shell         | Feature-specific Phase 5+  |
 | Container header/body   | Feature-specific Phase 5+  |
@@ -301,9 +305,9 @@ These contracts are cataloged for C2. C1 does not import or migrate Settings.
 
 | Capability              | Status                                             |
 | ----------------------- | -------------------------------------------------- |
-| FLIP position           | Foundation implemented with local measurement math |
+| FLIP position           | C2D shared-scheduler production use                |
 | FLIP resize             | Foundation implemented with local measurement math |
-| Reorder                 | Implement during C2                                |
+| Reorder                 | C2D Canvas Browser production use                  |
 | Shared-element movement | Capability only                                    |
 | Insert/remove           | Implement during C2                                |
 | Drag lift               | Feature-specific Phase 5+                          |
@@ -311,7 +315,8 @@ These contracts are cataloged for C2. C1 does not import or migrate Settings.
 | Reparent transition     | Feature-specific Phase 5+                          |
 
 FLIP is restricted to local participating components and is not suitable for the canvas-world element
-population.
+population. C2D drives local card transforms from the shared UI scheduler and refreshes registered
+material geometry through the cheap public invalidation seam on active frames only.
 
 ### Liquid motion
 

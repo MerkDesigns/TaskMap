@@ -28,8 +28,23 @@ import {
   MENU_ITEM_CLASS,
 } from "../constants";
 import { TaskCanvas } from "../types";
-import { WorkspacePanelHeader, WorkspaceSidePanel } from "../ui/patterns/workspace";
-import { IconButton, ToggleButton } from "../ui/primitives/Button";
+import {
+  CanvasBrowserCard,
+  CanvasPreview,
+  prepareCanvasBrowserDragPreview,
+  WorkspacePanelHeader,
+  WorkspaceSidePanel,
+} from "../ui/patterns/workspace";
+import {
+  useMaterialSurfaceGeometryInvalidation,
+  useMaterialSurfaceMaskOpacity,
+} from "../ui/materials/MaterialSurfaceRegistration";
+import { applyLocalFlip } from "../ui/motion/layoutMotion";
+import { useMotionFrameScheduler } from "../ui/motion/MotionProvider";
+import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
+import { Button, IconButton, ToggleButton } from "../ui/primitives/Button";
+import { Field } from "../ui/primitives/Field";
+import { TextField } from "../ui/primitives/FormControls";
 import { ScrollArea } from "../ui/primitives/Layout";
 import { Counter } from "../ui/primitives/Status";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
@@ -112,11 +127,12 @@ export function CanvasManager({
 }: CanvasManagerProps) {
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const reorderFirstRectsRef = useRef<Record<string, DOMRect> | null>(null);
-  const cardAnimationsRef = useRef<Record<string, Animation>>({});
+  const cardAnimationsRef = useRef<Record<string, () => void>>({});
   const previewViewportSizesRef = useRef<Record<string, PreviewViewportSize>>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<CanvasDragState | null>(null);
+  const dragSourceSurfaceRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const suppressClickRef = useRef(false);
   const [modalMode, setModalMode] = useState<"create" | null>(null);
@@ -125,6 +141,10 @@ export function CanvasManager({
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
+  const motionScheduler = useMotionFrameScheduler();
+  const reducedMotion = useReducedMotion();
+  const invalidateSurfaceGeometry = useMaterialSurfaceGeometryInvalidation();
+  const setDragSourceMaskOpacity = useMaterialSurfaceMaskOpacity(dragSourceSurfaceRef);
   const menuPosition = useClampedFixedPosition(menuRef, {
     left: menu?.left ?? 0,
     top: menu?.top ?? 0,
@@ -283,10 +303,12 @@ export function CanvasManager({
     return rects;
   };
 
-  const cancelCardAnimations = () => {
-    Object.values(cardAnimationsRef.current).forEach((animation) => animation.cancel());
+  const cancelCardAnimations = useCallback(() => {
+    Object.values(cardAnimationsRef.current).forEach((cancel) => cancel());
     cardAnimationsRef.current = {};
-  };
+  }, []);
+
+  useEffect(() => cancelCardAnimations, [cancelCardAnimations]);
 
   useLayoutEffect(() => {
     const firstRects = reorderFirstRectsRef.current;
@@ -317,25 +339,23 @@ export function CanvasManager({
         return;
       }
 
-      cardAnimationsRef.current[id]?.cancel();
-      const animation = node.animate(
-        [{ transform: `translate(${deltaX}px, ${deltaY}px)` }, { transform: "translate(0, 0)" }],
-        {
-          duration: 190,
-          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+      cardAnimationsRef.current[id]?.();
+      const cancel = applyLocalFlip(
+        node,
+        previousRect,
+        nextRect,
+        motionScheduler,
+        reducedMotion,
+        invalidateSurfaceGeometry,
+        () => {
+          delete cardAnimationsRef.current[id];
         },
       );
-      cardAnimationsRef.current[id] = animation;
-      animation.onfinish = () => {
-        delete cardAnimationsRef.current[id];
-      };
-      animation.oncancel = () => {
-        delete cardAnimationsRef.current[id];
-      };
+      if (!reducedMotion) cardAnimationsRef.current[id] = cancel;
     });
 
     rebuildDragLayout();
-  }, [draggingId, orderedIdsKey]);
+  }, [draggingId, invalidateSurfaceGeometry, motionScheduler, orderedIdsKey, reducedMotion]);
 
   const rebuildDragLayout = () => {
     const drag = dragRef.current;
@@ -437,6 +457,8 @@ export function CanvasManager({
     drag.cleanup?.();
     drag.cloneNode.remove();
     drag.sourceNode.style.opacity = "";
+    setDragSourceMaskOpacity(1);
+    dragSourceSurfaceRef.current = null;
     dragRef.current = null;
     setDraggingId(null);
   };
@@ -508,6 +530,7 @@ export function CanvasManager({
     const cloneNode = sourceNode.cloneNode(true) as HTMLElement;
     cloneNode.removeAttribute("data-canvas-card-id");
     cloneNode.removeAttribute("data-bar-id");
+    prepareCanvasBrowserDragPreview(cloneNode);
     cloneNode.style.position = "fixed";
     cloneNode.style.left = `${rect.left}px`;
     cloneNode.style.top = `${rect.top}px`;
@@ -517,7 +540,7 @@ export function CanvasManager({
     cloneNode.style.pointerEvents = "none";
     cloneNode.style.transition = "none";
     cloneNode.style.boxShadow = "0 18px 48px rgba(0, 0, 0, 0.52)";
-    cloneNode.style.opacity = "0.96";
+    cloneNode.style.opacity = "1";
     document.body.appendChild(cloneNode);
 
     const orderIds = canvases.map((currentCanvas) => currentCanvas.id);
@@ -537,7 +560,9 @@ export function CanvasManager({
       })
       .filter((row): row is DragLayoutRow => Boolean(row));
 
+    dragSourceSurfaceRef.current = sourceNode;
     sourceNode.style.opacity = "0";
+    setDragSourceMaskOpacity(0);
 
     try {
       sourceNode.setPointerCapture(event.pointerId);
@@ -646,9 +671,7 @@ export function CanvasManager({
           }
 
           const previewViewport = previewViewportSizesRef.current[canvas.id];
-          const dragging = draggingId === canvas.id;
           const previewWidth = 96;
-          const previewHeight = 64;
           const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
           const visibleWidth = previewViewport.width / safeZoom;
           const visibleLeft = -canvas.pan.x / safeZoom;
@@ -657,27 +680,26 @@ export function CanvasManager({
 
           if (editingId === canvas.id) {
             return (
-              <div
+              <CanvasBrowserCard
                 key={canvas.id}
+                embedded={embedded}
+                mode="editor"
+                active={active}
+                cycleHighlighted={cycleHighlighted}
                 data-canvas-card-id={canvas.id}
                 ref={(node) => {
                   cardRefs.current[canvas.id] = node;
                 }}
-                className={`relative flex w-full select-none flex-col gap-3 rounded-xl border border-[#2dd8c8]/40 bg-[#1c1d22] p-3 text-left ${
-                  cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""
-                }`}
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+                <div className="taskmap-canvas-inline-editor__eyebrow">
                   <IconPencil size={14} stroke={2} />
                   <span>Edit canvas</span>
                 </div>
 
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-medium text-white/50">Name</span>
-                  <input
+                <Field label="Name">
+                  <TextField
                     ref={nameInputRef}
-                    className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm font-medium text-white outline-none selection:bg-white/25 focus:border-[#2dd8c8]/60"
                     value={draft.name}
                     spellCheck={false}
                     onChange={(event) =>
@@ -693,16 +715,19 @@ export function CanvasManager({
                       }
                     }}
                   />
-                </label>
+                </Field>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
-                      <IconArrowsHorizontal size={13} stroke={2} />
-                      Width
-                    </span>
-                    <input
-                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                <div className="taskmap-canvas-inline-editor__dimensions">
+                  <Field
+                    label={
+                      <span className="flex items-center gap-1">
+                        <IconArrowsHorizontal size={13} stroke={2} />
+                        Width
+                      </span>
+                    }
+                  >
+                    <TextField
+                      className="taskmap-canvas-inline-editor__number"
                       type="number"
                       min={600}
                       max={10000}
@@ -719,14 +744,17 @@ export function CanvasManager({
                       }}
                       title="Canvas width"
                     />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-white/50">
-                      <IconArrowsVertical size={13} stroke={2} />
-                      Height
-                    </span>
-                    <input
-                      className="h-9 w-full min-w-0 cursor-text rounded-md border border-white/[0.12] bg-black/[0.22] px-2.5 text-sm text-white outline-none [appearance:textfield] focus:border-[#2dd8c8]/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  </Field>
+                  <Field
+                    label={
+                      <span className="flex items-center gap-1">
+                        <IconArrowsVertical size={13} stroke={2} />
+                        Height
+                      </span>
+                    }
+                  >
+                    <TextField
+                      className="taskmap-canvas-inline-editor__number"
                       type="number"
                       min={600}
                       max={10000}
@@ -746,45 +774,44 @@ export function CanvasManager({
                       }}
                       title="Canvas height"
                     />
-                  </label>
+                  </Field>
                 </div>
 
-                <div className="mt-0.5 flex justify-end gap-2">
-                  <button
-                    className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-white/65 transition-colors hover:bg-white/[0.10] hover:text-white"
+                <div className="taskmap-canvas-inline-editor__actions">
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    leadingIcon={<IconX size={15} stroke={2} />}
                     onClick={cancelInlineEdit}
                   >
-                    <IconX size={15} stroke={2} />
-                    <span>Cancel</span>
-                  </button>
-                  <button
-                    className="flex h-8 items-center gap-1.5 rounded-md bg-white/[0.12] px-2.5 text-[13px] text-white transition-colors hover:bg-white/[0.18]"
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="compact"
+                    leadingIcon={<IconCheck size={15} stroke={2} />}
                     onClick={saveInlineEdit}
                   >
-                    <IconCheck size={15} stroke={2} />
-                    <span>Save</span>
-                  </button>
+                    Save
+                  </Button>
                 </div>
-              </div>
+              </CanvasBrowserCard>
             );
           }
 
           if (minimalView) {
             return (
-              <div
+              <CanvasBrowserCard
                 key={`${canvas.id}-minimal`}
+                embedded={embedded}
+                mode="minimal"
+                active={active}
+                cycleHighlighted={cycleHighlighted}
                 data-bar-id={canvas.id}
                 data-canvas-card-id={canvas.id}
                 ref={(node) => {
                   cardRefs.current[canvas.id] = node;
                 }}
-                className={`left-panel-card group relative flex h-10 w-full touch-none select-none items-center gap-2 overflow-clip rounded-lg border pl-3 pr-2 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
-                  active
-                    ? "border-white/[0.16] bg-[#1c1d22]"
-                    : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
-                } ${cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""} ${
-                  dragging ? "scale-[0.985] opacity-20" : ""
-                }`}
                 onPointerDown={(event) => startCanvasDrag(event, canvas)}
                 onClick={() => {
                   if (suppressClickRef.current) {
@@ -797,18 +824,16 @@ export function CanvasManager({
                   }
                 }}
               >
-                <span
-                  className={`pointer-events-none absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
-                    active ? "opacity-100" : "opacity-0"
-                  }`}
-                />
+                <span className="taskmap-canvas-browser-card__active-indicator" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
                 </div>
                 <div className="relative shrink-0">
-                  <button
+                  <IconButton
                     data-canvas-menu-trigger
-                    className="grid h-7 w-7 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
+                    variant="ghost"
+                    size="compact"
+                    aria-label="Canvas menu"
                     onClick={(event) => {
                       event.stopPropagation();
                       setMenu((current) =>
@@ -818,29 +843,25 @@ export function CanvasManager({
                       );
                     }}
                     title="Canvas menu"
-                  >
-                    <IconDotsVertical size={16} stroke={2} />
-                  </button>
+                    icon={<IconDotsVertical size={16} stroke={2} />}
+                  />
                 </div>
-              </div>
+              </CanvasBrowserCard>
             );
           }
 
           return (
-            <div
+            <CanvasBrowserCard
               key={`${canvas.id}-full`}
+              embedded={embedded}
+              mode="full"
+              active={active}
+              cycleHighlighted={cycleHighlighted}
               data-bar-id={canvas.id}
               data-canvas-card-id={canvas.id}
               ref={(node) => {
                 cardRefs.current[canvas.id] = node;
               }}
-              className={`left-panel-card group relative flex w-full touch-none select-none gap-3 overflow-clip rounded-xl border p-2 pl-3 text-left transition-[border-color,background-color,box-shadow,opacity,transform] duration-200 ease-out [overflow-clip-margin:100vw] ${
-                active
-                  ? "border-white/[0.16] bg-[#1c1d22]"
-                  : "border-white/[0.08] bg-[#15161a] hover:border-white/[0.12] hover:bg-[#1d1e24]"
-              } ${cycleHighlighted ? "shadow-[inset_0_0_0_2px_rgba(45,216,200,0.85)]" : ""} ${
-                dragging ? "scale-[0.985] opacity-20" : ""
-              }`}
               onPointerDown={(event) => startCanvasDrag(event, canvas)}
               onClick={() => {
                 if (suppressClickRef.current) {
@@ -853,21 +874,13 @@ export function CanvasManager({
                 }
               }}
             >
-              <span
-                className={`pointer-events-none absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-full bg-[#2dd8c8] transition-opacity duration-200 ${
-                  active ? "opacity-100" : "opacity-0"
-                }`}
-              />
+              <span className="taskmap-canvas-browser-card__active-indicator" />
               <div className="shrink-0">
-                <div
-                  className={`relative overflow-hidden rounded-md border bg-[#101116] transition-colors ${
-                    active ? "border-white/[0.22]" : "border-white/[0.10]"
-                  }`}
-                  style={{ width: previewWidth, height: previewHeight }}
-                >
+                <CanvasPreview>
                   {canvas.containers.map((container) => (
                     <div
                       key={container.id}
+                      data-canvas-preview-container={container.id}
                       className="absolute overflow-hidden rounded-[1px] border"
                       style={{
                         left: (container.x - visibleLeft) * previewScale,
@@ -891,6 +904,7 @@ export function CanvasManager({
                   {canvas.textBlocks.map((element) => (
                     <div
                       key={element.id}
+                      data-canvas-preview-text-block={element.id}
                       className="absolute overflow-hidden rounded-[1px] border"
                       style={{
                         left: (element.x - visibleLeft) * previewScale,
@@ -914,6 +928,7 @@ export function CanvasManager({
                   {(canvas.images ?? []).map((image) => (
                     <div
                       key={image.id}
+                      data-canvas-preview-image={image.id}
                       className="absolute overflow-hidden rounded-[1px] border"
                       style={{
                         left: (image.x - visibleLeft) * previewScale,
@@ -926,7 +941,7 @@ export function CanvasManager({
                       }}
                     />
                   ))}
-                </div>
+                </CanvasPreview>
               </div>
 
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5">
@@ -938,9 +953,12 @@ export function CanvasManager({
                     {canvas.width} × {canvas.height}
                   </div>
                 </div>
-                <button
+                <IconButton
                   data-canvas-menu-trigger
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/45 transition-colors hover:bg-white/[0.10] hover:text-white"
+                  variant="ghost"
+                  size="compact"
+                  className="shrink-0"
+                  aria-label="Canvas menu"
                   onClick={(event) => {
                     event.stopPropagation();
                     setMenu((current) =>
@@ -950,11 +968,10 @@ export function CanvasManager({
                     );
                   }}
                   title="Canvas menu"
-                >
-                  <IconDotsVertical size={16} stroke={2} />
-                </button>
+                  icon={<IconDotsVertical size={16} stroke={2} />}
+                />
               </div>
-            </div>
+            </CanvasBrowserCard>
           );
         })}
       </ScrollArea>
