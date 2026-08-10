@@ -11,7 +11,7 @@
 }
 
 .taskmap-compositor-plane--modal {
-  z-index: 10000;
+  z-index: var(--taskmap-layer-modal-compositor);
 }
 
 .taskmap-acrylic-proof {

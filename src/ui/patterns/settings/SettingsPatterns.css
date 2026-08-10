@@ -1,0 +1,317 @@
+.taskmap-settings-shell {
+  display: flex;
+  width: 528px;
+  height: 632px;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+  flex-direction: column;
+  padding: var(--taskmap-modal-padding);
+  color: var(--taskmap-text);
+}
+
+.taskmap-settings-shell > * {
+  position: relative;
+  z-index: 2;
+}
+
+.taskmap-settings-island {
+  padding: var(--taskmap-space-3);
+  color: var(--taskmap-text);
+}
+
+.taskmap-settings-island > * {
+  position: relative;
+  z-index: 2;
+}
+
+.taskmap-settings-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--taskmap-space-3);
+}
+
+.taskmap-settings-row__leading {
+  display: grid;
+  flex: none;
+  color: var(--taskmap-muted);
+  place-items: center;
+}
+
+.taskmap-settings-row__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.taskmap-settings-row__label {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-label-size);
+  font-weight: 650;
+  line-height: var(--taskmap-text-label-line);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.taskmap-settings-row__description {
+  margin-top: 2px;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  line-height: var(--taskmap-text-small-line);
+}
+
+.taskmap-settings-row__control {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.taskmap-settings-toggle-row {
+  cursor: pointer;
+}
+
+.taskmap-settings-toggle-row[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: var(--taskmap-state-disabled-opacity);
+}
+
+.taskmap-settings-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--taskmap-space-5);
+}
+
+.taskmap-settings-header__identity,
+.taskmap-settings-section-heading,
+.taskmap-settings-slider-heading,
+.taskmap-settings-key-group {
+  display: flex;
+  align-items: center;
+}
+
+.taskmap-settings-header__identity {
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-settings-header__icon {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-settings-title {
+  margin: 0;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-section-size);
+  font-weight: 650;
+  line-height: var(--taskmap-text-section-line);
+}
+
+.taskmap-settings-close {
+  width: var(--taskmap-row-height-compact);
+  height: var(--taskmap-row-height-compact);
+}
+
+.taskmap-settings-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.taskmap-settings-navigation {
+  width: 100%;
+}
+
+.taskmap-settings-navigation .taskmap-liquid-tabs__tab {
+  min-width: 0;
+  flex: 1;
+  padding: 0 var(--taskmap-space-2);
+  text-transform: capitalize;
+}
+
+.taskmap-settings-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  padding: var(--taskmap-space-4) var(--taskmap-space-3) var(--taskmap-space-4)
+    var(--taskmap-space-1);
+}
+
+.taskmap-settings-content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--taskmap-space-3);
+}
+
+.taskmap-settings-section-heading {
+  gap: var(--taskmap-space-2);
+  margin-bottom: var(--taskmap-space-2);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-label-size);
+  font-weight: 650;
+  line-height: var(--taskmap-text-label-line);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.taskmap-settings-section-description {
+  margin: 0 0 var(--taskmap-space-3);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  line-height: var(--taskmap-text-caption-line);
+}
+
+.taskmap-settings-grid-controls {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--taskmap-space-3);
+}
+
+.taskmap-settings-grid-segments,
+.taskmap-settings-grid-segments .taskmap-segmented__item {
+  width: 100%;
+}
+
+.taskmap-settings-grid-segments .taskmap-segmented__item {
+  gap: var(--taskmap-space-1);
+  padding: 0 var(--taskmap-space-2);
+}
+
+.taskmap-settings-slider-heading {
+  justify-content: space-between;
+  margin-bottom: var(--taskmap-space-1);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 650;
+  line-height: var(--taskmap-text-caption-line);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.taskmap-settings-slider-value {
+  color: var(--taskmap-text);
+}
+
+.taskmap-settings-slider {
+  width: 100%;
+}
+
+.taskmap-settings-color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-settings-color-trigger {
+  width: 100%;
+  height: var(--taskmap-row-height);
+  justify-content: flex-start;
+  padding: 0 var(--taskmap-space-2);
+  text-align: left;
+}
+
+.taskmap-settings-color-swatch {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: var(--taskmap-space-1);
+}
+
+.taskmap-settings-color-copy {
+  display: block;
+  min-width: 0;
+}
+
+.taskmap-settings-color-label,
+.taskmap-settings-color-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-settings-color-label {
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 600;
+}
+
+.taskmap-settings-color-value {
+  color: var(--taskmap-muted);
+  font-family: var(--taskmap-font-monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.taskmap-settings-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--taskmap-space-3);
+}
+
+.taskmap-settings-data-action {
+  padding: var(--taskmap-space-2);
+}
+
+.taskmap-settings-data-action .taskmap-button {
+  width: 100%;
+}
+
+.taskmap-settings-data-status {
+  grid-column: 1 / -1;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-settings-misc {
+  display: flex;
+  min-height: 198px;
+  flex-direction: column;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-settings-update-button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.taskmap-settings-shortcuts {
+  padding: var(--taskmap-space-2) var(--taskmap-space-3);
+}
+
+.taskmap-settings-shortcut-row {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-3);
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.taskmap-settings-shortcut-row:last-child {
+  border-bottom: 0;
+}
+
+.taskmap-settings-shortcut-label {
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+}
+
+.taskmap-settings-key-group {
+  flex: none;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-settings-footer {
+  flex: none;
+  margin-top: var(--taskmap-space-5);
+  color: rgb(255 255 255 / 0.26);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-align: center;
+}

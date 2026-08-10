@@ -322,14 +322,16 @@ matching mount/unmount timeout.
 - Reference maximum layout: `528px × 632px`
 - Padding: `20px`
 - Modal radius: `12px`
-- Tabs: `36px` height with `8px` top radius
+- Tabs: `36px` height with `8px` target radius
 - Settings island radius: `8px`
 - Scrim: `rgb(0 0 0 / 0.36)`
 
-Phase 4.5C must reconcile real component behavior with these targets. It must not transplant
-prototype application logic or blindly replace functional/dynamic TaskMap geometry where retained
-behavior requires dynamic sizing, aspect projection, viewport adaptation, or an equivalent runtime
-calculation.
+C3A maps the primary Settings shell to modal-plane Acrylic Large and meaningful Settings islands to
+modal-plane Acrylic Small. Navigation composes the shared `LiquidTabs`; grid style, opacity,
+booleans, data actions, close, and update-check controls compose existing C1 primitives. Text,
+headings, shortcut keycaps, and internal rows remain normal DOM. The password dialog,
+`UpdateAvailableModal`, and `ColorPickerMenu` shells retain their legacy presentation for later C3
+slices.
 
 ## Material planes
 
@@ -339,12 +341,18 @@ continues through portals. The compositor owns the output canvases and stacking 
 features must not hardcode compositor canvas z-index behavior. A third plane requires a new
 architecture decision.
 
+C3A gives production modal DOM the shared semantic layer order: scrim `9999`, the existing modal
+compositor output `10000`, modal content `10001`, and body-owned modal overlay adapters `10002`.
+The Settings scrim is plain DOM below the compositor; `MaterialPlaneProvider` makes its Acrylic
+Large shell, Acrylic Small islands, liquid indicator, and liquid-toggle knobs register on the
+existing modal plane. The layer contract changes no base-plane or workspace-chrome stacking.
+
 For the production workspace, all canvas/backdrop DOM is contained by the intentional backdrop
 layer at `0`, the base compositor output remains at layer `40`, and the shared
 `--taskmap-layer-workspace-chrome: 41` contract is the only base-plane content layer above it. The
 workspace root deliberately has no `z-index`, isolation, transform, filter, opacity, or containment
 that would trap canvas or chrome. Later C2 workspace patterns consume the shared chrome layer rather
-than declaring feature-specific compositor-relative values. Modal-plane behavior is unchanged.
+than declaring feature-specific compositor-relative values.
 
 ## Backdrop scene boundary
 

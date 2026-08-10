@@ -8,6 +8,7 @@ type Rgb = { r: number; g: number; b: number };
 type Hsl = { h: number; s: number; l: number };
 
 type ColorPickerMenuProps = {
+  className?: string;
   color: string;
   left: number;
   top: number;
@@ -127,6 +128,7 @@ const NUMBER_INPUT_CLASS =
   "h-8 w-full rounded-md border border-white/[0.12] bg-black/[0.20] px-2 text-center text-xs text-white outline-none focus:border-white/30";
 
 export function ColorPickerMenu({
+  className,
   color,
   left,
   top,
@@ -209,7 +211,7 @@ export function ColorPickerMenu({
       ref={menuRef}
       data-context-menu
       data-color-picker-menu
-      className="context-menu-enter fixed z-[1002] w-[286px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.52)]"
+      className={`context-menu-enter fixed z-[1002] w-[286px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.52)] ${className ?? ""}`}
       style={position}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}

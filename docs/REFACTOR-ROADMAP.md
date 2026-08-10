@@ -238,6 +238,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
       workspace-chrome layer; migrate its shell/interior/reset control to Acrylic Large, Cutout,
       and IconButton; synchronize DOM and compositor mask opacity while preserving projection,
       semantic spatial colors, App lifecycle ownership, and zero navigation behavior.
+- [x] **C3A primary Settings presentation:** establish the existing modal-plane scrim/compositor/DOM
+      layer contract and migrate only the primary Settings shell, navigation, islands, rows, and
+      controls to Acrylic Large/Small plus C1 primitives while preserving feature state, focus,
+      callbacks, data/update flows, and deferred nested overlay ownership.
 - [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
@@ -249,9 +253,10 @@ C1 deliberately leaves the production root and production consumers unchanged. C
 scoped root and canvas frame/grid presentation, C2B migrates the floating toolbar, C2C migrates the
 outer side-panel shells/header/scroll framing, C2D migrates only Canvas Browser card, preview,
 editor, and reorder/drag presentation, C2E migrates only the primary Extensions panel internals,
-and C2F migrates only the production Minimap presentation. Quick Extensions, its shared info
-tooltip, filter overlay shell, Settings, creation UI, menus, dialogs, toasts, and canvas elements
-remain unchanged for later C2/C3/Phase 5 slices.
+and C2F migrates only the production Minimap presentation. C3A migrates only the primary Settings
+presentation. Quick Extensions, shared info/filter overlays, Settings-owned password/update/color
+picker shells, creation UI, menus, other dialogs, toasts, and canvas elements remain unchanged for
+later C3/Phase 5 slices.
 Completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance

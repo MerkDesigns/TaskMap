@@ -87,8 +87,8 @@ describe("modal keyboard behavior", () => {
     expect(onRememberRecentColor).toHaveBeenCalledTimes(1);
     expect(onRememberRecentColor).toHaveBeenCalledWith("#234567");
 
-    await user.click(screen.getByRole("button", { name: "misc" }));
-    const lockedDeletionToggle = screen.getByRole("checkbox", {
+    await user.click(screen.getByRole("tab", { name: "misc" }));
+    const lockedDeletionToggle = screen.getByRole("switch", {
       name: /Allow removing locked elements/i,
     });
     expect(lockedDeletionToggle).toBeChecked();

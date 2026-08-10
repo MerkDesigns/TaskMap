@@ -128,6 +128,10 @@ migration debt until Phase 4.5C/4.5D.
 - `src/ui/patterns/workspace/MinimapSurface.tsx` and `useMinimapVisibilityMotion.ts` — C2F Acrylic
   Large/Cutout presentation plus shared-scheduler DOM/compositor mask-opacity fidelity; no
   projection, persistence, or navigation ownership.
+- `src/ui/patterns/overlays/ModalLayer.tsx` — C3A semantic scrim/modal-compositor/content stacking
+  boundary over the existing modal material plane; it owns no overlay lifecycle or feature state.
+- `src/ui/patterns/settings/` — C3A presentation-only primary Settings shell, island, row, and
+  single-action toggle-row patterns. Settings behavior remains in `src/components/Modals.tsx`.
 - `src/ui/dev/DevelopmentUiLab.tsx` — opt-in development catalog using real materials and motion;
   dynamically excluded unless both the development build and explicit environment flag are active.
 - `src/ui/materials/materialTypes.ts` and `materialDefinitions.ts` — minimal discriminated material
@@ -406,7 +410,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/canvasMath.ts`                                                    |   128 | TypeScript application module                                                           |
 | `src/components/CanvasManager.tsx`                                     |  1119 | Pointer capture is best-effort; document listeners still clean up the drag.             |
 | `src/components/CanvasManagerCards.test.tsx`                           |   430 | Shared motion queues at most one next frame while work remains active.                  |
-| `src/components/ColorPickerMenu.tsx`                                   |   338 | React component or typed UI module                                                      |
+| `src/components/ColorPickerMenu.tsx`                                   |   340 | React component or typed UI module                                                      |
 | `src/components/CommandRunnerModals.test.tsx`                          |   141 | Tests for the adjacent module                                                           |
 | `src/components/CommandRunnerModals.tsx`                               |   612 | React component or typed UI module                                                      |
 | `src/components/ContainerJsonEditorWindow.test.tsx`                    |    34 | Tests for the adjacent module                                                           |
@@ -430,7 +434,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/Minimap.test.tsx`                                      |   154 | Tests for the adjacent module                                                           |
 | `src/components/Minimap.tsx`                                           |   209 | React component or typed UI module                                                      |
 | `src/components/Modals.test.tsx`                                       |    99 | Tests for the adjacent module                                                           |
-| `src/components/Modals.tsx`                                            |   941 | React component or typed UI module                                                      |
+| `src/components/Modals.tsx`                                            |   830 | React component or typed UI module                                                      |
+| `src/components/SettingsModal.test.tsx`                                |   233 | Tests for the adjacent module                                                           |
 | `src/components/TextBlockNode.tsx`                                     |   561 | React component or typed UI module                                                      |
 | `src/components/TextCardNode.test.tsx`                                 |   246 | Tests for the adjacent module                                                           |
 | `src/components/TextCardNode.tsx`                                      |   482 | React component or typed UI module                                                      |
@@ -652,6 +657,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/motion/motionTokens.ts`                                        |    41 | Central Phase 4.5C motion values; these are UI-motion values, not compositor constants. |
 | `src/ui/motion/reducedMotionPreference.test.ts`                        |    55 | Tests for the adjacent module                                                           |
 | `src/ui/motion/reducedMotionPreference.ts`                             |    65 | TypeScript application module                                                           |
+| `src/ui/patterns/overlays/index.ts`                                    |     2 | TypeScript application module                                                           |
+| `src/ui/patterns/overlays/ModalLayer.tsx`                              |    17 | React component or typed UI module                                                      |
+| `src/ui/patterns/settings/index.ts`                                    |     2 | TypeScript application module                                                           |
+| `src/ui/patterns/settings/SettingsPatterns.tsx`                        |   121 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    71 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/ExtensionBrowserCard.tsx`                   |    37 | React component or typed UI module                                                      |

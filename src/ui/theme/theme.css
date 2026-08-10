@@ -1,3 +1,10 @@
+:root {
+  --taskmap-layer-modal-scrim: 9999;
+  --taskmap-layer-modal-compositor: 10000;
+  --taskmap-layer-modal-content: 10001;
+  --taskmap-layer-modal-overlay: 10002;
+}
+
 /*
  * Normative owner for visible target-theme values. The DOM-free BackdropScene projector mirrors
  * its workspace subset in workspaceVisualValues.ts; Phase 4.5C2A parity tests lock both copies.

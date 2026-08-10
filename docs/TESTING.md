@@ -547,6 +547,23 @@ Extensions/Settings/menus outside the migration, and reject Minimap-local z-inde
 classes, backdrop blur, new cache/runtime/provider ownership, and independent animation frames.
 These tests do not claim pixel-level or manual visual acceptance.
 
+### Phase 4.5C3A primary Settings coverage
+
+Four focused suites contain 13 deterministic cases. They lock the modal-plane Acrylic Large shell,
+modal-plane Acrylic Small islands and liquid controls, accepted `528px × 632px`/20px/12px/8px
+geometry, exact 0.36 scrim, and the semantic scrim/compositor/content layer contract. Navigation
+coverage retains production/DEV tab gating plus shared LiquidTabs keyboard behavior; control tests
+preserve grid callbacks, exact slider bounds, all five content-color triggers, single-action toggle
+rows, the Discord dependency, close/focus/Escape behavior, data import/export flow, update checking,
+shortcut order, footer version, and DEV callbacks.
+
+Static contracts require one existing compositor provider and only the base/modal planes, reject
+Settings-local compositor z-index, backdrop filters, requestAnimationFrame, persistence/domain
+ownership, legacy teal, and primary `left-panel-card` usage. They separately retain the legacy
+password dialog, `UpdateAvailableModal`, `ColorPickerMenu` portal/positioning, Clear Canvas, Quick
+Extensions, context menus, ToastStack, storage-error UI, and command-runner overlays for later C3
+slices. These structural and DOM tests do not claim rendered acrylic pixels or visual acceptance.
+
 ### Phase 4.5D visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and

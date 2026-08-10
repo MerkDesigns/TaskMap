@@ -13,9 +13,20 @@ import {
   IconUpload,
   IconX,
 } from "@tabler/icons-react";
-import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { commandErrorMessage } from "../app/commandError";
 import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
+import {
+  Button,
+  IconButton,
+  Keycap,
+  LiquidTabs,
+  ScrollArea,
+  SegmentedControl,
+  Slider,
+} from "../ui/primitives";
+import { ModalLayer } from "../ui/patterns/overlays";
+import { SettingsIsland, SettingsShell, SettingsToggleRow } from "../ui/patterns/settings";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 const FOCUSABLE_SELECTOR = [
@@ -80,14 +91,6 @@ const useDialogFocus = (open = true) => {
 
   return dialogRef;
 };
-
-function SettingsTabScroller({ children }: { children: ReactNode }) {
-  return (
-    <div className="settings-tab-scroll min-h-0 flex-1 overflow-y-auto px-1 py-4 pr-3">
-      <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
 
 type UpdateAvailableModalProps = {
   update: AppUpdateInfo;
@@ -307,6 +310,21 @@ const SETTINGS_TABS = import.meta.env.DEV
   ? (["visual", "data", "misc", "shortcuts", "dev"] as const)
   : (["visual", "data", "misc", "shortcuts"] as const);
 
+const SETTINGS_TAB_ITEMS = SETTINGS_TABS.map((tab) => ({
+  value: tab,
+  label: tab,
+}));
+
+const GRID_SEGMENTS = GRID_OPTIONS.map(({ Icon, label, value }) => ({
+  value,
+  label: (
+    <>
+      <Icon size={15} stroke={2} />
+      <span>{label}</span>
+    </>
+  ),
+}));
+
 export function SettingsModal({
   canvasGridStyle,
   onCanvasGridStyleChange,
@@ -481,370 +499,241 @@ export function SettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
-      <div
+    <ModalLayer>
+      <SettingsShell
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
         tabIndex={-1}
-        className="relative flex h-[632px] max-h-[calc(100vh-2rem)] w-[528px] flex-col rounded-xl border border-white/[0.15] bg-[#141519] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+        data-settings-primary-shell
       >
-        <div className="mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <IconSettings size={20} stroke={2} className="text-white/75" />
-            <h2 id="settings-title" className="text-[16px] font-semibold">
+        <div className="taskmap-settings-header">
+          <div className="taskmap-settings-header__identity">
+            <IconSettings size={20} stroke={2} className="taskmap-settings-header__icon" />
+            <h2 id="settings-title" className="taskmap-settings-title">
               Settings
             </h2>
           </div>
-          <button
-            className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white"
+          <IconButton
+            className="taskmap-settings-close"
+            variant="ghost"
+            size="compact"
+            aria-label="Close settings"
             onClick={onClose}
             title="Close settings"
-          >
-            <IconX size={17} stroke={2} />
-          </button>
+            icon={<IconX size={17} stroke={2} />}
+          />
         </div>
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div
-            className={
-              import.meta.env.DEV
-                ? "grid grid-cols-5 items-end gap-1 px-1"
-                : "grid grid-cols-4 items-end gap-1 px-1"
-            }
-          >
-            {SETTINGS_TABS.map((tab) => (
-              <button
-                key={tab}
-                className={`relative flex h-9 min-w-0 items-center justify-center rounded-t-lg px-2 text-center text-sm font-semibold capitalize transition-colors ${
-                  activeTab === tab
-                    ? "bg-[#318f87] text-white/88"
-                    : "bg-[#141519] text-white/48 hover:bg-white/[0.06] hover:text-white/72"
-                }`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-          <SettingsTabScroller key={activeTab}>
-            {activeTab === "visual" && (
-              <>
-                <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                    Canvas grid
-                  </div>
-                  <div className="grid grid-cols-[176px_minmax(0,1fr)] items-center gap-3">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {GRID_OPTIONS.map(({ label, value, Icon }) => {
-                        const selected = canvasGridStyle === value;
-
-                        return (
-                          <button
-                            key={value}
-                            className={`left-panel-card flex h-8 items-center justify-center gap-1.5 rounded-md border text-[12px] transition-colors ${
-                              selected
-                                ? "border-white/30 bg-white/[0.14] text-white"
-                                : "border-white/[0.10] bg-black/[0.12] text-white/62 hover:bg-white/[0.08] hover:text-white"
-                            }`}
-                            onClick={() => onCanvasGridStyleChange(value)}
-                          >
-                            <Icon size={15} stroke={2} />
-                            <span>{label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/48">
-                        <span>Opacity</span>
-                        <span className="text-white/60">{canvasGridOpacity}%</span>
-                      </div>
-                      <input
-                        className="taskmap-range [--taskmap-range-accent:rgba(255,255,255,0.72)]"
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={5}
-                        value={canvasGridOpacity}
-                        spellCheck={false}
-                        onChange={(event) => onCanvasGridOpacityChange(Number(event.target.value))}
-                        title="Grid opacity"
+        <div className="taskmap-settings-body">
+          <LiquidTabs
+            className="taskmap-settings-navigation"
+            label="Settings categories"
+            items={SETTINGS_TAB_ITEMS}
+            value={activeTab}
+            onValueChange={setActiveTab}
+          />
+          <ScrollArea key={activeTab} className="taskmap-settings-scroll">
+            <div className="taskmap-settings-content-stack">
+              {activeTab === "visual" && (
+                <>
+                  <SettingsIsland>
+                    <div className="taskmap-settings-section-heading">Canvas grid</div>
+                    <div className="taskmap-settings-grid-controls">
+                      <SegmentedControl
+                        className="taskmap-settings-grid-segments"
+                        label="Canvas grid style"
+                        items={GRID_SEGMENTS}
+                        value={canvasGridStyle}
+                        onValueChange={onCanvasGridStyleChange}
                       />
-                    </div>
-                  </div>
-                </div>
-                <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <div className="mb-1 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                    <IconPalette size={16} stroke={2} />
-                    <span>Default element colors</span>
-                  </div>
-                  <div className="mb-3 text-[11px] text-white/38">
-                    Applied to newly created elements.
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {DEFAULT_COLOR_OPTIONS.map(({ label, value }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className="left-panel-card flex h-10 min-w-0 items-center gap-2 rounded-md border border-white/[0.10] bg-black/[0.12] px-2.5 text-left transition-colors hover:bg-white/[0.08]"
-                        onClick={(event) => {
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          setDefaultColorPicker({
-                            elementType: value,
-                            left: rect.right + 8,
-                            top: rect.top,
-                          });
-                        }}
-                        title={`Choose default ${label.toLowerCase()} color`}
-                      >
-                        <span
-                          className="h-5 w-5 shrink-0 rounded border border-white/[0.18]"
-                          style={{ backgroundColor: defaultElementColors[value] }}
+                      <div>
+                        <div className="taskmap-settings-slider-heading">
+                          <span>Opacity</span>
+                          <span className="taskmap-settings-slider-value">
+                            {canvasGridOpacity}%
+                          </span>
+                        </div>
+                        <Slider
+                          className="taskmap-settings-slider"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={canvasGridOpacity}
+                          spellCheck={false}
+                          onChange={(event) =>
+                            onCanvasGridOpacityChange(Number(event.target.value))
+                          }
+                          title="Grid opacity"
                         />
-                        <span className="min-w-0">
-                          <span className="block truncate text-[12px] font-medium text-white/72">
-                            {label}
+                      </div>
+                    </div>
+                  </SettingsIsland>
+                  <SettingsIsland>
+                    <div className="taskmap-settings-section-heading">
+                      <IconPalette size={16} stroke={2} />
+                      <span>Default element colors</span>
+                    </div>
+                    <div className="taskmap-settings-section-description">
+                      Applied to newly created elements.
+                    </div>
+                    <div className="taskmap-settings-color-grid">
+                      {DEFAULT_COLOR_OPTIONS.map(({ label, value }) => (
+                        <Button
+                          key={value}
+                          variant="ghost"
+                          className="taskmap-settings-color-trigger"
+                          onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            setDefaultColorPicker({
+                              elementType: value,
+                              left: rect.right + 8,
+                              top: rect.top,
+                            });
+                          }}
+                          title={`Choose default ${label.toLowerCase()} color`}
+                        >
+                          <span
+                            className="taskmap-settings-color-swatch"
+                            style={{ backgroundColor: defaultElementColors[value] }}
+                          />
+                          <span className="taskmap-settings-color-copy">
+                            <span className="taskmap-settings-color-label">{label}</span>
+                            <span className="taskmap-settings-color-value">
+                              {defaultElementColors[value]}
+                            </span>
                           </span>
-                          <span className="block truncate text-[10px] uppercase text-white/38">
-                            {defaultElementColors[value]}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <span className="flex flex-col">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                      Shadows below elements
-                    </span>
-                    <span className="mt-0.5 text-[12px] text-white/45">
-                      Keep shadows on the canvas instead of over other elements.
-                    </span>
-                  </span>
-                  <input
-                    className="peer sr-only"
-                    type="checkbox"
+                        </Button>
+                      ))}
+                    </div>
+                  </SettingsIsland>
+                  <SettingsToggleRow
+                    label="Shadows below elements"
+                    description="Keep shadows on the canvas instead of over other elements."
                     checked={shadowsUnderElements}
-                    onChange={(event) => onShadowsUnderElementsChange(event.target.checked)}
+                    onCheckedChange={onShadowsUnderElementsChange}
                   />
-                  <span
-                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
-                    aria-hidden="true"
-                  />
-                </label>
-                <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <span className="flex items-center gap-3">
-                    {privacyModeEnabled ? (
-                      <IconEyeOff size={18} stroke={2} className="text-white/72" />
-                    ) : (
-                      <IconEye size={18} stroke={2} className="text-white/48" />
-                    )}
-                    <span className="flex flex-col">
-                      <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                        Privacy mode
-                      </span>
-                      <span className="mt-0.5 text-[12px] text-white/45">
-                        Hide TaskMap from screenshots and screen capture.
-                      </span>
-                    </span>
-                  </span>
-                  <input
-                    className="peer sr-only"
-                    type="checkbox"
+                  <SettingsToggleRow
+                    label="Privacy mode"
+                    description="Hide TaskMap from screenshots and screen capture."
+                    leading={
+                      privacyModeEnabled ? (
+                        <IconEyeOff size={18} stroke={2} />
+                      ) : (
+                        <IconEye size={18} stroke={2} />
+                      )
+                    }
                     checked={privacyModeEnabled}
-                    onChange={(event) => onPrivacyModeEnabledChange(event.target.checked)}
+                    onCheckedChange={onPrivacyModeEnabledChange}
                   />
-                  <span
-                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
-                    aria-hidden="true"
-                  />
-                </label>
-              </>
-            )}
-            {activeTab === "data" && (
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  ref={importInputRef}
-                  className="hidden"
-                  type="file"
-                  accept=".tmap,.json,application/json"
-                  spellCheck={false}
-                  onChange={handleImportFile}
-                />
-                <button
-                  className="settings-island left-panel-card left-panel-card-static flex h-11 items-center justify-center gap-2 rounded-lg border border-white/[0.10] bg-[#0f1014] px-3 text-sm font-semibold text-white/72 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                  onClick={handleExport}
-                  disabled={busy}
-                >
-                  <IconDownload size={18} stroke={2} />
-                  <span>Export data</span>
-                </button>
-                <button
-                  className="settings-island left-panel-card left-panel-card-static flex h-11 items-center justify-center gap-2 rounded-lg border border-white/[0.10] bg-[#0f1014] px-3 text-sm font-semibold text-white/72 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                  onClick={handleImportClick}
-                  disabled={busy}
-                >
-                  <IconUpload size={18} stroke={2} />
-                  <span>Import data</span>
-                </button>
-                {dataStatus && <div className="col-span-2 text-xs text-white/58">{dataStatus}</div>}
-              </div>
-            )}
-            {activeTab === "misc" && (
-              <div className="flex min-h-[198px] flex-col">
-                <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <span className="flex flex-col">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                      Allow removing locked elements
-                    </span>
-                    <span className="mt-0.5 text-[12px] text-white/45">
-                      Lock canvas interactions without preventing removal.
-                    </span>
-                  </span>
+                </>
+              )}
+              {activeTab === "data" && (
+                <div className="taskmap-settings-data-grid">
                   <input
-                    className="peer sr-only"
-                    type="checkbox"
+                    ref={importInputRef}
+                    className="hidden"
+                    type="file"
+                    accept=".tmap,.json,application/json"
+                    spellCheck={false}
+                    onChange={handleImportFile}
+                  />
+                  <SettingsIsland className="taskmap-settings-data-action">
+                    <Button
+                      leadingIcon={<IconDownload size={18} stroke={2} />}
+                      onClick={handleExport}
+                      disabled={busy}
+                    >
+                      Export data
+                    </Button>
+                  </SettingsIsland>
+                  <SettingsIsland className="taskmap-settings-data-action">
+                    <Button
+                      leadingIcon={<IconUpload size={18} stroke={2} />}
+                      onClick={handleImportClick}
+                      disabled={busy}
+                    >
+                      Import data
+                    </Button>
+                  </SettingsIsland>
+                  {dataStatus && <div className="taskmap-settings-data-status">{dataStatus}</div>}
+                </div>
+              )}
+              {activeTab === "misc" && (
+                <div className="taskmap-settings-misc">
+                  <SettingsToggleRow
+                    label="Allow removing locked elements"
+                    description="Lock canvas interactions without preventing removal."
                     checked={allowLockedElementDeletion}
-                    onChange={(event) => onAllowLockedElementDeletionChange(event.target.checked)}
+                    onCheckedChange={onAllowLockedElementDeletionChange}
                   />
-                  <span
-                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
-                    aria-hidden="true"
-                  />
-                </label>
-                <label className="settings-island left-panel-card left-panel-card-static mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <span className="flex flex-col">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                      Discord status
-                    </span>
-                    <span className="mt-0.5 text-[12px] text-white/45">
-                      Show time spent in TaskMap on your Discord profile.
-                    </span>
-                  </span>
-                  <input
-                    className="peer sr-only"
-                    type="checkbox"
+                  <SettingsToggleRow
+                    label="Discord status"
+                    description="Show time spent in TaskMap on your Discord profile."
                     checked={discordRpcEnabled}
-                    onChange={(event) => onDiscordRpcEnabledChange(event.target.checked)}
+                    onCheckedChange={onDiscordRpcEnabledChange}
                   />
-                  <span
-                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
-                    aria-hidden="true"
-                  />
-                </label>
-                <label
-                  className={`settings-island left-panel-card left-panel-card-static mt-2 flex items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3 transition-opacity ${
-                    discordRpcEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-45"
-                  }`}
-                >
-                  <span className="flex flex-col">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                      Show active canvas
-                    </span>
-                    <span className="mt-0.5 text-[12px] text-white/45">
-                      Include the current canvas name in your Discord status.
-                    </span>
-                  </span>
-                  <input
-                    className="peer sr-only"
-                    type="checkbox"
+                  <SettingsToggleRow
+                    label="Show active canvas"
+                    description="Include the current canvas name in your Discord status."
                     checked={discordRpcShowCanvas}
                     disabled={!discordRpcEnabled}
-                    onChange={(event) => onDiscordRpcShowCanvasChange(event.target.checked)}
+                    onCheckedChange={onDiscordRpcShowCanvasChange}
                   />
-                  <span
-                    className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] peer-disabled:opacity-60 after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white"
-                    aria-hidden="true"
-                  />
-                </label>
-                <button
-                  className="mt-auto flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/[0.10] bg-white/[0.06] text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                  onClick={handleCheckForUpdate}
-                  disabled={updateBusy}
-                >
-                  <IconRefresh size={17} stroke={2} />
-                  <span>{updateBusy ? "Checking..." : "Check for updates"}</span>
-                </button>
-              </div>
-            )}
-            {activeTab === "shortcuts" && (
-              <div className="flex h-full min-h-0 flex-col">
-                <div className="mb-2 flex items-center gap-2 px-1 py-1 text-[13px] font-semibold uppercase tracking-wide text-white/48">
-                  <IconKeyboard size={16} stroke={2} />
-                  <span>Shortcuts</span>
+                  <Button
+                    className="taskmap-settings-update-button"
+                    leadingIcon={<IconRefresh size={17} stroke={2} />}
+                    onClick={handleCheckForUpdate}
+                    disabled={updateBusy}
+                  >
+                    {updateBusy ? "Checking..." : "Check for updates"}
+                  </Button>
                 </div>
-                <div className="space-y-1">
-                  {SHORTCUTS.map((shortcut) => (
-                    <div
-                      key={shortcut.label}
-                      className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] px-3 py-2"
-                    >
-                      <span className="text-[14px] text-white/72">{shortcut.label}</span>
-                      <span className="flex shrink-0 items-center gap-1">
-                        {shortcut.keys.map((key) => (
-                          <kbd
-                            key={key}
-                            className="rounded border border-white/[0.14] bg-white/[0.07] px-2 py-1 font-mono text-[12px] font-medium text-white/76 shadow-[0_1px_0_rgba(255,255,255,0.08)]"
-                          >
-                            {key}
-                          </kbd>
-                        ))}
-                      </span>
-                    </div>
-                  ))}
+              )}
+              {activeTab === "shortcuts" && (
+                <div>
+                  <div className="taskmap-settings-section-heading">
+                    <IconKeyboard size={16} stroke={2} />
+                    <span>Shortcuts</span>
+                  </div>
+                  <SettingsIsland className="taskmap-settings-shortcuts">
+                    {SHORTCUTS.map((shortcut) => (
+                      <div key={shortcut.label} className="taskmap-settings-shortcut-row">
+                        <span className="taskmap-settings-shortcut-label">{shortcut.label}</span>
+                        <span className="taskmap-settings-key-group">
+                          {shortcut.keys.map((key) => (
+                            <Keycap key={key}>{key}</Keycap>
+                          ))}
+                        </span>
+                      </div>
+                    ))}
+                  </SettingsIsland>
                 </div>
-              </div>
-            )}
-            {import.meta.env.DEV && activeTab === "dev" && (
-              <div className="space-y-3">
-                <label className="settings-island left-panel-card left-panel-card-static flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <span className="flex flex-col">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                      FPS counter
-                    </span>
-                    <span className="mt-0.5 text-[12px] text-white/45">
-                      Show frame timing overlay.
-                    </span>
-                  </span>
-                  <input
-                    className="peer sr-only"
-                    type="checkbox"
+              )}
+              {import.meta.env.DEV && activeTab === "dev" && (
+                <div className="taskmap-settings-content-stack">
+                  <SettingsToggleRow
+                    label="FPS counter"
+                    description="Show frame timing overlay."
                     checked={fpsCounterVisible}
-                    onChange={(event) => onFpsCounterVisibleChange(event.target.checked)}
+                    onCheckedChange={onFpsCounterVisibleChange}
                   />
-                  <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" />
-                </label>
-                <div className="settings-island left-panel-card left-panel-card-static rounded-lg border border-white/[0.10] bg-[#0f1014] p-3">
-                  <label className="flex cursor-pointer items-center justify-between gap-3">
-                    <span className="flex flex-col">
-                      <span className="text-[12px] font-semibold uppercase tracking-wide text-white/48">
-                        Temporary panels
-                      </span>
-                      <span className="mt-0.5 text-[12px] text-white/45">
-                        Show frosted glass tuning overlays.
-                      </span>
-                    </span>
-                    <input
-                      className="peer sr-only"
-                      type="checkbox"
-                      checked={temporaryPanelsVisible}
-                      onChange={(event) => onTemporaryPanelsVisibleChange(event.target.checked)}
-                    />
-                    <span className="relative h-6 w-11 flex-shrink-0 rounded-full bg-white/[0.08] transition-colors peer-checked:bg-[#318f87] after:absolute after:left-0.5 after:top-0.5 after:h-[18px] after:w-[18px] after:rounded-full after:bg-white/55 after:shadow after:transition-all after:content-[''] peer-checked:after:translate-x-5 peer-checked:after:bg-white" />
-                  </label>
+                  <SettingsToggleRow
+                    label="Temporary panels"
+                    description="Show frosted glass tuning overlays."
+                    checked={temporaryPanelsVisible}
+                    onCheckedChange={onTemporaryPanelsVisibleChange}
+                  />
                 </div>
-              </div>
-            )}
-          </SettingsTabScroller>
+              )}
+            </div>
+          </ScrollArea>
         </div>
-        <div className="mt-5 text-center text-[12px] font-semibold tracking-[0.18em] text-white/26">
-          MADE BY MERK - v{appVersion}
-        </div>
-      </div>
+        <div className="taskmap-settings-footer">MADE BY MERK - v{appVersion}</div>
+      </SettingsShell>
       {defaultColorPicker && (
         <ColorPickerMenu
+          className="taskmap-modal-portal-layer"
           key={defaultColorPicker.elementType}
           color={defaultElementColors[defaultColorPicker.elementType]}
           left={defaultColorPicker.left}
@@ -935,6 +824,6 @@ export function SettingsModal({
           </div>
         </div>
       )}
-    </div>
+    </ModalLayer>
   );
 }

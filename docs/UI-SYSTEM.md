@@ -39,7 +39,9 @@ feature or TaskMap pattern
   Extensions panel search/filter/favorite controls from C1 primitives. Quick Extensions, the shared
   info tooltip, and the legacy filter portal shell remain unmigrated. C2F adds the reset-only
   `MinimapSurface`/`MinimapViewport` production pattern while leaving projection and visibility
-  lifecycle ownership in the feature/App. Settings and general overlays remain unmigrated.
+  lifecycle ownership in the feature/App. C3A adds the modal-plane `ModalLayer` stacking boundary
+  and the presentation-only `SettingsShell`/`SettingsIsland`/`SettingsRow` patterns for primary
+  Settings. Password/update/color-picker and all other overlay shells remain unmigrated.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
@@ -57,7 +59,7 @@ monospace roles using the scoped typography tokens.
 | Cutout                             | Foundation implemented                                                 |
 | Solid/opaque surface               | Foundation implemented (`opaque` MaterialSurface and plain containers) |
 | Transparent layout surface         | Foundation implemented (`Stack`/`Inline`)                              |
-| Modal scrim                        | Implement during C3                                                    |
+| Modal scrim                        | C3A foundation implemented for the primary Settings modal              |
 | Accent wash                        | Foundation implemented as a scoped effect token                        |
 | Selection state                    | Foundation implemented as shared state styling/token                   |
 | Bright glass selection             | Foundation implemented as a reusable `MaterialSurface` effect          |
@@ -178,7 +180,7 @@ strong glow. Invalid/error presentation remains semantic danger red.
 | ContextMenu              | Foundation implemented; production behavior migration remains C3 |
 | Nested submenu           | Implement during C3                                              |
 | SelectMenu               | Implement during C3                                              |
-| Modal/Dialog             | Implement during C3                                              |
+| Modal/Dialog             | C3A modal-plane/shell foundation; remaining dialogs during C3    |
 | ConfirmDialog            | Implement during C3                                              |
 | AlertDialog              | Implement during C3                                              |
 | Drawer/Sheet             | Implement during C3                                              |
@@ -269,27 +271,28 @@ the feature retains the pure projection plus reset-only interaction contract.
 
 ## I. Settings patterns
 
-These contracts are cataloged for C2. C1 does not import or migrate Settings.
+The C3A primary Settings migration implements only capabilities exercised by the retained production
+Settings screen. Deferred nested overlays keep their existing presentation until later C3 slices.
 
 | Capability                 | Status                                                         |
 | -------------------------- | -------------------------------------------------------------- |
-| SettingsShell              | Implement during C2                                            |
-| SettingsNavigation         | Implement during C2                                            |
-| Liquid category selector   | Foundation implemented generically; Settings composition in C2 |
-| SettingsPage               | Implement during C2                                            |
-| SettingsSection            | Implement during C2                                            |
-| SettingsIsland             | Implement during C2                                            |
-| SettingsRow                | Implement during C2                                            |
-| SettingsLabel/Description  | Foundation implemented generically; Settings composition in C2 |
-| Control slot               | Implement during C2                                            |
-| Reset-to-default           | Implement during C2                                            |
-| Restart-required indicator | Implement during C2                                            |
-| DangerSection              | Implement during C2                                            |
-| Version/about row          | Implement during C2                                            |
-| Shortcut row               | Implement during C2                                            |
-| Path/file row              | Implement during C2                                            |
-| Appearance preview         | Implement during C2                                            |
-| Accent/color selector      | Implement during C2                                            |
+| SettingsShell              | C3A foundation implemented                                     |
+| SettingsNavigation         | C3A composition implemented with `LiquidTabs`                  |
+| Liquid category selector   | C3A production composition implemented                         |
+| SettingsPage               | C3A primary production composition implemented                 |
+| SettingsSection            | C3A primary section presentation implemented                   |
+| SettingsIsland             | C3A foundation implemented with modal-plane Acrylic Small      |
+| SettingsRow                | C3A foundation implemented                                     |
+| SettingsLabel/Description  | C3A foundation implemented                                     |
+| Control slot               | C3A foundation implemented through `SettingsRow`               |
+| Reset-to-default           | Capability only                                                |
+| Restart-required indicator | Capability only                                                |
+| DangerSection              | Capability only                                                |
+| Version/about row          | Capability only; C3A retains the existing version footer       |
+| Shortcut row               | C3A production presentation implemented                        |
+| Path/file row              | Capability only                                                |
+| Appearance preview         | Capability only                                                |
+| Accent/color selector      | C3A trigger composition; `ColorPickerMenu` shell remains later |
 
 ## J. Motion
 
