@@ -34,6 +34,13 @@ if (
 ) {
   throw new Error("Phase 2 frontend entry is not a development-only dynamic import");
 }
+if (
+  !appShell.includes('import.meta.env.DEV && import.meta.env.VITE_TASKMAP_UI_LAB === "1"') ||
+  !appShell.includes('import("../ui/dev/DevelopmentUiLab")') ||
+  appShell.includes("import { DevelopmentUiLab }")
+) {
+  throw new Error("UI Lab frontend entry is not a DEV-and-opt-in dynamic import");
+}
 
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -52,10 +59,13 @@ for (const path of stableAssets.filter((item) => /\.(?:js|html|css)$/.test(item)
   const content = await readFile(path, "utf8");
   if (
     content.includes("phase2_create_database") ||
-    content.includes("Phase 2 encrypted database harness")
+    content.includes("Phase 2 encrypted database harness") ||
+    content.includes("TaskMap UI Lab") ||
+    content.includes("Acrylic compositor playground") ||
+    content.includes("data-taskmap-ui-lab")
   ) {
     throw new Error(`stable frontend bundle contains Phase 2 harness content: ${path}`);
   }
 }
 
-console.log("Stable frontend, capability, identifier, and Rust handler exclude Phase 2 IPC.");
+console.log("Stable frontend excludes Phase 2 IPC and the development-only UI Lab.");

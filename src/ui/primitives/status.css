@@ -1,0 +1,140 @@
+.taskmap-badge,
+.taskmap-keycap {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-caption-size);
+  line-height: 1;
+}
+
+.taskmap-badge {
+  border-radius: var(--taskmap-radius-pill);
+  padding: 0 var(--taskmap-space-2);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.taskmap-keycap {
+  border-bottom-color: rgb(255 255 255 / 0.22);
+  border-radius: 5px;
+  background: rgb(0 0 0 / 0.25);
+  padding: 0 6px;
+  font-family: var(--taskmap-font-monospace);
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.32);
+}
+
+.taskmap-tone--accent {
+  --taskmap-tone: var(--taskmap-accent);
+}
+
+.taskmap-tone--danger {
+  --taskmap-tone: var(--taskmap-danger);
+}
+
+.taskmap-tone--warning {
+  --taskmap-tone: var(--taskmap-warning);
+}
+
+.taskmap-tone--success {
+  --taskmap-tone: var(--taskmap-success);
+}
+
+.taskmap-tone--info {
+  --taskmap-tone: var(--taskmap-info);
+}
+
+.taskmap-badge[class*="taskmap-tone--"] {
+  border-color: color-mix(in srgb, var(--taskmap-tone) 46%, transparent);
+  background: color-mix(in srgb, var(--taskmap-tone) 14%, transparent);
+  color: color-mix(in srgb, var(--taskmap-tone) 75%, white);
+}
+
+.taskmap-status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-status-dot__mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--taskmap-tone, var(--taskmap-muted));
+  box-shadow: 0 0 7px color-mix(in srgb, var(--taskmap-tone, white) 45%, transparent);
+}
+
+.taskmap-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgb(255 255 255 / 0.14);
+  border-top-color: var(--taskmap-accent);
+  border-radius: 50%;
+  animation: taskmap-spinner 700ms linear infinite;
+}
+
+.taskmap-progress {
+  display: grid;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-progress__label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+}
+
+.taskmap-progress__track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--taskmap-radius-pill);
+  background: rgb(255 255 255 / 0.1);
+}
+
+.taskmap-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--taskmap-accent);
+  transition: width var(--taskmap-motion-normal) var(--taskmap-ease-standard);
+}
+
+.taskmap-progress__track--indeterminate .taskmap-progress__fill {
+  width: 35%;
+  animation: taskmap-progress-indeterminate 1.1s var(--taskmap-ease-standard) infinite;
+}
+
+@keyframes taskmap-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes taskmap-progress-indeterminate {
+  from {
+    transform: translateX(-120%);
+  }
+
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-spinner {
+    animation-duration: 1.8s;
+  }
+
+  .taskmap-progress__fill {
+    transition-duration: 1ms;
+  }
+
+  .taskmap-progress__track--indeterminate .taskmap-progress__fill {
+    animation: none;
+    transform: translateX(90%);
+  }
+}

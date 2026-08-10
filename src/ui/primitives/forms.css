@@ -1,0 +1,108 @@
+.taskmap-field {
+  display: grid;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-field__label {
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-label-size);
+  font-weight: 650;
+  line-height: var(--taskmap-text-label-line);
+}
+
+.taskmap-field__description,
+.taskmap-field__error {
+  font-size: var(--taskmap-text-caption-size);
+  line-height: var(--taskmap-text-caption-line);
+}
+
+.taskmap-field__description {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-field__error {
+  color: var(--taskmap-danger);
+}
+
+.taskmap-input-shell {
+  display: flex;
+  min-width: 0;
+  height: var(--taskmap-control-height);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-medium);
+  background: rgb(8 9 10 / 0.66);
+  box-shadow: var(--taskmap-shadow-inner);
+}
+
+.taskmap-input-shell:focus-within {
+  border-color: rgb(255 255 255 / 0.23);
+  box-shadow: none;
+}
+
+.taskmap-input-shell__slot {
+  display: inline-flex;
+  padding: 0 var(--taskmap-space-2);
+  color: var(--taskmap-muted);
+}
+
+.taskmap-input {
+  width: 100%;
+  min-width: 0;
+  height: var(--taskmap-control-height);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-medium);
+  outline: none;
+  background: rgb(8 9 10 / 0.66);
+  padding: 0 var(--taskmap-space-3);
+  color: var(--taskmap-text);
+  font: inherit;
+  font-size: var(--taskmap-text-body-size);
+  box-shadow: var(--taskmap-shadow-inner);
+}
+
+.taskmap-input-shell .taskmap-input {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.taskmap-input::placeholder {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-input:focus-visible {
+  border-color: rgb(255 255 255 / 0.23);
+  box-shadow: none;
+}
+
+.taskmap-input-shell .taskmap-input:focus-visible {
+  box-shadow: none;
+}
+
+.taskmap-input:disabled,
+.taskmap-input:read-only {
+  opacity: var(--taskmap-state-disabled-opacity);
+}
+
+.taskmap-input[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--taskmap-danger) 72%, transparent);
+}
+
+.taskmap-input-shell:has(.taskmap-input[aria-invalid="true"]) {
+  border-color: color-mix(in srgb, var(--taskmap-danger) 72%, transparent);
+}
+
+.taskmap-textarea {
+  min-height: 84px;
+  resize: vertical;
+  padding-block: var(--taskmap-space-2);
+  line-height: var(--taskmap-text-body-line);
+}
+
+.taskmap-select {
+  appearance: auto;
+}

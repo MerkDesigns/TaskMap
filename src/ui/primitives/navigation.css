@@ -1,0 +1,77 @@
+.taskmap-tabs,
+.taskmap-liquid-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.taskmap-tabs--vertical {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.taskmap-tabs__tab,
+.taskmap-liquid-tabs__tab {
+  height: var(--taskmap-control-height);
+  border-radius: var(--taskmap-radius-medium);
+  background: transparent;
+  padding: 0 var(--taskmap-space-3);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 650;
+}
+
+.taskmap-tabs__tab[aria-selected="true"],
+.taskmap-liquid-tabs__tab[aria-selected="true"] {
+  color: var(--taskmap-text);
+}
+
+.taskmap-tabs__tab[aria-selected="true"] {
+  background: var(--taskmap-state-selected);
+  box-shadow: inset 0 -2px var(--taskmap-tab-active);
+}
+
+.taskmap-liquid-tabs {
+  position: relative;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: var(--taskmap-radius-large);
+  background: rgb(0 0 0 / 0.18);
+}
+
+.taskmap-liquid-tabs__tab {
+  z-index: 42;
+  flex: none;
+  border: 0;
+  outline: 0;
+}
+
+.taskmap-liquid-tabs__tab:hover:not(:disabled),
+.taskmap-liquid-tabs__tab:active:not(:disabled),
+.taskmap-liquid-tabs__tab[aria-selected="true"] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.taskmap-liquid-tabs__tab:focus-visible {
+  background: transparent;
+  box-shadow: 0 0 0 2px rgb(var(--taskmap-accent-rgb) / 0.78);
+}
+
+.taskmap-liquid-tabs__label {
+  display: inline-block;
+  transform: none;
+}
+
+.taskmap-liquid-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  z-index: 41;
+  min-width: 1px;
+  pointer-events: none;
+  will-change: width, transform;
+}

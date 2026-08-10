@@ -5,7 +5,10 @@
   box-shadow: var(--taskmap-material-shadow);
 }
 
-.taskmap-material-surface[data-material-strategy="cached-acrylic"] {
+.taskmap-material-surface:is(
+  [data-material-strategy="cached-acrylic"],
+  [data-material-strategy="opaque"]
+) {
   background:
     radial-gradient(
       ellipse calc(100% * var(--taskmap-material-highlight-radius))
@@ -36,7 +39,10 @@
     rgb(var(--taskmap-material-tint-rgb) / var(--taskmap-material-tint-opacity));
 }
 
-.taskmap-material-surface[data-material-strategy="cached-acrylic"]::after {
+.taskmap-material-surface:is(
+    [data-material-strategy="cached-acrylic"],
+    [data-material-strategy="opaque"]
+  )::after {
   position: absolute;
   z-index: 1;
   padding: var(--taskmap-material-border-width);
@@ -63,4 +69,19 @@
   border: var(--taskmap-material-border-width) solid
     rgb(var(--taskmap-material-border-rgb) / var(--taskmap-material-border-alpha));
   background: rgb(var(--taskmap-material-fill-rgb));
+}
+
+/* Reusable cheap state layer: retain the cached acrylic below while replacing the
+   generic dark tint with a clear selection wash. */
+.taskmap-material-surface--bright-selection[data-material-strategy="cached-acrylic"] {
+  background: transparent;
+}
+
+.taskmap-material-surface--bright-selection[data-material-strategy="cached-acrylic"]::before {
+  position: absolute;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.075);
+  content: "";
+  inset: 0;
+  pointer-events: none;
 }

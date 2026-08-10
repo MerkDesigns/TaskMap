@@ -5,14 +5,15 @@ import {
   ACRYLIC_SMALL,
   CUTOUT,
   MATERIAL_DEFINITIONS,
+  OPAQUE,
   SHARED_ACRYLIC_CACHE_PROFILE,
 } from "./materialDefinitions";
 import { createMaterialRegistry, materialRegistry } from "./materialRegistry";
 
 describe("material definitions", () => {
   it("registers only the Phase 4.5 material IDs", () => {
-    expect(materialRegistry.ids).toEqual(["acrylic-large", "acrylic-small", "cutout"]);
-    expect(MATERIAL_DEFINITIONS).toEqual([ACRYLIC_LARGE, ACRYLIC_SMALL, CUTOUT]);
+    expect(materialRegistry.ids).toEqual(["acrylic-large", "acrylic-small", "opaque", "cutout"]);
+    expect(MATERIAL_DEFINITIONS).toEqual([ACRYLIC_LARGE, ACRYLIC_SMALL, OPAQUE, CUTOUT]);
   });
 
   it("preserves the exact shared expensive acrylic profile", () => {
@@ -34,7 +35,7 @@ describe("material definitions", () => {
       defaultRadiusPx: 12,
       tint: { rgb: [27, 27, 27], opacity: 0.4 },
       highlight: {
-        opacity: 0.04,
+        opacity: 0.028,
         radiusMultiplier: 1,
         stops: ACRYLIC_HIGHLIGHT_STOPS,
       },
@@ -51,13 +52,29 @@ describe("material definitions", () => {
       defaultRadiusPx: 12,
       tint: { rgb: [19, 20, 22], opacity: 0.4 },
       highlight: {
-        opacity: 0.038,
+        opacity: 0.026,
         radiusMultiplier: 2,
         stops: ACRYLIC_HIGHLIGHT_STOPS,
       },
       border: { widthPx: 1, topWhiteAlpha: 30 / 255, bottomWhiteAlpha: 16 / 255 },
       shadow: { xPx: 0, yPx: 5, blurPx: 12, opacity: 0.44 },
     });
+  });
+
+  it("derives Opaque from Small presentation values without a cache profile", () => {
+    expect(OPAQUE).toEqual({
+      id: "opaque",
+      strategy: "opaque",
+      defaultRadiusPx: 12,
+      tint: { rgb: [24, 25, 27], opacity: 1 },
+      highlight: ACRYLIC_SMALL.highlight,
+      border: ACRYLIC_SMALL.border,
+      shadow: ACRYLIC_SMALL.shadow,
+    });
+    expect(OPAQUE.highlight).toBe(ACRYLIC_SMALL.highlight);
+    expect(OPAQUE.border).toBe(ACRYLIC_SMALL.border);
+    expect(OPAQUE.shadow).toBe(ACRYLIC_SMALL.shadow);
+    expect(OPAQUE).not.toHaveProperty("cacheProfileId");
   });
 
   it("preserves the exact Cutout definition without inventing a default radius", () => {

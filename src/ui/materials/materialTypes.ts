@@ -1,9 +1,10 @@
 import type { CSSProperties } from "react";
 
-export type MaterialId = "acrylic-large" | "acrylic-small" | "cutout";
-export type MaterialStrategy = "cached-acrylic" | "css";
+export type MaterialId = "acrylic-large" | "acrylic-small" | "opaque" | "cutout";
+export type MaterialStrategy = "cached-acrylic" | "opaque" | "css";
 export type MaterialPlane = "base" | "modal";
 export type MaterialElevation = "default" | "none";
+export type MaterialSurfaceEffect = "bright-selection";
 export type MaterialRgb = readonly [red: number, green: number, blue: number];
 
 export interface MaterialHighlightStop {
@@ -65,7 +66,19 @@ export interface CssMaterialDefinition extends MaterialDefinitionBase {
   readonly insetShadow: MaterialShadowDefinition;
 }
 
-export type MaterialDefinition = CachedAcrylicMaterialDefinition | CssMaterialDefinition;
+export interface OpaqueMaterialDefinition extends MaterialDefinitionBase {
+  readonly strategy: "opaque";
+  readonly tint: {
+    readonly rgb: MaterialRgb;
+    readonly opacity: 1;
+  };
+  readonly highlight: MaterialHighlightDefinition;
+  readonly border: MaterialBorderDefinition;
+  readonly shadow: MaterialShadowDefinition;
+}
+
+export type MaterialDefinition =
+  CachedAcrylicMaterialDefinition | OpaqueMaterialDefinition | CssMaterialDefinition;
 
 export type MaterialSurfaceStyle = CSSProperties & {
   [name: `--taskmap-material-${string}`]: string | number;

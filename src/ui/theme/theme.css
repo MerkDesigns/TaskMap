@@ -28,4 +28,86 @@
   --taskmap-link: #65d7e4;
   --taskmap-minimap-element: #7aa2c8;
   --taskmap-minimap-viewport: #c8dae8;
+
+  /* Semantic layout geometry. VISUAL-SYSTEM.md remains normative for exact targets. */
+  --taskmap-space-1: 4px;
+  --taskmap-space-2: 8px;
+  --taskmap-space-3: 12px;
+  --taskmap-space-4: 16px;
+  --taskmap-space-5: 20px;
+  --taskmap-space-6: 24px;
+  --taskmap-space-8: 32px;
+  --taskmap-control-height-compact: 28px;
+  --taskmap-control-height: 36px;
+  --taskmap-control-height-large: 40px;
+  --taskmap-row-height-compact: 32px;
+  --taskmap-row-height: 40px;
+  --taskmap-radius-small: 6px;
+  --taskmap-radius-medium: 8px;
+  --taskmap-radius-large: 12px;
+  --taskmap-radius-canvas: 24px;
+  --taskmap-radius-pill: 999px;
+  --taskmap-chrome-inset: 16px;
+  --taskmap-chrome-gap: 8px;
+  --taskmap-panel-width: 290px;
+  --taskmap-toolbar-height: 40px;
+  --taskmap-panel-padding: 12px;
+  --taskmap-modal-padding: 20px;
+  --taskmap-icon-small: 14px;
+  --taskmap-icon: 16px;
+  --taskmap-icon-large: 20px;
+
+  /* Typography roles. */
+  --taskmap-text-body-size: 14px;
+  --taskmap-text-body-line: 1.45;
+  --taskmap-text-small-size: 12px;
+  --taskmap-text-small-line: 1.4;
+  --taskmap-text-label-size: 12px;
+  --taskmap-text-label-line: 1.25;
+  --taskmap-text-caption-size: 11px;
+  --taskmap-text-caption-line: 1.3;
+  --taskmap-text-heading-size: 20px;
+  --taskmap-text-heading-line: 1.2;
+  --taskmap-text-section-size: 14px;
+  --taskmap-text-section-line: 1.3;
+  --taskmap-font-monospace: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* Shared visual-state layers. */
+  --taskmap-state-hover: rgb(255 255 255 / 0.07);
+  --taskmap-state-pressed: rgb(255 255 255 / 0.11);
+  --taskmap-state-selected: rgb(var(--taskmap-accent-rgb) / 0.18);
+  --taskmap-accent-wash: linear-gradient(
+    135deg,
+    rgb(var(--taskmap-accent-rgb) / 0.18),
+    transparent 72%
+  );
+  --taskmap-state-disabled-opacity: 0.42;
+  --taskmap-focus-ring: 0 0 0 2px rgb(var(--taskmap-accent-rgb) / 0.72);
+  --taskmap-selection-ring: 0 0 0 1px rgb(var(--taskmap-accent-rgb) / 0.74);
+  --taskmap-gradient-rim: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.14),
+    rgb(255 255 255 / 0.045)
+  );
+  --taskmap-shadow-inner: inset 0 1px 0 rgb(255 255 255 / 0.045);
+  --taskmap-shadow-outer: 0 8px 24px rgb(0 0 0 / 0.32);
+  --taskmap-accent-glow: 0 0 18px rgb(var(--taskmap-accent-rgb) / 0.22);
+
+  /* Initial Phase 4.5C motion values; tune only through visual acceptance. */
+  --taskmap-motion-instant: 0ms;
+  --taskmap-motion-fast: 120ms;
+  --taskmap-motion-menu-exit: 90ms;
+  --taskmap-motion-normal: 180ms;
+  --taskmap-motion-slow: 280ms;
+  --taskmap-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --taskmap-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-target-theme {
+    --taskmap-motion-fast: 1ms;
+    --taskmap-motion-menu-exit: 1ms;
+    --taskmap-motion-normal: 1ms;
+    --taskmap-motion-slow: 1ms;
+  }
 }

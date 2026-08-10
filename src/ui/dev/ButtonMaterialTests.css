@@ -1,0 +1,56 @@
+.taskmap-button-material-test__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) 1px minmax(180px, 1fr);
+  align-items: stretch;
+}
+
+.taskmap-button-material-test__controls {
+  display: grid;
+  justify-items: start;
+  gap: var(--taskmap-space-5);
+  padding-right: var(--taskmap-space-6);
+}
+
+.taskmap-button-material-test__control {
+  display: grid;
+  min-height: var(--taskmap-control-height);
+  justify-items: start;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-button-material-test__divider {
+  width: 1px;
+  background: rgb(255 255 255 / 0.11);
+}
+
+.taskmap-button-material-test__status {
+  display: grid;
+  align-content: start;
+  gap: var(--taskmap-space-2);
+  padding-left: var(--taskmap-space-6);
+  color: var(--taskmap-muted);
+}
+
+.taskmap-button-material-test__status strong {
+  color: var(--taskmap-text);
+}
+
+.taskmap-button-material-test__status small {
+  max-width: 260px;
+  line-height: var(--taskmap-text-small-line);
+}
+
+@media (max-width: 760px) {
+  .taskmap-button-material-test__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .taskmap-button-material-test__controls {
+    padding-right: 0;
+  }
+
+  .taskmap-button-material-test__divider,
+  .taskmap-button-material-test__status {
+    display: none;
+  }
+}

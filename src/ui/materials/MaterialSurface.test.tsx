@@ -57,12 +57,16 @@ describe("MaterialSurface", () => {
         <MaterialSurface material="cutout" radius={6}>
           Recessed geometry
         </MaterialSurface>
+        <MaterialSurface material="opaque" radius={8}>
+          Opaque geometry
+        </MaterialSurface>
       </>,
     );
 
     const defaultSurface = screen.getByText("Default geometry");
     const flatSurface = screen.getByText("Flat geometry");
     const cutout = screen.getByText("Recessed geometry");
+    const opaque = screen.getByText("Opaque geometry");
 
     expect(defaultSurface.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
     expect(defaultSurface.style.getPropertyValue("--taskmap-material-shadow")).toContain(
@@ -73,6 +77,10 @@ describe("MaterialSurface", () => {
     expect(flatSurface).toHaveAttribute("data-material-elevation", "none");
     expect(cutout.style.getPropertyValue("--taskmap-material-radius")).toBe("6px");
     expect(cutout.style.getPropertyValue("--taskmap-material-shadow")).toContain("inset");
+    expect(opaque).toHaveAttribute("data-material-strategy", "opaque");
+    expect(opaque.style.getPropertyValue("--taskmap-material-tint-opacity")).toBe("1");
+    expect(opaque.style.getPropertyValue("--taskmap-material-highlight")).toBe("0.026");
+    expect(opaque.style.getPropertyValue("--taskmap-material-shadow")).toContain("5px 12px");
   });
 
   it("projects all three registered highlight stops into presentation variables", () => {
@@ -112,6 +120,18 @@ describe("MaterialSurface", () => {
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("tint");
   });
 
+  it("applies a reusable bright-selection effect without changing the material strategy", () => {
+    render(
+      <MaterialSurface material="acrylic-small" effect="bright-selection">
+        Selection
+      </MaterialSurface>,
+    );
+    const selection = screen.getByText("Selection");
+    expect(selection).toHaveClass("taskmap-material-surface--bright-selection");
+    expect(selection).toHaveAttribute("data-material", "acrylic-small");
+    expect(selection).toHaveAttribute("data-material-strategy", "cached-acrylic");
+  });
+
   it("registers only cached acrylic and updates explicit plane and radius", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const closest = vi.spyOn(HTMLElement.prototype, "closest");
@@ -135,7 +155,7 @@ describe("MaterialSurface", () => {
     });
     rerender(
       <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-        <MaterialSurface material="cutout" radius={6}>
+        <MaterialSurface material="opaque" radius={8}>
           Registered
         </MaterialSurface>
       </MaterialSurfaceRegistrationProvider>,

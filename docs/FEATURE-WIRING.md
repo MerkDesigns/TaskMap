@@ -209,6 +209,36 @@ serialization, history, persistence, or database access once per pointer sample.
 coalesce a cache rebuild when coverage requires it. See `docs/VISUAL-SYSTEM.md` for the normative
 quality and invalidation contract.
 
+## Selecting UI primitives and motion
+
+Generic feature controls import the small public boundary under `src/ui/primitives/`. Reuse native
+semantics supplied by `Button`, form controls, selection controls, `Tabs`, and `LiquidTabs`; do not
+copy control-state CSS into a feature. TaskMap-specific compositions belong under `src/ui/patterns/`
+when C2/C3 production requirements establish their API. The complete capability and deferral matrix
+is in `docs/UI-SYSTEM.md`.
+
+The allowed presentation dependency is:
+
+```text
+feature or pattern -> primitive -> material + motion -> compositor public boundary
+```
+
+Features and primitives do not import `materials/compositor/` or the compositor coordinator. Motion
+does not import application/domain state, persistence, Redux, Tauri, or feature modules. JavaScript
+motion uses the shared scheduler and reduced-motion boundary; components must not create an
+independent `requestAnimationFrame` loop. Local FLIP measurement is acceptable for a participating
+toolbar row, tab group, card, or panel, but never for the canvas-world population.
+
+Animated cached-acrylic surfaces call `useMaterialSurfaceGeometryInvalidation()` from the public
+material boundary. This schedules only coalesced geometry/mask work; it must not request an expensive
+backdrop build or perform persistent work.
+
+The opt-in C1 UI Lab is the sole development exception that temporarily publishes a synthetic scene
+through the existing `MaterialCompositorPresentationPublisher`. AppShell still composes exactly one
+`MaterialCompositorProvider`; stable builds and ordinary development runs retain the legacy
+presentation owner. The Lab fixture and its visible SVG consume one shared generic BackdropScene
+model and never import production canvas state.
+
 ## Adding a platform operation
 
 1. Define or extend a typed TypeScript client under `src/platform/`.

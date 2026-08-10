@@ -151,6 +151,7 @@ for (const file of targetFiles) {
       "react",
       "../features/phase2-database/DevelopmentPhase2Entry",
       "../legacy/LegacyApplication",
+      "../ui/dev/DevelopmentUiLab",
       "../ui/materials/MaterialCompositorProvider",
       "../ui/materials/materialCompositorPresentation",
       "./AppProviders",
@@ -163,6 +164,39 @@ for (const file of targetFiles) {
         violations.push(`${rel}: AppShell may contain composition imports only`);
       }
     }
+  }
+
+  if (rel.startsWith("src/ui/motion/")) {
+    const forbiddenMotionImports = importSpecifiers(source).filter(
+      (specifier) =>
+        /(?:^|\/)(?:domain|platform|legacy|features|app)(?:\/|$)/.test(specifier) ||
+        /(?:@tauri-apps|react-redux|@reduxjs\/toolkit)/.test(specifier),
+    );
+    if (forbiddenMotionImports.length > 0) {
+      violations.push(
+        `${rel}: motion must not import application, domain, persistence, Redux, or Tauri code`,
+      );
+    }
+  }
+
+  if (
+    rel.startsWith("src/ui/primitives/") &&
+    importSpecifiers(source).some((specifier) =>
+      /(?:materials\/compositor|materialCompositorCoordinator)/.test(specifier),
+    )
+  ) {
+    violations.push(`${rel}: primitives must use the material boundary, not compositor internals`);
+  }
+
+  if (
+    rel.startsWith("src/ui/dev/") &&
+    importSpecifiers(source).some(
+      (specifier) =>
+        /(?:^|\/)(?:domain|platform|legacy|persistence)(?:\/|$)/.test(specifier) ||
+        /(?:@tauri-apps|react-redux|@reduxjs\/toolkit)/.test(specifier),
+    )
+  ) {
+    violations.push(`${rel}: development UI must not import production state or persistence`);
   }
 
   if (lines > 400 && !LEGACY_TARGET_FILES.has(rel)) {

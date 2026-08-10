@@ -263,8 +263,8 @@ after Phase 4.5D against the final compositor.
 
 ### Phase 4.5A visual-system foundation coverage
 
-TypeScript tests lock the exact material IDs, Large and Small definitions, shared acrylic cache
-profile identity and values, Cutout definition, highlight stops, duplicate registration rejection,
+TypeScript tests lock the exact material IDs, Large, Small, and Opaque definitions, shared acrylic
+cache profile identity and values, Cutout definition, highlight stops, duplicate registration rejection,
 and safe unknown-ID behavior. Component tests cover registered material selection, ordinary DOM
 props, bounded semantic elements, ref forwarding, default/inherited/overridden plane, default and
 geometry-specific radius, explicit no-shadow elevation, Cutout inset presentation, and the absence
@@ -383,6 +383,66 @@ Phase 4.5B must add deterministic tests proving:
 These are state/count/invariant CI gates, not fragile wall-clock assertions. Real media beneath
 acrylic is a required visual acceptance case; if needed, tests cover a generic raster/thumbnail
 primitive rather than an Image/GIF-specific compositor branch.
+
+### Phase 4.5C1 UI-system foundation coverage
+
+Twenty-one focused C1 suites contain 89 deterministic cases. Motion math covers analytical scalar-spring
+convergence, frame-interval variance, current-state retargeting, interpolation/clamping, and local
+FLIP position/resize. Scheduler cases prove 120 subscribers share one pending frame, idle work stops,
+repeat unsubscribe is safe, StrictMode effects retain one subscriber, and debugger/background deltas
+clamp. The central reduced-motion store
+is subscription-safe and immediate liquid settlement removes travel/overshoot.
+
+Liquid edge-model cases cover both directions, travel stretch, positive width, variable-width exact
+settlement, mid-flight and rapid repeated retargeting, and reduced motion. Component cases cover
+local variable-width tab measurement, ResizeObserver remeasurement, real `acrylic-small`
+MaterialSurface composition, and geometry invalidation during motion. The coordinator integration
+feeds 120 liquid frames through the B3 public geometry seam and proves one coalesced mask refresh
+with zero additional expensive acrylic builds.
+
+Primitive cases cover native disabled/click behavior across button variants, accessible icon/toggle
+buttons, checkbox/switch/radio/range semantics, focus, explicit Field control-ID association, and
+merged explicit plus Field-owned description/error references. ContextMenu cases cover external
+coordinate placement, roving focus, ArrowUp/Down, Home/End, Tab/Escape/outside dismissal, action
+focus return, disabled skipping, and exit presence.
+Tabs and LiquidTabs share click, arrow, Home/End, disabled-skip, ARIA, and roving-tabindex tests. UI
+Lab source gates prove the dynamic entry requires both `DEV` and `VITE_TASKMAP_UI_LAB=1`, remains an
+eager-import-free production boundary, and scopes the target theme to the Lab root. Stable-bundle
+inspection rejects UI Lab markers.
+
+Lab cases mount the real catalog, lock local-only theme scope, verify Tab/Shift+Tab traversal and the
+pseudo-class-only focus architecture, distinguish system reduced motion from the non-persistent
+scoped simulation, and verify explicit Cutout geometry. Playground cases prove pan, cursor-anchored
+zoom, deterministic reset, existing-material preset mapping, shared visible/BackdropScene model
+identity, high-contrast thin geometry, one existing presentation publisher, and absence of a second
+provider, backdrop-filter, persistence, Redux, or history.
+
+Lab stacking-contract cases lock the synthetic playground scene below the base compositor plane and
+the Lab's material surfaces above it. They also reject a Lab-root stacking context that would trap
+surface content below the provider-owned canvas or require per-component inline z-index repairs.
+
+Liquid cases additionally lock the `7px` resting radius, bounded `14px` deformation radius, exact
+radius return on settlement, unit-scale labels, the clear `7.5%` white selection wash, inherited
+moving rim, radius propagation into the real material registry, and zero new expensive cache builds
+across moving and radius-changing samples. Input contracts require a `1px` neutral-white focus border
+without accent glow while retaining danger validation.
+
+Acrylic-toggle cases cover native pressed semantics, unchanged Acrylic Small material identity,
+orange translucent on-state treatment, hover suppression, shared-scheduler compression/settlement,
+reduced motion, and cheap geometry invalidation. Liquid-toggle cases cover travel deformation,
+current-state retargeting, bounded positive geometry, exact circular settlement, native switch
+semantics, shared scheduling, cheap invalidation, and reduced motion. Confirm/animated-checkbox cases
+cover momentary native action semantics, unchanged Acrylic Small identity, glowing treatment, and
+separately drawable native-checkbox tick strokes. Context-menu cases cover Opaque composition with no
+compositor registration or geometry invalidation, item/danger semantics, outside and Escape dismissal,
+retained exit presence, reduced motion, and the Lab fixture's exact
+section/extension ordering against the current production source. The Lab context trigger is asserted
+inside the compositor-backed synthetic viewport, and CSS contracts lock the legacy-compact `165px` /
+`29px` geometry without pretending jsdom proves pixels. Existing exact material-definition tests
+require Large highlight opacity `0.028`, Small `0.026`, and Opaque tint opacity `1.00`.
+
+These tests do not claim production visual migration, WebView2 visual acceptance, production overlay
+migration, or Phase 5 canvas-element presentation.
 
 ### Phase 4.5D visual and performance acceptance
 

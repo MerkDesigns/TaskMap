@@ -1,0 +1,54 @@
+.taskmap-panel,
+.taskmap-card {
+  color: var(--taskmap-text);
+}
+
+.taskmap-panel:not(.taskmap-material-surface),
+.taskmap-card:not(.taskmap-material-surface) {
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(23 24 27 / 0.94);
+  box-shadow: var(--taskmap-shadow-outer);
+}
+
+.taskmap-panel {
+  border-radius: var(--taskmap-radius-large);
+  padding: var(--taskmap-panel-padding);
+}
+
+.taskmap-card {
+  border-radius: var(--taskmap-radius-medium);
+  padding: var(--taskmap-space-3);
+}
+
+.taskmap-stack,
+.taskmap-inline {
+  display: flex;
+}
+
+.taskmap-stack {
+  flex-direction: column;
+}
+
+.taskmap-inline {
+  flex-flow: row wrap;
+}
+
+.taskmap-flow--small {
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-flow--normal {
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-flow--large {
+  gap: var(--taskmap-space-4);
+}
+
+.taskmap-divider {
+  width: 100%;
+  height: 1px;
+  margin: var(--taskmap-space-2) 0;
+  border: 0;
+  background: rgb(255 255 255 / 0.09);
+}

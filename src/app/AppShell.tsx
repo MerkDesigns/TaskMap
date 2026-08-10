@@ -15,19 +15,34 @@ const DevelopmentPhase2Entry =
       })
     : null;
 
+const DevelopmentUiLab =
+  import.meta.env.DEV && import.meta.env.VITE_TASKMAP_UI_LAB === "1"
+    ? lazy(async () => {
+        const module = await import("../ui/dev/DevelopmentUiLab");
+        return { default: module.DevelopmentUiLab };
+      })
+    : null;
+
 export default function AppShell() {
   const [materialPresentation] = useState(createMaterialCompositorPresentationBridge);
   return (
     <MaterialCompositorProvider presentation={materialPresentation}>
-      <LegacyApplication
-        onBeforeClose={runWindowCloseGuard}
-        materialPresentation={materialPresentation}
-      />
+      {DevelopmentUiLab ? null : (
+        <LegacyApplication
+          onBeforeClose={runWindowCloseGuard}
+          materialPresentation={materialPresentation}
+        />
+      )}
       <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
         <AppProviders>
           {DevelopmentPhase2Entry ? (
             <Suspense fallback={null}>
               <DevelopmentPhase2Entry enabled />
+            </Suspense>
+          ) : null}
+          {DevelopmentUiLab ? (
+            <Suspense fallback={null}>
+              <DevelopmentUiLab presentation={materialPresentation} />
             </Suspense>
           ) : null}
         </AppProviders>

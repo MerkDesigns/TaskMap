@@ -1,0 +1,119 @@
+.taskmap-animated-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  color: var(--taskmap-text);
+  cursor: pointer;
+}
+
+.taskmap-animated-checkbox__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.taskmap-animated-checkbox__box {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 7px;
+  background: rgb(0 0 0 / 0.34);
+  box-shadow: var(--taskmap-shadow-inner);
+  transition:
+    border-color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    background var(--taskmap-motion-fast) var(--taskmap-ease-standard);
+}
+
+.taskmap-animated-checkbox__box svg {
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+  fill: none;
+  stroke: #17100a;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.taskmap-animated-checkbox__dot {
+  fill: #17100a;
+  stroke: none;
+  opacity: 0;
+}
+
+.taskmap-animated-checkbox__stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    stroke-dashoffset var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard);
+}
+
+.taskmap-animated-checkbox__input:checked + .taskmap-animated-checkbox__box {
+  border-color: var(--taskmap-accent);
+  background: var(--taskmap-accent);
+}
+
+.taskmap-animated-checkbox__input:checked
+  + .taskmap-animated-checkbox__box
+  .taskmap-animated-checkbox__dot {
+  animation: taskmap-checkbox-dot var(--taskmap-motion-fast) var(--taskmap-ease-standard) both;
+}
+
+.taskmap-animated-checkbox__input:checked
+  + .taskmap-animated-checkbox__box
+  .taskmap-animated-checkbox__stroke--first {
+  animation: taskmap-checkbox-first-stroke var(--taskmap-motion-fast) var(--taskmap-ease-standard)
+    both;
+}
+
+.taskmap-animated-checkbox__input:checked
+  + .taskmap-animated-checkbox__box
+  .taskmap-animated-checkbox__stroke--second {
+  animation: taskmap-checkbox-second-stroke var(--taskmap-motion-normal)
+    var(--taskmap-ease-emphasized) calc(var(--taskmap-motion-fast) * 0.45) both;
+}
+
+.taskmap-animated-checkbox__input:focus-visible + .taskmap-animated-checkbox__box {
+  box-shadow: 0 0 0 2px rgb(var(--taskmap-accent-rgb) / 0.76);
+}
+
+.taskmap-animated-checkbox__input:disabled ~ * {
+  opacity: var(--taskmap-state-disabled-opacity);
+}
+
+@keyframes taskmap-checkbox-dot {
+  0%,
+  28% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes taskmap-checkbox-first-stroke {
+  from {
+    opacity: 1;
+    stroke-dashoffset: 0.94;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes taskmap-checkbox-second-stroke {
+  from {
+    opacity: 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}

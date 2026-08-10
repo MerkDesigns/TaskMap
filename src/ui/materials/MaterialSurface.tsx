@@ -16,6 +16,7 @@ import type {
   MaterialElevation,
   MaterialId,
   MaterialPlane,
+  MaterialSurfaceEffect,
   MaterialSurfaceStyle,
 } from "./materialTypes";
 
@@ -26,6 +27,7 @@ export interface MaterialSurfaceProps extends HTMLAttributes<HTMLElement> {
   readonly plane?: MaterialPlane;
   readonly radius?: number;
   readonly elevation?: MaterialElevation;
+  readonly effect?: MaterialSurfaceEffect;
   readonly as?: MaterialSurfaceElement;
 }
 
@@ -35,6 +37,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       as = "div",
       className,
       elevation = "default",
+      effect,
       material,
       plane: planeOverride,
       radius: radiusOverride,
@@ -97,7 +100,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       "--taskmap-material-radius": `${radius}px`,
     };
 
-    if (definition.strategy === "cached-acrylic") {
+    if (definition.strategy === "cached-acrylic" || definition.strategy === "opaque") {
       const [highlightStart, highlightMiddle, highlightEnd] = definition.highlight.stops;
       materialStyle["--taskmap-material-tint-rgb"] = definition.tint.rgb.join(" ");
       materialStyle["--taskmap-material-tint-opacity"] = definition.tint.opacity;
@@ -132,7 +135,13 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
     return createElement(as, {
       ...props,
       ref: composedRef,
-      className: className ? `taskmap-material-surface ${className}` : "taskmap-material-surface",
+      className: [
+        "taskmap-material-surface",
+        effect ? `taskmap-material-surface--${effect}` : null,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" "),
       style: materialStyle,
       "data-material": definition.id,
       "data-material-strategy": definition.strategy,

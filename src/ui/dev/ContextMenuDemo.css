@@ -1,0 +1,50 @@
+.taskmap-context-menu-demo__swatches {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 4px 8px;
+}
+
+.taskmap-context-menu-demo--playground {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 42;
+  display: grid;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 8px;
+  background: rgb(8 9 11 / 0.62);
+  cursor: default;
+}
+
+.taskmap-context-menu-demo--playground > span {
+  color: rgb(255 255 255 / 0.58);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.taskmap-context-menu-demo--playground .taskmap-ui-lab__muted {
+  display: none;
+}
+
+.taskmap-context-menu-demo__swatch {
+  position: relative;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 3px;
+  outline: 0;
+  cursor: pointer;
+}
+
+.taskmap-context-menu-demo__swatch[aria-pressed="true"]::after {
+  position: absolute;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.92);
+  content: "";
+  inset: 4px;
+}
+
+.taskmap-context-menu-demo__swatch:focus-visible {
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.28);
+}

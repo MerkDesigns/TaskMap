@@ -210,12 +210,22 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 
 ### 4.5C — Production visual migration
 
+- [x] **C1 foundation:** add scoped semantic geometry/state/typography tokens, reusable semantic UI
+      primitives, deterministic shared motion/spring/FLIP infrastructure, accessible LiquidTabs,
+      the permanent UI capability catalog, and a doubly gated development UI Lab.
+- [x] Apply the first C1 visual-review correction: keyboard-focus demonstration, Lab-only motion
+      simulation, real shared-compositor playground, bounded rounded-rectangle liquid selection,
+      and reduced acrylic radial highlights.
 - [ ] Activate the target theme and global orange application-chrome accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
 - [ ] Preserve user-selected element colors and semantic/spatial colors.
 - [ ] Complete production visual, worker/fallback, media-under-acrylic, animation, and stacking
       acceptance.
+
+C1 deliberately leaves the production root, toolbar, panels, Settings, minimap, menus, dialogs,
+toasts, and canvas elements unchanged. C2/C3 own production composition and behavior-driven overlay
+APIs; completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance
 

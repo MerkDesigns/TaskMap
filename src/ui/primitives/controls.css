@@ -1,0 +1,273 @@
+.taskmap-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border: 0;
+  color: var(--taskmap-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    border-color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    transform var(--taskmap-motion-fast) var(--taskmap-ease-emphasized);
+}
+
+.taskmap-control:hover:not(:disabled) {
+  background-color: var(--taskmap-state-hover);
+}
+
+.taskmap-control:active:not(:disabled) {
+  background-color: var(--taskmap-state-pressed);
+  transform: scale(0.97);
+}
+
+.taskmap-control:focus-visible,
+.taskmap-check-control__input:focus-visible + .taskmap-check-control__box,
+.taskmap-switch__input:focus-visible + .taskmap-switch__track,
+.taskmap-radio input:focus-visible + .taskmap-radio__mark {
+  outline: none;
+  box-shadow: var(--taskmap-focus-ring);
+}
+
+.taskmap-control:disabled,
+.taskmap-check-control:has(input:disabled),
+.taskmap-switch:has(input:disabled),
+.taskmap-radio:has(input:disabled) {
+  cursor: default;
+  opacity: var(--taskmap-state-disabled-opacity);
+}
+
+.taskmap-button {
+  height: var(--taskmap-control-height);
+  gap: var(--taskmap-space-2);
+  padding: 0 var(--taskmap-space-3);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-medium);
+  background: rgb(255 255 255 / 0.055);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 600;
+}
+
+.taskmap-button--compact {
+  height: var(--taskmap-control-height-compact);
+  padding: 0 var(--taskmap-space-2);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-button--primary {
+  border-color: rgb(var(--taskmap-accent-rgb) / 0.72);
+  background: var(--taskmap-accent);
+  color: #15100c;
+}
+
+.taskmap-button--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--taskmap-accent) 88%, white);
+}
+
+.taskmap-button--danger {
+  border-color: color-mix(in srgb, var(--taskmap-danger) 58%, transparent);
+  background: color-mix(in srgb, var(--taskmap-danger) 15%, transparent);
+  color: color-mix(in srgb, var(--taskmap-danger) 78%, white);
+}
+
+.taskmap-button--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.taskmap-button__icon,
+.taskmap-button__icon > svg,
+.taskmap-icon-button svg {
+  width: var(--taskmap-icon);
+  height: var(--taskmap-icon);
+  flex: none;
+}
+
+.taskmap-icon-button {
+  width: var(--taskmap-control-height);
+  padding: 0;
+}
+
+.taskmap-button--compact.taskmap-icon-button {
+  width: var(--taskmap-control-height-compact);
+}
+
+.taskmap-toggle-button[aria-pressed="true"] {
+  border-color: rgb(var(--taskmap-accent-rgb) / 0.56);
+  background: var(--taskmap-state-selected);
+  color: color-mix(in srgb, var(--taskmap-accent) 78%, white);
+  box-shadow: var(--taskmap-selection-ring);
+}
+
+.taskmap-button-group {
+  display: inline-flex;
+}
+
+.taskmap-button-group > .taskmap-button:not(:first-child) {
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.taskmap-button-group > .taskmap-button:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.taskmap-check-control,
+.taskmap-switch,
+.taskmap-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  cursor: pointer;
+}
+
+.taskmap-check-control__input,
+.taskmap-switch__input,
+.taskmap-radio input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.taskmap-check-control__box {
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 5px;
+  background: rgb(0 0 0 / 0.22);
+  box-shadow: var(--taskmap-shadow-inner);
+}
+
+.taskmap-check-control__input:checked + .taskmap-check-control__box {
+  border-color: var(--taskmap-accent);
+  background:
+    linear-gradient(135deg, transparent 43%, #15100c 43% 55%, transparent 55%) 1px 1px / 9px 9px,
+    linear-gradient(45deg, transparent 46%, #15100c 46% 58%, transparent 58%) 6px 0 / 8px 12px,
+    var(--taskmap-accent);
+}
+
+.taskmap-switch__track {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: var(--taskmap-radius-pill);
+  background: rgb(255 255 255 / 0.1);
+  transition: background var(--taskmap-motion-normal) var(--taskmap-ease-standard);
+}
+
+.taskmap-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.82);
+  transition: transform var(--taskmap-motion-normal) var(--taskmap-ease-emphasized);
+}
+
+.taskmap-switch__input:checked + .taskmap-switch__track {
+  border-color: var(--taskmap-accent);
+  background: var(--taskmap-accent);
+}
+
+.taskmap-switch__input:checked + .taskmap-switch__track .taskmap-switch__thumb {
+  background: #15100c;
+  transform: translateX(15px);
+}
+
+.taskmap-radio-group {
+  display: grid;
+  gap: var(--taskmap-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.taskmap-radio-group__legend {
+  margin-bottom: var(--taskmap-space-2);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-label-size);
+}
+
+.taskmap-radio__mark {
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.22);
+}
+
+.taskmap-radio input:checked + .taskmap-radio__mark {
+  border: 5px solid var(--taskmap-accent);
+}
+
+.taskmap-slider {
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.taskmap-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--taskmap-radius-pill);
+  background: rgb(255 255 255 / 0.14);
+}
+
+.taskmap-slider::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  border: 2px solid #15100c;
+  border-radius: 50%;
+  background: var(--taskmap-accent);
+  box-shadow: 0 1px 5px rgb(0 0 0 / 0.46);
+}
+
+.taskmap-slider:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 3px rgb(var(--taskmap-accent-rgb) / 0.72));
+}
+
+.taskmap-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: var(--taskmap-radius-medium);
+  background: rgb(0 0 0 / 0.2);
+}
+
+.taskmap-segmented__item {
+  height: var(--taskmap-control-height-compact);
+  padding: 0 var(--taskmap-space-3);
+  border-radius: 6px;
+  background: transparent;
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-segmented__item[aria-pressed="true"] {
+  background: var(--taskmap-state-selected);
+  color: color-mix(in srgb, var(--taskmap-accent) 78%, white);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-control,
+  .taskmap-switch__track,
+  .taskmap-switch__thumb {
+    transition-duration: 1ms;
+  }
+}

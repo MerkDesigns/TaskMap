@@ -3,6 +3,7 @@ import type {
   CssMaterialDefinition,
   MaterialDefinition,
   MaterialHighlightStops,
+  OpaqueMaterialDefinition,
 } from "./materialTypes";
 
 export const SHARED_ACRYLIC_CACHE_PROFILE = Object.freeze({
@@ -25,7 +26,7 @@ export const ACRYLIC_LARGE = Object.freeze({
   defaultRadiusPx: 12,
   tint: Object.freeze({ rgb: Object.freeze([27, 27, 27] as const), opacity: 0.4 }),
   highlight: Object.freeze({
-    opacity: 0.04,
+    opacity: 0.028,
     radiusMultiplier: 1,
     stops: ACRYLIC_HIGHLIGHT_STOPS,
   }),
@@ -44,7 +45,7 @@ export const ACRYLIC_SMALL = Object.freeze({
   defaultRadiusPx: 12,
   tint: Object.freeze({ rgb: Object.freeze([19, 20, 22] as const), opacity: 0.4 }),
   highlight: Object.freeze({
-    opacity: 0.038,
+    opacity: 0.026,
     radiusMultiplier: 2,
     stops: ACRYLIC_HIGHLIGHT_STOPS,
   }),
@@ -55,6 +56,16 @@ export const ACRYLIC_SMALL = Object.freeze({
   }),
   shadow: Object.freeze({ xPx: 0, yPx: 5, blurPx: 12, opacity: 0.44 }),
 } satisfies CachedAcrylicMaterialDefinition);
+
+export const OPAQUE = Object.freeze({
+  id: "opaque",
+  strategy: "opaque",
+  defaultRadiusPx: ACRYLIC_SMALL.defaultRadiusPx,
+  tint: Object.freeze({ rgb: Object.freeze([24, 25, 27] as const), opacity: 1 as const }),
+  highlight: ACRYLIC_SMALL.highlight,
+  border: ACRYLIC_SMALL.border,
+  shadow: ACRYLIC_SMALL.shadow,
+} satisfies OpaqueMaterialDefinition);
 
 export const CUTOUT = Object.freeze({
   id: "cutout",
@@ -72,5 +83,6 @@ export const CUTOUT = Object.freeze({
 export const MATERIAL_DEFINITIONS = Object.freeze([
   ACRYLIC_LARGE,
   ACRYLIC_SMALL,
+  OPAQUE,
   CUTOUT,
 ] satisfies readonly MaterialDefinition[]);

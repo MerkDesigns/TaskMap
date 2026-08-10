@@ -39,6 +39,82 @@ The target tokens are fixed CSS tokens for the current single theme, not Redux o
 Phase 4.5C owns their production activation and the audit-driven replacement of legacy hardcoded
 chrome colors.
 
+### Semantic geometry and typography ownership
+
+Reusable spacing, control/row heights, radii, pill geometry, chrome inset/gap, shared panel width,
+toolbar height, panel/modal padding, icon sizes, and text roles are scoped semantic tokens in
+`src/ui/theme/theme.css`. Production toolbar, panels, and Settings will consume these shared owners
+during C2 rather than defining independent dimensions. C1 does not activate them on the application
+root. The target type family is `"Segoe UI", Inter, system-ui, sans-serif`; value/monospace roles use
+the scoped monospace token.
+
+### Initial Phase 4.5C motion system
+
+These are initial UI-motion values for C1 visual tuning. They are separate from the acrylic
+compositor constants and may change only through Phase 4.5C visual acceptance.
+
+| Semantic token                 |             Exact initial value |
+| ------------------------------ | ------------------------------: |
+| Instant                        |                            0 ms |
+| Fast                           |                          120 ms |
+| Context-menu exit              |                           90 ms |
+| Normal                         |                          180 ms |
+| Slow                           |                          280 ms |
+| Standard easing                |    `cubic-bezier(0.2, 0, 0, 1)` |
+| Emphasized easing              | `cubic-bezier(0.16, 1, 0.3, 1)` |
+| Maximum JavaScript frame delta |                           48 ms |
+| Spring settle position epsilon |                            0.08 |
+| Spring settle velocity epsilon |                            0.08 |
+
+| Spring | Stiffness | Damping | Mass |
+| ------ | --------: | ------: | ---: |
+| Snappy |       560 |      38 |    1 |
+| Soft   |       240 |      28 |    1 |
+| Liquid |       300 |      28 |    1 |
+
+All JavaScript UI motion shares one scheduler, distinct from the compositor scheduler. Scalar
+springs use deterministic damped-oscillator integration and retain current position/velocity during
+retargeting. `prefers-reduced-motion: reduce` removes travel and spring overshoot, settles indicators
+immediately, and reduces CSS durations while preserving readable state changes.
+
+### Liquid selection geometry
+
+The reusable LiquidTabs selection surface is an Acrylic Small rounded rectangle, not a pill. Its
+resting radius is `7px`; travel stretch may continuously increase the radius to at most `14px`, and
+settlement returns it exactly to `7px`. The reusable `bright-selection` effect removes the generic
+dark material tint for this surface and applies a cheap `7.5%` white wash while retaining the shared
+Acrylic Small cache. The moving surface keeps the normal Acrylic Small gradient rim, so its bitmap
+mask, wash, radius, and rim deform together. LiquidTabs labels remain at unit scale. Individual
+options have no hover or pressed fill; the track retains one subtle outer border and keyboard focus
+remains visibly indicated.
+
+### C1 control and overlay states
+
+Normal reusable input focus uses its existing `1px` border with `23%` white and no glow or accent
+border. Invalid controls remain danger-colored. The acrylic toggle uses Acrylic Small at `8px`
+radius; its on state adds a `27%` translucent accent wash and a low-opacity accent rim without
+changing the material or cache. Acrylic toggle hover does not add a highlight or alter that resting
+treatment. Pointer/keyboard press targets `0.965` scale and returns through the shared snappy spring;
+reduced motion settles each state immediately.
+
+The C1 context-menu foundation uses Opaque at `8px` radius. Entry is `120ms` from `0.96` scale,
+zero opacity, and a `-3px` vertical offset; exit is `90ms` to `0.97` scale, zero opacity, and a `-2px`
+offset. Its compact initial geometry is a `165px` shell with `29px` rows, `5px` horizontal shell
+padding, `17px` row icons, `20px` layer icons, and an eight-column swatch grid. Opaque prevents
+arbitrary underlying UI from visibly showing through and performs no compositor registration.
+Reduced motion uses a near-immediate duration and no independently-owned animation frame.
+
+The revised liquid toggle geometry is a `52px` by `30px` track with a vertically centered, settled
+`22px` Acrylic Small knob. Velocity deformation may lengthen the knob to `30px` and thin it to
+`18px`; bounded positional overshoot is at most `2px`. The off track is near-black and its knob gets
+a `20%` white contrast wash. The on track uses the bright `#d87a2d` accent with a restrained orange
+glow, while the on knob uses a `42%` black tint over the real acrylic.
+Settlement restores the exact circle. Confirm buttons share the `0.965` acrylic press scale. Normal
+confirms use a `27%` orange wash and brighter orange rim without a hover highlight. Their disabled
+state retains the earlier subdued `12%` wash. The glowing confirm uses an opaque orange wash, black
+text, and a static restrained accent glow. Animated-checkbox stroke timing uses the central
+fast/normal motion tokens.
+
 ## Material contract
 
 Feature UI selects an internal material through `MaterialSurface`; it never chooses blur, cache,
@@ -46,11 +122,13 @@ worker, tint implementation, or Canvas2D behavior. The static registry currently
 
 - `acrylic-large`, strategy `cached-acrylic`
 - `acrylic-small`, strategy `cached-acrylic`
+- `opaque`, strategy `opaque`
 - `cutout`, strategy `css`
 
 Large and Small share one expensive cache profile. Their different tint, highlight, border, and
-shadow definitions are cheap overlays. Cutout is a recessed CSS material. Materials are internal
-and statically registered; this is not a runtime plugin API.
+shadow definitions are cheap overlays. Opaque reuses Small's general glass treatment with no blur or
+compositor registration. Cutout is a recessed CSS material. Materials are internal and statically
+registered; this is not a runtime plugin API.
 
 ### Shared acrylic cache profile
 
@@ -70,7 +148,7 @@ same `shared-acrylic` cache profile.
 | --------------------------- | ----------------------------- |
 | Tint RGB                    | `27 27 27`                    |
 | Tint opacity                | `0.40`                        |
-| Highlight opacity           | `0.040`                       |
+| Highlight opacity           | `0.028`                       |
 | Highlight radius multiplier | `1.00`                        |
 | Border width                | `1px`                         |
 | Border top                  | white `32 / 255`              |
@@ -84,7 +162,7 @@ same `shared-acrylic` cache profile.
 | --------------------------- | ----------------------------- |
 | Tint RGB                    | `19 20 22`                    |
 | Tint opacity                | `0.40`                        |
-| Highlight opacity           | `0.038`                       |
+| Highlight opacity           | `0.026`                       |
 | Highlight radius multiplier | `2.00`                        |
 | Border width                | `1px`                         |
 | Border top                  | white `30 / 255`              |
@@ -98,8 +176,19 @@ is a top-to-bottom white gradient using the exact alpha values above and an insi
 shadow, radius, tint, and highlight remain cheap DOM/CSS presentation around the compositor-provided
 acrylic interior.
 
+The `0.028` Large and `0.026` Small highlight opacities are the first Phase 4.5C visual-review
+revision. Highlight geometry, stops, radius multipliers, tint, borders, shadows, and shared blur are
+unchanged.
+
 The toolbar group uses Acrylic Large at 12 px radius with explicit `elevation="none"`; this suppresses
 only its external shadow. Other Large surfaces retain the material shadow.
+
+### Opaque
+
+Opaque uses a slightly brighter `24 25 27` tint RGB with Acrylic Small's `0.026` radial-highlight
+opacity and stops, `2.00` highlight radius multiplier, `1px` gradient rim with white `30 / 255` top
+and `16 / 255` bottom, `0 5px 12px rgb(0 0 0 / .44)` shadow, and `12px` default radius. Its tint
+opacity is `1.00`. It has no cache profile, compositor surface registration, or backdrop visibility.
 
 ### Cutout
 
@@ -269,8 +358,8 @@ radius. Per-surface `backdrop-filter` is never a fallback.
 
 ## Adding a material
 
-1. Decide whether the material is a `cached-acrylic` overlay using an approved shared profile or a
-   `css` material.
+1. Decide whether the material is a `cached-acrylic` overlay using an approved shared profile, an
+   `opaque` glass-treatment surface, or a `css` material.
 2. Add one typed definition to the static material definitions list and exact-value tests.
 3. Add or reuse internal material rendering behavior only under `src/ui/materials/`; acrylic
    Canvas2D runtime belongs specifically under `src/ui/materials/compositor/`. Feature code
