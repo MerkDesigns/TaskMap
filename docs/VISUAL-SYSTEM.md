@@ -183,6 +183,13 @@ unchanged.
 The toolbar group uses Acrylic Large at 12 px radius with explicit `elevation="none"`; this suppresses
 only its external shadow. Other Large surfaces retain the material shadow.
 
+Phase 4.5C2B mounts only the production `FloatingToolbar` in the C2A `WorkspaceChromeLayer` at
+layer 41. Its two groups compose the `FloatingCanvasToolbar`/`ToolbarGroup` pattern with Acrylic
+Large and shared `IconButton`/`ToggleButton` states. The expandable privacy/minimap region uses the
+shared fast motion tokens; the material registry's shared ResizeObserver tracks intermediate width
+changes and the public cheap geometry seam covers transition boundaries. No toolbar-local layer,
+blur, cache, provider, or animation frame loop is permitted.
+
 ### Opaque
 
 Opaque uses a slightly brighter `24 25 27` tint RGB with Acrylic Small's `0.026` radial-highlight

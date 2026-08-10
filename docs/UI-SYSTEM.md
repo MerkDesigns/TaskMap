@@ -30,7 +30,8 @@ feature or TaskMap pattern
 - `primitives/` owns generic semantic controls, form elements, navigation, layout, and status.
 - `patterns/` owns TaskMap-specific compositions as production needs are migrated in C2/C3. Its
   first production boundary is the C2A workspace root, backdrop/chrome layers, and canvas-frame
-  foundation.
+  foundation. C2B adds only `FloatingCanvasToolbar` and `ToolbarGroup`, leaving panels, minimap,
+  Settings, and overlays with their existing production owners.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
@@ -244,7 +245,7 @@ cards, chrome, minimap, and element presentation remain later work.
 | Minimap                 | Implement during C2        |
 | Minimap viewport        | Implement during C2        |
 | Zoom indicator          | Implement during C2        |
-| Floating canvas toolbar | Implement during C2        |
+| Floating canvas toolbar | C2B foundation implemented |
 | Creation menu           | Implement during C3        |
 
 ## I. Settings patterns

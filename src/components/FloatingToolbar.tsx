@@ -11,8 +11,15 @@ import {
   IconPuzzle,
   IconSettings,
 } from "@tabler/icons-react";
+import { useLayoutEffect, type ReactNode, type TransitionEvent } from "react";
+import { useMaterialSurfaceGeometryInvalidation } from "../ui/materials/MaterialSurfaceRegistration";
+import {
+  FloatingCanvasToolbar,
+  ToolbarGroup,
+} from "../ui/patterns/workspace/FloatingCanvasToolbar";
+import { IconButton, ToggleButton } from "../ui/primitives/Button";
 
-type FloatingToolbarProps = {
+export type FloatingToolbarProps = {
   canRedo: boolean;
   canUndo: boolean;
   canvasesOpen: boolean;
@@ -47,84 +54,141 @@ export function FloatingToolbar({
   onUndo,
   onOpenSettings,
 }: FloatingToolbarProps) {
-  const buttonClass = (active = false) =>
-    `grid h-7 w-7 place-items-center rounded-md transition-colors disabled:cursor-default disabled:text-white/25 disabled:hover:bg-transparent ${
-      active ? "bg-white/[0.14] text-white" : "text-white/70 hover:bg-white/[0.10] hover:text-white"
-    }`;
+  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
+  // The material registry's shared ResizeObserver follows intermediate width frames. These
+  // notifications cover the transition boundaries without introducing a toolbar-owned rAF.
+  useLayoutEffect(invalidateGeometry, [invalidateGeometry, toolbarButtonsVisible]);
+
+  const privacyTitle = privacyModeEnabled ? "Disable privacy mode" : "Enable privacy mode";
+  const minimapTitle = minimapEnabled ? "Disable minimap" : "Enable minimap";
+  const visibilityTitle = toolbarButtonsVisible ? "Hide toolbar buttons" : "Show toolbar buttons";
+  const handleOptionalControlsTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || event.propertyName !== "max-width") return;
+    invalidateGeometry();
+  };
 
   return (
-    <div className="fixed left-4 top-4 z-20 flex items-center gap-2">
-      <div className="frosted-glass-toolbar flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-sm">
-        <button className={buttonClass(canvasesOpen)} onClick={onToggleCanvases} title="Canvases">
-          <IconMenu2 size={18} stroke={2} />
-        </button>
-        <button
-          className={buttonClass(extensionsOpen)}
+    <FloatingCanvasToolbar aria-label="Canvas toolbar">
+      <ToolbarGroup label="Workspace controls">
+        <ToolbarToggleButton
+          pressed={canvasesOpen}
+          onClick={onToggleCanvases}
+          title="Canvases"
+          icon={<IconMenu2 size={18} stroke={2} />}
+        />
+        <ToolbarToggleButton
+          pressed={extensionsOpen}
           onClick={onToggleExtensions}
           title="Extensions"
-        >
-          <IconPuzzle size={18} stroke={2} />
-        </button>
-        <button className={buttonClass()} onClick={onOpenSettings} title="Settings">
-          <IconSettings size={18} stroke={2} />
-        </button>
-        <button
-          className={buttonClass()}
+          icon={<IconPuzzle size={18} stroke={2} />}
+        />
+        <IconButton
+          variant="ghost"
+          size="compact"
+          onClick={onOpenSettings}
+          title="Settings"
+          aria-label="Settings"
+          icon={<IconSettings size={18} stroke={2} />}
+        />
+        <IconButton
+          variant="ghost"
+          size="compact"
           onClick={() => onToolbarButtonsVisibleChange(!toolbarButtonsVisible)}
-          title={toolbarButtonsVisible ? "Hide toolbar buttons" : "Show toolbar buttons"}
+          title={visibilityTitle}
+          aria-label={visibilityTitle}
           aria-expanded={toolbarButtonsVisible}
-        >
-          {toolbarButtonsVisible ? (
-            <IconChevronLeft size={18} stroke={2} />
-          ) : (
-            <IconChevronRight size={18} stroke={2} />
-          )}
-        </button>
+          icon={
+            toolbarButtonsVisible ? (
+              <IconChevronLeft size={18} stroke={2} />
+            ) : (
+              <IconChevronRight size={18} stroke={2} />
+            )
+          }
+        />
         <div
-          className={`flex items-center gap-1 overflow-hidden transition-[max-width,opacity,transform] duration-150 ease-out ${
-            toolbarButtonsVisible
-              ? "translate-x-0 opacity-100"
-              : "pointer-events-none translate-x-2 opacity-0"
-          }`}
-          style={{ maxWidth: toolbarButtonsVisible ? 60 : 0 }}
+          className="taskmap-floating-canvas-toolbar__optional-controls"
           aria-hidden={!toolbarButtonsVisible}
+          onTransitionEnd={handleOptionalControlsTransitionEnd}
         >
-          <button
-            className={buttonClass()}
+          <ToolbarToggleButton
+            pressed={privacyModeEnabled}
             onClick={() => onPrivacyModeEnabledChange(!privacyModeEnabled)}
-            title={privacyModeEnabled ? "Disable privacy mode" : "Enable privacy mode"}
-            aria-pressed={privacyModeEnabled}
+            title={privacyTitle}
             tabIndex={toolbarButtonsVisible ? 0 : -1}
-          >
-            {privacyModeEnabled ? (
-              <IconEyeOff size={18} stroke={2} />
-            ) : (
-              <IconEye size={18} stroke={2} />
-            )}
-          </button>
-          <button
-            className={buttonClass()}
+            icon={
+              privacyModeEnabled ? (
+                <IconEyeOff size={18} stroke={2} />
+              ) : (
+                <IconEye size={18} stroke={2} />
+              )
+            }
+          />
+          <ToolbarToggleButton
+            pressed={minimapEnabled}
             onClick={() => onMinimapEnabledChange(!minimapEnabled)}
-            title={minimapEnabled ? "Disable minimap" : "Enable minimap"}
-            aria-pressed={minimapEnabled}
+            title={minimapTitle}
             tabIndex={toolbarButtonsVisible ? 0 : -1}
-          >
-            {minimapEnabled ? (
-              <IconMap size={18} stroke={2} />
-            ) : (
-              <IconMapOff size={18} stroke={2} />
-            )}
-          </button>
+            icon={
+              minimapEnabled ? (
+                <IconMap size={18} stroke={2} />
+              ) : (
+                <IconMapOff size={18} stroke={2} />
+              )
+            }
+          />
         </div>
-      </div>
-      <div className="frosted-glass-toolbar flex h-10 items-center gap-1 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 px-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.38)] backdrop-blur-sm">
-        <button className={buttonClass()} onClick={onUndo} disabled={!canUndo} title="Undo">
-          <IconArrowBackUp size={18} stroke={2} />
-        </button>
-        <button className={buttonClass()} onClick={onRedo} disabled={!canRedo} title="Redo">
-          <IconArrowForwardUp size={18} stroke={2} />
-        </button>
-      </div>
-    </div>
+      </ToolbarGroup>
+      <ToolbarGroup label="History controls">
+        <IconButton
+          variant="ghost"
+          size="compact"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo"
+          aria-label="Undo"
+          icon={<IconArrowBackUp size={18} stroke={2} />}
+        />
+        <IconButton
+          variant="ghost"
+          size="compact"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo"
+          aria-label="Redo"
+          icon={<IconArrowForwardUp size={18} stroke={2} />}
+        />
+      </ToolbarGroup>
+    </FloatingCanvasToolbar>
+  );
+}
+
+interface ToolbarToggleButtonProps {
+  readonly icon: ReactNode;
+  readonly onClick: () => void;
+  readonly pressed: boolean;
+  readonly tabIndex?: number;
+  readonly title: string;
+}
+
+function ToolbarToggleButton({
+  icon,
+  onClick,
+  pressed,
+  tabIndex,
+  title,
+}: ToolbarToggleButtonProps) {
+  return (
+    <ToggleButton
+      variant="ghost"
+      size="compact"
+      className="taskmap-floating-canvas-toolbar__icon-toggle"
+      pressed={pressed}
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      tabIndex={tabIndex}
+    >
+      <span aria-hidden="true">{icon}</span>
+    </ToggleButton>
   );
 }

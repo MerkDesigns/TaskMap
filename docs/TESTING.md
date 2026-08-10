@@ -461,6 +461,18 @@ The existing exact theme and legacy BackdropScene suites additionally lock the n
 border, shadow, radius, background, and grid projection values. This slice does not claim toolbar,
 panel, card, Settings, minimap, overlay, or canvas-element migration or visual acceptance.
 
+### Phase 4.5C2B floating-toolbar coverage
+
+Two focused C2B suites contain eight deterministic cases. Component tests invoke every retained
+callback, lock Canvases/Extensions/Privacy/Minimap pressed semantics, preserve native Undo/Redo
+disabled behavior, and verify collapsed controls remain `aria-hidden` and outside the tab order.
+They also require exactly two base-plane Acrylic Large registrations with no material elevation and
+exercise the cheap geometry invalidation seam at expansion boundaries. Static contracts place only
+`FloatingToolbar` inside `WorkspaceChromeLayer`, reject toolbar-local z-index, backdrop filters,
+cache/provider/runtime creation, and independent animation frames, and preserve Settings behind its
+existing callback boundary. The shared material-registry ResizeObserver remains responsible for
+intermediate expandable-group geometry frames.
+
 ### Phase 4.5D visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and

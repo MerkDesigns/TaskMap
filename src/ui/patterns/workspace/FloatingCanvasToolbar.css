@@ -1,0 +1,56 @@
+.taskmap-floating-canvas-toolbar {
+  position: absolute;
+  top: var(--taskmap-chrome-inset);
+  left: var(--taskmap-chrome-inset);
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-chrome-gap);
+}
+
+.taskmap-floating-canvas-toolbar__group {
+  display: flex;
+  align-items: center;
+  height: var(--taskmap-toolbar-height);
+  gap: var(--taskmap-space-1);
+  padding: 0 var(--taskmap-toolbar-group-padding-inline);
+}
+
+.taskmap-floating-canvas-toolbar__icon-toggle {
+  width: var(--taskmap-control-height-compact);
+  padding: 0;
+}
+
+.taskmap-floating-canvas-toolbar__icon-toggle .taskmap-button__label {
+  display: grid;
+  place-items: center;
+}
+
+.taskmap-floating-canvas-toolbar__optional-controls {
+  display: flex;
+  align-items: center;
+  max-width: calc(
+    var(--taskmap-control-height-compact) + var(--taskmap-control-height-compact) +
+      var(--taskmap-space-1)
+  );
+  gap: var(--taskmap-space-1);
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    max-width var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    transform var(--taskmap-motion-fast) var(--taskmap-ease-emphasized);
+}
+
+.taskmap-floating-canvas-toolbar__optional-controls[aria-hidden="true"] {
+  max-width: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(var(--taskmap-space-2));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-floating-canvas-toolbar__optional-controls {
+    transition-duration: 1ms;
+  }
+}

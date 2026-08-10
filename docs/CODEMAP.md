@@ -340,7 +340,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/settings/recent_databases.rs`                           |   193 | Rust backend module                                                                     |
 | `src-tauri/src/storage.rs`                                             |   722 | Rust backend module                                                                     |
 | `src-tauri/src/window_state.rs`                                        |   105 | Clamp the saved geometry so the window can never restore off-screen or                  |
-| `src/App.tsx`                                                          |  7521 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
+| `src/App.tsx`                                                          |  7528 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
 | `src/app/appData.test.ts`                                              |   355 | Tests for the adjacent module                                                           |
 | `src/app/appData.ts`                                                   |   299 | TypeScript application module                                                           |
 | `src/app/appDataSchema.ts`                                             |   274 | TypeScript application module                                                           |
@@ -412,7 +412,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ExtensionDropEffect.tsx`                               |   203 | React component or typed UI module                                                      |
 | `src/components/ExtensionsPanel.test.tsx`                              |    34 | Tests for the adjacent module                                                           |
 | `src/components/ExtensionsPanel.tsx`                                   |   587 | React component or typed UI module                                                      |
-| `src/components/FloatingToolbar.tsx`                                   |   131 | React component or typed UI module                                                      |
+| `src/components/FloatingToolbar.test.tsx`                              |   163 | Tests for the adjacent module                                                           |
+| `src/components/FloatingToolbar.tsx`                                   |   195 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
 | `src/components/FpsCounter.tsx`                                        |    17 | React component or typed UI module                                                      |
 | `src/components/FrostedGlassTuner.tsx`                                 |   179 | React component or typed UI module                                                      |
 | `src/components/ImageNode.tsx`                                         |   142 | Background extension off: only show the image, no frame/border/shell, so a              |
@@ -645,7 +646,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/motion/reducedMotionPreference.test.ts`                        |    55 | Tests for the adjacent module                                                           |
 | `src/ui/motion/reducedMotionPreference.ts`                             |    65 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/index.ts`                                   |     3 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                  |    37 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/index.ts`                                   |     4 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |
 | `src/ui/primitives/AcrylicConfirmButton.tsx`                           |   103 | React component or typed UI module                                                      |
@@ -674,7 +676,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/primitives/Tabs.tsx`                                           |    58 | React component or typed UI module                                                      |
 | `src/ui/primitives/Typography.tsx`                                     |    26 | React component or typed UI module                                                      |
 | `src/ui/primitives/usePressSpringScale.ts`                             |    74 | TypeScript application module                                                           |
-| `src/ui/theme/theme.test.tsx`                                          |    71 | Tests for the adjacent module                                                           |
+| `src/ui/theme/theme.test.tsx`                                          |    72 | Tests for the adjacent module                                                           |
 | `src/ui/theme/workspaceVisualValues.ts`                                |    27 | TypeScript application module                                                           |
 | `src/useClampedFixedPosition.ts`                                       |    36 | TypeScript application module                                                           |
 | `src/utils/date.ts`                                                    |     5 | TypeScript application module                                                           |

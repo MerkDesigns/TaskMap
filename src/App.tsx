@@ -136,7 +136,12 @@ import {
   type LegacyBackdropSceneRevisionState,
 } from "./legacy/materials/legacyBackdropSceneRevision";
 import type { MaterialCompositorPresentationPublisher } from "./ui/materials/materialCompositorPresentation";
-import { CanvasFrame, WorkspaceBackdropLayer, WorkspaceRoot } from "./ui/patterns/workspace";
+import {
+  CanvasFrame,
+  WorkspaceBackdropLayer,
+  WorkspaceChromeLayer,
+  WorkspaceRoot,
+} from "./ui/patterns/workspace";
 
 const CanvasManager = lazy(() =>
   import("./components/CanvasManager").then(({ CanvasManager }) => ({ default: CanvasManager })),
@@ -6451,23 +6456,25 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 </div>
               </Suspense>
             )}
-            <FloatingToolbar
-              canRedo={historyState.canRedo}
-              canUndo={historyState.canUndo}
-              canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
-              extensionsOpen={extensionsOpen && !extensionsClosing}
-              minimapEnabled={minimapEnabled}
-              privacyModeEnabled={privacyModeEnabled}
-              toolbarButtonsVisible={toolbarButtonsVisible}
-              onMinimapEnabledChange={setMinimapEnabled}
-              onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-              onRedo={redo}
-              onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
-              onToggleExtensions={toggleExtensionsPanel}
-              onToggleCanvases={toggleCanvasManager}
-              onUndo={undo}
-              onOpenSettings={() => setSettingsOpen(true)}
-            />
+            <WorkspaceChromeLayer>
+              <FloatingToolbar
+                canRedo={historyState.canRedo}
+                canUndo={historyState.canUndo}
+                canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
+                extensionsOpen={extensionsOpen && !extensionsClosing}
+                minimapEnabled={minimapEnabled}
+                privacyModeEnabled={privacyModeEnabled}
+                toolbarButtonsVisible={toolbarButtonsVisible}
+                onMinimapEnabledChange={setMinimapEnabled}
+                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
+                onRedo={redo}
+                onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
+                onToggleExtensions={toggleExtensionsPanel}
+                onToggleCanvases={toggleCanvasManager}
+                onUndo={undo}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+            </WorkspaceChromeLayer>
             {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
               <Suspense fallback={null}>
                 <DevelopmentFpsCounter />

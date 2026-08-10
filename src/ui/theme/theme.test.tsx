@@ -35,6 +35,7 @@ describe("target theme tokens", () => {
       '"Segoe UI", Inter, system-ui, sans-serif',
     );
     expect(target.getPropertyValue("--taskmap-layer-workspace-chrome")).toBe("41");
+    expect(target.getPropertyValue("--taskmap-toolbar-group-padding-inline")).toBe("6px");
 
     expect(WORKSPACE_VISUAL_VALUES).toMatchObject({
       canvasGridSpacingWorld: 24,

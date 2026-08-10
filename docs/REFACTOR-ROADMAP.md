@@ -219,6 +219,9 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 - [x] **C2A workspace foundation:** activate the target theme on the production workspace root,
       establish the base-compositor/workspace-chrome stacking contract, and synchronize the visible
       canvas frame/grid with the legacy BackdropScene projection without changing interactions.
+- [x] **C2B floating toolbar:** mount only the production toolbar in the shared workspace-chrome
+      layer and migrate its two groups to Acrylic Large plus the C1 icon/toggle primitives without
+      changing callbacks, state ownership, or collapse behavior.
 - [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
@@ -226,10 +229,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 - [ ] Complete production visual, worker/fallback, media-under-acrylic, animation, and stacking
       acceptance.
 
-C1 deliberately leaves the production root and production consumers unchanged. C2A migrates only
-the scoped root and canvas frame/grid presentation; toolbar, panels, cards, Settings, minimap, menus,
-dialogs, toasts, and canvas elements remain unchanged for later C2/C3/Phase 5 slices. Completion and
-visual acceptance for 4.5C remain open.
+C1 deliberately leaves the production root and production consumers unchanged. C2A migrates the
+scoped root and canvas frame/grid presentation, and C2B migrates only the floating toolbar. Panels,
+cards, Settings, minimap, menus, dialogs, toasts, and canvas elements remain unchanged for later
+C2/C3/Phase 5 slices. Completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance
 
