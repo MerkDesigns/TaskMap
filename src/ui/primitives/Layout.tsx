@@ -61,6 +61,27 @@ interface FlowProps extends HTMLAttributes<HTMLDivElement> {
   readonly justify?: CSSProperties["justifyContent"];
 }
 
+export interface ScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
+  readonly hiddenScrollbar?: boolean;
+}
+
+export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(function ScrollArea(
+  { className, hiddenScrollbar = false, ...props },
+  ref,
+) {
+  return (
+    <div
+      {...props}
+      ref={ref}
+      className={primitiveClassNames(
+        "taskmap-scroll-area",
+        hiddenScrollbar && "taskmap-scroll-area--hidden-scrollbar",
+        className,
+      )}
+    />
+  );
+});
+
 export const Stack = forwardRef<HTMLDivElement, FlowProps>(function Stack(
   { align, className, gap = "normal", justify, style, ...props },
   ref,

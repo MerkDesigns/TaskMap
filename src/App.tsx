@@ -6474,37 +6474,37 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 onUndo={undo}
                 onOpenSettings={() => setSettingsOpen(true)}
               />
+              {canvasManagerOpen && (
+                <Suspense fallback={null}>
+                  <CanvasManager
+                    canvases={getPersistedCanvases()}
+                    activeCanvasId={activeCanvas.id}
+                    cycleHighlightCanvasId={canvasCycleHighlightId}
+                    closing={canvasManagerClosing}
+                    minimalView={canvasManagerMinimalView}
+                    viewportWidth={stageWidth}
+                    viewportHeight={stageHeight}
+                    onMinimalViewChange={setCanvasManagerMinimalView}
+                    onCreateCanvas={createCanvas}
+                    onSelectCanvas={selectCanvas}
+                    onUpdateCanvas={updateCanvas}
+                    onDeleteCanvas={deleteCanvas}
+                    onReorderCanvases={reorderCanvases}
+                  />
+                </Suspense>
+              )}
+              {extensionsOpen && (
+                <Suspense fallback={null}>
+                  <ExtensionsPanel
+                    closing={extensionsClosing}
+                    onDropExtension={dropExtensionOnCanvas}
+                  />
+                </Suspense>
+              )}
             </WorkspaceChromeLayer>
             {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
               <Suspense fallback={null}>
                 <DevelopmentFpsCounter />
-              </Suspense>
-            )}
-            {canvasManagerOpen && (
-              <Suspense fallback={null}>
-                <CanvasManager
-                  canvases={getPersistedCanvases()}
-                  activeCanvasId={activeCanvas.id}
-                  cycleHighlightCanvasId={canvasCycleHighlightId}
-                  closing={canvasManagerClosing}
-                  minimalView={canvasManagerMinimalView}
-                  viewportWidth={stageWidth}
-                  viewportHeight={stageHeight}
-                  onMinimalViewChange={setCanvasManagerMinimalView}
-                  onCreateCanvas={createCanvas}
-                  onSelectCanvas={selectCanvas}
-                  onUpdateCanvas={updateCanvas}
-                  onDeleteCanvas={deleteCanvas}
-                  onReorderCanvases={reorderCanvases}
-                />
-              </Suspense>
-            )}
-            {extensionsOpen && (
-              <Suspense fallback={null}>
-                <ExtensionsPanel
-                  closing={extensionsClosing}
-                  onDropExtension={dropExtensionOnCanvas}
-                />
               </Suspense>
             )}
             {quickExtensionsMenu && (

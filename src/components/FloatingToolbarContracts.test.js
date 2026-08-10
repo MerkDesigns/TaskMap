@@ -13,7 +13,7 @@ const patternCssPath = new URL(
 );
 
 describe("Phase 4.5C2B toolbar architecture contracts", () => {
-  it("mounts only FloatingToolbar in the shared WorkspaceChromeLayer", async () => {
+  it("keeps FloatingToolbar in the shared WorkspaceChromeLayer without later chrome", async () => {
     const appSource = await readFile(appPath, "utf8");
     const layerStart = appSource.indexOf("<WorkspaceChromeLayer>");
     const toolbarStart = appSource.indexOf("<FloatingToolbar", layerStart);
@@ -24,11 +24,9 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(toolbarStart).toBeGreaterThan(layerStart);
     expect(layerEnd).toBeGreaterThan(toolbarStart);
     expect(appSource.match(/<WorkspaceChromeLayer>/g)).toHaveLength(1);
-    expect(layerContents).not.toMatch(
-      /<(?:CanvasManager|ExtensionsPanel|Minimap|Settings|\w*ContextMenu)\b/,
-    );
-    expect(appSource.indexOf("{canvasManagerOpen", layerEnd)).toBeGreaterThan(layerEnd);
-    expect(appSource.indexOf("{extensionsOpen", layerEnd)).toBeGreaterThan(layerEnd);
+    expect(layerContents).toMatch(/<CanvasManager\b/);
+    expect(layerContents).toMatch(/<ExtensionsPanel\b/);
+    expect(layerContents).not.toMatch(/<(?:Minimap|Settings|\w*ContextMenu)\b/);
   });
 
   it("uses the existing Acrylic Large material and shared primitive boundary", async () => {

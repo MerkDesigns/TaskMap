@@ -64,6 +64,25 @@ describe("central material surface registry", () => {
     expect(after.planeRevisions.modal).toBe(before.modal + 1);
     expect(after.surfaces[0].plane).toBe("modal");
   });
+
+  it("defaults mask opacity to one and clamps opacity-only plane updates", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const element = new FakeSurfaceElement();
+    registry.register(registration("surface", element));
+    const initial = registry.getSnapshot();
+
+    expect(initial.surfaces[0].maskOpacity).toBe(1);
+    registry.updateMaskOpacity(element, -0.5);
+    const transparent = registry.getSnapshot();
+    expect(transparent.surfaces[0].maskOpacity).toBe(0);
+    expect(transparent.planeRevisions.base).toBe(initial.planeRevisions.base + 1);
+    expect(transparent.planeRevisions.modal).toBe(initial.planeRevisions.modal);
+
+    registry.updateMaskOpacity(element, 1.5);
+    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
+    registry.updateMaskOpacity(element, Number.NaN);
+    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
+  });
 });
 
 function registration(id: string, element: FakeSurfaceElement) {

@@ -7,6 +7,7 @@ import type { AcceptedCacheResource } from "./cacheResourceOwner";
 
 export interface CompositorMaskSurface {
   readonly bounds: CanvasRectangle;
+  readonly maskOpacity: number;
   readonly radiusPx: number;
   readonly visible: boolean;
 }
@@ -84,10 +85,12 @@ export function createCompositorOutputPlaneSet(
       context.fillStyle = "#fff";
       context.setTransform(compositeScale, 0, 0, compositeScale, 0, 0);
       for (const surface of surfaces) {
-        if (!surface.visible) continue;
+        if (!surface.visible || surface.maskOpacity <= 0) continue;
+        context.globalAlpha = surface.maskOpacity;
         roundedMaskPath(context, surface.bounds, surface.radiusPx);
         context.fill();
       }
+      context.globalAlpha = 1;
       context.setTransform(1, 0, 0, 1, 0, 0);
     },
     compose(

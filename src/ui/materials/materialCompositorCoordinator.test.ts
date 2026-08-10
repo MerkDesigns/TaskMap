@@ -168,6 +168,25 @@ describe("production material compositor coordination", () => {
     harness.dispose();
   });
 
+  it("turns opacity-only surface presentation into plane-mask work without a cache build", () => {
+    const harness = createHarness("worker-offscreen");
+    harness.coordinator.updatePresentation(harness.present(1));
+    const surface = harness.register("surface", "base");
+    harness.executor.succeed(0);
+    harness.frames.flush();
+    const initialBuilds = harness.executor.starts.length;
+    const initialMasks = harness.outputs.rebuildMask.mock.calls.length;
+
+    harness.registry.updateMaskOpacity(surface, 0.4);
+    expect(harness.frames.pending()).toBe(1);
+    harness.frames.flush();
+
+    expect(harness.outputs.rebuildMask).toHaveBeenCalledTimes(initialMasks + 1);
+    expect(last(harness.outputs.rebuildMask.mock.calls)?.[1][0].maskOpacity).toBe(0.4);
+    expect(harness.executor.starts).toHaveLength(initialBuilds);
+    harness.dispose();
+  });
+
   it("coalesces 120 explicit geometry invalidations and consumes the latest rect", () => {
     const harness = createHarness("worker-offscreen");
     harness.coordinator.updatePresentation(harness.present(1));

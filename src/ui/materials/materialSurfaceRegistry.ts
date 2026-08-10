@@ -23,6 +23,7 @@ export interface MaterialSurfaceRegistration {
 
 export interface RegisteredMaterialSurface extends MaterialSurfaceRegistration {
   readonly bounds: CanvasRectangle;
+  readonly maskOpacity: number;
   readonly visible: boolean;
 }
 
@@ -45,6 +46,7 @@ export type CreateSharedSurfaceResizeObserver = (
 export interface MaterialSurfaceRegistry {
   register(registration: MaterialSurfaceRegistration): () => void;
   update(registration: MaterialSurfaceRegistration): void;
+  updateMaskOpacity(element: MaterialSurfaceElement, maskOpacity: number): void;
   refreshMeasurements(): void;
   getSnapshot(): MaterialSurfaceRegistrySnapshot;
   subscribe(listener: () => void): () => void;
@@ -81,7 +83,7 @@ export function createMaterialSurfaceRegistry(
   function measureEntry(id: string): boolean {
     const current = entries.get(id);
     if (!current) return false;
-    const next = withMeasurement(current);
+    const next = withMeasurement(current, current.maskOpacity);
     if (sameGeometry(current, next)) return false;
     entries.set(id, next);
     markPlanes(current.plane);
@@ -131,7 +133,7 @@ export function createMaterialSurfaceRegistry(
       if (disposed) return;
       const current = entries.get(registration.id);
       if (!current || current.element !== registration.element) return;
-      const next = withMeasurement(registration);
+      const next = withMeasurement(registration, current.maskOpacity);
       const planeChanged = current.plane !== next.plane;
       const maskChanged =
         planeChanged || current.radiusPx !== next.radiusPx || !sameGeometry(current, next);
@@ -142,6 +144,18 @@ export function createMaterialSurfaceRegistry(
         markPlanes(current.plane, next.plane);
         publish();
       }
+    },
+    updateMaskOpacity(element: MaterialSurfaceElement, maskOpacity: number) {
+      if (disposed) return;
+      const id = idsByElement.get(element);
+      if (!id) return;
+      const current = entries.get(id);
+      if (!current) return;
+      const nextMaskOpacity = normalizeMaskOpacity(maskOpacity);
+      if (current.maskOpacity === nextMaskOpacity) return;
+      entries.set(id, Object.freeze({ ...current, maskOpacity: nextMaskOpacity }));
+      markPlanes(current.plane);
+      publish();
     },
     refreshMeasurements() {
       if (disposed) return;
@@ -172,7 +186,10 @@ export function createMaterialSurfaceRegistry(
   });
 }
 
-function withMeasurement(registration: MaterialSurfaceRegistration): RegisteredMaterialSurface {
+function withMeasurement(
+  registration: MaterialSurfaceRegistration,
+  maskOpacity = 1,
+): RegisteredMaterialSurface {
   const rectangle = registration.element.getBoundingClientRect();
   const bounds = Object.freeze({
     x: finite(rectangle.left),
@@ -182,9 +199,15 @@ function withMeasurement(registration: MaterialSurfaceRegistration): RegisteredM
   });
   return Object.freeze({
     ...registration,
+    maskOpacity: normalizeMaskOpacity(maskOpacity),
     bounds,
     visible: registration.element.isConnected && bounds.width > 0 && bounds.height > 0,
   });
+}
+
+function normalizeMaskOpacity(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value));
 }
 
 function sameGeometry(left: RegisteredMaterialSurface, right: RegisteredMaterialSurface): boolean {

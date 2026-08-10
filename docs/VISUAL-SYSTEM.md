@@ -244,8 +244,21 @@ the two representations.
 
 - Position: `16px` from left and `64px` from top
 - Width: `290px`
+- Maximum height: viewport height minus `80px` (`64px` top plus `16px` bottom inset)
 - Padding: `12px`
 - Radius: `12px`
+- Material/elevation: Acrylic Large with its default elevation
+
+Phase 4.5C2C mounts the non-embedded Canvas Manager and Extensions panel beside the toolbar in the
+single layer-41 `WorkspaceChromeLayer`. `WorkspaceSidePanel` owns only this shared geometry and
+material presentation. Embedded variants remain plain unregistered layout containers, and menus,
+filter popovers, tooltips, creation UI, and drag previews retain their existing portals.
+
+Panel entry runs for the shared normal `180ms` duration from `translate(-10px, 2px)` and zero
+opacity; exit runs for the shared fast `120ms` duration toward `translate(-8px, 1px)` and zero
+opacity. The shared UI frame scheduler drives both. Each active transform frame calls the cheap
+surface-geometry invalidation seam, then stops invalidating after exact settlement. Reduced motion
+settles immediately. App-owned closing flags and `120ms` unmount/switch timers remain authoritative.
 
 ### Canvas Browser
 
@@ -358,8 +371,8 @@ Invalidations are explicit and independently testable:
   mutation, create/delete, canvas switch, color change, or grid appearance change.
 - `VIEWPORT_TRANSFORM_DIRTY`: cheap cached-bitmap reprojection; it may coalesce a coverage-required
   rebuild while interaction continues.
-- `SURFACE_GEOMETRY_DIRTY`: cheap mask/overlay work for mount, unmount, resize, visibility, or panel
-  motion; it does not dirty the scene cache.
+- `SURFACE_GEOMETRY_DIRTY`: cheap mask/overlay work for mount, unmount, resize, visibility, panel
+  motion, or per-surface mask-opacity presentation; it does not dirty the scene cache.
 - `MATERIAL_OVERLAY_DIRTY`: cheap tint, highlight, border, shadow, or radius presentation work.
 - `SHARED_BLUR_PARAMETERS_DIRTY`: an expensive cache rebuild. These fixed parameters are not a
   feature-facing control.
@@ -370,6 +383,13 @@ masks and static overlays. It must not dispatch persistent Redux commands, clone
 document, write history, call the database, or blur once per pointer sample. At most one compositor
 animation frame and one expensive build may be active; queued work keeps only the newest relevant
 request, and stale/replaced bitmaps are closed.
+
+Each registered cached-acrylic surface carries a finite mask opacity clamped to `0..1`, defaulting
+to `1`. The public material boundary may update that value imperatively for compositor-aware fades.
+An opacity-only update advances only the affected plane's mask revision and schedules the existing
+cheap compositor output frame; it never requests the shared backdrop cache. DOM opacity and mask
+opacity must be driven from the same normalized motion state when an entire acrylic surface fades.
+Opaque and Cutout surfaces do not register and therefore never enter this path.
 
 Worker plus `OffscreenCanvas` is preferred, with a deferred cache-based main-thread fallback. If full
 acrylic is unsafe, the controlled degradation is tint, highlight, gradient border, shadow, and

@@ -222,6 +222,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 - [x] **C2B floating toolbar:** mount only the production toolbar in the shared workspace-chrome
       layer and migrate its two groups to Acrylic Large plus the C1 icon/toggle primitives without
       changing callbacks, state ownership, or collapse behavior.
+- [x] **C2C side-panel shells:** mount the non-embedded Canvas Manager and Extensions panel in the
+      existing workspace-chrome layer; migrate only their shared Acrylic Large shell, header,
+      hidden-scroll framing, and scheduled entry/exit presentation while preserving embedded modes,
+      cards, search/filter controls, portals, and App-owned lifecycles.
 - [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
@@ -230,8 +234,9 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
       acceptance.
 
 C1 deliberately leaves the production root and production consumers unchanged. C2A migrates the
-scoped root and canvas frame/grid presentation, and C2B migrates only the floating toolbar. Panels,
-cards, Settings, minimap, menus, dialogs, toasts, and canvas elements remain unchanged for later
+scoped root and canvas frame/grid presentation, C2B migrates the floating toolbar, and C2C migrates
+only the outer side-panel shells/header/scroll framing. Panel cards and search/filter internals,
+Settings, minimap, menus, dialogs, toasts, and canvas elements remain unchanged for later
 C2/C3/Phase 5 slices. Completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance

@@ -1,0 +1,73 @@
+.taskmap-workspace-side-panel {
+  position: absolute;
+  top: calc(
+    var(--taskmap-chrome-inset) + var(--taskmap-toolbar-height) + var(--taskmap-chrome-gap)
+  );
+  left: var(--taskmap-chrome-inset);
+  display: flex;
+  width: var(--taskmap-panel-width);
+  max-height: calc(
+    100vh - var(--taskmap-chrome-inset) - var(--taskmap-chrome-inset) -
+      var(--taskmap-toolbar-height) - var(--taskmap-chrome-gap)
+  );
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--taskmap-panel-padding);
+  color: var(--taskmap-text);
+  transform-origin: left top;
+}
+
+.taskmap-workspace-side-panel[data-closing="true"] {
+  pointer-events: none;
+}
+
+.taskmap-workspace-panel-header {
+  display: flex;
+  min-height: var(--taskmap-row-height-compact);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-2);
+  margin-bottom: var(--taskmap-space-3);
+}
+
+.taskmap-workspace-panel-header__identity,
+.taskmap-workspace-panel-header__actions {
+  display: flex;
+  align-items: center;
+}
+
+.taskmap-workspace-panel-header__identity {
+  min-width: 0;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-workspace-panel-header__actions {
+  flex: none;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-workspace-panel-header__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--taskmap-muted);
+}
+
+.taskmap-workspace-panel-header__title {
+  margin: 0;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 600;
+  line-height: var(--taskmap-text-body-line);
+  letter-spacing: -0.01em;
+}
+
+.taskmap-workspace-panel-header__icon-toggle {
+  width: var(--taskmap-control-height-compact);
+  padding: 0;
+}
+
+.taskmap-workspace-panel-header__icon-toggle .taskmap-button__label {
+  display: grid;
+  place-items: center;
+}

@@ -93,14 +93,6 @@ body {
   opacity: 0.45;
 }
 
-.canvas-browser-scroll {
-  scrollbar-width: none;
-}
-
-.canvas-browser-scroll::-webkit-scrollbar {
-  display: none;
-}
-
 .settings-tab-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 0.32) transparent;

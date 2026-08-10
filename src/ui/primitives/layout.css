@@ -52,3 +52,15 @@
   border: 0;
   background: rgb(255 255 255 / 0.09);
 }
+
+.taskmap-scroll-area {
+  overflow: auto;
+}
+
+.taskmap-scroll-area--hidden-scrollbar {
+  scrollbar-width: none;
+}
+
+.taskmap-scroll-area--hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -6,6 +6,7 @@ import { MaterialSurface, type MaterialSurfaceProps } from "./MaterialSurface";
 import {
   MaterialSurfaceRegistrationProvider,
   useMaterialSurfaceGeometryInvalidation,
+  useMaterialSurfaceMaskOpacity,
 } from "./MaterialSurfaceRegistration";
 import {
   createMaterialSurfaceRegistry,
@@ -141,6 +142,7 @@ describe("MaterialSurface", () => {
       </MaterialSurfaceRegistrationProvider>,
     );
     expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
     rerender(
       <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
         <MaterialSurface material="acrylic-small" plane="modal" radius={8}>
@@ -195,6 +197,41 @@ describe("MaterialSurface", () => {
     fireEvent.click(screen.getByRole("button", { name: "Move surface" }));
 
     expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("exposes an imperative mask-opacity seam only to registered acrylic surfaces", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    function MaskOpacityProbe() {
+      const acrylicRef = createRef<HTMLElement>();
+      const opaqueRef = createRef<HTMLElement>();
+      const setAcrylicOpacity = useMaterialSurfaceMaskOpacity(acrylicRef);
+      const setOpaqueOpacity = useMaterialSurfaceMaskOpacity(opaqueRef);
+      return (
+        <>
+          <MaterialSurface ref={acrylicRef} material="acrylic-large">
+            Acrylic
+          </MaterialSurface>
+          <MaterialSurface ref={opaqueRef} material="opaque">
+            Opaque
+          </MaterialSurface>
+          <button onClick={() => setAcrylicOpacity(0.4)}>Fade acrylic</button>
+          <button onClick={() => setOpaqueOpacity(0.4)}>Fade opaque</button>
+        </>
+      );
+    }
+    render(
+      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
+        <MaskOpacityProbe />
+      </MaterialSurfaceRegistrationProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Fade acrylic" }));
+    expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0.4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fade opaque" }));
+    expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0.4);
   });
 });
 

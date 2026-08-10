@@ -22,11 +22,20 @@ describe("base and modal compositor output planes", () => {
     outputs.resize({ width: 800, height: 500 }, { width: 600, height: 375 });
     outputs.rebuildMask(
       "base",
-      [{ bounds: { x: 10, y: 20, width: 100, height: 60 }, radiusPx: 12, visible: true }],
+      [
+        {
+          bounds: { x: 10, y: 20, width: 100, height: 60 },
+          maskOpacity: 0.35,
+          radiusPx: 12,
+          visible: true,
+        },
+      ],
       0.75,
     );
     expect(masks[0].context.operations.some(([name]) => name === "quadraticCurveTo")).toBe(true);
     expect(masks[0].context.operations.filter(([name]) => name === "fill")).toHaveLength(1);
+    expect(masks[0].context.operations.find(([name]) => name === "fill")).toEqual(["fill", 0.35]);
+    expect(masks[0].context.globalAlpha).toBe(1);
     expect(masks[1].context.operations.filter(([name]) => name === "fill")).toHaveLength(0);
   });
 
@@ -84,6 +93,7 @@ class FakeCanvas {
 
 class FakeContext {
   fillStyle = "";
+  globalAlpha = 1;
   globalCompositeOperation = "source-over";
   readonly operations: unknown[][] = [];
   setTransform(...values: number[]) {
@@ -108,7 +118,7 @@ class FakeContext {
     this.operations.push(["closePath"]);
   }
   fill() {
-    this.operations.push(["fill"]);
+    this.operations.push(["fill", this.globalAlpha]);
   }
   save() {
     this.operations.push(["save"]);

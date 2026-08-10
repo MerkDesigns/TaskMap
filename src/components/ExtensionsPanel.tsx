@@ -22,6 +22,8 @@ import {
   type ExtensionTargetType,
 } from "../extensions/registry";
 import { useExtensionDrag } from "../extensions/useExtensionDrag";
+import { WorkspacePanelHeader, WorkspaceSidePanel } from "../ui/patterns/workspace";
+import { ScrollArea } from "../ui/primitives/Layout";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 export type { ExtensionId } from "../extensions/registry";
@@ -443,12 +445,7 @@ export function ExtensionsPanel({
 
   const panelContent = (
     <>
-      <div className="mb-3 flex h-8 items-center justify-between">
-        <div className="flex items-center gap-2 text-white/80">
-          <IconPuzzle size={17} stroke={2} className="text-white/55" />
-          <span className="text-base font-semibold tracking-tight text-white/85">Extensions</span>
-        </div>
-      </div>
+      <WorkspacePanelHeader icon={<IconPuzzle size={17} stroke={2} />} title="Extensions" />
 
       <div className="mb-3 flex items-center gap-2">
         <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/[0.10] bg-[#111216] px-2.5 text-white/42 focus-within:border-white/[0.20] focus-within:text-white/68">
@@ -523,7 +520,7 @@ export function ExtensionsPanel({
           document.body,
         )}
 
-      <div className="canvas-browser-scroll min-h-0 flex-1 space-y-2 overflow-y-auto">
+      <ScrollArea hiddenScrollbar className="min-h-0 flex-1 space-y-2">
         {favoriteExtensions.length > 0 && (
           <div className="space-y-2">
             <div className="px-1 text-[11px] font-semibold uppercase tracking-wide text-white/38">
@@ -547,7 +544,7 @@ export function ExtensionsPanel({
             No extensions found
           </div>
         )}
-      </div>
+      </ScrollArea>
     </>
   );
 
@@ -571,14 +568,9 @@ export function ExtensionsPanel({
 
   return (
     <>
-      <div
-        ref={localPanelRef}
-        className={`frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
-          closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
-        }`}
-      >
+      <WorkspaceSidePanel ref={localPanelRef} closing={closing} label="Extensions panel">
         {panelContent}
-      </div>
+      </WorkspaceSidePanel>
 
       {dragPreview && createPortal(dragPreview, document.body)}
     </>

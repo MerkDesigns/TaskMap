@@ -467,11 +467,30 @@ Two focused C2B suites contain eight deterministic cases. Component tests invoke
 callback, lock Canvases/Extensions/Privacy/Minimap pressed semantics, preserve native Undo/Redo
 disabled behavior, and verify collapsed controls remain `aria-hidden` and outside the tab order.
 They also require exactly two base-plane Acrylic Large registrations with no material elevation and
-exercise the cheap geometry invalidation seam at expansion boundaries. Static contracts place only
+exercise the cheap geometry invalidation seam at expansion boundaries. Static contracts keep
 `FloatingToolbar` inside `WorkspaceChromeLayer`, reject toolbar-local z-index, backdrop filters,
 cache/provider/runtime creation, and independent animation frames, and preserve Settings behind its
-existing callback boundary. The shared material-registry ResizeObserver remains responsible for
-intermediate expandable-group geometry frames.
+existing callback boundary. C2C extends that same layer with only the two side-panel shells. The
+shared material-registry ResizeObserver remains responsible for intermediate expandable-group
+geometry frames.
+
+### Phase 4.5C2C side-panel-shell coverage
+
+Three focused C2C suites contain ten deterministic cases. They require both non-embedded panels to
+use the same default-elevation Acrylic Large `WorkspaceSidePanel`, while embedded variants register
+zero acrylic surfaces. Canvas header/count/toggle/create/selection callbacks and the Extensions
+filter portal remain characterized. Motion tests drive the shared scheduler deterministically,
+require cheap geometry invalidation on active transform frames, exact enter/exit settlement, no
+post-settlement work, and immediate reduced-motion settlement. Static contracts retain the App-owned
+closing flags and timers, exactly one workspace-chrome layer, portal/drag ownership, existing card
+and search/filter internals, and one compositor provider while rejecting panel-local z-index,
+backdrop filters, caches, compositor runtimes, and independent animation frames in the new pattern.
+
+The final compositor-fidelity coverage extends the shared registry, `MaterialSurface`, output-plane,
+coordinator, and panel-motion suites. It locks default mask opacity at `1`, finite `0..1` clamping,
+acrylic-only registration, per-surface alpha rasterization, opacity-only plane-mask revisions with
+zero cache builds, synchronized DOM/mask enter and exit opacity, immediate reduced-motion settlement,
+and no post-settlement geometry or mask work.
 
 ### Phase 4.5D visual and performance acceptance
 

@@ -49,6 +49,14 @@ export const Keycap = forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(funct
   return <kbd {...props} ref={ref} className={primitiveClassNames("taskmap-keycap", className)} />;
 });
 
+export const Counter = forwardRef<HTMLSpanElement, HTMLAttributes<HTMLSpanElement>>(
+  function Counter({ className, ...props }, ref) {
+    return (
+      <span {...props} ref={ref} className={primitiveClassNames("taskmap-counter", className)} />
+    );
+  },
+);
+
 export interface SpinnerProps extends HTMLAttributes<HTMLSpanElement> {
   readonly label?: string;
 }

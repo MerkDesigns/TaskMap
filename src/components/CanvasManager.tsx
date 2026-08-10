@@ -18,6 +18,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type HTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -27,6 +28,10 @@ import {
   MENU_ITEM_CLASS,
 } from "../constants";
 import { TaskCanvas } from "../types";
+import { WorkspacePanelHeader, WorkspaceSidePanel } from "../ui/patterns/workspace";
+import { IconButton, ToggleButton } from "../ui/primitives/Button";
+import { ScrollArea } from "../ui/primitives/Layout";
+import { Counter } from "../ui/primitives/Status";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
@@ -574,14 +579,9 @@ export function CanvasManager({
   };
 
   return (
-    <div
-      className={
-        embedded
-          ? "flex h-full min-h-0 flex-col"
-          : `frosted-glass fixed left-4 top-16 z-30 flex max-h-[calc(100vh-5rem)] w-[290px] flex-col overflow-hidden rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
-              closing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
-            }`
-      }
+    <CanvasManagerShell
+      embedded={embedded}
+      closing={closing}
       onPointerDownCapture={(event) => {
         if (
           menu &&
@@ -593,43 +593,43 @@ export function CanvasManager({
         }
       }}
     >
-      <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
-        <div className="flex items-center gap-2 text-white/80">
-          <IconStack2 size={17} stroke={2} className="text-white/55" />
-          <span className="text-base font-semibold tracking-tight text-white/85">Canvases</span>
-          <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-white/45">
-            {canvases.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-white/[0.10] hover:text-white ${
-              minimalView ? "bg-white/[0.12] text-white" : "text-white/72"
-            }`}
-            onClick={() => onMinimalViewChange(!minimalView)}
-            title={minimalView ? "Show previews" : "Minimal view"}
-          >
-            {minimalView ? (
-              <IconLayoutSidebarLeftExpand size={19} stroke={2} />
-            ) : (
-              <IconLayoutSidebarLeftCollapse size={19} stroke={2} />
-            )}
-          </button>
-          <button
-            data-new-canvas-trigger
-            className="grid h-8 w-8 place-items-center rounded-md text-white/72 transition-colors hover:bg-white/[0.10] hover:text-white"
-            onClick={openCreate}
-            title="Create canvas"
-          >
-            <IconPlus size={19} stroke={2} />
-          </button>
-        </div>
-      </div>
+      <WorkspacePanelHeader
+        icon={<IconStack2 size={17} stroke={2} />}
+        title="Canvases"
+        meta={<Counter aria-label={`${canvases.length} canvases`}>{canvases.length}</Counter>}
+        actions={
+          <>
+            <ToggleButton
+              variant="ghost"
+              size="compact"
+              className="taskmap-workspace-panel-header__icon-toggle"
+              pressed={minimalView}
+              onClick={() => onMinimalViewChange(!minimalView)}
+              title={minimalView ? "Show previews" : "Minimal view"}
+              aria-label={minimalView ? "Show previews" : "Minimal view"}
+            >
+              <span aria-hidden="true">
+                {minimalView ? (
+                  <IconLayoutSidebarLeftExpand size={19} stroke={2} />
+                ) : (
+                  <IconLayoutSidebarLeftCollapse size={19} stroke={2} />
+                )}
+              </span>
+            </ToggleButton>
+            <IconButton
+              data-new-canvas-trigger
+              variant="ghost"
+              size="compact"
+              onClick={openCreate}
+              title="Create canvas"
+              aria-label="Create canvas"
+              icon={<IconPlus size={19} stroke={2} />}
+            />
+          </>
+        }
+      />
 
-      <div
-        ref={listRef}
-        className="canvas-browser-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-0.5"
-      >
+      <ScrollArea ref={listRef} hiddenScrollbar className="min-h-0 flex-1 space-y-2.5 pr-0.5">
         {canvases.map((canvas) => {
           const active = canvas.id === activeCanvasId;
           const cycleHighlighted = canvas.id === cycleHighlightCanvasId;
@@ -957,7 +957,7 @@ export function CanvasManager({
             </div>
           );
         })}
-      </div>
+      </ScrollArea>
 
       {menu &&
         createPortal(
@@ -1083,6 +1083,19 @@ export function CanvasManager({
           </div>,
           document.body,
         )}
-    </div>
+    </CanvasManagerShell>
+  );
+}
+
+interface CanvasManagerShellProps extends HTMLAttributes<HTMLDivElement> {
+  readonly closing: boolean;
+  readonly embedded: boolean;
+}
+
+function CanvasManagerShell({ closing, embedded, ...props }: CanvasManagerShellProps) {
+  return embedded ? (
+    <div {...props} className="flex h-full min-h-0 flex-col" />
+  ) : (
+    <WorkspaceSidePanel {...props} closing={closing} label="Canvases panel" />
   );
 }

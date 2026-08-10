@@ -31,7 +31,9 @@ feature or TaskMap pattern
 - `patterns/` owns TaskMap-specific compositions as production needs are migrated in C2/C3. Its
   first production boundary is the C2A workspace root, backdrop/chrome layers, and canvas-frame
   foundation. C2B adds only `FloatingCanvasToolbar` and `ToolbarGroup`, leaving panels, minimap,
-  Settings, and overlays with their existing production owners.
+  Settings, and overlays with their existing production owners. C2C adds the shared production
+  `WorkspaceSidePanel`/`WorkspacePanelHeader` shell while leaving card, search/filter, portal, and
+  embedded-mode behavior with the existing features.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
@@ -140,11 +142,11 @@ strong glow. Invalid/error presentation remains semantic danger red.
 | Capability                 | Status                                              |
 | -------------------------- | --------------------------------------------------- |
 | Panel                      | Foundation implemented                              |
-| FloatingPanel              | Implement during C2                                 |
+| FloatingPanel              | C2C foundation implemented as `WorkspaceSidePanel`  |
 | DockedPanel capability     | Implement during C2                                 |
 | Resizable panel capability | Implement during C2 using the interaction subsystem |
 | Split pane capability      | Capability only                                     |
-| PanelHeader                | Implement during C2                                 |
+| PanelHeader                | C2C foundation implemented                          |
 | PanelFooter                | Implement during C2                                 |
 | Section                    | Implement during C2                                 |
 | Card                       | Foundation implemented                              |
@@ -154,7 +156,7 @@ strong glow. Invalid/error presentation remains semantic danger red.
 | Inline                     | Foundation implemented                              |
 | Grid                       | Implement during C2                                 |
 | Divider                    | Foundation implemented                              |
-| ScrollArea                 | Implement during C2                                 |
+| ScrollArea                 | C2C foundation implemented                          |
 | ScrollFade                 | Implement during C2                                 |
 | StickyHeader capability    | Implement during C2                                 |
 | CollapsibleSection         | Implement during C2                                 |
@@ -194,7 +196,7 @@ Nested menus, portals, generalized collision systems, and production menu migrat
 | Badge                   | Foundation implemented                          |
 | Pill/Tag                | Foundation implemented through `Badge` geometry |
 | StatusDot               | Foundation implemented                          |
-| Counter                 | Implement during C2                             |
+| Counter                 | C2C foundation implemented                      |
 | Keycap                  | Foundation implemented                          |
 | EmptyState              | Implement during C2                             |
 | Spinner                 | Foundation implemented                          |
