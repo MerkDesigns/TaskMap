@@ -1,0 +1,71 @@
+.taskmap-canvas-frame {
+  overflow: hidden;
+  border: 1px solid var(--taskmap-canvas-border);
+  border-radius: var(--taskmap-radius-canvas);
+  background-color: var(--taskmap-canvas-bg);
+  box-shadow: var(--taskmap-canvas-shadow);
+}
+
+.taskmap-canvas-frame[data-grid-style="dots"] {
+  background-image: radial-gradient(
+    circle,
+    rgb(
+        var(--taskmap-canvas-dot-rgb) /
+          calc(var(--taskmap-canvas-grid-opacity) * var(--taskmap-canvas-dot-opacity-scale))
+      )
+      var(--taskmap-canvas-dot-size),
+    transparent calc(var(--taskmap-canvas-dot-size) + 0.5px)
+  );
+  background-size: var(--taskmap-canvas-grid-spacing) var(--taskmap-canvas-grid-spacing);
+}
+
+.taskmap-canvas-frame[data-grid-style="lines"] {
+  background-image:
+    linear-gradient(
+      rgb(
+          var(--taskmap-canvas-line-major-rgb) /
+            calc(
+              var(--taskmap-canvas-grid-opacity) * var(--taskmap-canvas-line-major-opacity-scale)
+            )
+        )
+        1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgb(
+          var(--taskmap-canvas-line-major-rgb) /
+            calc(
+              var(--taskmap-canvas-grid-opacity) * var(--taskmap-canvas-line-major-opacity-scale)
+            )
+        )
+        1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      rgb(
+          var(--taskmap-canvas-line-rgb) /
+            calc(
+              var(--taskmap-canvas-grid-opacity) * var(--taskmap-canvas-line-minor-opacity-scale)
+            )
+        )
+        1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgb(
+          var(--taskmap-canvas-line-rgb) /
+            calc(
+              var(--taskmap-canvas-grid-opacity) * var(--taskmap-canvas-line-minor-opacity-scale)
+            )
+        )
+        1px,
+      transparent 1px
+    );
+  background-size:
+    var(--taskmap-canvas-grid-major-spacing) var(--taskmap-canvas-grid-major-spacing),
+    var(--taskmap-canvas-grid-major-spacing) var(--taskmap-canvas-grid-major-spacing),
+    var(--taskmap-canvas-grid-spacing) var(--taskmap-canvas-grid-spacing),
+    var(--taskmap-canvas-grid-spacing) var(--taskmap-canvas-grid-spacing);
+}

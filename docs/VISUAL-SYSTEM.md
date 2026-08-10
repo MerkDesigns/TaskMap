@@ -5,10 +5,10 @@ approved `phase4.5-acrylic-reference.html` is the visual and compositor provenan
 remains a local review artifact rather than production code. If another document summarizes a value
 differently, this document wins.
 
-Phase 4.5A defines the contract only. The target theme is intentionally scoped by
-`.taskmap-target-theme` and is not applied to the production root. Phase 4.5B implements the
-compositor, Phase 4.5C activates the theme and migrates surfaces, and Phase 4.5D removes the legacy
-frosted implementation and performs acceptance.
+Phase 4.5A defines the contract, Phase 4.5B implements the compositor, and Phase 4.5C migrates the
+production presentation in reviewed slices. C2A activates `.taskmap-target-theme` on the production
+workspace root only; it is never placed on `documentElement` or `body`. Phase 4.5D removes the
+legacy frosted implementation and performs acceptance.
 
 ## Target theme
 
@@ -44,9 +44,9 @@ chrome colors.
 Reusable spacing, control/row heights, radii, pill geometry, chrome inset/gap, shared panel width,
 toolbar height, panel/modal padding, icon sizes, and text roles are scoped semantic tokens in
 `src/ui/theme/theme.css`. Production toolbar, panels, and Settings will consume these shared owners
-during C2 rather than defining independent dimensions. C1 does not activate them on the application
-root. The target type family is `"Segoe UI", Inter, system-ui, sans-serif`; value/monospace roles use
-the scoped monospace token.
+during their C2 slices rather than defining independent dimensions. C2A activates them on the
+workspace root without migrating those consumers. The target type family is
+`"Segoe UI", Inter, system-ui, sans-serif`; value/monospace roles use the scoped monospace token.
 
 ### Initial Phase 4.5C motion system
 
@@ -214,6 +214,11 @@ geometry after the local HTML reference is removed.
 
 ### Canvas
 
+`src/ui/theme/theme.css` is the normative owner for visible workspace theme values. The DOM-free
+BackdropScene projector cannot read computed CSS, so `workspaceVisualValues.ts` contains its typed
+mirror. Phase 4.5C2A parity tests lock the colors, grid geometry/formulas, and canvas radius across
+the two representations.
+
 - Radius: `24px`
 - Dot grid: `24px` spacing, `1.25px` dot radius, `0.50` dot opacity
 - Line grid minor: `24px` spacing, `rgba(88,101,124,0.093)`
@@ -271,13 +276,20 @@ calculation.
 
 There are exactly two semantic planes: `base` and `modal`. `MaterialSurface` inherits a plane from
 `MaterialPlaneProvider` and defaults to `base`; an instance may override it. React context inheritance
-continues through portals. The future compositor owns the canvases and stacking implementation, so
+continues through portals. The compositor owns the output canvases and stacking implementation, so
 features must not hardcode compositor canvas z-index behavior. A third plane requires a new
 architecture decision.
 
+For the production workspace, all canvas/backdrop DOM is contained by the intentional backdrop
+layer at `0`, the base compositor output remains at layer `40`, and the shared
+`--taskmap-layer-workspace-chrome: 41` contract is the only base-plane content layer above it. The
+workspace root deliberately has no `z-index`, isolation, transform, filter, opacity, or containment
+that would trap canvas or chrome. Later C2 workspace patterns consume the shared chrome layer rather
+than declaring feature-specific compositor-relative values. Modal-plane behavior is unchanged.
+
 ## Backdrop scene boundary
 
-Phase 4.5B will define the proven runtime `BackdropScene` contract at the material compositor public
+Phase 4.5B defines the proven runtime `BackdropScene` contract at the material compositor public
 boundary. It is presentation data made of generic, cullable visual primitives such as flat or
 rounded filled/bordered geometry, grid state, world bounds, and viewport state. The compositor must
 not import element modules, legacy `TaskCanvas` types, domain business logic, persistence, or Redux,

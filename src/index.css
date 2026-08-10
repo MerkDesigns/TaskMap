@@ -13,11 +13,6 @@
     sans-serif;
   color: #e5e7eb;
   background: #050609;
-  --void-bg: #050609;
-  --canvas-bg: #090b10;
-  --canvas-dot-rgb: 70 79 96;
-  --canvas-line-rgb: 88 101 124;
-  --canvas-line-major-rgb: 118 136 164;
   --container-chrome: #005763;
   --container-bg: #1b1b1e;
 }
@@ -96,51 +91,6 @@ body {
 .taskmap-range:disabled {
   cursor: default;
   opacity: 0.45;
-}
-
-.canvas-grid {
-  background-color: var(--canvas-bg);
-}
-
-.canvas-grid[data-grid-style="dots"] {
-  --canvas-grid-opacity: 0.5;
-  --canvas-dot-opacity-scale: 1;
-  --canvas-dot-size: 1.25px;
-  background-image: radial-gradient(
-    circle,
-    rgb(var(--canvas-dot-rgb) / calc(var(--canvas-grid-opacity) * var(--canvas-dot-opacity-scale)))
-      var(--canvas-dot-size),
-    transparent calc(var(--canvas-dot-size) + 0.5px)
-  );
-  background-size: 24px 24px;
-}
-
-.canvas-grid[data-grid-style="lines"] {
-  --canvas-grid-opacity: 0.15;
-  background-image:
-    linear-gradient(
-      rgb(var(--canvas-line-major-rgb) / calc(var(--canvas-grid-opacity) * 0.48)) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      rgb(var(--canvas-line-major-rgb) / calc(var(--canvas-grid-opacity) * 0.48)) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      rgb(var(--canvas-line-rgb) / calc(var(--canvas-grid-opacity) * 0.62)) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      rgb(var(--canvas-line-rgb) / calc(var(--canvas-grid-opacity) * 0.62)) 1px,
-      transparent 1px
-    );
-  background-size:
-    120px 120px,
-    120px 120px,
-    24px 24px,
-    24px 24px;
 }
 
 .canvas-browser-scroll {

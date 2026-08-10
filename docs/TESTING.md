@@ -444,6 +444,23 @@ require Large highlight opacity `0.028`, Small `0.026`, and Opaque tint opacity 
 These tests do not claim production visual migration, WebView2 visual acceptance, production overlay
 migration, or Phase 5 canvas-element presentation.
 
+### Phase 4.5C2A workspace-foundation coverage
+
+Two focused C2A suites contain eight deterministic cases. Component coverage proves the target
+theme remains scoped to the production workspace instead of `documentElement`/`body`, and that the
+visible canvas and legacy BackdropScene consume identical void, canvas, dot-grid, minor-line, and
+major-line colors. Parity contracts also lock `24px` minor and `120px`/every-five major spacing,
+`0.62`/`0.48` line opacity multipliers, the dot fade and screen-radius formulas, and the `24px`
+canvas radius. Static architecture contracts keep the workspace root free of accidental stacking
+contexts, place the future workspace-chrome layer above the existing base compositor output while
+leaving the canvas below it, retain exactly one compositor provider, and reject new blur, material,
+cache, persistence, or Redux ownership in the patterns. Interaction characterization locks the
+existing stage/world pointer, wheel, context-menu, and transform ownership in `App`.
+
+The existing exact theme and legacy BackdropScene suites additionally lock the normative canvas
+border, shadow, radius, background, and grid projection values. This slice does not claim toolbar,
+panel, card, Settings, minimap, overlay, or canvas-element migration or visual acceptance.
+
 ### Phase 4.5D visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and

@@ -1,10 +1,25 @@
-/* Phase 4.5A target tokens. Activate on the production root only during Phase 4.5C. */
+/*
+ * Normative owner for visible target-theme values. The DOM-free BackdropScene projector mirrors
+ * its workspace subset in workspaceVisualValues.ts; Phase 4.5C2A parity tests lock both copies.
+ * Activate on the production root only during Phase 4.5C.
+ */
 .taskmap-target-theme {
   /* Foundation */
   --taskmap-void-bg: #0b0b0c;
   --taskmap-canvas-bg: #0f1011;
   --taskmap-canvas-dot-rgb: 70 79 96;
+  --taskmap-canvas-line-rgb: 88 101 124;
+  --taskmap-canvas-line-major-rgb: 118 136 164;
+  --taskmap-canvas-grid-spacing: 24px;
+  --taskmap-canvas-grid-major-spacing: 120px;
+  --taskmap-canvas-grid-major-every: 5;
+  --taskmap-canvas-line-minor-opacity-scale: 0.62;
+  --taskmap-canvas-line-major-opacity-scale: 0.48;
+  --taskmap-canvas-dot-radius: 1.25px;
+  --taskmap-canvas-dot-opacity-fade-start: 0.55;
+  --taskmap-canvas-dot-opacity-fade-span: 0.45;
   --taskmap-canvas-border: rgb(255 255 255 / 0.15);
+  --taskmap-canvas-shadow: 0 22px 60px rgb(0 0 0 / 0.3);
   --taskmap-container-bg: #1b1b1e;
   --taskmap-text: rgb(255 255 255 / 0.88);
   --taskmap-muted: rgb(255 255 255 / 0.45);
@@ -56,6 +71,7 @@
   --taskmap-icon-small: 14px;
   --taskmap-icon: 16px;
   --taskmap-icon-large: 20px;
+  --taskmap-layer-workspace-chrome: 41;
 
   /* Typography roles. */
   --taskmap-text-body-size: 14px;

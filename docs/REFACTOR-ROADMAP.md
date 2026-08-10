@@ -216,16 +216,20 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 - [x] Apply the first C1 visual-review correction: keyboard-focus demonstration, Lab-only motion
       simulation, real shared-compositor playground, bounded rounded-rectangle liquid selection,
       and reduced acrylic radial highlights.
-- [ ] Activate the target theme and global orange application-chrome accent.
+- [x] **C2A workspace foundation:** activate the target theme on the production workspace root,
+      establish the base-compositor/workspace-chrome stacking contract, and synchronize the visible
+      canvas frame/grid with the legacy BackdropScene projection without changing interactions.
+- [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
 - [ ] Preserve user-selected element colors and semantic/spatial colors.
 - [ ] Complete production visual, worker/fallback, media-under-acrylic, animation, and stacking
       acceptance.
 
-C1 deliberately leaves the production root, toolbar, panels, Settings, minimap, menus, dialogs,
-toasts, and canvas elements unchanged. C2/C3 own production composition and behavior-driven overlay
-APIs; completion and visual acceptance for 4.5C remain open.
+C1 deliberately leaves the production root and production consumers unchanged. C2A migrates only
+the scoped root and canvas frame/grid presentation; toolbar, panels, cards, Settings, minimap, menus,
+dialogs, toasts, and canvas elements remain unchanged for later C2/C3/Phase 5 slices. Completion and
+visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance
 

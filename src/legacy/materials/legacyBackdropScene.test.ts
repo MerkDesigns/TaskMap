@@ -7,6 +7,41 @@ import {
 } from "./legacyBackdropSceneRevision";
 
 describe("legacy BackdropScene presentation adapter", () => {
+  it("projects the normative production workspace background and grid colors", () => {
+    const scene = project(canvas([]));
+
+    expect(scene.background).toEqual({
+      cacheFill: "#0b0b0c",
+      worldFill: "#0f1011",
+      worldCornerRadius: 24,
+    });
+    expect(scene.grid).toMatchObject({
+      kind: "lines",
+      spacingWorld: 24,
+      minorColor: "rgb(88 101 124 / 0.093)",
+      majorColor: "rgb(118 136 164 / 0.072)",
+      majorEvery: 5,
+      lineWidthWorld: 1,
+    });
+  });
+
+  it("projects dot fade and screen-radius formulas without DOM or computed CSS", () => {
+    const anchorZoom = 0.775;
+    const scene = projectLegacyBackdropScene({
+      ...projectionInput(canvas([])),
+      gridStyle: "dots",
+      gridOpacityPercent: 50,
+      anchorZoom,
+    });
+
+    expect(scene.grid).toMatchObject({
+      kind: "dots",
+      spacingWorld: 24,
+      color: `rgb(70 79 96 / ${0.5 * ((anchorZoom - 0.55) / 0.45)})`,
+      radiusWorld: 1.25 / anchorZoom,
+    });
+  });
+
   it("projects the production container body, accent header, border, and radii", () => {
     const current = canvas([
       {

@@ -136,6 +136,7 @@ import {
   type LegacyBackdropSceneRevisionState,
 } from "./legacy/materials/legacyBackdropSceneRevision";
 import type { MaterialCompositorPresentationPublisher } from "./ui/materials/materialCompositorPresentation";
+import { CanvasFrame, WorkspaceBackdropLayer, WorkspaceRoot } from "./ui/patterns/workspace";
 
 const CanvasManager = lazy(() =>
   import("./components/CanvasManager").then(({ CanvasManager }) => ({ default: CanvasManager })),
@@ -6424,9 +6425,8 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   } as CSSProperties;
   return (
     <TransientInteractionProvider service={interactionController}>
-      <main
+      <WorkspaceRoot
         spellCheck={false}
-        className="h-full w-full bg-[color:var(--void-bg)] text-white"
         style={frostedGlassStyle}
         onContextMenu={suppressContextMenu}
         onPointerDownCapture={handleMainPointerDownCapture}
@@ -6510,15 +6510,15 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 />
               </Suspense>
             )}
-            <div
+            <WorkspaceBackdropLayer
               ref={stageRef}
               data-stage
-              className={`absolute inset-0 overflow-hidden ${
+              className={
                 interactionSnapshot.activeInteraction?.kind === "pan" ||
                 interactionSnapshot.activeInteraction?.kind === "move"
                   ? "cursor-grabbing"
                   : "cursor-default"
-              }`}
+              }
               onPointerDownCapture={handleStagePointerDownCapture}
               onPointerDown={handleStagePointerDown}
               onPointerMove={handlePointerMove}
@@ -6528,16 +6528,16 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               onWheel={handleWheel}
               onAuxClick={(event) => event.preventDefault()}
             >
-              <div
+              <CanvasFrame
                 ref={worldRef}
-                className="canvas-grid absolute overflow-hidden rounded-[24px] border border-white/[0.15] shadow-premium"
+                className="absolute"
                 data-grid-style={canvasGridStyle}
                 data-image-url-version={imageUrlVersion}
                 style={
                   {
-                    "--canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
-                    "--canvas-dot-size": `${1.25 / zoom}px`,
-                    "--canvas-dot-opacity-scale": dotGridOpacityScale,
+                    "--taskmap-canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
+                    "--taskmap-canvas-dot-size": `${1.25 / zoom}px`,
+                    "--taskmap-canvas-dot-opacity-scale": dotGridOpacityScale,
                     width: canvasWidth,
                     height: canvasHeight,
                     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
@@ -6926,7 +6926,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                     onPick={canvasNodeActions.pickImageForElement}
                   />
                 ))}
-              </div>
+              </CanvasFrame>
               {activeTextCardPresentation && (
                 <div
                   className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
@@ -7079,7 +7079,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   style={selectionScreenBounds}
                 />
               )}
-            </div>
+            </WorkspaceBackdropLayer>
 
             {containerMenu && contextMenuElement && (
               <ContainerContextMenu
@@ -7512,7 +7512,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
             )}
           </section>
         </div>
-      </main>
+      </WorkspaceRoot>
     </TransientInteractionProvider>
   );
 }

@@ -530,8 +530,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/legacy/interactions/legacyTextCardPlacement.ts`                   |   309 | TypeScript application module                                                           |
 | `src/legacy/LegacyApplication.tsx`                                     |    12 | React component or typed UI module                                                      |
 | `src/legacy/materials/legacyBackdropPanelPrimitives.ts`                |    80 | TypeScript application module                                                           |
-| `src/legacy/materials/legacyBackdropScene.test.ts`                     |   227 | Tests for the adjacent module                                                           |
-| `src/legacy/materials/legacyBackdropScene.ts`                          |   234 | TypeScript application module                                                           |
+| `src/legacy/materials/legacyBackdropScene.test.ts`                     |   262 | Tests for the adjacent module                                                           |
+| `src/legacy/materials/legacyBackdropScene.ts`                          |   250 | TypeScript application module                                                           |
 | `src/legacy/materials/legacyBackdropSceneRevision.ts`                  |    35 | TypeScript application module                                                           |
 | `src/main.tsx`                                                         |    11 | TypeScript application module                                                           |
 | `src/mindmapMath.test.ts`                                              |    42 | Tests for the adjacent module                                                           |
@@ -558,10 +558,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/dev/acrylicPlaygroundModel.ts`                                 |   202 | TypeScript application module                                                           |
 | `src/ui/dev/ButtonMaterialTests.tsx`                                   |   163 | React component or typed UI module                                                      |
 | `src/ui/dev/containerContextMenuFixture.ts`                            |    34 | TypeScript application module                                                           |
-| `src/ui/dev/ContextMenuDemo.tsx`                                       |   157 | React component or typed UI module                                                      |
-| `src/ui/dev/contextMenuMaterialIntegration.test.tsx`                   |    83 | Tests for the adjacent module                                                           |
-| `src/ui/dev/DevelopmentUiLab.test.tsx`                                 |   123 | Tests for the adjacent module                                                           |
-| `src/ui/dev/DevelopmentUiLab.tsx`                                      |   279 | React component or typed UI module                                                      |
+| `src/ui/dev/ContextMenuDemo.tsx`                                       |   198 | React component or typed UI module                                                      |
+| `src/ui/dev/contextMenuMaterialIntegration.test.tsx`                   |    47 | Tests for the adjacent module                                                           |
+| `src/ui/dev/DevelopmentUiLab.test.tsx`                                 |   126 | Tests for the adjacent module                                                           |
+| `src/ui/dev/DevelopmentUiLab.tsx`                                      |   276 | React component or typed UI module                                                      |
 | `src/ui/materials/compositor/acrylicBitmapResource.ts`                 |    30 | TypeScript application module                                                           |
 | `src/ui/materials/compositor/acrylicBuildExecutor.ts`                  |    40 | TypeScript application module                                                           |
 | `src/ui/materials/compositor/acrylicCache.worker.ts`                   |    23 | TypeScript application module                                                           |
@@ -619,22 +619,22 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialCompositorDiagnostics.ts`                    |    72 | TypeScript application module                                                           |
 | `src/ui/materials/materialCompositorPresentation.ts`                   |    47 | TypeScript application module                                                           |
 | `src/ui/materials/MaterialCompositorProvider.tsx`                      |   130 | React component or typed UI module                                                      |
-| `src/ui/materials/materialDefinitions.ts`                              |    77 | TypeScript application module                                                           |
+| `src/ui/materials/materialDefinitions.ts`                              |    89 | TypeScript application module                                                           |
 | `src/ui/materials/MaterialPlane.tsx`                                   |    18 | React component or typed UI module                                                      |
-| `src/ui/materials/materialRegistry.test.ts`                            |    89 | Tests for the adjacent module                                                           |
+| `src/ui/materials/materialRegistry.test.ts`                            |   106 | Tests for the adjacent module                                                           |
 | `src/ui/materials/materialRegistry.ts`                                 |    38 | TypeScript application module                                                           |
-| `src/ui/materials/MaterialSurface.test.tsx`                            |   196 | Tests for the adjacent module                                                           |
+| `src/ui/materials/MaterialSurface.test.tsx`                            |   204 | Tests for the adjacent module                                                           |
 | `src/ui/materials/MaterialSurface.tsx`                                 |   166 | React component or typed UI module                                                      |
 | `src/ui/materials/MaterialSurfaceRegistration.tsx`                     |    24 | React component or typed UI module                                                      |
 | `src/ui/materials/materialSurfaceRegistry.test.ts`                     |    95 | @vitest-environment node                                                                |
 | `src/ui/materials/materialSurfaceRegistry.ts`                          |   217 | TypeScript application module                                                           |
-| `src/ui/materials/materialTypes.ts`                                    |    74 | TypeScript application module                                                           |
+| `src/ui/materials/materialTypes.ts`                                    |    86 | TypeScript application module                                                           |
 | `src/ui/motion/layoutMotion.test.ts`                                   |    23 | Tests for the adjacent module                                                           |
 | `src/ui/motion/layoutMotion.ts`                                        |    52 | TypeScript application module                                                           |
 | `src/ui/motion/liquidIndicatorMotion.test.ts`                          |   144 | Tests for the adjacent module                                                           |
 | `src/ui/motion/liquidIndicatorMotion.ts`                               |   112 | TypeScript application module                                                           |
 | `src/ui/motion/liquidMaterialIntegration.test.ts`                      |    39 | @vitest-environment node                                                                |
-| `src/ui/motion/liquidToggleMotion.test.ts`                             |    56 | Tests for the adjacent module                                                           |
+| `src/ui/motion/liquidToggleMotion.test.ts`                             |    58 | Tests for the adjacent module                                                           |
 | `src/ui/motion/liquidToggleMotion.ts`                                  |    79 | TypeScript application module                                                           |
 | `src/ui/motion/motionFrameScheduler.test.ts`                           |    86 | Tests for the adjacent module                                                           |
 | `src/ui/motion/motionFrameScheduler.ts`                                |    91 | TypeScript application module                                                           |
@@ -644,16 +644,20 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/motion/motionTokens.ts`                                        |    41 | Central Phase 4.5C motion values; these are UI-motion values, not compositor constants. |
 | `src/ui/motion/reducedMotionPreference.test.ts`                        |    55 | Tests for the adjacent module                                                           |
 | `src/ui/motion/reducedMotionPreference.ts`                             |    65 | TypeScript application module                                                           |
-| `src/ui/primitives/AcrylicConfirmButton.tsx`                           |   102 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/index.ts`                                   |     3 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
+| `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |
+| `src/ui/primitives/AcrylicConfirmButton.tsx`                           |   103 | React component or typed UI module                                                      |
 | `src/ui/primitives/AcrylicToggleButton.test.tsx`                       |   114 | Tests for the adjacent module                                                           |
 | `src/ui/primitives/AcrylicToggleButton.tsx`                            |   103 | React component or typed UI module                                                      |
 | `src/ui/primitives/AnimatedCheckbox.tsx`                               |    34 | React component or typed UI module                                                      |
 | `src/ui/primitives/Button.tsx`                                         |   105 | React component or typed UI module                                                      |
-| `src/ui/primitives/buttonMaterialControls.test.tsx`                    |   133 | Tests for the adjacent module                                                           |
-| `src/ui/primitives/ContextMenu.test.tsx`                               |   130 | Tests for the adjacent module                                                           |
-| `src/ui/primitives/ContextMenu.tsx`                                    |   135 | React component or typed UI module                                                      |
-| `src/ui/primitives/ContextMenuParts.tsx`                               |    91 | React component or typed UI module                                                      |
-| `src/ui/primitives/Field.tsx`                                          |    76 | React component or typed UI module                                                      |
+| `src/ui/primitives/buttonMaterialControls.test.tsx`                    |   145 | Tests for the adjacent module                                                           |
+| `src/ui/primitives/ContextMenu.test.tsx`                               |   152 | Tests for the adjacent module                                                           |
+| `src/ui/primitives/ContextMenu.tsx`                                    |   210 | React component or typed UI module                                                      |
+| `src/ui/primitives/ContextMenuParts.tsx`                               |   108 | React component or typed UI module                                                      |
+| `src/ui/primitives/Field.tsx`                                          |    87 | React component or typed UI module                                                      |
 | `src/ui/primitives/FormControls.tsx`                                   |   119 | React component or typed UI module                                                      |
 | `src/ui/primitives/index.ts`                                           |    17 | TypeScript application module                                                           |
 | `src/ui/primitives/Layout.tsx`                                         |    98 | React component or typed UI module                                                      |
@@ -662,7 +666,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/primitives/LiquidTabs.tsx`                                     |    85 | React component or typed UI module                                                      |
 | `src/ui/primitives/LiquidToggleSwitch.tsx`                             |   103 | React component or typed UI module                                                      |
 | `src/ui/primitives/primitiveClassNames.ts`                             |     6 | TypeScript application module                                                           |
-| `src/ui/primitives/primitives.test.tsx`                                |   112 | Tests for the adjacent module                                                           |
+| `src/ui/primitives/primitives.test.tsx`                                |   137 | Tests for the adjacent module                                                           |
 | `src/ui/primitives/SelectionControls.tsx`                              |   182 | React component or typed UI module                                                      |
 | `src/ui/primitives/Status.tsx`                                         |   100 | React component or typed UI module                                                      |
 | `src/ui/primitives/tabListBehavior.ts`                                 |    55 | TypeScript application module                                                           |
@@ -670,7 +674,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/primitives/Tabs.tsx`                                           |    58 | React component or typed UI module                                                      |
 | `src/ui/primitives/Typography.tsx`                                     |    26 | React component or typed UI module                                                      |
 | `src/ui/primitives/usePressSpringScale.ts`                             |    74 | TypeScript application module                                                           |
-| `src/ui/theme/theme.test.tsx`                                          |    47 | Tests for the adjacent module                                                           |
+| `src/ui/theme/theme.test.tsx`                                          |    71 | Tests for the adjacent module                                                           |
+| `src/ui/theme/workspaceVisualValues.ts`                                |    27 | TypeScript application module                                                           |
 | `src/useClampedFixedPosition.ts`                                       |    36 | TypeScript application module                                                           |
 | `src/utils/date.ts`                                                    |     5 | TypeScript application module                                                           |
 

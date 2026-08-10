@@ -5,6 +5,7 @@ import {
   type BackdropScene,
 } from "../../ui/materials/compositor/backdropScene";
 import { parseBackdropScene } from "../../ui/materials/compositor/backdropSceneValidation";
+import { formatWorkspaceRgb, WORKSPACE_VISUAL_VALUES } from "../../ui/theme/workspaceVisualValues";
 import type { CanvasGridStyle, ContainerElement, TaskCanvas, TextCardElement } from "../../types";
 import { getLegacyVisibleContainerTextCardPlacements } from "../interactions/legacyTextCardPlacement";
 import {
@@ -38,7 +39,11 @@ export function projectLegacyBackdropScene(input: LegacyBackdropSceneInput): Bac
   return parseBackdropScene({
     identity: { key: input.canvas.id, revision: input.sceneRevision },
     worldBounds: { x: 0, y: 0, width: input.canvas.width, height: input.canvas.height },
-    background: { cacheFill: "#050609", worldFill: "#090b10", worldCornerRadius: 24 },
+    background: {
+      cacheFill: WORKSPACE_VISUAL_VALUES.voidBackground,
+      worldFill: WORKSPACE_VISUAL_VALUES.canvasBackground,
+      worldCornerRadius: WORKSPACE_VISUAL_VALUES.canvasCornerRadius,
+    },
     grid: projectGrid(input.gridStyle, input.gridOpacityPercent, input.anchorZoom),
     primitives,
   });
@@ -122,22 +127,33 @@ function projectPrimitives(input: LegacyBackdropSceneInput): readonly BackdropPr
 function projectGrid(style: CanvasGridStyle, opacityPercent: number, anchorZoom: number): object {
   const opacity = clamp(opacityPercent / 100, 0, 1);
   if (style === "dots") {
-    const zoomOpacity = clamp((anchorZoom - 0.55) / 0.45, 0, 1);
+    const zoomOpacity = clamp(
+      (anchorZoom - WORKSPACE_VISUAL_VALUES.canvasDotOpacityFadeStart) /
+        WORKSPACE_VISUAL_VALUES.canvasDotOpacityFadeSpan,
+      0,
+      1,
+    );
     return {
       kind: "dots",
-      spacingWorld: 24,
+      spacingWorld: WORKSPACE_VISUAL_VALUES.canvasGridSpacingWorld,
       offsetWorld: { x: 0, y: 0 },
-      color: `rgb(70 79 96 / ${opacity * zoomOpacity})`,
-      radiusWorld: 1.25 / Math.max(anchorZoom, 0.01),
+      color: formatWorkspaceRgb(WORKSPACE_VISUAL_VALUES.canvasDotRgb, opacity * zoomOpacity),
+      radiusWorld: WORKSPACE_VISUAL_VALUES.canvasDotRadiusScreen / Math.max(anchorZoom, 0.01),
     };
   }
   return {
     kind: "lines",
-    spacingWorld: 24,
+    spacingWorld: WORKSPACE_VISUAL_VALUES.canvasGridSpacingWorld,
     offsetWorld: { x: 0, y: 0 },
-    minorColor: `rgb(88 101 124 / ${opacity * 0.62})`,
-    majorColor: `rgb(118 136 164 / ${opacity * 0.48})`,
-    majorEvery: 5,
+    minorColor: formatWorkspaceRgb(
+      WORKSPACE_VISUAL_VALUES.canvasLineRgb,
+      opacity * WORKSPACE_VISUAL_VALUES.canvasLineMinorOpacityScale,
+    ),
+    majorColor: formatWorkspaceRgb(
+      WORKSPACE_VISUAL_VALUES.canvasMajorLineRgb,
+      opacity * WORKSPACE_VISUAL_VALUES.canvasLineMajorOpacityScale,
+    ),
+    majorEvery: WORKSPACE_VISUAL_VALUES.canvasGridMajorEvery,
     lineWidthWorld: 1,
   };
 }

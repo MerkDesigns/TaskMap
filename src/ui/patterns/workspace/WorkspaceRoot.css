@@ -1,0 +1,29 @@
+.taskmap-workspace-root {
+  width: 100%;
+  height: 100%;
+  background: var(--taskmap-void-bg);
+  color: var(--taskmap-text);
+  font-family: var(--taskmap-font-family);
+}
+
+/* Canvas descendants may own large local z-indices. This backdrop-only
+   stacking context keeps all of them below the shared compositor output. */
+.taskmap-workspace-backdrop-layer {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  inset: 0;
+}
+
+/* The compositor owns the bitmap at layer 40. Only workspace chrome belongs in
+   this intentional stacking context; the root and canvas remain outside it. */
+.taskmap-workspace-chrome-layer {
+  position: fixed;
+  z-index: var(--taskmap-layer-workspace-chrome);
+  pointer-events: none;
+  inset: 0;
+}
+
+.taskmap-workspace-chrome-layer > * {
+  pointer-events: auto;
+}

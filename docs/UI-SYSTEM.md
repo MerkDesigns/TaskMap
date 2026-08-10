@@ -22,13 +22,15 @@ feature or TaskMap pattern
   -> compositor public boundary
 ```
 
-- `theme/` owns scoped target tokens. C1 does not apply them to the production root.
+- `theme/` owns scoped target tokens. C2A applies them only to the production workspace root.
 - `materials/` owns surface strategies and compositor integration. Component states are not material
   IDs.
 - `motion/` owns deterministic calculations, reduced-motion preference, and the shared UI frame
   scheduler. It does not import application state, persistence, Redux, domain, or Tauri.
 - `primitives/` owns generic semantic controls, form elements, navigation, layout, and status.
-- `patterns/` will own TaskMap-specific compositions as production needs are migrated in C2/C3.
+- `patterns/` owns TaskMap-specific compositions as production needs are migrated in C2/C3. Its
+  first production boundary is the C2A workspace root, backdrop/chrome layers, and canvas-frame
+  foundation.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
@@ -210,39 +212,40 @@ Nested menus, portals, generalized collision systems, and production menu migrat
 
 ## H. TaskMap canvas patterns
 
-These are cataloged only. C1 does not restyle or migrate canvas production UI.
+These were cataloged in C1. C2A implements only the production canvas frame/grid foundation; canvas
+cards, chrome, minimap, and element presentation remain later work.
 
-| Capability              | Status                    |
-| ----------------------- | ------------------------- |
-| Canvas surface/frame    | Implement during C2       |
-| Canvas browser card     | Implement during C2       |
-| Compact canvas card     | Implement during C2       |
-| Canvas preview          | Implement during C2       |
-| Text-card shell         | Feature-specific Phase 5+ |
-| Container shell         | Feature-specific Phase 5+ |
-| Container header/body   | Feature-specific Phase 5+ |
-| Text-block shell        | Feature-specific Phase 5+ |
-| Image/GIF shell         | Feature-specific Phase 5+ |
-| Mind-map node shell     | Feature-specific Phase 5+ |
-| Connections             | Feature-specific Phase 5+ |
-| Selection outline       | Feature-specific Phase 5+ |
-| Multi-selection outline | Feature-specific Phase 5+ |
-| Resize handles          | Feature-specific Phase 5+ |
-| Snap guides             | Feature-specific Phase 5+ |
-| Alignment guides        | Feature-specific Phase 5+ |
-| Distance indicators     | Feature-specific Phase 5+ |
-| Marquee selection       | Feature-specific Phase 5+ |
-| Drag ghost              | Feature-specific Phase 5+ |
-| Drop target             | Feature-specific Phase 5+ |
-| Insertion indicator     | Feature-specific Phase 5+ |
-| Reparent highlight      | Feature-specific Phase 5+ |
-| Locked indicator        | Feature-specific Phase 5+ |
-| Grid                    | Implement during C2       |
-| Minimap                 | Implement during C2       |
-| Minimap viewport        | Implement during C2       |
-| Zoom indicator          | Implement during C2       |
-| Floating canvas toolbar | Implement during C2       |
-| Creation menu           | Implement during C3       |
+| Capability              | Status                     |
+| ----------------------- | -------------------------- |
+| Canvas surface/frame    | C2A foundation implemented |
+| Canvas browser card     | Implement during C2        |
+| Compact canvas card     | Implement during C2        |
+| Canvas preview          | Implement during C2        |
+| Text-card shell         | Feature-specific Phase 5+  |
+| Container shell         | Feature-specific Phase 5+  |
+| Container header/body   | Feature-specific Phase 5+  |
+| Text-block shell        | Feature-specific Phase 5+  |
+| Image/GIF shell         | Feature-specific Phase 5+  |
+| Mind-map node shell     | Feature-specific Phase 5+  |
+| Connections             | Feature-specific Phase 5+  |
+| Selection outline       | Feature-specific Phase 5+  |
+| Multi-selection outline | Feature-specific Phase 5+  |
+| Resize handles          | Feature-specific Phase 5+  |
+| Snap guides             | Feature-specific Phase 5+  |
+| Alignment guides        | Feature-specific Phase 5+  |
+| Distance indicators     | Feature-specific Phase 5+  |
+| Marquee selection       | Feature-specific Phase 5+  |
+| Drag ghost              | Feature-specific Phase 5+  |
+| Drop target             | Feature-specific Phase 5+  |
+| Insertion indicator     | Feature-specific Phase 5+  |
+| Reparent highlight      | Feature-specific Phase 5+  |
+| Locked indicator        | Feature-specific Phase 5+  |
+| Grid                    | C2A foundation implemented |
+| Minimap                 | Implement during C2        |
+| Minimap viewport        | Implement during C2        |
+| Zoom indicator          | Implement during C2        |
+| Floating canvas toolbar | Implement during C2        |
+| Creation menu           | Implement during C3        |
 
 ## I. Settings patterns
 
