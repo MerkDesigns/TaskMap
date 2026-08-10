@@ -528,6 +528,25 @@ provider, mask-update, or animation-frame ownership and migration leakage into M
 general overlays, or later extension-module work. These tests characterize DOM/material structure
 and behavior, not rendered acrylic pixels or manual visual acceptance.
 
+### Phase 4.5C2F production Minimap coverage
+
+Twenty-one focused cases across the Minimap component, pure projection, workspace composition,
+material-pattern motion, and retained toolbar/panel architecture suites cover this slice. They lock
+one Acrylic Large 12px shell registration, the `192px`/`8px`/`16px` shell geometry, a non-registering
+Cutout 6px interior, the unchanged maximum/aspect/minimum-pixel projection contracts, exact zoom
+rounding, content-owned accent colors, semantic viewport tokens, and the native IconButton reset
+callback. Pointer characterization confirms the map remains reset-only with no click/drag
+navigation.
+
+Deterministic scheduler tests require DOM and per-surface compositor mask opacity to share every
+visibility progress value, settle exactly, stop all work after settlement, and settle immediately
+under reduced motion. The generic compositor coordinator/registry coverage continues to prove that
+these opacity-only base-plane revisions do not request or rebuild the shared backdrop cache. Static
+contracts retain exactly one `WorkspaceChromeLayer` and compositor provider, keep Toast/FPS/Quick
+Extensions/Settings/menus outside the migration, and reject Minimap-local z-index, legacy frosted
+classes, backdrop blur, new cache/runtime/provider ownership, and independent animation frames.
+These tests do not claim pixel-level or manual visual acceptance.
+
 ### Phase 4.5D visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and

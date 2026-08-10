@@ -1,0 +1,55 @@
+.taskmap-minimap-surface {
+  position: absolute;
+  right: var(--taskmap-chrome-inset);
+  bottom: var(--taskmap-chrome-inset);
+  box-sizing: border-box;
+  width: 192px;
+  padding: var(--taskmap-space-2);
+  color: var(--taskmap-text);
+}
+
+.taskmap-minimap-surface[data-visible="false"] {
+  pointer-events: none;
+}
+
+.taskmap-minimap-surface > * {
+  position: relative;
+  z-index: 2;
+}
+
+.taskmap-minimap-header {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  margin-bottom: var(--taskmap-space-1);
+  padding-left: var(--taskmap-space-1);
+}
+
+.taskmap-minimap-zoom {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 600;
+  line-height: var(--taskmap-text-caption-line);
+}
+
+.taskmap-minimap-reset {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+}
+
+.taskmap-minimap-reset svg {
+  width: 14px;
+  height: 14px;
+}
+
+.taskmap-minimap-viewport {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.taskmap-minimap-viewport-indicator {
+  border-color: color-mix(in srgb, var(--taskmap-minimap-viewport) 85%, transparent);
+  background: color-mix(in srgb, var(--taskmap-minimap-element) 10%, transparent);
+}

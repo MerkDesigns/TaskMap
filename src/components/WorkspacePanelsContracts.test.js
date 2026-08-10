@@ -18,20 +18,20 @@ const panelMotionPath = new URL(
 );
 
 describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
-  it("keeps one chrome layer containing only toolbar and non-overlay side panels", async () => {
+  it("keeps one chrome layer containing workspace chrome without overlays", async () => {
     const appSource = await readFile(appPath, "utf8");
     const layerStart = appSource.indexOf("<WorkspaceChromeLayer>");
     const layerEnd = appSource.indexOf("</WorkspaceChromeLayer>", layerStart);
     const layerContents = appSource.slice(layerStart, layerEnd);
 
     expect(appSource.match(/<WorkspaceChromeLayer>/g)).toHaveLength(1);
-    for (const component of ["FloatingToolbar", "CanvasManager", "ExtensionsPanel"]) {
+    for (const component of ["FloatingToolbar", "CanvasManager", "ExtensionsPanel", "Minimap"]) {
       expect(layerContents).toMatch(new RegExp(`<${component}\\b`));
     }
     expect(layerContents).not.toMatch(
-      /<(?:QuickExtensionsMenu|Minimap|SettingsModal|ToastStack|\w*ContextMenu)\b/,
+      /<(?:QuickExtensionsMenu|SettingsModal|ToastStack|\w*ContextMenu)\b/,
     );
-    for (const component of ["QuickExtensionsMenu", "Minimap", "SettingsModal", "ToastStack"]) {
+    for (const component of ["QuickExtensionsMenu", "SettingsModal", "ToastStack"]) {
       expect(appSource.indexOf(`<${component}`, layerEnd)).toBeGreaterThan(layerEnd);
     }
   });

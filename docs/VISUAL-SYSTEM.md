@@ -302,8 +302,20 @@ MaterialSurface. Extension drag does not add compositor mask updates or visual-m
 ### Minimap
 
 - Position: `16px` from right and `16px` from bottom
-- Shell: `188px` width, `8px` padding, `12px` radius
+- Shell: `192px` outer width, `8px` padding, `12px` radius
 - Interior radius: `6px`
+
+Phase 4.5C2F maps the floating shell to one base-plane Acrylic Large surface inside the existing
+layer-41 `WorkspaceChromeLayer`; the projected-map interior is a non-registering Cutout surface.
+The existing `176px` maximum projection size, aspect math, minimum projected pixels, element order,
+content-owned accent colors, and reset-only interaction remain unchanged. The viewport indicator
+uses `--taskmap-minimap-viewport` for its border and `--taskmap-minimap-element` for its wash.
+
+The retained `500ms` visibility duration is driven by the shared UI scheduler. DOM opacity and the
+registered surface's compositor mask opacity use the same normalized progress and settle exactly;
+reduced motion settles immediately. Opacity-only updates revise the cheap base-plane mask output
+without geometry invalidation or shared backdrop-cache rebuilds. App remains authoritative for the
+matching mount/unmount timeout.
 
 ### Settings
 

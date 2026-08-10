@@ -2,6 +2,8 @@ import { IconRotateClockwise } from "@tabler/icons-react";
 import { getTextCardAccent, MINIMAP_MAX_SIZE } from "../constants";
 import { getMindmapConnectionPath, getMindmapPortPoint } from "../mindmapMath";
 import { createMinimapProjection } from "../features/minimap/minimapProjection";
+import { IconButton } from "../ui/primitives";
+import { MinimapSurface, MinimapViewport } from "../ui/patterns/workspace";
 import {
   ContainerElement,
   ImageElement,
@@ -80,24 +82,22 @@ export function Minimap({
   const minimapHeight = projection.size.height;
 
   return (
-    <div
-      className={`frosted-glass fixed bottom-4 right-4 z-20 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/88 p-2 shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm transition-opacity duration-500 ${
-        visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-      }`}
-    >
-      <div className="mb-1 flex items-center gap-2 pl-1 text-[11px] font-medium text-white/70">
-        <span>{Math.round(zoom * 100)}%</span>
-        <button
-          className="pointer-events-auto grid h-5 w-5 place-items-center rounded text-white/45 hover:bg-white/[0.10] hover:text-white/75"
+    <MinimapSurface visible={visible}>
+      <div className="taskmap-minimap-header">
+        <span className="taskmap-minimap-zoom">{Math.round(zoom * 100)}%</span>
+        <IconButton
+          className="taskmap-minimap-reset"
+          variant="ghost"
+          size="compact"
+          aria-label="Reset zoom"
           onClick={onResetZoom}
           title="Reset zoom"
-        >
-          <IconRotateClockwise size={14} stroke={2} />
-        </button>
+          icon={<IconRotateClockwise size={14} stroke={2} />}
+        />
       </div>
-      <div
-        className="pointer-events-none relative overflow-hidden rounded-md"
+      <MinimapViewport
         style={{ width: minimapWidth, height: minimapHeight }}
+        data-minimap-viewport-surface
       >
         <svg
           className="absolute inset-0 overflow-visible"
@@ -128,6 +128,8 @@ export function Minimap({
           <div
             key={element.id}
             className="absolute rounded-[2px] border"
+            data-minimap-element="container"
+            data-minimap-id={element.id}
             style={{
               left: projection.elements.get(element.id)?.x,
               top: projection.elements.get(element.id)?.y,
@@ -142,6 +144,8 @@ export function Minimap({
           <div
             key={element.id}
             className="absolute rounded-[2px] border"
+            data-minimap-element="text-block"
+            data-minimap-id={element.id}
             style={{
               left: projection.elements.get(element.id)?.x,
               top: projection.elements.get(element.id)?.y,
@@ -159,6 +163,8 @@ export function Minimap({
             <div
               key={card.id}
               className="absolute rounded-[2px] border"
+              data-minimap-element="text-card"
+              data-minimap-id={card.id}
               style={{
                 left: bounds?.x,
                 top: bounds?.y,
@@ -174,6 +180,8 @@ export function Minimap({
           <div
             key={image.id}
             className="absolute rounded-[2px] border"
+            data-minimap-element="image"
+            data-minimap-id={image.id}
             style={{
               left: projection.elements.get(image.id)?.x,
               top: projection.elements.get(image.id)?.y,
@@ -185,7 +193,8 @@ export function Minimap({
           />
         ))}
         <div
-          className="absolute rounded-[2px] border border-[#c8dae8]/85 bg-[#7aa2c8]/10"
+          className="taskmap-minimap-viewport-indicator absolute rounded-[2px] border"
+          data-minimap-viewport-indicator
           style={{
             left: projection.viewport.x,
             top: projection.viewport.y,
@@ -193,7 +202,7 @@ export function Minimap({
             height: projection.viewport.height,
           }}
         />
-      </div>
-    </div>
+      </MinimapViewport>
+    </MinimapSurface>
   );
 }

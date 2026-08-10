@@ -138,6 +138,7 @@ import {
 import type { MaterialCompositorPresentationPublisher } from "./ui/materials/materialCompositorPresentation";
 import {
   CanvasFrame,
+  MINIMAP_VISIBILITY_DURATION_MS,
   WorkspaceBackdropLayer,
   WorkspaceChromeLayer,
   WorkspaceRoot,
@@ -262,7 +263,6 @@ const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const CANVAS_MANAGER_ANIMATION_MS = 120;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
-const MINIMAP_FADE_MS = 500;
 const CLEAR_HISTORY_TRANSACTION = "clear-canvas";
 const DELETE_HISTORY_TRANSACTION = "delete-selection";
 const imageHistoryTransaction = (imageId: string) => `image:${imageId}`;
@@ -1615,7 +1615,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       minimapUnmountTimeoutRef.current = window.setTimeout(() => {
         setMinimapMounted(false);
         minimapUnmountTimeoutRef.current = null;
-      }, MINIMAP_FADE_MS);
+      }, MINIMAP_VISIBILITY_DURATION_MS);
     }, 2200);
   };
 
@@ -6501,6 +6501,21 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   />
                 </Suspense>
               )}
+              {minimapEnabled && minimapMounted && (
+                <Minimap
+                  elements={elements}
+                  textBlocks={textBlocks}
+                  textCards={looseTextCards}
+                  images={looseImages}
+                  mindmapConnections={mindmapConnections}
+                  canvasWidth={canvasWidth}
+                  canvasHeight={canvasHeight}
+                  visible={minimapVisible}
+                  zoom={zoom}
+                  viewportWorld={minimapViewportWorld}
+                  onResetZoom={resetZoom}
+                />
+              )}
             </WorkspaceChromeLayer>
             {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
               <Suspense fallback={null}>
@@ -7501,22 +7516,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
             )}
 
             <ToastStack toasts={toasts} onDismiss={dismissToast} />
-
-            {minimapEnabled && minimapMounted && (
-              <Minimap
-                elements={elements}
-                textBlocks={textBlocks}
-                textCards={looseTextCards}
-                images={looseImages}
-                mindmapConnections={mindmapConnections}
-                canvasWidth={canvasWidth}
-                canvasHeight={canvasHeight}
-                visible={minimapVisible}
-                zoom={zoom}
-                viewportWorld={minimapViewportWorld}
-                onResetZoom={resetZoom}
-              />
-            )}
           </section>
         </div>
       </WorkspaceRoot>

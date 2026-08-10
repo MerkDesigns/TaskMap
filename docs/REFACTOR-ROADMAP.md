@@ -234,6 +234,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
       controls, extension cards/icon boxes, favorites, sections, and empty state to C1 primitives
       plus Acrylic Small/Cutout patterns while preserving filtering, localStorage, ordering,
       drag/drop, embedded zero-acrylic behavior, and legacy Quick/tooltip/filter overlay ownership.
+- [x] **C2F production Minimap presentation:** move only the reset-only Minimap into the shared
+      workspace-chrome layer; migrate its shell/interior/reset control to Acrylic Large, Cutout,
+      and IconButton; synchronize DOM and compositor mask opacity while preserving projection,
+      semantic spatial colors, App lifecycle ownership, and zero navigation behavior.
 - [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
@@ -243,10 +247,11 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 
 C1 deliberately leaves the production root and production consumers unchanged. C2A migrates the
 scoped root and canvas frame/grid presentation, C2B migrates the floating toolbar, C2C migrates the
-outer side-panel shells/header/scroll framing, and C2D migrates only Canvas Browser card, preview,
-editor, and reorder/drag presentation. C2E migrates only the primary Extensions panel internals.
-Quick Extensions, its shared info tooltip, filter overlay shell, Settings, minimap, creation UI,
-menus, dialogs, toasts, and canvas elements remain unchanged for later C2/C3/Phase 5 slices.
+outer side-panel shells/header/scroll framing, C2D migrates only Canvas Browser card, preview,
+editor, and reorder/drag presentation, C2E migrates only the primary Extensions panel internals,
+and C2F migrates only the production Minimap presentation. Quick Extensions, its shared info
+tooltip, filter overlay shell, Settings, creation UI, menus, dialogs, toasts, and canvas elements
+remain unchanged for later C2/C3/Phase 5 slices.
 Completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance

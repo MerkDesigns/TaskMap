@@ -37,8 +37,9 @@ feature or TaskMap pattern
   primitives while leaving Canvas Manager behavior, preview projection, and portal ownership in
   the feature. C2E adds `ExtensionBrowserCard`/`ExtensionIconBox` and composes the primary
   Extensions panel search/filter/favorite controls from C1 primitives. Quick Extensions, the shared
-  info tooltip, the legacy filter portal shell, minimap, Settings, and general overlays remain
-  unmigrated.
+  info tooltip, and the legacy filter portal shell remain unmigrated. C2F adds the reset-only
+  `MinimapSurface`/`MinimapViewport` production pattern while leaving projection and visibility
+  lifecycle ownership in the feature/App. Settings and general overlays remain unmigrated.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
@@ -250,9 +251,9 @@ presentation remain later work.
 | Reparent highlight      | Feature-specific Phase 5+  |
 | Locked indicator        | Feature-specific Phase 5+  |
 | Grid                    | C2A foundation implemented |
-| Minimap                 | Implement during C2        |
-| Minimap viewport        | Implement during C2        |
-| Zoom indicator          | Implement during C2        |
+| Minimap                 | C2F foundation implemented |
+| Minimap viewport        | C2F foundation implemented |
+| Zoom indicator          | C2F foundation implemented |
 | Floating canvas toolbar | C2B foundation implemented |
 | Creation menu           | Implement during C3        |
 
@@ -260,6 +261,11 @@ The C2E Extensions Browser pattern maps primary non-embedded extension cards to 
 embedded cards to Opaque, with Cutout icon boxes in both modes. It owns presentation only; registry
 ordering, filtering, favorites/localStorage, drag/drop callbacks, and overlay lifecycles remain in
 their existing feature owners. The body drag preview remains a plain unregistered representation.
+
+The C2F Minimap pattern maps the floating production shell to one base-plane Acrylic Large surface
+and its interior to non-registering Cutout. Its opacity-only visibility motion synchronizes DOM and
+compositor mask opacity through the shared scheduler; App retains enable/mount/unmount timing, and
+the feature retains the pure projection plus reset-only interaction contract.
 
 ## I. Settings patterns
 

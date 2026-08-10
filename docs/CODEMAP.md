@@ -111,7 +111,8 @@ migration debt until Phase 4.5C/4.5D.
 - `src/legacy/interactions/` — temporary production-only TaskCanvas geometry mapping, render preview,
   and semantic commit adapter. New feature/domain modules must not import it; Phase 5 deletes it as
   normalized element ownership migrates.
-- `src/components/Minimap.tsx` — retained reset-only minimap presentation consuming the projection.
+- `src/components/Minimap.tsx` — retained reset-only minimap feature presentation consuming the
+  unchanged projection and the C2F workspace pattern.
 - `src/App.tsx` — still the legacy feature/render composition boundary, but no longer owns generic
   pan, zoom, box selection, movement, resize, snapping, layer, culling, or minimap projection
   algorithms.
@@ -124,6 +125,9 @@ migration debt until Phase 4.5C/4.5D.
   scheduler, reduced-motion preference, liquid-edge model, and local FLIP utilities.
 - `src/ui/primitives/` — C1 semantic button, selection, form, navigation, layout, status, and liquid
   indicator/tab primitives with scoped shared styling.
+- `src/ui/patterns/workspace/MinimapSurface.tsx` and `useMinimapVisibilityMotion.ts` — C2F Acrylic
+  Large/Cutout presentation plus shared-scheduler DOM/compositor mask-opacity fidelity; no
+  projection, persistence, or navigation ownership.
 - `src/ui/dev/DevelopmentUiLab.tsx` — opt-in development catalog using real materials and motion;
   dynamically excluded unless both the development build and explicit environment flag are active.
 - `src/ui/materials/materialTypes.ts` and `materialDefinitions.ts` — minimal discriminated material
@@ -340,7 +344,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/settings/recent_databases.rs`                           |   193 | Rust backend module                                                                     |
 | `src-tauri/src/storage.rs`                                             |   722 | Rust backend module                                                                     |
 | `src-tauri/src/window_state.rs`                                        |   105 | Clamp the saved geometry so the window can never restore off-screen or                  |
-| `src/App.tsx`                                                          |  7528 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
+| `src/App.tsx`                                                          |  7527 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
 | `src/app/appData.test.ts`                                              |   355 | Tests for the adjacent module                                                           |
 | `src/app/appData.ts`                                                   |   299 | TypeScript application module                                                           |
 | `src/app/appDataSchema.ts`                                             |   274 | TypeScript application module                                                           |
@@ -411,7 +415,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ContextMenus.test.tsx`                                 |   224 | Tests for the adjacent module                                                           |
 | `src/components/ContextMenus.tsx`                                      |  1144 | React component or typed UI module                                                      |
 | `src/components/ExtensionDropEffect.tsx`                               |   203 | React component or typed UI module                                                      |
-| `src/components/ExtensionsPanel.test.tsx`                              |   293 | Tests for the adjacent module                                                           |
+| `src/components/ExtensionsPanel.test.tsx`                              |   300 | Tests for the adjacent module                                                           |
 | `src/components/ExtensionsPanel.tsx`                                   |   576 | React component or typed UI module                                                      |
 | `src/components/FloatingToolbar.test.tsx`                              |   163 | Tests for the adjacent module                                                           |
 | `src/components/FloatingToolbar.tsx`                                   |   195 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
@@ -423,7 +427,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/MindmapConnections.tsx`                                |   109 | React component or typed UI module                                                      |
 | `src/components/MindmapConnectors.test.tsx`                            |    30 | Tests for the adjacent module                                                           |
 | `src/components/MindmapConnectors.tsx`                                 |    56 | React component or typed UI module                                                      |
-| `src/components/Minimap.tsx`                                           |   200 | React component or typed UI module                                                      |
+| `src/components/Minimap.test.tsx`                                      |   154 | Tests for the adjacent module                                                           |
+| `src/components/Minimap.tsx`                                           |   209 | React component or typed UI module                                                      |
 | `src/components/Modals.test.tsx`                                       |    99 | Tests for the adjacent module                                                           |
 | `src/components/Modals.tsx`                                            |   941 | React component or typed UI module                                                      |
 | `src/components/TextBlockNode.tsx`                                     |   561 | React component or typed UI module                                                      |
@@ -651,7 +656,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/ExtensionBrowserCard.tsx`                   |    37 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                  |    37 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/index.ts`                                   |     7 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/index.ts`                                   |     9 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/MinimapSurface.test.tsx`                    |   147 | One pending shared frame advances all active subscribers.                               |
+| `src/ui/patterns/workspace/MinimapSurface.tsx`                         |    56 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/useMinimapVisibilityMotion.ts`              |    60 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    85 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |
