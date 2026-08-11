@@ -1,0 +1,51 @@
+.taskmap-liquid-dom-root {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.taskmap-liquid-dom-canvas-host,
+.taskmap-liquid-dom-canvas,
+.taskmap-liquid-dom-fallback-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.taskmap-liquid-dom-canvas-host {
+  z-index: 2;
+}
+
+.taskmap-liquid-dom-root[data-liquid-dom-state="fallback"] .taskmap-liquid-dom-canvas-host {
+  display: none;
+}
+
+.taskmap-liquid-dom-canvas {
+  display: block;
+}
+
+.taskmap-liquid-dom-backdrop-content,
+.taskmap-liquid-material-content {
+  width: 100%;
+  height: 100%;
+}
+
+.taskmap-liquid-dom-fallback-backdrop {
+  z-index: 0;
+}
+
+.taskmap-liquid-material-surface {
+  position: relative;
+  z-index: 1;
+}
+
+.taskmap-liquid-dom-root[data-liquid-dom-state="active"] .taskmap-liquid-material-surface {
+  visibility: hidden;
+}
+
+.taskmap-liquid-dom-root[data-liquid-dom-state="fallback"] .taskmap-liquid-material-surface {
+  background: rgb(24 28 36 / 88%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 30%);
+}

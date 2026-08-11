@@ -7,6 +7,12 @@ export default defineConfig({
   css: {
     postcss: "./config",
   },
+  // @liquid-dom/core is patched after installation for WebView2's current
+  // CanvasDrawElement copy signature. Serving it directly prevents Vite from
+  // retaining an obsolete optimized copy across installs.
+  optimizeDeps: {
+    exclude: ["@liquid-dom/core"],
+  },
   server: {
     host: "127.0.0.1",
     port: 1420,

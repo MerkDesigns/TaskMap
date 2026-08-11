@@ -1,0 +1,216 @@
+.liquid-dom-fixture {
+  min-height: 100vh;
+  background: #080b12;
+  color: #f5f7fb;
+}
+
+.liquid-dom-fixture__stage {
+  min-height: 100vh;
+  padding: 48px;
+}
+
+.liquid-dom-fixture__backdrop {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background: #0b1020;
+}
+
+.liquid-dom-fixture__backdrop[data-panning="true"] {
+  cursor: grabbing;
+}
+
+.liquid-dom-fixture__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 170%;
+  height: 170%;
+  transform-origin: 0 0;
+  will-change: transform;
+  background:
+    radial-gradient(circle at 20% 30%, #8a3ffc 0, transparent 34%),
+    radial-gradient(circle at 78% 68%, #00a7c4 0, transparent 30%),
+    linear-gradient(135deg, #101529, #19112c 52%, #071d24);
+}
+
+.liquid-dom-fixture__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 13%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 13%) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+.liquid-dom-fixture__backdrop-copy {
+  position: absolute;
+  top: 19%;
+  left: -4%;
+  margin: 0;
+  color: rgb(255 255 255 / 82%);
+  font-size: clamp(28px, 4vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  animation: liquid-dom-copy-drift 8s ease-in-out infinite alternate;
+}
+
+.liquid-dom-fixture__moving-orbit {
+  position: absolute;
+  top: 54%;
+  left: 12%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #ff477e;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 34%);
+  color: #fff;
+  font-weight: 700;
+  animation: liquid-dom-orbit 6s ease-in-out infinite alternate;
+}
+
+.liquid-dom-fixture__moving-orbit img {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+
+.liquid-dom-fixture__backdrop-image {
+  position: absolute;
+  right: 8%;
+  bottom: 8%;
+  width: min(24vw, 260px);
+  filter: drop-shadow(0 24px 38px rgb(0 0 0 / 42%));
+  animation: liquid-dom-image-float 5s ease-in-out infinite alternate;
+}
+
+.liquid-dom-fixture__heading,
+.liquid-dom-fixture__note {
+  position: absolute;
+  z-index: 0;
+}
+
+.liquid-dom-fixture__heading {
+  top: 48px;
+  left: 48px;
+  max-width: 720px;
+}
+
+.liquid-dom-fixture__heading h1 {
+  margin: 12px 0 6px;
+}
+
+.liquid-dom-fixture__surfaces {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 42px;
+  margin-top: 148px;
+}
+
+.liquid-dom-fixture__surface {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.liquid-dom-fixture__surface--large {
+  width: min(520px, 52vw);
+  height: 330px;
+  border-radius: 34px;
+}
+
+.liquid-dom-fixture__surface--small {
+  width: min(300px, 32vw);
+  height: 240px;
+  margin-top: 74px;
+  border-radius: 24px;
+}
+
+.liquid-dom-fixture__note {
+  bottom: 28px;
+  left: 48px;
+  max-width: 720px;
+  color: rgb(255 255 255 / 68%);
+}
+
+.liquid-dom-fixture__navigation-hint {
+  position: absolute;
+  right: 24px;
+  top: 20px;
+  z-index: 1;
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 999px;
+  background: rgb(8 11 18 / 84%);
+  color: rgb(255 255 255 / 78%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+@keyframes liquid-dom-copy-drift {
+  to {
+    transform: translateX(12vw);
+  }
+}
+
+@keyframes liquid-dom-orbit {
+  to {
+    transform: translate(58vw, 90px) rotate(5deg);
+  }
+}
+
+@keyframes liquid-dom-image-float {
+  to {
+    transform: translate(-54px, -42px) rotate(-7deg);
+  }
+}
+
+@media (max-width: 760px) {
+  .liquid-dom-fixture__stage {
+    padding: 24px;
+  }
+
+  .liquid-dom-fixture__heading {
+    top: 24px;
+    left: 24px;
+  }
+
+  .liquid-dom-fixture__surfaces {
+    flex-direction: column;
+  }
+
+  .liquid-dom-fixture__surface--large,
+  .liquid-dom-fixture__surface--small {
+    width: 100%;
+  }
+
+  .liquid-dom-fixture__surface--small {
+    margin-top: 0;
+  }
+
+  .liquid-dom-fixture__note {
+    right: 24px;
+    bottom: 16px;
+    left: 24px;
+  }
+
+  .liquid-dom-fixture__navigation-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-dom-fixture__backdrop-copy,
+  .liquid-dom-fixture__moving-orbit,
+  .liquid-dom-fixture__backdrop-image {
+    animation-duration: 20s;
+  }
+}

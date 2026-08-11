@@ -69,6 +69,14 @@ export function findMaterialArchitectureViolations(entries) {
   const violations = [];
 
   for (const { path, source } of entries) {
+    const importsLiquidDomDirectly =
+      /(?:from\s+|import\s*\(\s*)["']@liquid-dom\/core(?:\/[^"']*)?["']/.test(source);
+    if (importsLiquidDomDirectly && path !== "src/ui/materials/liquid-dom/liquidDomRuntime.ts") {
+      violations.push(
+        `${path}: @liquid-dom/core may only be instantiated by the shared Liquid DOM runtime`,
+      );
+    }
+
     for (const rule of MATERIAL_PATTERNS) {
       const count = matchCount(source, rule.expression);
       const allowed = rule.allowance[path] ?? 0;

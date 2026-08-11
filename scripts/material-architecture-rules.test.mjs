@@ -30,6 +30,30 @@ describe("transitional material architecture rules", () => {
     ]);
   });
 
+  it("rejects direct Liquid DOM imports outside the shared runtime", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        {
+          path: "src/features/example/Panel.tsx",
+          source: 'import { Glass } from "@liquid-dom/core";',
+        },
+      ]),
+    ).toEqual([
+      "src/features/example/Panel.tsx: @liquid-dom/core may only be instantiated by the shared Liquid DOM runtime",
+    ]);
+  });
+
+  it("accepts the shared Liquid DOM runtime dependency", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        {
+          path: "src/ui/materials/liquid-dom/liquidDomRuntime.ts",
+          source: 'import { Glass } from "@liquid-dom/core";',
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it("rejects a new Tailwind backdrop-blur utility", () => {
     expect(
       findMaterialArchitectureViolations([

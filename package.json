@@ -11,6 +11,7 @@
     "trailingComma": "all"
   },
   "scripts": {
+    "postinstall": "node scripts/apply-liquid-dom-webview2-patch.mjs",
     "dev": "vite --config config/vite.config.ts --host 127.0.0.1 --port 1420",
     "dev:phase2": "vite --mode phase2 --config config/vite.config.ts --host 127.0.0.1 --port 1420",
     "build": "tsc --noEmit -p config/tsconfig.json && vite build --config config/vite.config.ts",
@@ -36,6 +37,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@liquid-dom/core": "0.1.1",
     "@mantine/core": "8.3.18",
     "@mantine/hooks": "8.3.18",
     "@reduxjs/toolkit": "^2.12.0",

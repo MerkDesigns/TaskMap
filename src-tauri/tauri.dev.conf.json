@@ -12,7 +12,8 @@
     },
     "windows": [
       {
-        "title": "taskmap"
+        "title": "taskmap",
+        "additionalBrowserArgs": "--enable-features=CanvasDrawElement --enable-blink-features=CanvasDrawElement --enable-experimental-web-platform-features"
       }
     ]
   },

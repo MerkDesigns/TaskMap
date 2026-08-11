@@ -1,0 +1,627 @@
+﻿===== scripts\apply-liquid-dom-webview2-patch.mjs =====
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const PATCH_MARKER = "/* taskmap-liquid-dom-webview2-151-patch:v1 */";
+const TARGETS = [
+  "node_modules/@liquid-dom/core/dist/index.js",
+  "node_modules/@liquid-dom/core/dist/index.cjs",
+];
+
+const COPY_CALLS = [
+  {
+    label: "scene HTML texture copy",
+    texture: "entry.texture",
+  },
+  {
+    label: "glass HTML texture copy",
+    texture: "entry.sourceTexture",
+  },
+];
+
+function replaceCopyCall(source, { label, texture }, includeMarker) {
+  const original = `this.device.queue.copyElementImageToTexture(
+          entry.html.host,
+          entry.deviceWidth,
+          entry.deviceHeight,
+          { texture: ${texture} }
+        );`;
+  const replacement = `${includeMarker ? `${PATCH_MARKER}\n        ` : ""}this.device.queue.copyElementImageToTexture(
+          { source: entry.html.host },
+          {
+            destination: { texture: ${texture} },
+            width: entry.deviceWidth,
+            height: entry.deviceHeight
+          }
+        );`;
+  const first = source.indexOf(original);
+  if (first < 0 || source.indexOf(original, first + original.length) >= 0) {
+    throw new Error(`Could not find one unambiguous ${label}; @liquid-dom/core may have changed.`);
+  }
+  return source.slice(0, first) + replacement + source.slice(first + original.length);
+}
+
+for (const target of TARGETS) {
+  const path = resolve(target);
+  let source = await readFile(path, "utf8");
+  if (source.includes(PATCH_MARKER)) {
+    console.log(`Liquid DOM WebView2 patch already applied: ${target}`);
+    continue;
+  }
+
+  source = COPY_CALLS.reduce(
+    (current, copyCall, index) => replaceCopyCall(current, copyCall, index === 0),
+    source,
+  );
+  await writeFile(path, source, "utf8");
+  console.log(`Applied Liquid DOM WebView2 patch: ${target}`);
+}
+
+===== src\ui\materials\liquid-dom\liquidDomRuntime.ts =====
+import { Container, Glass, Html, Renderer, Scene } from "@liquid-dom/core";
+import { LIQUID_MATERIAL_OPTICS, type LiquidMaterialRole } from "./materialRoles";
+
+export interface LiquidSurfaceRegistration {
+  readonly contentHost: HTMLDivElement;
+  sync(anchor: HTMLElement, root: HTMLElement): void;
+  dispose(): void;
+}
+
+export interface LiquidDomRuntime {
+  readonly backdropHost: HTMLDivElement;
+  readonly canvas: HTMLCanvasElement;
+  registerSurface(role: LiquidMaterialRole): LiquidSurfaceRegistration;
+  syncBackdrop(root: HTMLElement): void;
+  render(): void;
+  destroy(): void;
+}
+
+function readCornerRadius(element: HTMLElement): number {
+  const value = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function supportsLiquidDomRuntime(): boolean {
+  const webGpuGlobals = globalThis as typeof globalThis & {
+    GPUQueue?: { prototype?: { copyElementImageToTexture?: unknown } };
+  };
+  return (
+    typeof navigator !== "undefined" &&
+    "gpu" in navigator &&
+    typeof webGpuGlobals.GPUQueue?.prototype?.copyElementImageToTexture === "function"
+  );
+}
+
+export function createLiquidDomRuntime(): LiquidDomRuntime {
+  const scene = new Scene();
+  const backdropElement = document.createElement("div");
+  backdropElement.className = "taskmap-liquid-dom-backdrop-content";
+  const backdrop = scene.add(new Html({ zIndex: -1, element: backdropElement }));
+  const containers: Record<LiquidMaterialRole, Container> = {
+    "large-panel": scene.add(new Container(LIQUID_MATERIAL_OPTICS["large-panel"])),
+    "small-panel": scene.add(new Container(LIQUID_MATERIAL_OPTICS["small-panel"])),
+  };
+  const renderer = new Renderer({ scene, maxDpr: 2 });
+
+  renderer.canvas.className = "taskmap-liquid-dom-canvas";
+
+  return {
+    backdropHost: backdropElement,
+    canvas: renderer.canvas,
+    registerSurface(role) {
+      // The Html host owns interaction when a surface contains normal DOM controls.
+      // Renderer-side SDF pointer events are reserved for content-free glass shapes.
+      const glass = containers[role].add(new Glass({ cornerSmoothing: 0.6, pointerEvents: false }));
+      const contentElement = document.createElement("div");
+      contentElement.className = "taskmap-liquid-material-content";
+      const content = glass.add(new Html({ element: contentElement }));
+
+      return {
+        contentHost: contentElement,
+        sync(anchor, root) {
+          const anchorRect = anchor.getBoundingClientRect();
+          const rootRect = root.getBoundingClientRect();
+          glass.x = anchorRect.left - rootRect.left;
+          glass.y = anchorRect.top - rootRect.top;
+          glass.width = anchorRect.width;
+          glass.height = anchorRect.height;
+          glass.cornerRadius = readCornerRadius(anchor);
+          content.width = anchorRect.width;
+          content.height = anchorRect.height;
+        },
+        dispose() {
+          content.remove();
+          glass.remove();
+        },
+      };
+    },
+    syncBackdrop(root) {
+      const rect = root.getBoundingClientRect();
+      backdrop.width = rect.width;
+      backdrop.height = rect.height;
+    },
+    render() {
+      renderer.render();
+    },
+    destroy() {
+      renderer.destroy();
+    },
+  };
+}
+
+===== src\ui\materials\liquid-dom\LiquidDomRoot.tsx =====
+import {
+  type HTMLAttributes,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { LiquidDomContext } from "./liquidDomContext";
+import {
+  createLiquidDomRuntime,
+  supportsLiquidDomRuntime,
+  type LiquidDomRuntime,
+} from "./liquidDomRuntime";
+import "./LiquidDomBoundary.css";
+
+export interface LiquidDomRootProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+  readonly backdrop: ReactNode;
+  readonly children: ReactNode;
+}
+
+function joinClassNames(...values: Array<string | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
+
+export function LiquidDomRoot({ backdrop, children, className, ...props }: LiquidDomRootProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const canvasHostRef = useRef<HTMLDivElement>(null);
+  const [runtime, setRuntime] = useState<LiquidDomRuntime | null>(null);
+  const [runtimeFailed, setRuntimeFailed] = useState(false);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const canvasHost = canvasHostRef.current;
+    if (!root || !canvasHost || !supportsLiquidDomRuntime()) {
+      return;
+    }
+
+    let nextRuntime: LiquidDomRuntime;
+    try {
+      nextRuntime = createLiquidDomRuntime();
+    } catch {
+      setRuntimeFailed(true);
+      return;
+    }
+    canvasHost.append(nextRuntime.canvas);
+    nextRuntime.syncBackdrop(root);
+    setRuntime(nextRuntime);
+
+    const syncBackdrop = () => nextRuntime.syncBackdrop(root);
+    const resizeObserver = new ResizeObserver(syncBackdrop);
+    resizeObserver.observe(root);
+
+    return () => {
+      resizeObserver.disconnect();
+      nextRuntime.destroy();
+      nextRuntime.canvas.remove();
+      setRuntime(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!runtime) {
+      return;
+    }
+
+    let frame = 0;
+    let stopped = false;
+    const renderFrame = () => {
+      if (stopped) {
+        return;
+      }
+      try {
+        runtime.render();
+        frame = requestAnimationFrame(renderFrame);
+      } catch {
+        setRuntimeFailed(true);
+      }
+    };
+    frame = requestAnimationFrame(renderFrame);
+
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [runtime]);
+
+  const activeRuntime = runtimeFailed ? null : runtime;
+  const contextValue = useMemo(
+    () => ({ root: rootRef.current, runtime: activeRuntime }),
+    [activeRuntime],
+  );
+  const state = activeRuntime ? "active" : "fallback";
+
+  return (
+    <div
+      {...props}
+      ref={rootRef}
+      className={joinClassNames("taskmap-liquid-dom-root", className)}
+      data-liquid-dom-state={state}
+    >
+      {activeRuntime ? (
+        createPortal(backdrop, activeRuntime.backdropHost)
+      ) : (
+        <div className="taskmap-liquid-dom-fallback-backdrop">{backdrop}</div>
+      )}
+      <LiquidDomContext.Provider value={contextValue}>{children}</LiquidDomContext.Provider>
+      <div ref={canvasHostRef} className="taskmap-liquid-dom-canvas-host" />
+    </div>
+  );
+}
+
+===== src\ui\materials\liquid-dom\LiquidMaterialSurface.tsx =====
+import {
+  type HTMLAttributes,
+  type ReactNode,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { LiquidDomContext } from "./liquidDomContext";
+import type { LiquidSurfaceRegistration } from "./liquidDomRuntime";
+import type { LiquidMaterialRole } from "./materialRoles";
+
+export interface LiquidMaterialSurfaceProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  "children"
+> {
+  readonly role: LiquidMaterialRole;
+  readonly children: ReactNode;
+}
+
+function joinClassNames(...values: Array<string | undefined>): string {
+  return values.filter(Boolean).join(" ");
+}
+
+export function LiquidMaterialSurface({
+  role,
+  children,
+  className,
+  ...props
+}: LiquidMaterialSurfaceProps) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const { root, runtime } = useContext(LiquidDomContext);
+  const [registration, setRegistration] = useState<LiquidSurfaceRegistration | null>(null);
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor || !root || !runtime) {
+      return;
+    }
+
+    const nextRegistration = runtime.registerSurface(role);
+    const sync = () => nextRegistration.sync(anchor, root);
+    sync();
+    setRegistration(nextRegistration);
+
+    const resizeObserver = new ResizeObserver(sync);
+    resizeObserver.observe(anchor);
+    resizeObserver.observe(root);
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+      setRegistration(null);
+      nextRegistration.dispose();
+    };
+  }, [role, root, runtime]);
+
+  return (
+    <div
+      {...props}
+      ref={anchorRef}
+      className={joinClassNames("taskmap-liquid-material-surface", className)}
+      data-liquid-material-role={role}
+    >
+      {registration ? createPortal(children, registration.contentHost) : children}
+    </div>
+  );
+}
+
+===== src\ui\materials\liquid-dom\materialRoles.ts =====
+export type LiquidMaterialRole = "large-panel" | "small-panel";
+
+export interface LiquidMaterialOptics {
+  readonly blur: number;
+  readonly bezelWidth: number;
+  readonly thickness: number;
+  readonly displacementFactor: number;
+  readonly displacementBlur: number;
+  readonly ior: number;
+  readonly specularStrength: number;
+  readonly specularOpacity: number;
+  readonly tint: Readonly<{ r: number; g: number; b: number; a: number }>;
+  readonly shadowColor: Readonly<{ r: number; g: number; b: number; a: number }>;
+  readonly shadowOffsetY: number;
+  readonly shadowBlur: number;
+}
+
+// Initial proof values only. The visual-system acceptance pass will tune these after
+// WebView2 validation. Geometry and layout deliberately do not belong to a role.
+export const LIQUID_MATERIAL_OPTICS: Readonly<Record<LiquidMaterialRole, LiquidMaterialOptics>> =
+  Object.freeze({
+    "large-panel": Object.freeze({
+      blur: 18,
+      bezelWidth: 18,
+      thickness: 90,
+      displacementFactor: 1,
+      displacementBlur: 6,
+      ior: 1.5,
+      specularStrength: 0.9,
+      specularOpacity: 0.42,
+      tint: Object.freeze({ r: 0.08, g: 0.09, b: 0.12, a: 0.38 }),
+      shadowColor: Object.freeze({ r: 0, g: 0, b: 0, a: 0.3 }),
+      shadowOffsetY: 12,
+      shadowBlur: 28,
+    }),
+    "small-panel": Object.freeze({
+      blur: 12,
+      bezelWidth: 12,
+      thickness: 64,
+      displacementFactor: 0.85,
+      displacementBlur: 4,
+      ior: 1.45,
+      specularStrength: 0.8,
+      specularOpacity: 0.38,
+      tint: Object.freeze({ r: 0.09, g: 0.1, b: 0.13, a: 0.42 }),
+      shadowColor: Object.freeze({ r: 0, g: 0, b: 0, a: 0.26 }),
+      shadowOffsetY: 8,
+      shadowBlur: 20,
+    }),
+  });
+
+===== src\ui\dev\LiquidDomVerificationFixture.tsx =====
+import { Badge, Button, Group, Select, Stack, Text, TextInput, Title } from "@mantine/core";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { LiquidDomRoot, LiquidMaterialSurface } from "../materials/liquid-dom";
+import "./LiquidDomVerificationFixture.css";
+
+interface FixtureViewport {
+  panX: number;
+  panY: number;
+  zoom: number;
+  drag: null | {
+    pointerId: number;
+    clientX: number;
+    clientY: number;
+    panX: number;
+    panY: number;
+  };
+}
+
+function InteractiveDomBackdrop() {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  const zoomLabelRef = useRef<HTMLSpanElement>(null);
+  const viewportRef = useRef<FixtureViewport>({ panX: 0, panY: 0, zoom: 1, drag: null });
+
+  const applyViewport = useCallback(() => {
+    const world = worldRef.current;
+    const zoomLabel = zoomLabelRef.current;
+    const viewport = viewportRef.current;
+    if (world) {
+      world.style.transform = `translate3d(${viewport.panX}px, ${viewport.panY}px, 0) scale(${viewport.zoom})`;
+    }
+    if (zoomLabel) {
+      zoomLabel.textContent = `${Math.round(viewport.zoom * 100)}%`;
+    }
+  }, []);
+
+  useLayoutEffect(applyViewport, [applyViewport]);
+
+  useEffect(() => {
+    const belongsToBackdropCanvas = (event: Event) => {
+      const backdrop = backdropRef.current;
+      const target = event.target instanceof Element ? event.target : null;
+      if (!backdrop || target?.closest(".taskmap-liquid-material-content")) {
+        return false;
+      }
+      const canvas = backdrop.closest("canvas");
+      return Boolean(
+        target && (backdrop.contains(target) || (canvas && event.composedPath().includes(canvas))),
+      );
+    };
+    const startPan = (event: PointerEvent) => {
+      if (!belongsToBackdropCanvas(event) || (event.button !== 0 && event.button !== 1)) {
+        return;
+      }
+      event.preventDefault();
+      const viewport = viewportRef.current;
+      viewport.drag = {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        panX: viewport.panX,
+        panY: viewport.panY,
+      };
+      backdropRef.current?.setPointerCapture?.(event.pointerId);
+      if (backdropRef.current) {
+        backdropRef.current.dataset.panning = "true";
+      }
+    };
+    const stopPan = (event: PointerEvent) => {
+      const viewport = viewportRef.current;
+      if (viewport.drag?.pointerId === event.pointerId) {
+        viewport.drag = null;
+        backdropRef.current?.removeAttribute("data-panning");
+      }
+    };
+    const movePan = (event: PointerEvent) => {
+      const viewport = viewportRef.current;
+      const drag = viewport.drag;
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return;
+      }
+      viewport.panX = drag.panX + event.clientX - drag.clientX;
+      viewport.panY = drag.panY + event.clientY - drag.clientY;
+      applyViewport();
+    };
+    const zoomCanvas = (event: WheelEvent) => {
+      if (!belongsToBackdropCanvas(event)) {
+        return;
+      }
+      event.preventDefault();
+      const backdrop = backdropRef.current;
+      if (!backdrop) {
+        return;
+      }
+      const rect = backdrop.getBoundingClientRect();
+      const viewport = viewportRef.current;
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      const worldX = (localX - viewport.panX) / viewport.zoom;
+      const worldY = (localY - viewport.panY) / viewport.zoom;
+      const zoom = Math.min(2.2, Math.max(0.5, viewport.zoom * Math.exp(-event.deltaY * 0.0012)));
+      viewport.zoom = zoom;
+      viewport.panX = localX - worldX * zoom;
+      viewport.panY = localY - worldY * zoom;
+      applyViewport();
+    };
+
+    window.addEventListener("pointerdown", startPan, true);
+    window.addEventListener("pointermove", movePan, true);
+    window.addEventListener("pointerup", stopPan, true);
+    window.addEventListener("pointercancel", stopPan, true);
+    window.addEventListener("wheel", zoomCanvas, { passive: false, capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", startPan, true);
+      window.removeEventListener("pointermove", movePan, true);
+      window.removeEventListener("pointerup", stopPan, true);
+      window.removeEventListener("pointercancel", stopPan, true);
+      window.removeEventListener("wheel", zoomCanvas, true);
+    };
+  }, [applyViewport]);
+
+  const resetViewport = () => {
+    Object.assign(viewportRef.current, { panX: 0, panY: 0, zoom: 1, drag: null });
+    backdropRef.current?.removeAttribute("data-panning");
+    applyViewport();
+  };
+
+  return (
+    <div
+      ref={backdropRef}
+      className="liquid-dom-fixture__backdrop"
+      data-testid="liquid-dom-backdrop"
+      onDoubleClick={resetViewport}
+    >
+      <div ref={worldRef} className="liquid-dom-fixture__world" data-testid="liquid-dom-world">
+        <div className="liquid-dom-fixture__grid" />
+        <div className="liquid-dom-fixture__heading">
+          <Badge variant="light" color="cyan">
+            Development fixture
+          </Badge>
+          <Title order={1}>Live DOM through Liquid DOM glass</Title>
+          <Text c="dimmed">
+            Drag this canvas or use the mouse wheel. The glass panels remain fixed above it.
+          </Text>
+        </div>
+        <p className="liquid-dom-fixture__backdrop-copy">
+          Live ordinary DOM text - Renderer V2 - Live ordinary DOM text - Renderer V2
+        </p>
+        <div className="liquid-dom-fixture__moving-orbit" aria-hidden="true">
+          <img src="/app-icon.png" alt="" draggable={false} />
+          <span>moving DOM + image</span>
+        </div>
+        <img
+          className="liquid-dom-fixture__backdrop-image"
+          src="/app-icon.png"
+          alt="TaskMap application icon behind the Liquid DOM surfaces"
+          draggable={false}
+        />
+      </div>
+      <div className="liquid-dom-fixture__navigation-hint">
+        Drag to pan / Wheel to zoom / Double-click to reset / <span ref={zoomLabelRef}>100%</span>
+      </div>
+      <Text className="liquid-dom-fixture__note" size="sm">
+        WebGPU and Chromium's experimental canvas DrawElement support are required for live DOM
+        capture. Unsupported runtimes show the boundary's opaque fallback.
+      </Text>
+    </div>
+  );
+}
+
+export function LiquidDomVerificationFixture() {
+  const [saveCount, setSaveCount] = useState(0);
+  const [openedCanvas, setOpenedCanvas] = useState("None");
+
+  return (
+    <main className="liquid-dom-fixture">
+      <LiquidDomRoot
+        className="liquid-dom-fixture__stage"
+        backdrop={<InteractiveDomBackdrop />}
+        aria-label="Liquid DOM material verification fixture"
+      >
+        <div className="liquid-dom-fixture__surfaces">
+          <LiquidMaterialSurface
+            role="large-panel"
+            className="liquid-dom-fixture__surface liquid-dom-fixture__surface--large"
+          >
+            <Stack p="xl" gap="md" justify="center" h="100%">
+              <Badge variant="outline" color="gray" w="fit-content">
+                Large Panel
+              </Badge>
+              <Title order={2}>Mantine content inside glass</Title>
+              <TextInput label="Task title" placeholder="Plan Renderer V2" />
+              <Group>
+                <Button onClick={() => setSaveCount((count) => count + 1)}>
+                  Save proof{saveCount > 0 ? ` (${saveCount})` : ""}
+                </Button>
+                <Button variant="subtle" color="gray" onClick={() => setSaveCount(0)}>
+                  Cancel
+                </Button>
+              </Group>
+            </Stack>
+          </LiquidMaterialSurface>
+
+          <LiquidMaterialSurface
+            role="small-panel"
+            className="liquid-dom-fixture__surface liquid-dom-fixture__surface--small"
+          >
+            <Stack p="lg" gap="sm" justify="center" h="100%">
+              <Badge variant="outline" color="gray" w="fit-content">
+                Small Panel
+              </Badge>
+              <Select
+                label="Canvas"
+                defaultValue="renderer-v2"
+                data={[
+                  { value: "renderer-v2", label: "Renderer V2" },
+                  { value: "reference", label: "Reference canvas" },
+                ]}
+                comboboxProps={{ withinPortal: false }}
+              />
+              <Button variant="light" onClick={() => setOpenedCanvas("Renderer V2")}>
+                Open canvas
+              </Button>
+              <Text size="xs" c="dimmed">
+                Opened: {openedCanvas}
+              </Text>
+            </Stack>
+          </LiquidMaterialSurface>
+        </div>
+      </LiquidDomRoot>
+    </main>
+  );
+}
+
