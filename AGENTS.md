@@ -1,6 +1,6 @@
 # TaskMap Agent Rules
 
-These rules apply to all automated and human changes on the `architecture-v1` branch.
+These rules apply to all automated and human changes on the `renderer-v2` branch.
 
 ## Product contract
 
@@ -8,6 +8,12 @@ TaskMap is a fast, local-first Windows canvas application. The refactor must pre
 user-facing behavior of every retained feature while replacing the existing internal architecture.
 Intentional visual changes are governed by `docs/VISUAL-SYSTEM.md` and
 `docs/FEATURE-PARITY.md`.
+
+Renderer v2 is a new presentation implementation over the retained domain, application, and
+platform architecture. Do not incrementally refactor or extend the main-branch frontend, old
+`App.tsx`, or remaining architecture-v1/legacy presentation code. Those sources are behavior and
+visual references only. Reuse framework-independent domain, command, history, persistence, canvas
+geometry, interaction, and virtualization modules when they fit these rules.
 
 Retained features include canvases, containers, text cards, text blocks, images and GIFs, mind-map
 connections, minimap, search, checkbox, lock, privacy, color tools, AI JSON copy/paste, updater
@@ -31,6 +37,13 @@ The old Command Runner is replaced by a structured Workflow Runner that stores e
 10. Extensions and element types are registered explicitly. Do not add feature-specific switches throughout unrelated files.
 11. Stable and development builds use separate application identifiers, config directories, recent-file lists, default databases, tray sessions, and update channels.
 12. The main application contains no legacy data migrations. Legacy conversion belongs in `tools/taskmap-migrator/`.
+13. Canvas elements render as ordinary React/DOM content. They must not use Liquid DOM materials.
+14. Application glass is implemented behind the shared material boundary with `@liquid-dom/core`.
+    It must be capable of blurring and refracting the live canvas DOM, including text, images, and
+    animated GIFs. Do not add another application-owned acrylic compositor.
+15. Mantine is the standard React component library for controls, menus, dialogs, inputs, and
+    related UI. Mantine owns control behavior and accessibility; Liquid DOM owns glass/material
+    rendering. Keep both dependencies behind intentional UI boundaries.
 
 ## File and module rules
 
@@ -84,12 +97,15 @@ Each extension owns its definition, state schema, commands, selectors, controls/
 - Cull or virtualize elements outside the viewport.
 - Load images and GIFs only when visible or imminently visible.
 - Do not decode large media on the main interaction path.
-- `MaterialSurface` is the feature-facing material boundary. Features may not implement backdrop
-  filters, acrylic compositors, or material rendering strategies.
-- Add internal material definitions through the static material system. Exact visual constants and
-  compositor performance rules live in `docs/VISUAL-SYSTEM.md`, not this file.
-- High-frequency material/compositor work follows the same interaction rules: no persistent
-  dispatch, serialization, history, persistence, or database work per pointer sample.
+- The shared Liquid DOM material wrapper is the feature-facing material boundary. Features may not
+  instantiate Liquid DOM directly or implement independent glass/material strategies.
+- The only Liquid DOM roles are Large Panel and Small Panel. A role selects optical treatment, not
+  width, height, padding, radius, position, or layout.
+- Privacy is the sole intentional exception to the no-direct-backdrop rule: it keeps ordinary CSS
+  `backdrop-filter` blur as a cheap content-obscuring effect and is not application glass.
+- Liquid DOM surfaces belong to application UI chrome, never canvas elements or high-frequency
+  interaction previews. No material work may add persistent dispatch, serialization, history,
+  persistence, database work, or document-wide React updates per pointer sample.
 - Add performance tests for changes affecting rendering, selectors, interaction, serialization, or media.
 
 ## Security rules

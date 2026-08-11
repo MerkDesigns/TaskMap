@@ -1,4 +1,4 @@
-# TaskMap Architecture v1
+# TaskMap Architecture for Renderer v2
 
 ## Purpose
 
@@ -7,7 +7,10 @@ canvases. Users work with containers, text cards, text blocks, media, mind-map c
 optional element extensions. The application must remain responsive with large documents, preserve
 retained behavior, and implement intentional visual changes through the normative visual contract.
 
-This document defines the target architecture for the complete refactor. It is normative: new code must fit this structure unless an architecture decision record explicitly changes it.
+This document defines the retained application architecture and the renderer-v2 target. Renderer v2
+rebuilds the presentation layer rather than incrementally refactoring the architecture-v1 or legacy
+frontend. New code must fit this structure unless an architecture decision record explicitly changes
+it.
 
 ## Core principles
 
@@ -24,6 +27,7 @@ This document defines the target architecture for the complete refactor. It is n
 
 ```text
 React UI
+  -> Mantine controls and shared Liquid DOM material boundary
   -> application commands and selectors
   -> normalized document store
   -> history middleware
@@ -96,12 +100,11 @@ src/
 │   ├── theme/
 │   ├── materials/
 │   │   ├── MaterialSurface.tsx
-│   │   ├── materialDefinitions.ts
-│   │   ├── materialRegistry.ts
-│   │   └── compositor/ (Phase 4.5B)
+│   │   ├── materialRoles.ts
+│   │   └── liquid-dom/
 │   ├── menus/
 │   ├── dialogs/
-│   ├── controls/
+│   ├── controls/ (Mantine composition)
 │   └── feedback/
 └── test/
 
@@ -184,12 +187,12 @@ Redux Toolkit owns:
 - Trusted workflow definitions and execution summaries
 - Stable UI state that must survive view changes
 
-The Phase 3C `documentWorkspace` state is dormant while `LegacyApplication` remains the active
-boundary. Loading a workspace validates the complete current-version document before Redux receives
-it, records its backend revision, clears history, and starts with matching local and persisted
-sequences. Replacing or clearing a workspace advances its epoch so obsolete asynchronous results
-cannot affect the new session. Serialized documents, clients, timers, promises, credentials, and key
-material are never Redux state.
+Renderer v2 uses the established `documentWorkspace` as its persistent document owner. Loading a
+workspace validates the complete current-version document before Redux receives it, records its
+backend revision, clears history, and starts with matching local and persisted sequences. Replacing
+or clearing a workspace advances its epoch so obsolete asynchronous results cannot affect the new
+session. Serialized documents, clients, timers, promises, credentials, and key material are never
+Redux state.
 
 ### Transient interaction state
 
@@ -222,32 +225,19 @@ testing, move/resize calculations, and snapping are framework-independent intera
 culling. `src/features/minimap/minimapProjection.ts` projects canvas, element, and world-viewport
 bounds; the minimap has no independent camera or navigation state.
 
-### Transitional production interaction commits
+### Renderer-v2 interaction commits
 
-Phase 4 controllers are document-model agnostic. `CanvasInteractionCommitPort` exposes only named
-move, resize, and layer-order operations; it is not an arbitrary patch API. Current production still
-owns its document in `LegacyApplication`, so
-`src/legacy/interactions/legacyCanvasInteractionCommitAdapter.ts` temporarily applies completed
-operations as one `TaskCanvas` replacement. Legacy geometry mapping, camera correlation, selection
-compatibility, and bounded text-card placement presentation also live under
-`src/legacy/interactions/`; those transitional bridge modules are the only Phase 4 code that imports
-legacy element/document types. Generic controllers, geometry, culling, and minimap modules do not.
+The framework-independent controllers, geometry, snapping, culling, and minimap projection from
+architecture-v1 are eligible for reuse after their contracts are verified. The
+`CanvasInteractionCommitPort` exposes only named move, resize, and layer-order operations; it is not
+an arbitrary patch API. Renderer v2 connects completed operations to named commands backed by the
+normalized workspace. It does not route new work through `LegacyApplication`, `TaskCanvas`, or the
+legacy commit adapter.
 
-This adapter is temporary migration infrastructure, not legacy data migration support. It does not
-parse or convert database formats, create an `AppData`/`TaskMapDocument` conversion, or maintain a
-shadow normalized document. Pointer frames never enter the adapter. Existing per-canvas camera
-parity is preserved by a canvas-correlated, bounded render-frame synchronization in the legacy
-React integration. Text-card bundle pickup, sway, insertion projection, reparent/detach decisions,
-and release animation are bounded transient presentation state in the legacy bridge; only the exact
-settled placement decision reaches the commit adapter. Neither bridge mutates collections during a
-pointer frame. Camera synchronization and text-card presentation remain transitional concerns;
-camera state remains session/UI state in the target normalized architecture and is not added to
-`TaskMapDocument`.
-
-As Phase 5 moves each element slice to normalized production ownership, its legacy geometry mapping
-and commit behavior are replaced by an implementation of the same semantic port backed by named
-commands/workspace operations. New features must not import or build on the legacy adapter. The
-remaining adapter is deleted when all production element/document ownership has left `TaskCanvas`.
+Legacy camera correlation, selection compatibility, and text-card placement code may be studied to
+characterize retained behavior, but is not a renderer-v2 dependency. Equivalent transient behavior
+belongs in the new interaction/presentation boundary, and only its settled semantic result reaches a
+named command. Camera state remains session/UI state and is not added to `TaskMapDocument`.
 
 ### Local component state
 
@@ -255,9 +245,11 @@ Components may own ephemeral presentation details such as an open local submenu 
 
 ## Application failure boundary
 
-New providers and feature architecture render inside an application error boundary with a typed reporting contract and a deterministic, non-sensitive fallback. The default reporter logs only a failure classification, never the error message, stack, component stack, or document content.
-
-While the legacy application remains active, `LegacyApplication` is a sibling outside this boundary. Errors thrown inside its component tree therefore continue to propagate according to the existing legacy behavior. The boundary moves outward only as a feature is deliberately ported into the new architecture.
+Renderer-v2 providers and features render inside an application error boundary with a typed
+reporting contract and a deterministic, non-sensitive fallback. The default reporter logs only a
+failure classification, never the error message, stack, component stack, or document content. The
+legacy application's former sibling-boundary arrangement is reference history, not the renderer-v2
+composition target.
 
 ## Application commands
 
@@ -448,49 +440,36 @@ First-version restrictions:
 - Imported workflows are disabled until trusted
 - TaskMap stops only processes it launched and tracks
 
-## Material system and compositor boundary
+## UI component and material boundary
 
-`docs/VISUAL-SYSTEM.md` is the normative source for theme tokens, exact material definitions,
-adaptive quality constants, invalidation rules, fallback behavior, and material usage. Feature UI
-selects a registered internal material through `MaterialSurface`; it does not implement backgrounds,
-borders, shadows, blur, or compositor behavior independently.
+`docs/VISUAL-SYSTEM.md` is the normative source for theme tokens, Liquid DOM roles, material usage,
+and visual acceptance. Mantine is the standard React component library for controls, menus,
+dialogs, inputs, and related accessible interaction. Liquid DOM is responsible only for application
+glass/material rendering.
 
 ```text
 feature UI
-  -> MaterialSurface / static material registry
-  -> material compositor public boundary
-  -> adaptive cached Canvas2D implementation
+  -> Mantine component or semantic React content
+  -> shared MaterialSurface role (Large Panel or Small Panel)
+  -> @liquid-dom/core
+  -> live canvas DOM backdrop
 ```
 
-The material registry owns stable definitions and rendering strategies. `MaterialSurface` owns the
-feature-facing material, explicit/inherited `base`/`modal` plane, geometry, and elevation contract.
-`MaterialCompositorProvider` owns one bounded surface registry and shared `ResizeObserver`, the two
-output canvases and mask caches, one frame scheduler, and the browser acrylic runtime. With no
-registered cached-acrylic surface the provider remains inert. Features do not receive compositor
-tuning controls. Transform-driven surface motion uses the material registration boundary's explicit
-geometry invalidation callback, which coalesces through the same compositor frame and dirties masks
-only.
+The shared material adapter is the only feature-facing Liquid DOM boundary. Material role does not
+own dimensions, layout, padding, radius, position, or feature behavior. Canvas elements remain
+ordinary React/DOM content and never become Liquid DOM surfaces. Because Liquid DOM operates over
+the live DOM backdrop, acceptance must prove that UI glass blurs/refracts canvas text, images, and
+animated GIFs in packaged Tauri/WebView2 builds.
 
-The compositor consumes a generic `BackdropScene` presentation contract assembled from cullable
-visual primitives. It imports no domain, persistence, database, feature business logic, element
-modules, or legacy `TaskCanvas` types and contains no element-type switches. Phase 4.5A does not add
-a final contribution method to `ElementDefinition`; normalized element/canvas presentation assembly
-will be finalized during Phase 5. The mixed-architecture application uses a transitional read-only
-adapter under `src/legacy/materials/`: the authoritative Phase 4 controller publishes its live
-viewport and interaction-active status through a generic presentation bridge, while the adapter
-projects only model primitives intersecting the expanded acrylic-cache rectangle. It performs no
-DOM scene capture and creates no persistent or normalized shadow document.
+The custom cached Canvas2D acrylic compositor, `BackdropScene` projection for glass, worker/cache
+runtime, mask planes, and compositor invalidation protocol from ADR 003 are superseded. They are
+reference implementation history and are not dependencies of renderer v2. The Privacy extension is
+the narrow exception: it retains ordinary CSS backdrop blur for cheap content obscuring and is not
+an application-glass material.
 
-Persistent and transient ownership rules continue unchanged. Camera frames may cheaply reproject a
-cache and may coalesce a coverage-required rebuild during a long gesture, but they do not scan/build
-the scene, blur, dispatch persistent commands, serialize, create history, or invoke storage once per
-pointer sample. Expensive cache, viewport transform, surface geometry, material overlay, and shared
-blur invalidations remain independently testable.
-
-Direct/nested backdrop filters and `FrostedSurface` are superseded. Their exact existing occurrences
-remain frozen migration debt only so Phase 4.5A does not change production appearance. Phase 4.5C
-migrates consumers; Phase 4.5D deletes the old implementation and removes the transitional
-architecture allowlist.
+Persistent and transient ownership rules remain unchanged. Liquid DOM integration must not move
+document state into presentation code or add Redux dispatch, serialization, history, persistence,
+database work, or document-wide React reconciliation per pointer sample.
 
 ## Stable and development editions
 
@@ -517,10 +496,16 @@ A database file is locked against simultaneous writing. A development build open
 
 See `docs/TESTING.md` for measurable scenarios.
 
-## Migration strategy
+## Renderer-v2 strategy
 
-The current application remains usable on `main`. The new architecture is developed on `architecture-v1` with critical legacy fixes only.
+The current application on `main`, old `App.tsx`, and architecture-v1/legacy frontend remain
+reference sources for behavior and visual evidence. Renderer v2 is developed on `renderer-v2` as a
+new presentation implementation over the retained normalized domain, commands, history, Redux
+workspace/persistence, platform boundaries, and Tauri/Rust backend. It is not an incremental port of
+the old component tree.
 
 The main application does not read legacy data. A separate graphical migrator converts old data into the new format and emits a detailed conversion report.
 
-Implementation proceeds through vertical slices. The first slice proves database creation/opening, unlocking, one canvas, one element, editing, history, autosave, close, and reopen before broader feature porting begins.
+Implementation proceeds through parity-tested vertical slices defined in
+`docs/RENDERER-V2-ROADMAP.md`. The first executable slice proves the retained workspace/backend path
+through the new shell before broader feature presentation is rebuilt.

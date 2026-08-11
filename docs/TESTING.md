@@ -1,5 +1,10 @@
 # TaskMap Testing Strategy
 
+Renderer-v2 validation follows this strategy plus `docs/RENDERER-V2-ROADMAP.md`. The detailed Phase
+4.5 compositor sections below record architecture-v1 coverage and remain useful regression evidence;
+they are not requirements to preserve or integrate that compositor into renderer v2. ADR 004 and
+the current `docs/VISUAL-SYSTEM.md` govern new presentation tests.
+
 ## Test layers
 
 ### Domain unit tests
@@ -210,14 +215,17 @@ CI must fail when:
 - `AppShell.tsx` gains prohibited dependencies
 - A feature imports another feature's internal file instead of its public contract
 - A file exceeds the configured review threshold without allow-list documentation
-- A direct `backdrop-filter`, Tailwind `backdrop-blur-*`, legacy frosted class/consumer, or independent
-  acrylic Canvas2D implementation grows beyond the exact Phase 4.5A frozen legacy allowlist
+- Renderer-v2 feature code imports `@liquid-dom/core` outside the shared material adapter
+- A canvas element or high-frequency interaction preview uses a Liquid DOM material
+- A renderer-v2 material role encodes width, height, padding, radius, position, or layout
+- A new application-glass `backdrop-filter`, Tailwind `backdrop-blur-*`, or application-owned
+  acrylic Canvas2D implementation is added; the reviewed Privacy obscuring layer is the sole direct
+  backdrop-filter exception
 
-The Phase 4.5A material rule freezes path-specific occurrence counts rather than exempting broad
-directories. Removing a legacy occurrence is allowed; adding one in the same or another file fails.
-Phase 4.5D removes this transitional allowlist entirely. Acrylic Canvas2D implementation is owned
-specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains valid
-elsewhere.
+Existing Phase 4.5A rules may continue freezing path-specific legacy occurrences until a deliberate
+cleanup change removes their source. They do not authorize renderer-v2 imports of the historical
+compositor. Ordinary non-acrylic Canvas2D rendering remains valid where it is the appropriate
+feature implementation.
 
 ### Phase 1 skeleton coverage
 
@@ -258,8 +266,14 @@ The minimap projection tests cover landscape/portrait sizing, element minimum pi
 projection. Production minimap interaction remains reset-only; click/drag navigation is intentionally
 absent. The user completed the Phase 4 production manual parity checklist after commit `9a34a23` and
 accepted the retained interaction behavior. The release-mode rendered 60 FPS measurement was not
-performed. Because Phase 4.5 replaces the rendering/material path, that measurement is performed once
-after Phase 4.5D against the final compositor.
+performed. Renderer-v2 performs that measurement once against its accepted DOM canvas with
+representative Liquid DOM chrome visible.
+
+## Historical architecture-v1 Phase 4.5 coverage
+
+The following sections document tests that exist for the superseded presentation path. Keep them as
+evidence while their source exists, but do not treat their Canvas2D cache, worker, mask, plane, or
+`BackdropScene` contracts as renderer-v2 architecture.
 
 ### Phase 4.5A visual-system foundation coverage
 
@@ -564,17 +578,22 @@ password dialog, `UpdateAvailableModal`, `ColorPickerMenu` portal/positioning, C
 Extensions, context menus, ToastStack, storage-error UI, and command-runner overlays for later C3
 slices. These structural and DOM tests do not claim rendered acrylic pixels or visual acceptance.
 
-### Phase 4.5D visual and performance acceptance
+## Renderer-v2 visual and performance acceptance
 
 Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and
-display scaling. Compare target theme, typography, exact material overlays, geometry, base/modal
-stacking, animated surfaces, worker/fallback/degraded modes, and real media under acrylic against
-`docs/VISUAL-SYSTEM.md` and the approved reference capture.
+display scaling. Compare target theme, typography, geometry, portal/modal stacking, animated
+surfaces, controlled non-glass fallback, and Liquid DOM over the real DOM canvas against
+`docs/VISUAL-SYSTEM.md` and approved reference captures.
 
-Measure release-mode rendered pan, zoom, drag, and resize on the normal fixture and record hardware,
-Windows/WebView2 versions, display scaling, refresh rate, window size, build/commit, traces, and
-compositor diagnostics. The acceptance target remains 60 FPS. Stress-fixture behavior is recorded
-separately. CI deterministic tests do not claim FPS or a `<16.67 ms` wall-clock threshold.
+Acceptance must exercise changing text, detailed still images, and animated GIFs behind both Large
+Panel and Small Panel surfaces. Verify that canvas elements themselves contain no Liquid DOM
+materials and that Privacy's CSS backdrop blur remains confined to content obscuring.
+
+Measure release-mode rendered pan, zoom, drag, and resize on the normal fixture with representative
+glass chrome visible. Record hardware, Windows/WebView2 versions, Liquid DOM and Mantine versions,
+display scaling, refresh rate, window size, build/commit, traces, render counts, and relevant runtime
+diagnostics. The acceptance target remains 60 FPS. Stress-fixture behavior is recorded separately.
+CI deterministic tests do not claim FPS or a `<16.67 ms` wall-clock threshold.
 
 ## Phase gates
 

@@ -1,6 +1,6 @@
 # ADR 003: Adaptive Cached Canvas2D Acrylic Compositor
 
-- Status: Accepted
+- Status: Superseded by ADR 004 for renderer v2; retained as architecture-v1 history
 - Date: 2026-08-08
 
 ## Context

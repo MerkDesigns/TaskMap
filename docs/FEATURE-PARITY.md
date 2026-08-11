@@ -83,14 +83,14 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 
 ## Visual system
 
-| Feature                           | Decision                         | Required behavior                                                                        | Status                                 |
-| --------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------- |
-| Adaptive acrylic visual system    | Redesign approved                | Match `docs/VISUAL-SYSTEM.md` and the approved local reference while preserving behavior | Phase 4.5A contract; migration pending |
-| Existing frosted-glass appearance | Supersede by decision            | Retain only as historical baseline evidence until migration                              | Phase 4.5C migration pending           |
-| Frosted-glass tuner               | Remove                           | No production or development tuner remains                                               | Removed by decision                    |
-| Menus and modals                  | Keep behavior; redesign material | Preserve motion, placement, semantics, and workflow; use approved materials              | Phase 4.5C visual migration pending    |
-| Element animations                | Keep                             | Preserve useful entry, delete, drag, and settle behavior                                 | Not documented                         |
-| Toasts and feedback               | Keep                             | Preserve clear operation and error feedback                                              | Not documented                         |
+| Feature                          | Decision                         | Required behavior                                                                       | Status                             |
+| -------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------- |
+| Liquid DOM UI glass              | Redesign approved                | Match `docs/VISUAL-SYSTEM.md`; refract live DOM canvas text, images, and GIFs           | Renderer-v2 implementation pending |
+| Existing frosted/acrylic systems | Supersede by decision            | Retain only as historical baseline evidence; do not reuse their frontend implementation | Renderer-v2 implementation pending |
+| Frosted-glass tuner              | Remove                           | No production or development tuner remains                                              | Removed by decision                |
+| Menus and modals                 | Keep behavior; redesign material | Preserve motion, placement, semantics, and workflow; use Mantine and approved materials | Renderer-v2 implementation pending |
+| Element animations               | Keep                             | Preserve useful entry, delete, drag, and settle behavior                                | Not documented                     |
+| Toasts and feedback              | Keep                             | Preserve clear operation and error feedback                                             | Not documented                     |
 
 ## Persistence and configuration
 
@@ -120,6 +120,7 @@ Compilation or unit tests alone are insufficient for parity acceptance.
 
 The Phase 4 production interaction checklist was manually completed by the user after commit
 `9a34a23`. This accepts the retained interaction behavior recorded above; it is not a rendered FPS
-measurement and does not mark Phase 4.5 visual migration complete. Future material acceptance uses
-`docs/VISUAL-SYSTEM.md` plus the approved local/reference capture. Historical Phase 0 frosted
-evidence remains useful for behavior and regression context but is no longer the target appearance.
+measurement and does not mark renderer-v2 visual migration complete. Future material acceptance
+uses `docs/VISUAL-SYSTEM.md` plus approved legacy/reference captures. Historical Phase 0 frosted and
+architecture-v1 acrylic evidence remains useful for behavior and regression context but is no
+longer the target implementation.

@@ -4,26 +4,29 @@ This file is the high-level navigation entrypoint for Codex and human contributo
 
 ## Governing documents
 
-`docs/VISUAL-SYSTEM.md` is the normative target theme, material-definition, compositor-constant,
-invalidation, fallback, and performance contract. Read it before changing application chrome or
-materials.
+`docs/VISUAL-SYSTEM.md` is the normative renderer-v2 theme, Mantine component, Liquid DOM material,
+fallback, and visual-performance contract. Read it before changing application chrome or materials.
 
 - `AGENTS.md` — Mandatory implementation, dependency, security, performance, and file-size rules.
 - `ARCHITECTURE.md` — Normative target architecture and runtime boundaries.
-- `docs/REFACTOR-ROADMAP.md` — Ordered implementation phases and exit criteria.
+- `docs/RENDERER-V2-ROADMAP.md` — Current renderer-v2 implementation phases and exit criteria.
+- `docs/REFACTOR-ROADMAP.md` — Historical architecture-v1 roadmap and implementation record.
 - `docs/FEATURE-PARITY.md` — Retained, redesigned, and removed user-facing behavior.
-- `docs/FEATURE-WIRING.md` — Exact process for adding elements, extensions, features, and platform operations.
+- `docs/FEATURE-WIRING.md` — Retained domain/module wiring reference; its architecture-v1
+  presentation and compositor instructions are historical for renderer v2.
 - `docs/DATA-FORMAT.md` — New `.tmapdb` SQLite envelope and encrypted document model.
 - `docs/SECURITY.md` — Password, key, lock, media privacy, logging, and workflow security.
 - `docs/TESTING.md` — Test layers, fixtures, performance budgets, and phase gates.
-- `docs/UI-SYSTEM.md` — Reusable UI capability catalog, status, ownership, motion, and UI Lab guide.
-- `docs/BASELINE-CAPTURE.md` — Required screenshots, recordings, behavior descriptions, and performance evidence for retained legacy behavior.
+- `docs/UI-SYSTEM.md` — Historical architecture-v1 UI capability, material, motion, and UI Lab
+  record; renderer-v2 presentation is governed by `docs/VISUAL-SYSTEM.md`.
+- `docs/BASELINE-CAPTURE.md` — Historical screenshots, recordings, behavior descriptions, and
+  performance evidence for retained legacy behavior.
 
 ## Current legacy implementation
 
 These paths describe the existing app on the starting branch. They are reference material for parity, not the target architecture.
 
-- `src/App.tsx` — Legacy god component containing application state, interactions, history coordination, persistence, feature orchestration, and rendering. Do not extend it on `architecture-v1`.
+- `src/App.tsx` — Legacy god component containing application state, interactions, history coordination, persistence, feature orchestration, and rendering. Renderer v2 uses it as reference only.
 - `src/types.ts` — Legacy shared domain and interaction types.
 - `src/hooks/useCanvasDocument.ts` — Legacy canonical active-canvas reducer; useful behavior reference.
 - `src/app/history.ts` — Legacy snapshot history algorithms; behavior reference only.
@@ -39,11 +42,16 @@ These paths describe the existing app on the starting branch. They are reference
 
 ## Target frontend ownership
 
-These paths are created during the roadmap and become the only approved ownership locations.
+The retained non-presentation paths remain approved foundations. Existing presentation paths are
+architecture-v1/reference code until renderer-v2 replacements are introduced through
+`docs/RENDERER-V2-ROADMAP.md`.
 
 ### `src/app/`
 
-Application composition, Redux store setup, transient interaction access, command dispatch, selectors, error reporting, and lifecycle coordination. `AppShell.tsx` remains thin. Phase 1 keeps the temporary `src/legacy/LegacyApplication.tsx` adapter outside the new-architecture error boundary, while `AppProviders.tsx` composes Redux and transient interaction providers for new features; the older files already under `src/app/` remain legacy behavior references.
+Application composition, Redux store setup, transient interaction access, command dispatch,
+selectors, error reporting, and lifecycle coordination. Renderer-v2 `AppShell.tsx` remains thin and
+does not compose `LegacyApplication`; the existing legacy adapter and older application files are
+reference material until later cleanup.
 
 ### `src/domain/`
 
@@ -74,14 +82,12 @@ Typed frontend boundary for database, media, settings, and structured workflow o
 
 ### `src/ui/`
 
-Shared presentation primitives. `src/ui/theme/` owns scoped target theme tokens;
-`src/ui/materials/` owns `MaterialSurface`, the static typed material registry, exact definitions,
-and the compositor boundary; `src/ui/motion/` owns deterministic math, the one shared UI animation
-frame, reduced-motion state, and local FLIP utilities; `src/ui/primitives/` owns generic semantic
-controls; and `src/ui/dev/` owns the doubly gated UI Lab. The old `FrostedSurface` remains frozen
-migration debt until Phase 4.5C/4.5D.
+Existing shared presentation primitives and architecture-v1 material/compositor code are reference
+sources, not the renderer-v2 target. Renderer v2 will place Mantine composition and the shared
+Large Panel/Small Panel `@liquid-dom/core` adapter under intentional `src/ui/` boundaries. Canvas
+elements remain ordinary React/DOM content and do not use that adapter.
 
-## Phase 1 architecture foundation
+## Historical Phase 1 architecture foundation
 
 - `src/app/interactions/` - read-only transient interaction consumer contract, idle default, provider,
   typed hooks, and the document-model-agnostic Phase 4 controller/selection/snapping implementation.
@@ -93,9 +99,10 @@ migration debt until Phase 4.5C/4.5D.
 - `src/platform/database/`, `media/`, `settings/`, and `workflow/` — dependency-injected frontend client contracts without implementations.
 - `src/elements/registry.ts` and `src/extensions/architectureRegistry.ts` — explicit target registries, initially empty.
 - `src/legacy/LegacyApplication.tsx` — temporary behavior-preserving adapter to the existing `App.tsx`.
-- `src/ui/materials/FrostedSurface.tsx` — historical Phase 1 primitive, superseded by ADR 003 and
-  retained temporarily for its existing development-harness consumer.
-- `docs/decisions/001-application-state-and-boundaries.md` — application-state and boundary rationale.
+- `src/ui/materials/FrostedSurface.tsx` — historical Phase 1 primitive, superseded for renderer v2
+  by ADR 004 and retained temporarily for its existing development-harness consumer.
+- `docs/decisions/001-application-state-and-boundaries.md` — retained application-state and boundary
+  rationale plus the historical `LegacyApplication` transition superseded by ADR 004.
 
 ## Phase 4 canvas and interaction engine
 
@@ -117,7 +124,11 @@ migration debt until Phase 4.5C/4.5D.
   pan, zoom, box selection, movement, resize, snapping, layer, culling, or minimap projection
   algorithms.
 
-## Phase 4.5 visual-system foundation and compositor runtime proof
+## Historical Phase 4.5 visual-system and compositor proof
+
+The paths in this section document architecture-v1 work superseded by ADR 004 for renderer v2. They
+remain in the tree as reference until a later, explicit cleanup task; new renderer-v2 features must
+not depend on the custom acrylic compositor.
 
 - `src/ui/theme/theme.css` — exact target foundation, application-chrome, semantic, and spatial
   tokens, scoped and intentionally inactive until Phase 4.5C.
@@ -165,8 +176,11 @@ migration debt until Phase 4.5C/4.5D.
   `acrylicCacheRuntime.ts` — injected capability probes, lazy browser construction, Worker failure
   downgrade, interaction-aware fallback deferral, overlay-only availability, and deterministic
   bitmap ownership. Phase 4.5B2 does not register surfaces or activate a production compositor.
-- `docs/VISUAL-SYSTEM.md` and `docs/decisions/003-adaptive-acrylic-compositor.md` — normative values
-  and decision rationale.
+- `docs/decisions/003-adaptive-acrylic-compositor.md` — historical architecture-v1 compositor
+  rationale.
+- `docs/VISUAL-SYSTEM.md`, `docs/RENDERER-V2-ROADMAP.md`, and
+  `docs/decisions/004-renderer-v2-liquid-dom-and-mantine.md` — current renderer-v2 presentation
+  contract, delivery plan, and superseding decision.
 
 ## Phase 2 encrypted database vertical slice
 

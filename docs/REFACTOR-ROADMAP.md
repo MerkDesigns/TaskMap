@@ -1,5 +1,9 @@
 # TaskMap Refactor Roadmap
 
+> Historical architecture-v1 roadmap. Completed work remains useful implementation evidence, but
+> unfinished frontend/compositor phases are not the renderer-v2 plan. For current work, use
+> `docs/RENDERER-V2-ROADMAP.md` and ADR 004.
+
 ## Operating rules
 
 - `main` remains the usable legacy application.
