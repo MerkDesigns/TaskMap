@@ -1,0 +1,17 @@
+.taskmap-mantine-fixture {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  padding: var(--mantine-spacing-xl);
+  background: var(--mantine-color-dark-8);
+  color: var(--mantine-color-dark-0);
+}
+
+.taskmap-mantine-fixture__content {
+  width: min(100%, 36rem);
+  margin: 0 auto;
+  padding: var(--mantine-spacing-xl);
+  border: 1px solid var(--mantine-color-dark-4);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-dark-7);
+}

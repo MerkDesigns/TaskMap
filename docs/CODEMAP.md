@@ -83,9 +83,11 @@ Typed frontend boundary for database, media, settings, and structured workflow o
 ### `src/ui/`
 
 Existing shared presentation primitives and architecture-v1 material/compositor code are reference
-sources, not the renderer-v2 target. Renderer v2 will place Mantine composition and the shared
-Large Panel/Small Panel `@liquid-dom/core` adapter under intentional `src/ui/` boundaries. Canvas
-elements remain ordinary React/DOM content and do not use that adapter.
+sources, not the renderer-v2 target. `src/ui/mantine/` owns the root Mantine provider and the small
+TaskMap theme foundation. `src/ui/dev/MantineVerificationFixture.tsx` is a lazy, explicitly gated
+development-only control verification view. The future shared Large Panel/Small Panel
+`@liquid-dom/core` adapter will use a separate intentional boundary. Canvas elements remain
+ordinary React/DOM content and do not use either UI boundary.
 
 ## Historical Phase 1 architecture foundation
 
@@ -560,7 +562,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/legacy/materials/legacyBackdropScene.test.ts`                     |   262 | Tests for the adjacent module                                                           |
 | `src/legacy/materials/legacyBackdropScene.ts`                          |   250 | TypeScript application module                                                           |
 | `src/legacy/materials/legacyBackdropSceneRevision.ts`                  |    35 | TypeScript application module                                                           |
-| `src/main.tsx`                                                         |    11 | TypeScript application module                                                           |
+| `src/main.tsx`                                                         |    29 | TypeScript application module                                                           |
 | `src/mindmapMath.test.ts`                                              |    42 | Tests for the adjacent module                                                           |
 | `src/mindmapMath.ts`                                                   |    83 | TypeScript application module                                                           |
 | `src/platform/database/databaseClient.ts`                              |    25 | TypeScript application module                                                           |
@@ -577,7 +579,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/tauriInvoke.ts`                                          |    72 | TypeScript application module                                                           |
 | `src/platform/workflow/workflowClient.ts`                              |    10 | TypeScript application module                                                           |
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                           |
-| `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                           |
+| `src/test/setup.ts`                                                    |    36 | TypeScript application module                                                           |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                           |
 | `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                      |   110 | Tests for the adjacent module                                                           |
 | `src/ui/dev/AcrylicCompositorPlayground.tsx`                           |   246 | React component or typed UI module                                                      |
@@ -589,6 +591,11 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/dev/contextMenuMaterialIntegration.test.tsx`                   |    47 | Tests for the adjacent module                                                           |
 | `src/ui/dev/DevelopmentUiLab.test.tsx`                                 |   126 | Tests for the adjacent module                                                           |
 | `src/ui/dev/DevelopmentUiLab.tsx`                                      |   276 | React component or typed UI module                                                      |
+| `src/ui/dev/MantineVerificationFixture.test.tsx`                       |    30 | Tests for the adjacent module                                                           |
+| `src/ui/dev/MantineVerificationFixture.tsx`                            |    69 | React component or typed UI module                                                      |
+| `src/ui/mantine/TaskMapMantineProvider.test.tsx`                       |    28 | Tests for the adjacent module                                                           |
+| `src/ui/mantine/TaskMapMantineProvider.tsx`                            |    16 | React component or typed UI module                                                      |
+| `src/ui/mantine/taskMapMantineTheme.ts`                                |    21 | TypeScript application module                                                           |
 | `src/ui/materials/compositor/acrylicBitmapResource.ts`                 |    30 | TypeScript application module                                                           |
 | `src/ui/materials/compositor/acrylicBuildExecutor.ts`                  |    40 | TypeScript application module                                                           |
 | `src/ui/materials/compositor/acrylicCache.worker.ts`                   |    23 | TypeScript application module                                                           |
