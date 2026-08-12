@@ -11,6 +11,7 @@ const developmentCapability = await readFile(
 );
 const mainSource = await readFile("src-tauri/src/main.rs", "utf8");
 const appShell = await readFile("src/app/AppShell.tsx", "utf8");
+const rendererEntry = await readFile("src/main.tsx", "utf8");
 
 if (stable.identifier !== "com.merkdesigns.taskmap") throw new Error("stable identifier is wrong");
 if (development.identifier !== "com.merkdesigns.taskmap.dev") {
@@ -41,6 +42,15 @@ if (
 ) {
   throw new Error("UI Lab frontend entry is not a DEV-and-opt-in dynamic import");
 }
+if (
+  !rendererEntry.includes(
+    'import.meta.env.DEV && import.meta.env.VITE_TASKMAP_RENDERER_BENCHMARK === "1"',
+  ) ||
+  !rendererEntry.includes('import("./ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark")') ||
+  rendererEntry.includes("import { RendererV2PerformanceBenchmark }")
+) {
+  throw new Error("Renderer benchmark entry is not a DEV-and-opt-in dynamic import");
+}
 
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -62,10 +72,13 @@ for (const path of stableAssets.filter((item) => /\.(?:js|html|css)$/.test(item)
     content.includes("Phase 2 encrypted database harness") ||
     content.includes("TaskMap UI Lab") ||
     content.includes("Acrylic compositor playground") ||
-    content.includes("data-taskmap-ui-lab")
+    content.includes("data-taskmap-ui-lab") ||
+    content.includes("Renderer V2 benchmark") ||
+    content.includes("VITE_TASKMAP_RENDERER_BENCHMARK") ||
+    content.includes("Add test element")
   ) {
     throw new Error(`stable frontend bundle contains Phase 2 harness content: ${path}`);
   }
 }
 
-console.log("Stable frontend excludes Phase 2 IPC and the development-only UI Lab.");
+console.log("Stable frontend excludes Phase 2 IPC, the UI Lab, and the Renderer V2 benchmark.");

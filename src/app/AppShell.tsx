@@ -1,11 +1,10 @@
 import { lazy, Suspense, useState } from "react";
-import { LegacyApplication } from "../legacy/LegacyApplication";
+import { RendererV2ApplicationWorkspace } from "../features/workspace-chrome/RendererV2ApplicationWorkspace";
 import { MaterialCompositorProvider } from "../ui/materials/MaterialCompositorProvider";
 import { createMaterialCompositorPresentationBridge } from "../ui/materials/materialCompositorPresentation";
 import { AppProviders } from "./AppProviders";
 import { ApplicationErrorBoundary } from "./errors/ApplicationErrorBoundary";
 import { defaultApplicationErrorReporter } from "./errors/applicationErrorReporter";
-import { runWindowCloseGuard } from "./windowCloseCoordinator";
 
 const DevelopmentPhase2Entry =
   import.meta.env.MODE === "phase2"
@@ -23,30 +22,34 @@ const DevelopmentUiLab =
       })
     : null;
 
-export default function AppShell() {
+function DevelopmentUiLabShell() {
   const [materialPresentation] = useState(createMaterialCompositorPresentationBridge);
   return (
     <MaterialCompositorProvider presentation={materialPresentation}>
-      {DevelopmentUiLab ? null : (
-        <LegacyApplication
-          onBeforeClose={runWindowCloseGuard}
-          materialPresentation={materialPresentation}
-        />
-      )}
       <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
         <AppProviders>
-          {DevelopmentPhase2Entry ? (
-            <Suspense fallback={null}>
-              <DevelopmentPhase2Entry enabled />
-            </Suspense>
-          ) : null}
-          {DevelopmentUiLab ? (
-            <Suspense fallback={null}>
-              <DevelopmentUiLab presentation={materialPresentation} />
-            </Suspense>
-          ) : null}
+          <Suspense fallback={null}>
+            {DevelopmentUiLab ? <DevelopmentUiLab presentation={materialPresentation} /> : null}
+          </Suspense>
         </AppProviders>
       </ApplicationErrorBoundary>
     </MaterialCompositorProvider>
+  );
+}
+
+export default function AppShell() {
+  if (DevelopmentUiLab) return <DevelopmentUiLabShell />;
+
+  return (
+    <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
+      <AppProviders>
+        <RendererV2ApplicationWorkspace />
+        {DevelopmentPhase2Entry ? (
+          <Suspense fallback={null}>
+            <DevelopmentPhase2Entry enabled />
+          </Suspense>
+        ) : null}
+      </AppProviders>
+    </ApplicationErrorBoundary>
   );
 }

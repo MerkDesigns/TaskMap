@@ -6,12 +6,12 @@ import AppShell from "./AppShell";
 import { selectActiveApplicationBoundary } from "./selectors/applicationSelectors";
 import { createAppStore } from "./store";
 
-const legacyTestState = vi.hoisted(() => ({ shouldFail: false }));
+const canvasTestState = vi.hoisted(() => ({ shouldFail: false }));
 
-vi.mock("../legacy/LegacyApplication", () => ({
-  LegacyApplication: () => {
-    if (legacyTestState.shouldFail) throw new Error("Legacy render failure");
-    return <div>Legacy application boundary</div>;
+vi.mock("../features/workspace-chrome/RendererV2ApplicationWorkspace", () => ({
+  RendererV2ApplicationWorkspace: () => {
+    if (canvasTestState.shouldFail) throw new Error("Renderer V2 canvas failure");
+    return <div>Renderer V2 application workspace</div>;
   },
 }));
 
@@ -25,15 +25,15 @@ vi.mock("../features/phase2-database/DevelopmentPhase2Entry", () => ({
 
 afterEach(() => {
   cleanup();
-  legacyTestState.shouldFail = false;
+  canvasTestState.shouldFail = false;
   vi.restoreAllMocks();
 });
 
 describe("AppShell", () => {
-  it("renders the temporary legacy application boundary", () => {
+  it("renders the production Renderer V2 application workspace", () => {
     render(<AppShell />);
 
-    expect(screen.getByText("Legacy application boundary")).toBeInTheDocument();
+    expect(screen.getByText("Renderer V2 application workspace")).toBeInTheDocument();
   });
 
   it("initializes the Redux provider", () => {
@@ -50,19 +50,21 @@ describe("AppShell", () => {
       </AppProviders>,
     );
 
-    expect(screen.getByText("legacy")).toBeInTheDocument();
+    expect(screen.getByText("renderer-v2")).toBeInTheDocument();
   });
 
-  it("does not intercept errors from inside LegacyApplication", () => {
-    legacyTestState.shouldFail = true;
+  it("contains Renderer V2 failures inside the application error boundary", () => {
+    canvasTestState.shouldFail = true;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const preventExpectedError = (event: ErrorEvent) => event.preventDefault();
     window.addEventListener("error", preventExpectedError);
 
     try {
-      expect(() => render(<AppShell />)).toThrow("Legacy render failure");
+      render(<AppShell />);
     } finally {
       window.removeEventListener("error", preventExpectedError);
     }
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 });

@@ -8,6 +8,7 @@ describe("core document command registry", () => {
       ["document.canvas.create", "record"],
       ["document.canvas.rename", "record"],
       ["document.canvas.update-settings", "record"],
+      ["document.canvas.update", "record"],
       ["document.canvas.set-active", "ignore"],
       ["document.canvas.reorder", "record"],
       ["document.canvas.remove", "record"],

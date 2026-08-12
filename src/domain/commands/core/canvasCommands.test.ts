@@ -28,6 +28,11 @@ describe("canvas commands", () => {
       canvasId: COMMAND_TEST_IDS.canvasB,
       settings: { width: 800, height: 600 },
     });
+    document = succeed(document, "document.canvas.update", {
+      canvasId: COMMAND_TEST_IDS.canvasB,
+      name: "Updated together",
+      settings: { width: 820, height: 620 },
+    });
     const activation = executeTestCommand(document, {
       type: "document.canvas.set-active",
       payload: { canvasId: COMMAND_TEST_IDS.canvasB },
@@ -41,8 +46,8 @@ describe("canvas commands", () => {
 
     expect(document.activeCanvasId).toBe(COMMAND_TEST_IDS.canvasB);
     expect(document.canvases[COMMAND_TEST_IDS.canvasB]).toMatchObject({
-      name: "Renamed",
-      settings: { width: 800, height: 600 },
+      name: "Updated together",
+      settings: { width: 820, height: 620 },
     });
     expect(document.canvasOrder).toEqual([COMMAND_TEST_IDS.canvasA, COMMAND_TEST_IDS.canvasB]);
   });

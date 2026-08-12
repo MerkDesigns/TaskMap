@@ -1,16 +1,17 @@
-import { Container, Glass, Html, Renderer, Scene } from "@liquid-dom/core";
+import { Container, Glass, Html, Renderer, Scene, StackingContext } from "@liquid-dom/core";
 import { LIQUID_MATERIAL_OPTICS, type LiquidMaterialRole } from "./materialRoles";
 
 export interface LiquidSurfaceRegistration {
   readonly contentHost: HTMLDivElement;
   sync(anchor: HTMLElement, root: HTMLElement): void;
+  setOpacity(opacity: number): void;
   dispose(): void;
 }
 
 export interface LiquidDomRuntime {
   readonly backdropHost: HTMLDivElement;
   readonly canvas: HTMLCanvasElement;
-  registerSurface(role: LiquidMaterialRole): LiquidSurfaceRegistration;
+  registerSurface(role: LiquidMaterialRole, sceneOrder?: number): LiquidSurfaceRegistration;
   syncBackdrop(root: HTMLElement): void;
   render(): void;
   destroy(): void;
@@ -44,8 +45,9 @@ export function createLiquidDomRuntime(): LiquidDomRuntime {
   return {
     backdropHost: backdropElement,
     canvas: renderer.canvas,
-    registerSurface(role) {
-      const container = scene.add(new Container(LIQUID_MATERIAL_OPTICS[role]));
+    registerSurface(role, sceneOrder = 0) {
+      const layer = scene.add(new StackingContext({ zIndex: sceneOrder }));
+      const container = layer.add(new Container(LIQUID_MATERIAL_OPTICS[role]));
       // The Html host owns interaction when a surface contains normal DOM controls.
       // Renderer-side SDF pointer events are reserved for content-free glass shapes.
       const glass = container.add(new Glass({ cornerSmoothing: 0, pointerEvents: false }));
@@ -66,10 +68,14 @@ export function createLiquidDomRuntime(): LiquidDomRuntime {
           content.width = anchorRect.width;
           content.height = anchorRect.height;
         },
+        setOpacity(opacity) {
+          container.opacity = opacity;
+        },
         dispose() {
           content.remove();
           glass.remove();
           container.remove();
+          layer.remove();
         },
       };
     },

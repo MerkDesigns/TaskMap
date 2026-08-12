@@ -43,12 +43,36 @@ describe("transitional material architecture rules", () => {
     ]);
   });
 
+  it("rejects Liquid DOM imports from the production canvas", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        {
+          path: "src/canvas/RendererV2CanvasViewport.tsx",
+          source: 'import { Glass } from "@liquid-dom/core";',
+        },
+      ]),
+    ).toEqual([
+      "src/canvas/RendererV2CanvasViewport.tsx: @liquid-dom/core may only be instantiated by the shared Liquid DOM runtime",
+    ]);
+  });
+
   it("accepts the shared Liquid DOM runtime dependency", () => {
     expect(
       findMaterialArchitectureViolations([
         {
           path: "src/ui/materials/liquid-dom/liquidDomRuntime.ts",
           source: 'import { Glass } from "@liquid-dom/core";',
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("accepts the isolated development benchmark Liquid DOM adapter", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        {
+          path: "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+          source: 'import { Group, Html } from "@liquid-dom/core";',
         },
       ]),
     ).toEqual([]);

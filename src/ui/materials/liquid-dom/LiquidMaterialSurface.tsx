@@ -1,7 +1,9 @@
 import {
+  forwardRef,
   type HTMLAttributes,
   type ReactNode,
   useContext,
+  useImperativeHandle,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,19 +18,28 @@ export interface LiquidMaterialSurfaceProps extends Omit<
   "children"
 > {
   readonly role: LiquidMaterialRole;
+  /** Scene stacking order. This is layout, not part of the optical material role. */
+  readonly sceneOrder?: number;
   readonly children: ReactNode;
+}
+
+export interface LiquidMaterialSurfaceHandle {
+  readonly anchor: HTMLDivElement | null;
+  refresh(): void;
+  setPresentationOpacity(opacity: number): void;
 }
 
 function joinClassNames(...values: Array<string | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
 
-export function LiquidMaterialSurface({
-  role,
-  children,
-  className,
-  ...props
-}: LiquidMaterialSurfaceProps) {
+export const LiquidMaterialSurface = forwardRef<
+  LiquidMaterialSurfaceHandle,
+  LiquidMaterialSurfaceProps
+>(function LiquidMaterialSurface(
+  { role, sceneOrder = 0, children, className, ...props },
+  forwardedRef,
+) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const { root, runtime } = useContext(LiquidDomContext);
   const [registration, setRegistration] = useState<LiquidSurfaceRegistration | null>(null);
@@ -39,7 +50,7 @@ export function LiquidMaterialSurface({
       return;
     }
 
-    const nextRegistration = runtime.registerSurface(role);
+    const nextRegistration = runtime.registerSurface(role, sceneOrder);
     const sync = () => nextRegistration.sync(anchor, root);
     sync();
     setRegistration(nextRegistration);
@@ -57,7 +68,33 @@ export function LiquidMaterialSurface({
       setRegistration(null);
       nextRegistration.dispose();
     };
-  }, [role, root, runtime]);
+  }, [role, root, runtime, sceneOrder]);
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (anchor && root && registration) {
+      registration.sync(anchor, root);
+    }
+  });
+
+  useImperativeHandle(
+    forwardedRef,
+    () => ({
+      get anchor() {
+        return anchorRef.current;
+      },
+      refresh() {
+        const anchor = anchorRef.current;
+        if (anchor && root && registration) {
+          registration.sync(anchor, root);
+        }
+      },
+      setPresentationOpacity(opacity) {
+        registration?.setOpacity(opacity);
+      },
+    }),
+    [registration, root],
+  );
 
   return (
     <div
@@ -69,4 +106,4 @@ export function LiquidMaterialSurface({
       {registration ? createPortal(children, registration.contentHost) : children}
     </div>
   );
-}
+});

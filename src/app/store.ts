@@ -10,11 +10,11 @@ import { documentWorkspaceSlice } from "./workspace/workspaceSlice";
 import type { HistoryCapacity } from "../domain/history/historyTypes";
 
 export interface ApplicationState {
-  readonly activeBoundary: "legacy";
+  readonly activeBoundary: "renderer-v2";
 }
 
 const initialApplicationState: ApplicationState = {
-  activeBoundary: "legacy",
+  activeBoundary: "renderer-v2",
 };
 
 const applicationSlice = createSlice({

@@ -5,6 +5,14 @@ import AppShell from "./app/AppShell";
 import { TaskMapMantineProvider } from "./ui/mantine/TaskMapMantineProvider";
 import "./index.css";
 
+const DevelopmentRendererBenchmark =
+  import.meta.env.DEV && import.meta.env.VITE_TASKMAP_RENDERER_BENCHMARK === "1"
+    ? React.lazy(async () => {
+        const module = await import("./ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark");
+        return { default: module.RendererV2PerformanceBenchmark };
+      })
+    : null;
+
 const DevelopmentLiquidDomFixture =
   import.meta.env.DEV && import.meta.env.VITE_TASKMAP_LIQUID_DOM_FIXTURE === "1"
     ? React.lazy(async () => {
@@ -24,7 +32,11 @@ const DevelopmentMantineFixture =
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <TaskMapMantineProvider>
-      {DevelopmentLiquidDomFixture ? (
+      {DevelopmentRendererBenchmark ? (
+        <React.Suspense fallback={null}>
+          <DevelopmentRendererBenchmark />
+        </React.Suspense>
+      ) : DevelopmentLiquidDomFixture ? (
         <React.Suspense fallback={null}>
           <DevelopmentLiquidDomFixture />
         </React.Suspense>

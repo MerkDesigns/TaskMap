@@ -40,7 +40,10 @@ describe("development UI Lab gate", () => {
       readFile(playgroundCssPath, "utf8"),
     ]);
     expect(appShell).toContain("<DevelopmentUiLab presentation={materialPresentation}");
-    expect(appShell).toContain("DevelopmentUiLab ? null");
+    expect(appShell).toContain("if (DevelopmentUiLab) return <DevelopmentUiLabShell />");
+    expect(appShell.indexOf("<RendererV2ApplicationWorkspace />")).toBeGreaterThan(
+      appShell.indexOf("if (DevelopmentUiLab) return <DevelopmentUiLabShell />"),
+    );
     expect(uiLab).toContain("<AcrylicCompositorPlayground presentation={presentation}");
     expect(playground).toContain("MaterialCompositorPresentationPublisher");
     expect(playground).toContain("<MaterialSurface");

@@ -1,0 +1,58 @@
+.taskmap-renderer-v2-canvas-viewport {
+  --taskmap-renderer-v2-grid-x: 0px;
+  --taskmap-renderer-v2-grid-y: 0px;
+  --taskmap-renderer-v2-grid-size: 24px;
+  --taskmap-renderer-v2-grid-opacity: 0.5;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--taskmap-canvas-bg);
+  background-image: radial-gradient(
+    circle,
+    rgb(var(--taskmap-canvas-dot-rgb) / var(--taskmap-renderer-v2-grid-opacity)) 0
+      var(--taskmap-canvas-dot-radius),
+    transparent calc(var(--taskmap-canvas-dot-radius) + 0.5px)
+  );
+  background-position: var(--taskmap-renderer-v2-grid-x) var(--taskmap-renderer-v2-grid-y);
+  background-size: var(--taskmap-renderer-v2-grid-size) var(--taskmap-renderer-v2-grid-size);
+  color: var(--taskmap-text);
+  cursor: grab;
+  touch-action: none;
+}
+
+.taskmap-renderer-v2-canvas-viewport[data-panning="true"] {
+  cursor: grabbing;
+}
+
+.taskmap-renderer-v2-canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.taskmap-renderer-v2-canvas-origin {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgb(var(--taskmap-canvas-dot-rgb) / 0.72);
+  border-radius: 50%;
+  color: var(--taskmap-muted);
+  font: 10px/1 var(--taskmap-font-monospace);
+  pointer-events: none;
+  translate: -3.5px -3.5px;
+}
+
+.taskmap-renderer-v2-canvas-origin::after {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  content: "0,0";
+  white-space: nowrap;
+}

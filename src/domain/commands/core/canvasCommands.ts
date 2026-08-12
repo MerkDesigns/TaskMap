@@ -55,6 +55,24 @@ export const canvasCommandHandlers = [
     },
   }),
   defineCommandHandler({
+    type: "document.canvas.update",
+    label: "Update canvas",
+    history: "record",
+    payloadSchema: z
+      .object({
+        canvasId,
+        name: canvasRecordSchema.shape.name,
+        settings: canvasRecordSchema.shape.settings,
+      })
+      .strict(),
+    apply(document, payload) {
+      const canvas = document.canvases[payload.canvasId];
+      if (canvas === undefined) return missingCanvas(payload.canvasId);
+      canvas.name = payload.name;
+      canvas.settings = payload.settings;
+    },
+  }),
+  defineCommandHandler({
     type: "document.canvas.set-active",
     label: "Set active canvas",
     history: "ignore",
