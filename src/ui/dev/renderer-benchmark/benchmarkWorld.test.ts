@@ -10,7 +10,7 @@ import { BenchmarkSceneStore } from "./benchmarkSceneStore";
 const GUARANTEED_WEBGPU_MAX_TEXTURE_DIMENSION_2D = 8192;
 
 describe("renderer benchmark world", () => {
-  it("keeps Mode C's DPR-scaled Html backdrop inside WebGPU's guaranteed texture limit", () => {
+  it("keeps the DPR-scaled benchmark world inside WebGPU's guaranteed texture limit", () => {
     expect(BENCHMARK_WORLD_WIDTH * BENCHMARK_LIQUID_MAX_DPR).toBeLessThanOrEqual(
       GUARANTEED_WEBGPU_MAX_TEXTURE_DIMENSION_2D,
     );

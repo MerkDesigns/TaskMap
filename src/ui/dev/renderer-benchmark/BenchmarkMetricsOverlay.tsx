@@ -22,8 +22,6 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
   return (
     <Paper className="renderer-benchmark__metrics" p="sm" radius="md" shadow="md">
       <div className="renderer-benchmark__metric-grid">
-        <strong>Mode</strong>
-        <span>{scene.architecture}</span>
         <strong>Metrics</strong>
         <span>{metricsEnabled ? "On" : "Off"}</span>
         {metricsEnabled ? (
@@ -46,7 +44,7 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
         ) : null}
         <strong>Scene</strong>
         <span>
-          {counts.textCards} text · {counts.containers} containers · {counts.glasses} glass
+          {counts.elements} Canvas Elements · {scene.canvasCardCount} Canvas Cards
         </span>
         <strong>Zoom / DPR</strong>
         <span>
@@ -56,6 +54,14 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
         <span>{liquid.html}</span>
         <strong>Liquid Containers</strong>
         <span>{liquid.containers}</span>
+        <strong>Liquid Glass shapes</strong>
+        <span>{liquid.glassShapes}</span>
+        <strong>Card geometry syncs</strong>
+        <span>{liquid.cardGeometrySyncs}</span>
+        <strong>Scroll Group updates</strong>
+        <span>{liquid.scrollGroupTransformUpdates}</span>
+        <strong>Drag transform updates</strong>
+        <span>{liquid.dragTransformUpdates}</span>
         {metricsEnabled ? (
           <>
             <strong>Capture calls</strong>
@@ -80,11 +86,11 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
       ) : null}
       {metricsEnabled && result ? (
         <Text size="xs" mt={6} className="renderer-benchmark__sample-result">
-          10s {result.architecture}: {number(result.averageFps)} FPS ·{" "}
-          {number(result.averageFrameTime)} ms avg · {number(result.p95FrameTime)} ms p95 ·{" "}
-          {number(result.worstFrameTime)} ms worst · {result.samples} frames ·{" "}
-          {integer(result.captureCalls)} captures · {integer(result.copiedTexels)} texels ·{" "}
-          {result.counts.elements} elements/{result.counts.glasses} glass
+          10s sample: {number(result.averageFps)} FPS · {number(result.averageFrameTime)} ms avg ·{" "}
+          {number(result.p95FrameTime)} ms p95 · {number(result.worstFrameTime)} ms worst ·{" "}
+          {result.samples} frames · {integer(result.captureCalls)} captures ·{" "}
+          {integer(result.copiedTexels)} texels · {result.counts.elements} Canvas Elements/
+          {result.counts.canvasCards} Canvas Cards
         </Text>
       ) : null}
     </Paper>

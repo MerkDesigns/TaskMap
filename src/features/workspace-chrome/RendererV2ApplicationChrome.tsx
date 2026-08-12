@@ -46,7 +46,11 @@ export function RendererV2ApplicationChrome({ document }: RendererV2ApplicationC
         sceneOrder={40}
         className="taskmap-renderer-v2-topbar-anchor"
       >
-        <nav className="taskmap-renderer-v2-topbar" aria-label="Browser mode">
+        <nav
+          className="taskmap-renderer-v2-topbar"
+          aria-label="Browser mode"
+          data-taskmap-canvas-input-boundary
+        >
           <Button
             size="compact-sm"
             variant={mode === "canvases" ? "light" : "subtle"}
@@ -76,7 +80,7 @@ export function RendererV2ApplicationChrome({ document }: RendererV2ApplicationC
         sceneOrder={10}
         className="taskmap-renderer-v2-browser-anchor"
       >
-        <div className="taskmap-renderer-v2-browser-panel">
+        <div className="taskmap-renderer-v2-browser-panel" data-taskmap-canvas-input-boundary>
           <div key={mode} className="taskmap-renderer-v2-browser-content">
             {mode === "canvases" ? (
               <CanvasBrowser

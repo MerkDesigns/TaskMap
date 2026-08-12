@@ -1,17 +1,7 @@
-import {
-  Button,
-  Checkbox,
-  Group,
-  Paper,
-  SegmentedControl,
-  Stack,
-  Switch,
-  Text,
-  Title,
-} from "@mantine/core";
+import { Button, Checkbox, Group, Paper, Slider, Stack, Switch, Text, Title } from "@mantine/core";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
+import { BENCHMARK_CANVAS_CARD_COUNT, BENCHMARK_CANVAS_ELEMENT_COUNT } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
-import type { BenchmarkArchitecture } from "./benchmarkTypes";
 
 interface Props {
   store: BenchmarkSceneStore;
@@ -42,41 +32,22 @@ export function BenchmarkControls({
             Development-only · shared scene state
           </Text>
         </div>
-        <SegmentedControl
-          fullWidth
-          value={scene.architecture}
-          onChange={(value) => store.setArchitecture(value as BenchmarkArchitecture)}
-          data={[
-            { value: "A", label: "A · Plain" },
-            { value: "B", label: "B · Coarse" },
-            { value: "C", label: "C · Group" },
-          ]}
-        />
-        <Group gap={6} grow>
-          <Button size="xs" onClick={() => store.addGlass()}>
-            + Glass
-          </Button>
-          <Button size="xs" onClick={() => store.addElement("text-card")}>
-            + Text
-          </Button>
-          <Button size="xs" onClick={() => store.addElement("container")}>
-            + Container
-          </Button>
-        </Group>
-        <Group gap={6} grow>
-          <Button size="compact-xs" variant="light" onClick={() => store.addBulk("text-card", 10)}>
-            +10 Text
-          </Button>
-          <Button size="compact-xs" variant="light" onClick={() => store.addBulk("text-card", 50)}>
-            +50 Text
-          </Button>
-          <Button size="compact-xs" variant="light" onClick={() => store.addBulk("text-card", 100)}>
-            +100 Text
-          </Button>
-          <Button size="compact-xs" variant="light" onClick={() => store.addBulk("container", 10)}>
-            +10 Containers
-          </Button>
-        </Group>
+        <div className="renderer-benchmark__workload-sliders">
+          <WorkloadSlider
+            label="Canvas Cards"
+            value={scene.canvasCardCount}
+            minimum={BENCHMARK_CANVAS_CARD_COUNT.minimum}
+            maximum={BENCHMARK_CANVAS_CARD_COUNT.maximum}
+            onChange={(value) => store.setCanvasCardCount(value)}
+          />
+          <WorkloadSlider
+            label="Canvas Elements"
+            value={scene.elements.length}
+            minimum={BENCHMARK_CANVAS_ELEMENT_COUNT.minimum}
+            maximum={BENCHMARK_CANVAS_ELEMENT_COUNT.maximum}
+            onChange={(value) => store.setCanvasElementCount(value)}
+          />
+        </div>
         <Group gap="md">
           <Switch
             size="xs"
@@ -86,7 +57,7 @@ export function BenchmarkControls({
           />
           <Checkbox
             size="xs"
-            label="Move cards"
+            label="Animate Canvas Elements"
             checked={scene.animations.moveCards}
             onChange={(event) => store.setAnimation("moveCards", event.currentTarget.checked)}
           />
@@ -104,12 +75,6 @@ export function BenchmarkControls({
           />
         </Group>
         <Group gap={6} grow>
-          <Button size="compact-xs" variant="default" onClick={() => store.clearCanvas()}>
-            Clear canvas
-          </Button>
-          <Button size="compact-xs" variant="default" onClick={() => store.clearGlass()}>
-            Clear glass
-          </Button>
           <Button size="compact-xs" variant="default" onClick={() => viewport.reset()}>
             Reset camera
           </Button>
@@ -131,11 +96,45 @@ export function BenchmarkControls({
           </Button>
         </Group>
         <Text size="xs" c="dimmed">
-          Mode A keeps element z inside its transformed world and outline z at the chrome boundary.
-          Mode B can place glass only before or after its single coarse Html layer. Mode C can
-          interleave element Html and independent glass Containers by scene z.
+          Canvas Cards share one Small Panel Container. The fixed Canvas Browser uses one Large
+          Panel Container. Scrolling moves one shared Liquid Group.
         </Text>
       </Stack>
     </Paper>
+  );
+}
+
+function WorkloadSlider({
+  label,
+  value,
+  minimum,
+  maximum,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly minimum: number;
+  readonly maximum: number;
+  readonly onChange: (value: number) => void;
+}) {
+  return (
+    <div className="renderer-benchmark__workload-slider">
+      <Group justify="space-between" gap="xs">
+        <Text size="xs" fw={600}>
+          {label}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {value}
+        </Text>
+      </Group>
+      <Slider
+        value={value}
+        min={minimum}
+        max={maximum}
+        step={1}
+        thumbLabel={label}
+        onChange={onChange}
+      />
+    </div>
   );
 }

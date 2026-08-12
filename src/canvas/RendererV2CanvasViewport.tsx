@@ -60,6 +60,12 @@ function isEmptyCanvasTarget(
   return target === viewport || target === world;
 }
 
+function isApplicationChromeTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element && Boolean(target.closest("[data-taskmap-canvas-input-boundary]"))
+  );
+}
+
 export function RendererV2CanvasViewport({
   children,
   activeCanvasId = null,
@@ -100,6 +106,7 @@ export function RendererV2CanvasViewport({
     present(camera.getSnapshot());
 
     const handleWheel = (event: WheelEvent) => {
+      if (isApplicationChromeTarget(event.target)) return;
       event.preventDefault();
       camera.wheelZoom(localPoint(event, viewportElement), event.deltaY);
       window.clearTimeout(wheelCommitTimer);
@@ -149,6 +156,7 @@ export function RendererV2CanvasViewport({
     const world = worldRef.current;
     const camera = cameraRef.current;
     if (!viewport || !world || !camera) return;
+    if (isApplicationChromeTarget(event.target)) return;
 
     const emptyTarget = isEmptyCanvasTarget(event.target, viewport, world);
     const primaryEmptyPan = event.button === 0 && emptyTarget;

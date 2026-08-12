@@ -17,6 +17,7 @@ export class BenchmarkViewportController {
   private frame: number | null = null;
   private presenter: (() => void) | null = null;
   private visibilityPublisher: (() => void) | null = null;
+  private readonly canvasViewports = new Map<number, ReturnType<typeof createViewport>>();
 
   constructor(private readonly store: BenchmarkSceneStore) {}
 
@@ -71,6 +72,19 @@ export class BenchmarkViewportController {
     this.store.scene.camera = createViewport({ x: 80, y: 64 }, 1, screen);
     this.store.commit();
     this.schedule();
+  }
+
+  selectCanvas(id: number) {
+    const currentId = this.store.scene.activeCanvasCardId;
+    if (currentId === id || !this.store.scene.canvasCardOrder.includes(id)) return;
+    this.canvasViewports.set(currentId, this.store.scene.camera);
+    const screen = this.store.scene.camera.screen;
+    const next =
+      this.canvasViewports.get(id) ??
+      createViewport({ x: 80 - id * 28, y: 64 - id * 18 }, 1, screen);
+    this.store.selectCanvasCard(id, next);
+    this.schedule();
+    this.publishVisibilityNow();
   }
 
   flush() {

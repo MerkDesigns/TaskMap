@@ -1,7 +1,6 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { BenchmarkPresentation } from "./benchmarkPresentation";
-import { BenchmarkGlassPanel } from "./BenchmarkGlassPanel";
 import { BenchmarkSceneElement } from "./BenchmarkSceneElement";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
@@ -10,17 +9,15 @@ import { useBenchmarkCanvasInput, type BenchmarkSpawnMenuRequest } from "./useBe
 import { useBenchmarkVisibleElements } from "./useBenchmarkVisibleElements";
 
 interface Props {
-  mode: "A" | "B";
   store: BenchmarkSceneStore;
   viewport: BenchmarkViewportController;
   version: number;
-  runtime?: LiquidSceneBenchmarkRuntime;
+  runtime: LiquidSceneBenchmarkRuntime;
   onPresentation: (presentation: BenchmarkPresentation | null) => void;
   onSpawnMenu: (request: BenchmarkSpawnMenuRequest | null) => void;
 }
 
 export function BenchmarkDomCanvas({
-  mode,
   store,
   viewport,
   version,
@@ -28,7 +25,6 @@ export function BenchmarkDomCanvas({
   onPresentation,
   onSpawnMenu,
 }: Props) {
-  const [canvas, setCanvas] = useState<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const elementNodes = useRef(new Map<string, HTMLElement>());
   const cardsWereAnimating = useRef(false);
@@ -57,9 +53,6 @@ export function BenchmarkDomCanvas({
         }
       },
       syncElement() {},
-      syncGlass(glass) {
-        runtime?.syncGlass(glass);
-      },
       tick(now) {
         const active = store.scene.animations.moveCards;
         if (active || cardsWereAnimating.current) {
@@ -72,10 +65,10 @@ export function BenchmarkDomCanvas({
           }
         }
         cardsWereAnimating.current = active;
-        runtime?.render();
+        runtime.tick(now);
       },
-      getLiquidCounts: () =>
-        runtime?.getCounts() ?? { html: 0, containers: 0, captureAvailable: false },
+      getLiquidCounts: () => runtime.getCounts(),
+      resetLiquidCounts: () => runtime.resetCounters(),
     }),
     [runtime, store],
   );
@@ -86,12 +79,7 @@ export function BenchmarkDomCanvas({
     cardsWereAnimating.current = false;
   }, [moveCards]);
 
-  useBenchmarkCanvasInput(
-    mode === "A" ? canvas : (runtime?.canvas ?? null),
-    viewport,
-    onSpawnMenu,
-    setCameraActive,
-  );
+  useBenchmarkCanvasInput(runtime.canvas, viewport, onSpawnMenu, setCameraActive);
   useLayoutEffect(() => {
     viewport.bindPresenter(() => presentation.presentCamera(store.scene.camera));
     onPresentation(presentation);
@@ -102,7 +90,10 @@ export function BenchmarkDomCanvas({
   }, [onPresentation, presentation, store, viewport]);
 
   const content = (
-    <div ref={setCanvas} className="renderer-benchmark__canvas" data-mode={mode}>
+    <div
+      className="renderer-benchmark__canvas"
+      data-active-benchmark-canvas={store.scene.activeCanvasCardId}
+    >
       <div ref={worldRef} className="renderer-benchmark__world">
         {elements.map((element) => (
           <BenchmarkSceneElement
@@ -118,42 +109,8 @@ export function BenchmarkDomCanvas({
           />
         ))}
       </div>
-      {mode === "A" ? (
-        <div className="renderer-benchmark__glass-layer">
-          {store.scene.glasses.map((glass) => (
-            <BenchmarkGlassPanel
-              key={glass.id}
-              glass={glass}
-              store={store}
-              presentation={presentation}
-              liquidPositioned={false}
-            />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 
-  return (
-    <>
-      {mode === "B" && runtime?.coarseHost ? createPortal(content, runtime.coarseHost) : content}
-      {mode === "B" && runtime
-        ? store.scene.glasses.map((glass) => {
-            const host = runtime.getGlassHost(glass.id);
-            return host
-              ? createPortal(
-                  <BenchmarkGlassPanel
-                    key={glass.id}
-                    glass={glass}
-                    store={store}
-                    presentation={presentation}
-                    liquidPositioned
-                  />,
-                  host,
-                )
-              : null;
-          })
-        : null}
-    </>
-  );
+  return createPortal(content, runtime.coarseHost);
 }

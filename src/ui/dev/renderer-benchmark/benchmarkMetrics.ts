@@ -1,4 +1,4 @@
-import type { BenchmarkArchitecture, BenchmarkSceneCounts } from "./benchmarkTypes";
+import type { BenchmarkSceneCounts } from "./benchmarkTypes";
 
 const ROLLING_FRAME_LIMIT = 600;
 
@@ -13,7 +13,6 @@ export interface FrameStatistics {
 }
 
 export interface TimedBenchmarkResult extends FrameStatistics {
-  architecture: BenchmarkArchitecture;
   counts: BenchmarkSceneCounts;
   captureCalls: number | null;
   copiedTexels: number | null;
@@ -60,7 +59,6 @@ export class BenchmarkMetricsSampler {
   private timedCaptureStart = { calls: 0, texels: 0 };
   private timedCaptureAvailable = false;
   private timedContext: {
-    architecture: BenchmarkArchitecture;
     counts: BenchmarkSceneCounts;
   } | null = null;
   timedResult: TimedBenchmarkResult | null = null;
@@ -99,7 +97,6 @@ export class BenchmarkMetricsSampler {
   }
 
   startTimedSample(
-    architecture: BenchmarkArchitecture,
     counts: BenchmarkSceneCounts,
     captureAvailable: boolean,
     now = performance.now(),
@@ -107,7 +104,7 @@ export class BenchmarkMetricsSampler {
     this.timedStart = now;
     this.timedFrames = [];
     this.timedCaptureStart = { calls: this.captureCalls, texels: this.captureTexels };
-    this.timedContext = { architecture, counts };
+    this.timedContext = { counts };
     this.timedCaptureAvailable = captureAvailable;
     this.timedResult = null;
     this.lastFrame = now;
@@ -136,7 +133,6 @@ export class BenchmarkMetricsSampler {
     if (!context) return;
     this.timedResult = {
       ...calculateFrameStatistics(this.timedFrames),
-      architecture: context.architecture,
       counts: context.counts,
       captureCalls: this.timedCaptureAvailable
         ? this.captureCalls - this.timedCaptureStart.calls

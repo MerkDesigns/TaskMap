@@ -73,7 +73,11 @@ export function findMaterialArchitectureViolations(entries) {
       /(?:from\s+|import\s*\(\s*)["']@liquid-dom\/core(?:\/[^"']*)?["']/.test(source);
     const approvedLiquidDomRuntime =
       path === "src/ui/materials/liquid-dom/liquidDomRuntime.ts" ||
-      path === "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts";
+      [
+        "src/ui/dev/renderer-benchmark/liquidCanvasBrowserRuntime.ts",
+        "src/ui/dev/renderer-benchmark/liquidCanvasCardGeometry.ts",
+        "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+      ].includes(path);
     if (importsLiquidDomDirectly && !approvedLiquidDomRuntime) {
       violations.push(
         `${path}: @liquid-dom/core may only be instantiated by the shared Liquid DOM runtime`,

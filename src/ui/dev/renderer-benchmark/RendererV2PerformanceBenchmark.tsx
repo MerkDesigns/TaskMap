@@ -1,8 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BenchmarkMetricsSampler } from "./benchmarkMetrics";
 import type { BenchmarkLiquidCounts, BenchmarkPresentation } from "./benchmarkPresentation";
 import { BenchmarkControls } from "./BenchmarkControls";
-import { BenchmarkDomStage } from "./BenchmarkDomStage";
+import { BenchmarkLiquidStage } from "./BenchmarkLiquidStage";
 import { BenchmarkMetricsOverlay } from "./BenchmarkMetricsOverlay";
 import { BenchmarkSceneStore, countBenchmarkScene } from "./benchmarkSceneStore";
 import { BenchmarkSpawnMenu } from "./BenchmarkSpawnMenu";
@@ -14,12 +14,12 @@ import "./BenchmarkOverlays.css";
 const EMPTY_LIQUID_COUNTS: BenchmarkLiquidCounts = {
   html: 0,
   containers: 0,
+  glassShapes: 0,
+  cardGeometrySyncs: 0,
+  scrollGroupTransformUpdates: 0,
+  dragTransformUpdates: 0,
   captureAvailable: false,
 };
-
-const BenchmarkLiquidStage = lazy(() =>
-  import("./BenchmarkLiquidStage").then(({ BenchmarkLiquidStage: Stage }) => ({ default: Stage })),
-);
 
 export function RendererV2PerformanceBenchmark() {
   const [store] = useState(() => new BenchmarkSceneStore());
@@ -61,11 +61,8 @@ export function RendererV2PerformanceBenchmark() {
     [viewport],
   );
 
-  const architecture = store.scene.architecture;
   const moveCards = store.scene.animations.moveCards;
   useEffect(() => {
-    const requiresPresentationLoop = architecture !== "A" || moveCards;
-    if (!metricsEnabled && !requiresPresentationLoop) return;
     let frame = 0;
     let lastUiUpdate = 0;
     const sample = (now: number) => {
@@ -84,49 +81,34 @@ export function RendererV2PerformanceBenchmark() {
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [architecture, metricsEnabled, moveCards, sampler]);
+  }, [metricsEnabled, moveCards, sampler]);
 
   const counts = countBenchmarkScene(store.scene);
   const resetMetrics = () => {
     if (!metricsEnabled) return;
     sampler.reset();
+    presentationRef.current?.resetLiquidCounts();
     setMetrics(sampler.snapshot(liquidCounts.captureAvailable));
   };
   const startSample = () => {
     if (!metricsEnabled) return;
-    sampler.startTimedSample(
-      store.scene.architecture,
-      countBenchmarkScene(store.scene),
-      liquidCounts.captureAvailable,
-    );
+    presentationRef.current?.resetLiquidCounts();
+    sampler.startTimedSample(countBenchmarkScene(store.scene), liquidCounts.captureAvailable);
     setMetrics(sampler.snapshot(liquidCounts.captureAvailable));
   };
 
   return (
     <main className="taskmap-target-theme renderer-benchmark">
       <div className="renderer-benchmark__stage">
-        {store.scene.architecture === "A" ? (
-          <BenchmarkDomStage
-            store={store}
-            viewport={viewport}
-            version={version}
-            onPresentation={setPresentation}
-            onSpawnMenu={setSpawnMenu}
-          />
-        ) : (
-          <Suspense fallback={null}>
-            <BenchmarkLiquidStage
-              mode={store.scene.architecture}
-              store={store}
-              viewport={viewport}
-              version={version}
-              metricsEnabled={metricsEnabled}
-              reportCapture={reportCapture}
-              onPresentation={setPresentation}
-              onSpawnMenu={setSpawnMenu}
-            />
-          </Suspense>
-        )}
+        <BenchmarkLiquidStage
+          store={store}
+          viewport={viewport}
+          version={version}
+          metricsEnabled={metricsEnabled}
+          reportCapture={reportCapture}
+          onPresentation={setPresentation}
+          onSpawnMenu={setSpawnMenu}
+        />
       </div>
       <BenchmarkControls
         store={store}
@@ -135,6 +117,7 @@ export function RendererV2PerformanceBenchmark() {
         onMetricsEnabledChange={(enabled) => {
           setMetricsEnabled(enabled);
           sampler.reset();
+          presentationRef.current?.resetLiquidCounts();
           setMetrics(sampler.snapshot(false));
         }}
         onResetMetrics={resetMetrics}

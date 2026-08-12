@@ -350,8 +350,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `scripts/check-version.mjs`                                               |    56 | Repository maintenance script                                                               |
 | `scripts/generate-baseline-fixtures.mjs`                                  |   115 | Repository maintenance script                                                               |
 | `scripts/generate-codemap.mjs`                                            |   103 | Repository maintenance script                                                               |
-| `scripts/material-architecture-rules.mjs`                                 |   150 | Repository maintenance script                                                               |
-| `scripts/material-architecture-rules.test.mjs`                            |   206 | Tests for the adjacent module                                                               |
+| `scripts/material-architecture-rules.mjs`                                 |   154 | Repository maintenance script                                                               |
+| `scripts/material-architecture-rules.test.mjs`                            |   210 | Tests for the adjacent module                                                               |
 | `scripts/report-file-sizes.mjs`                                           |    46 | Repository maintenance script                                                               |
 | `src-tauri/src/commands.rs`                                               |   566 | Rust backend module                                                                         |
 | `src-tauri/src/commands/database_command_types.rs`                        |    65 | Rust backend module                                                                         |
@@ -454,8 +454,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/canvas/interaction/canvasCameraSession.ts`                           |    38 | TypeScript application module                                                               |
 | `src/canvas/interaction/rendererV2CameraController.test.ts`               |    90 | @vitest-environment node                                                                    |
 | `src/canvas/interaction/rendererV2CameraController.ts`                    |   114 | TypeScript application module                                                               |
-| `src/canvas/RendererV2CanvasViewport.test.tsx`                            |    47 | Tests for the adjacent module                                                               |
-| `src/canvas/RendererV2CanvasViewport.tsx`                                 |   212 | React component or typed UI module                                                          |
+| `src/canvas/RendererV2CanvasViewport.test.tsx`                            |    68 | Tests for the adjacent module                                                               |
+| `src/canvas/RendererV2CanvasViewport.tsx`                                 |   220 | React component or typed UI module                                                          |
 | `src/canvas/virtualization/viewportCulling.test.ts`                       |    58 | @vitest-environment node                                                                    |
 | `src/canvas/virtualization/viewportCulling.ts`                            |    49 | TypeScript application module                                                               |
 | `src/canvasMath.test.ts`                                                  |   159 | Tests for the adjacent module                                                               |
@@ -551,8 +551,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/extensions/registry.test.ts`                                         |    55 | Tests for the adjacent module                                                               |
 | `src/extensions/registry.ts`                                              |   203 | TypeScript application module                                                               |
 | `src/extensions/useExtensionDrag.ts`                                      |   117 | TypeScript application module                                                               |
-| `src/features/canvases/CanvasBrowser.tsx`                                 |   184 | React component or typed UI module                                                          |
-| `src/features/canvases/CanvasCard.tsx`                                    |   169 | React component or typed UI module                                                          |
+| `src/features/canvases/CanvasBrowser.tsx`                                 |   202 | React component or typed UI module                                                          |
+| `src/features/canvases/CanvasCard.tsx`                                    |   179 | React component or typed UI module                                                          |
 | `src/features/canvases/CanvasPreview.tsx`                                 |    46 | React component or typed UI module                                                          |
 | `src/features/canvases/canvasReorderMath.test.ts`                         |    20 | Tests for the adjacent module                                                               |
 | `src/features/canvases/canvasReorderMath.ts`                              |    30 | TypeScript application module                                                               |
@@ -580,8 +580,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/features/phase2-database/phase2LockOperation.test.ts`                |    68 | Tests for the adjacent module                                                               |
 | `src/features/phase2-database/phase2LockOperation.ts`                     |    23 | TypeScript application module                                                               |
 | `src/features/phase2-database/Phase2SessionActions.tsx`                   |   145 | React component or typed UI module                                                          |
-| `src/features/workspace-chrome/RendererV2ApplicationChrome.test.tsx`      |    78 | Tests for the adjacent module                                                               |
-| `src/features/workspace-chrome/RendererV2ApplicationChrome.tsx`           |   103 | Favorites remain usable for this session when storage is unavailable.                       |
+| `src/features/workspace-chrome/RendererV2ApplicationChrome.test.tsx`      |   105 | Tests for the adjacent module                                                               |
+| `src/features/workspace-chrome/RendererV2ApplicationChrome.tsx`           |   107 | Favorites remain usable for this session when storage is unavailable.                       |
 | `src/features/workspace-chrome/RendererV2ApplicationWorkspace.tsx`        |    51 | React component or typed UI module                                                          |
 | `src/features/workspace-chrome/useDevelopmentWorkspaceBootstrap.test.tsx` |    28 | Tests for the adjacent module                                                               |
 | `src/features/workspace-chrome/useDevelopmentWorkspaceBootstrap.ts`       |    20 | TypeScript application module                                                               |
@@ -652,32 +652,40 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/dev/MantineVerificationFixture.tsx`                               |    69 | React component or typed UI module                                                          |
 | `src/ui/dev/refraction-test/DevelopmentRefractionTestLayer.test.tsx`      |    57 | Tests for the adjacent module                                                               |
 | `src/ui/dev/refraction-test/DevelopmentRefractionTestLayer.tsx`           |   175 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/BenchmarkControls.tsx`                     |   142 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/BenchmarkDomCanvas.tsx`                    |   160 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/BenchmarkDomStage.tsx`                     |    33 | React component or typed UI module                                                          |
+| `src/ui/dev/renderer-benchmark/BenchmarkCanvasBrowser.test.tsx`           |    56 | Tests for the adjacent module                                                               |
+| `src/ui/dev/renderer-benchmark/BenchmarkCanvasBrowser.tsx`                |   138 | React component or typed UI module                                                          |
+| `src/ui/dev/renderer-benchmark/benchmarkCanvasBrowserLayout.ts`           |    66 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/benchmarkCanvasCardInteraction.test.ts`    |    29 | @vitest-environment node                                                                    |
+| `src/ui/dev/renderer-benchmark/benchmarkCanvasCardInteraction.ts`         |    77 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/BenchmarkControls.test.tsx`                |    39 | Tests for the adjacent module                                                               |
+| `src/ui/dev/renderer-benchmark/BenchmarkControls.tsx`                     |   141 | React component or typed UI module                                                          |
+| `src/ui/dev/renderer-benchmark/BenchmarkDomCanvas.tsx`                    |   117 | React component or typed UI module                                                          |
 | `src/ui/dev/renderer-benchmark/BenchmarkElementContent.tsx`               |    84 | React component or typed UI module                                                          |
 | `src/ui/dev/renderer-benchmark/benchmarkElementCssGeometry.ts`            |    25 | TypeScript application module                                                               |
 | `src/ui/dev/renderer-benchmark/benchmarkGifAsset.ts`                      |     4 | Five-frame, development-only GIF used to force recurring native image paints.               |
-| `src/ui/dev/renderer-benchmark/BenchmarkGlassPanel.tsx`                   |   159 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/BenchmarkLiquidStage.tsx`                  |   183 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/benchmarkMetrics.test.ts`                  |    57 | @vitest-environment node                                                                    |
-| `src/ui/dev/renderer-benchmark/benchmarkMetrics.ts`                       |   152 | TypeScript application module                                                               |
-| `src/ui/dev/renderer-benchmark/BenchmarkMetricsOverlay.tsx`               |    93 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/benchmarkPresentation.ts`                  |    17 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/BenchmarkLiquidStage.tsx`                  |    85 | React component or typed UI module                                                          |
+| `src/ui/dev/renderer-benchmark/benchmarkMetrics.test.ts`                  |    50 | @vitest-environment node                                                                    |
+| `src/ui/dev/renderer-benchmark/benchmarkMetrics.ts`                       |   148 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/BenchmarkMetricsOverlay.tsx`               |    99 | React component or typed UI module                                                          |
+| `src/ui/dev/renderer-benchmark/benchmarkPresentation.ts`                  |    21 | TypeScript application module                                                               |
 | `src/ui/dev/renderer-benchmark/BenchmarkSceneElement.tsx`                 |   217 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/benchmarkSceneStore.test.ts`               |    75 | @vitest-environment node                                                                    |
-| `src/ui/dev/renderer-benchmark/benchmarkSceneStore.ts`                    |   179 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/benchmarkSceneStore.test.ts`               |   109 | @vitest-environment node                                                                    |
+| `src/ui/dev/renderer-benchmark/benchmarkSceneStore.ts`                    |   196 | TypeScript application module                                                               |
 | `src/ui/dev/renderer-benchmark/BenchmarkSpawnMenu.tsx`                    |    39 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/benchmarkTypes.ts`                         |    48 | TypeScript application module                                                               |
-| `src/ui/dev/renderer-benchmark/benchmarkViewportController.test.ts`       |    57 | @vitest-environment node                                                                    |
-| `src/ui/dev/renderer-benchmark/benchmarkViewportController.ts`            |   101 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/benchmarkTypes.ts`                         |    37 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/benchmarkViewportController.test.ts`       |    78 | @vitest-environment node                                                                    |
+| `src/ui/dev/renderer-benchmark/benchmarkViewportController.ts`            |   115 | TypeScript application module                                                               |
 | `src/ui/dev/renderer-benchmark/benchmarkWorld.test.ts`                    |    36 | @vitest-environment node                                                                    |
-| `src/ui/dev/renderer-benchmark/benchmarkWorld.ts`                         |     6 | Mode C captures this Html at up to 2 DPR. Keep both backing dimensions within               |
+| `src/ui/dev/renderer-benchmark/benchmarkWorld.ts`                         |     6 | The coarse backdrop is capped at 2 DPR. These dimensions retain ample pan space for the     |
+| `src/ui/dev/renderer-benchmark/liquidCanvasBrowserRuntime.ts`             |   400 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/liquidCanvasBrowserTypes.ts`               |    24 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/liquidCanvasCardGeometry.ts`               |    80 | TypeScript application module                                                               |
 | `src/ui/dev/renderer-benchmark/liquidCaptureProbe.test.ts`                |    34 | @vitest-environment node                                                                    |
 | `src/ui/dev/renderer-benchmark/liquidCaptureProbe.ts`                     |    63 | TypeScript application module                                                               |
-| `src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts`            |   215 | TypeScript application module                                                               |
-| `src/ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark.tsx`        |   157 | React component or typed UI module                                                          |
-| `src/ui/dev/renderer-benchmark/useBenchmarkCanvasInput.ts`                |   102 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.test.ts`       |   210 | Tests for the adjacent module                                                               |
+| `src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts`            |   105 | TypeScript application module                                                               |
+| `src/ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark.tsx`        |   140 | React component or typed UI module                                                          |
+| `src/ui/dev/renderer-benchmark/useBenchmarkCanvasInput.ts`                |   106 | TypeScript application module                                                               |
 | `src/ui/dev/renderer-benchmark/useBenchmarkVisibleElements.test.tsx`      |    43 | Tests for the adjacent module                                                               |
 | `src/ui/dev/renderer-benchmark/useBenchmarkVisibleElements.ts`            |    65 | The store intentionally publishes a version for in-place structural additions.              |
 | `src/ui/mantine/TaskMapMantineProvider.test.tsx`                          |    28 | Tests for the adjacent module                                                               |

@@ -1,10 +1,8 @@
 import { createViewport } from "../../../canvas/geometry/viewportMath";
 import type { CanvasPoint } from "../../../canvas/geometry/canvasGeometry";
 import type {
-  BenchmarkArchitecture,
   BenchmarkElementKind,
   BenchmarkElementModel,
-  BenchmarkGlassModel,
   BenchmarkSceneCounts,
   BenchmarkSceneModel,
 } from "./benchmarkTypes";
@@ -21,6 +19,17 @@ const ELEMENT_GEOMETRY = {
   container: { width: 368, height: 244 },
 } as const;
 
+export const BENCHMARK_CANVAS_CARD_COUNT = Object.freeze({ minimum: 1, maximum: 20 });
+export const BENCHMARK_CANVAS_ELEMENT_COUNT = Object.freeze({ minimum: 1, maximum: 100 });
+
+export function clampCanvasCardCount(value: number) {
+  return clampInteger(value, BENCHMARK_CANVAS_CARD_COUNT);
+}
+
+export function clampCanvasElementCount(value: number) {
+  return clampInteger(value, BENCHMARK_CANVAS_ELEMENT_COUNT);
+}
+
 export function deterministicElementPosition(ordinal: number): CanvasPoint {
   return {
     x: 120 + (ordinal % 10) * 292,
@@ -34,32 +43,71 @@ export function countBenchmarkScene(scene: BenchmarkSceneModel): BenchmarkSceneC
   return {
     textCards,
     containers,
-    glasses: scene.glasses.length,
+    canvasCards: scene.canvasCardCount,
     elements: scene.elements.length,
   };
-}
-
-export function clampBenchmarkGlassSize(width: number, height: number) {
-  return { width: Math.max(190, width), height: Math.max(120, height) };
 }
 
 export class BenchmarkSceneStore {
   private readonly listeners = new Set<() => void>();
   private version = 0;
   private nextElementOrdinal = 0;
-  private nextGlassOrdinal = 0;
   readonly scene: BenchmarkSceneModel;
 
   constructor() {
     this.scene = {
-      architecture: "A",
       elements: [],
-      glasses: [],
+      canvasCardCount: 5,
+      canvasCardOrder: [0, 1, 2, 3, 4],
+      activeCanvasCardId: 0,
       camera: createViewport({ x: 80, y: 64 }, 1, { width: 0, height: 0 }),
       animations: { moveCards: false, moveImage: false, showGif: false },
     };
     this.addBulk("text-card", 6, false);
     this.addBulk("container", 2, false);
+  }
+
+  setCanvasCardCount(count: number) {
+    const target = clampCanvasCardCount(count);
+    const retained = this.scene.canvasCardOrder.filter((id) => id < target);
+    const retainedIds = new Set(retained);
+    for (let id = 0; id < target; id += 1) {
+      if (!retainedIds.has(id)) retained.push(id);
+    }
+    this.scene.canvasCardCount = target;
+    this.scene.canvasCardOrder = retained;
+    if (!retained.includes(this.scene.activeCanvasCardId)) {
+      this.scene.activeCanvasCardId = retained[0] ?? 0;
+    }
+    this.commit();
+  }
+
+  selectCanvasCard(id: number, camera = this.scene.camera) {
+    if (!this.scene.canvasCardOrder.includes(id)) return false;
+    this.scene.activeCanvasCardId = id;
+    this.scene.camera = camera;
+    this.commit();
+    return true;
+  }
+
+  commitCanvasCardOrder(order: readonly number[]) {
+    if (!isCanvasCardPermutation(order, this.scene.canvasCardCount)) return false;
+    this.scene.canvasCardOrder = [...order];
+    this.commit();
+    return true;
+  }
+
+  setCanvasElementCount(count: number) {
+    const target = clampCanvasElementCount(count);
+    if (target < this.scene.elements.length) {
+      this.scene.elements = this.scene.elements.slice(0, target);
+      this.nextElementOrdinal = target;
+    } else {
+      while (this.scene.elements.length < target) {
+        this.addElement(elementKindForOrdinal(this.nextElementOrdinal), undefined, false);
+      }
+    }
+    this.commit();
   }
 
   subscribe = (listener: () => void) => {
@@ -72,11 +120,6 @@ export class BenchmarkSceneStore {
   commit() {
     this.version += 1;
     this.listeners.forEach((listener) => listener());
-  }
-
-  setArchitecture(architecture: BenchmarkArchitecture) {
-    this.scene.architecture = architecture;
-    this.commit();
   }
 
   addElement(kind: BenchmarkElementKind, point?: CanvasPoint, commit = true) {
@@ -103,22 +146,6 @@ export class BenchmarkSceneStore {
     if (commit) this.commit();
   }
 
-  addGlass(commit = true) {
-    const ordinal = this.nextGlassOrdinal++;
-    const glass: BenchmarkGlassModel = {
-      id: `glass-${ordinal + 1}`,
-      x: 360 + (ordinal % 4) * 54,
-      y: 170 + (ordinal % 5) * 46,
-      width: 280,
-      height: 176,
-      z: 40 + ordinal,
-      role: "small-panel",
-    };
-    this.scene.glasses.push(glass);
-    if (commit) this.commit();
-    return glass;
-  }
-
   adjustElementZ(id: string, delta: number) {
     this.scene.elements = this.scene.elements.map((element) =>
       element.id === id ? { ...element, z: element.z + delta } : element,
@@ -126,35 +153,9 @@ export class BenchmarkSceneStore {
     this.commit();
   }
 
-  adjustGlassZ(id: string, delta: number) {
-    this.scene.glasses = this.scene.glasses.map((glass) =>
-      glass.id === id ? { ...glass, z: glass.z + delta } : glass,
-    );
-    this.commit();
-  }
-
-  toggleGlassRole(id: string) {
-    this.scene.glasses = this.scene.glasses.map((glass) =>
-      glass.id === id
-        ? {
-            ...glass,
-            role: glass.role === "small-panel" ? "large-panel" : "small-panel",
-          }
-        : glass,
-    );
-    this.commit();
-  }
-
   commitElementGeometry(id: string, geometry: BenchmarkGeometryCommit) {
     this.scene.elements = this.scene.elements.map((element) =>
       element.id === id ? { ...element, ...geometry } : element,
-    );
-    this.commit();
-  }
-
-  commitGlassGeometry(id: string, geometry: BenchmarkGeometryCommit) {
-    this.scene.glasses = this.scene.glasses.map((glass) =>
-      glass.id === id ? { ...glass, ...geometry } : glass,
     );
     this.commit();
   }
@@ -169,10 +170,26 @@ export class BenchmarkSceneStore {
     this.nextElementOrdinal = 0;
     this.commit();
   }
+}
 
-  clearGlass() {
-    this.scene.glasses.length = 0;
-    this.nextGlassOrdinal = 0;
-    this.commit();
-  }
+function isCanvasCardPermutation(order: readonly number[], count: number) {
+  return (
+    order.length === count &&
+    new Set(order).size === count &&
+    order.every((id) => Number.isInteger(id) && id >= 0 && id < count)
+  );
+}
+
+function elementKindForOrdinal(ordinal: number): BenchmarkElementKind {
+  if (ordinal < 6) return "text-card";
+  if (ordinal < 8) return "container";
+  return ordinal % 5 === 4 ? "container" : "text-card";
+}
+
+function clampInteger(
+  value: number,
+  range: { readonly minimum: number; readonly maximum: number },
+) {
+  const finite = Number.isFinite(value) ? Math.round(value) : range.minimum;
+  return Math.min(range.maximum, Math.max(range.minimum, finite));
 }

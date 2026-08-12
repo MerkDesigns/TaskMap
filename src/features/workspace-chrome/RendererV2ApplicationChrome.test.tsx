@@ -1,6 +1,6 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppProviders } from "../../app/AppProviders";
 import { useAppSelector } from "../../app/hooks";
 import { createAppStore } from "../../app/store";
@@ -57,8 +57,35 @@ describe("RendererV2ApplicationChrome", () => {
     const { store, secondId } = createStoreWithTwoCanvases();
     renderChrome(store);
 
+    const firstCard = screen.getByText("Canvas 1").closest(".taskmap-canvas-card");
+    const secondCard = screen.getByText("Canvas 2").closest(".taskmap-canvas-card");
+    expect(firstCard).toHaveClass("is-active");
+    expect(secondCard).not.toHaveClass("is-active");
+
     await user.click(screen.getByText("Canvas 2"));
     expect(store.getState().documentWorkspace.document!.activeCanvasId).toBe(secondId);
+    expect(firstCard).not.toHaveClass("is-active");
+    expect(secondCard).toHaveClass("is-active");
+  });
+
+  it("contains Canvas Browser pointer and wheel input and scrolls its hidden-scrollbar list", () => {
+    renderChrome();
+    const card = screen.getByText("Canvas 2").closest(".taskmap-canvas-card") as HTMLElement;
+    const list = screen.getByTestId("canvas-browser-list");
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 300 });
+    const escapedPointer = vi.fn();
+    const escapedWheel = vi.fn();
+    document.addEventListener("pointerdown", escapedPointer);
+    document.addEventListener("wheel", escapedWheel);
+
+    fireEvent.pointerDown(card, { button: 0, pointerId: 4, clientY: 100 });
+    fireEvent.wheel(card, { deltaY: 90, deltaMode: 0 });
+
+    expect(escapedPointer).not.toHaveBeenCalled();
+    expect(escapedWheel).not.toHaveBeenCalled();
+    expect(list.scrollTop).toBe(90);
+    document.removeEventListener("pointerdown", escapedPointer);
+    document.removeEventListener("wheel", escapedWheel);
   });
 
   it("switches one browser shell between canvases and extensions without losing search state", async () => {

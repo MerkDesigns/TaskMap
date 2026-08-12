@@ -14,7 +14,11 @@ function localPoint(event: MouseEvent | PointerEvent | WheelEvent, rect: DOMRect
 function belongsToInteractiveObject(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    Boolean(target.closest("[data-benchmark-element], [data-benchmark-glass]"))
+    Boolean(
+      target.closest(
+        "[data-benchmark-element], [data-benchmark-glass], [data-benchmark-canvas-card]",
+      ),
+    )
   );
 }
 

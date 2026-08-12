@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCanvasCameraSession } from "./interaction/canvasCameraSession";
 import { RendererV2CanvasViewport } from "./RendererV2CanvasViewport";
@@ -42,5 +42,26 @@ describe("RendererV2CanvasViewport camera session", () => {
     view.rerender(<RendererV2CanvasViewport activeCanvasId="canvas-a" cameraSession={session} />);
     act(flushFrames);
     expect(world.style.transform).toBe("translate3d(24px, -12px, 0) scale(1.25)");
+  });
+
+  it("ignores wheel and pointer starts from application chrome input boundaries", () => {
+    const view = render(
+      <RendererV2CanvasViewport>
+        <button data-taskmap-canvas-input-boundary>Browser control</button>
+      </RendererV2CanvasViewport>,
+    );
+    const world = view.container.querySelector(".taskmap-renderer-v2-canvas-world") as HTMLElement;
+    const control = view.getByRole("button", { name: "Browser control" });
+    const before = world.style.transform;
+
+    fireEvent.wheel(control, { deltaY: -200 });
+    fireEvent.pointerDown(control, { button: 0, pointerId: 3, clientX: 100, clientY: 100 });
+    act(flushFrames);
+
+    expect(world.style.transform).toBe(before);
+    expect(view.getByRole("main", { name: "TaskMap canvas" })).toHaveAttribute(
+      "data-panning",
+      "false",
+    );
   });
 });

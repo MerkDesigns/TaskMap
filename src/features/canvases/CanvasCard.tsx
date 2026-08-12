@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Menu, NumberInput, TextInput } from "@mantine/core";
 import { IconCheck, IconDotsVertical, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
-import { type PointerEvent, type Ref, useState } from "react";
+import { type PointerEvent, type Ref, useState, type WheelEvent } from "react";
 import type { CanvasRecord, DocumentElement } from "../../domain/document/documentTypes";
 import {
   LiquidMaterialSurface,
@@ -19,6 +19,7 @@ export interface CanvasCardProps {
   readonly surfaceRef: Ref<LiquidMaterialSurfaceHandle>;
   readonly cardRef: Ref<HTMLDivElement>;
   readonly onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+  readonly onWheel: (deltaY: number, deltaMode: number) => void;
   readonly onSelect: () => void;
   readonly onUpdate: (draft: CanvasDraft) => void;
   readonly onDelete: () => void;
@@ -56,7 +57,16 @@ export function CanvasCard(props: CanvasCardProps) {
       <div
         ref={props.cardRef}
         className={`taskmap-canvas-card ${active ? "is-active" : ""} ${dragging ? "is-dragging" : ""}`}
-        onPointerDown={props.onPointerDown}
+        data-taskmap-canvas-input-boundary
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          props.onPointerDown(event);
+        }}
+        onWheel={(event: WheelEvent<HTMLDivElement>) => {
+          event.preventDefault();
+          event.stopPropagation();
+          props.onWheel(event.deltaY, event.deltaMode);
+        }}
         onClick={() => {
           if (!props.suppressSelection()) props.onSelect();
         }}

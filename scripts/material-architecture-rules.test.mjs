@@ -67,11 +67,15 @@ describe("transitional material architecture rules", () => {
     ).toEqual([]);
   });
 
-  it("accepts the isolated development benchmark Liquid DOM adapter", () => {
+  it.each([
+    "src/ui/dev/renderer-benchmark/liquidCanvasBrowserRuntime.ts",
+    "src/ui/dev/renderer-benchmark/liquidCanvasCardGeometry.ts",
+    "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+  ])("accepts an isolated development benchmark Liquid DOM adapter: %s", (path) => {
     expect(
       findMaterialArchitectureViolations([
         {
-          path: "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+          path,
           source: 'import { Group, Html } from "@liquid-dom/core";',
         },
       ]),

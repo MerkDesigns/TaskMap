@@ -5,7 +5,7 @@ import {
   IconPlus,
   IconStack2,
 } from "@tabler/icons-react";
-import { useCallback, useMemo, useState } from "react";
+import { type PointerEvent, useCallback, useMemo, useRef, useState, type WheelEvent } from "react";
 import { useAppStore } from "../../app/hooks";
 import type { DocumentElement, TaskMapDocument } from "../../domain/document/documentTypes";
 import type { CanvasId } from "../../domain/ids/entityIds";
@@ -31,6 +31,7 @@ const DEFAULT_DRAFT: CanvasDraft = { name: "", width: 3_000, height: 3_000 };
 
 export function CanvasBrowser({ document, minimal, onMinimalChange }: CanvasBrowserProps) {
   const store = useAppStore();
+  const listRef = useRef<HTMLDivElement>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const order = useMemo(() => document?.canvasOrder ?? [], [document?.canvasOrder]);
@@ -63,11 +64,27 @@ export function CanvasBrowser({ document, minimal, onMinimalChange }: CanvasBrow
     setCreateOpen(false);
     setDraft(DEFAULT_DRAFT);
   };
+  const scrollListByWheel = (deltaY: number, deltaMode: number) => {
+    const list = listRef.current;
+    if (!list) return;
+    const pixels =
+      deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * list.clientHeight : deltaY;
+    list.scrollTop += pixels;
+  };
+  const containPointer = (event: PointerEvent<HTMLElement>) => event.stopPropagation();
+  const containWheel = (event: WheelEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    scrollListByWheel(event.deltaY, event.deltaMode);
+  };
 
   return (
     <section
       className={`taskmap-canvas-browser ${minimal ? "is-minimal" : ""}`}
       aria-label="Canvases"
+      data-taskmap-canvas-input-boundary
+      onPointerDown={containPointer}
+      onWheel={containWheel}
     >
       <header className="taskmap-browser-header">
         <div className="taskmap-browser-heading">
@@ -108,7 +125,7 @@ export function CanvasBrowser({ document, minimal, onMinimalChange }: CanvasBrow
         </div>
       </header>
 
-      <div className="taskmap-canvas-browser__list" data-testid="canvas-browser-list">
+      <div ref={listRef} className="taskmap-canvas-browser__list" data-testid="canvas-browser-list">
         {reorder.displayOrder.map((canvasId) => {
           const canvas = document?.canvases[canvasId];
           if (!canvas) return null;
@@ -124,6 +141,7 @@ export function CanvasBrowser({ document, minimal, onMinimalChange }: CanvasBrow
               surfaceRef={(handle) => reorder.registerSurface(canvasId, handle)}
               cardRef={(node) => reorder.registerCardNode(canvasId, node)}
               onPointerDown={(event) => reorder.onPointerDown(canvasId, event)}
+              onWheel={scrollListByWheel}
               suppressSelection={reorder.consumeSuppressedClick}
               onSelect={() => selectCanvas(store.workspace, canvasId)}
               onUpdate={(nextDraft) => updateCanvas(store.workspace, canvasId, nextDraft)}

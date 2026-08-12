@@ -1,7 +1,5 @@
 import type { CanvasViewport } from "../../../canvas/geometry/viewportMath";
-import type { LiquidMaterialRole } from "../../materials/liquid-dom";
 
-export type BenchmarkArchitecture = "A" | "B" | "C";
 export type BenchmarkElementKind = "text-card" | "container";
 
 export interface BenchmarkElementModel {
@@ -15,16 +13,6 @@ export interface BenchmarkElementModel {
   ordinal: number;
 }
 
-export interface BenchmarkGlassModel {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  z: number;
-  role: LiquidMaterialRole;
-}
-
 export interface BenchmarkAnimationSettings {
   moveCards: boolean;
   moveImage: boolean;
@@ -32,9 +20,10 @@ export interface BenchmarkAnimationSettings {
 }
 
 export interface BenchmarkSceneModel {
-  architecture: BenchmarkArchitecture;
   elements: BenchmarkElementModel[];
-  glasses: BenchmarkGlassModel[];
+  canvasCardCount: number;
+  canvasCardOrder: number[];
+  activeCanvasCardId: number;
   camera: CanvasViewport;
   animations: BenchmarkAnimationSettings;
 }
@@ -42,6 +31,6 @@ export interface BenchmarkSceneModel {
 export interface BenchmarkSceneCounts {
   textCards: number;
   containers: number;
-  glasses: number;
+  canvasCards: number;
   elements: number;
 }

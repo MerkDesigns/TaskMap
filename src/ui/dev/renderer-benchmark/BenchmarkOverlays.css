@@ -8,8 +8,20 @@
 
 .renderer-benchmark__controls {
   top: 12px;
-  left: 12px;
-  width: min(760px, calc(100vw - 410px));
+  left: 322px;
+  width: min(650px, calc(100vw - 732px));
+}
+
+.renderer-benchmark__workload-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.renderer-benchmark__workload-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .renderer-benchmark__metrics {
@@ -63,12 +75,27 @@
 
 @media (max-width: 980px) {
   .renderer-benchmark__controls {
-    width: calc(100vw - 24px);
+    right: 12px;
+    left: 322px;
+    width: auto;
   }
 
   .renderer-benchmark__metrics {
     top: auto;
     bottom: 42px;
     width: 340px;
+  }
+}
+
+@media (max-width: 720px) {
+  .renderer-benchmark__controls {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  .renderer-benchmark__workload-sliders {
+    grid-template-columns: 1fr;
   }
 }

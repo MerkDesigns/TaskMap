@@ -2,23 +2,66 @@
 import { describe, expect, it } from "vitest";
 import {
   BenchmarkSceneStore,
-  clampBenchmarkGlassSize,
+  clampCanvasCardCount,
+  clampCanvasElementCount,
   deterministicElementPosition,
 } from "./benchmarkSceneStore";
 
 describe("renderer benchmark scene store", () => {
-  it("preserves one scene and camera while switching architectures", () => {
+  it("clamps Canvas Cards to integer values from 1 through 20", () => {
+    expect(clampCanvasCardCount(-10)).toBe(1);
+    expect(clampCanvasCardCount(4.6)).toBe(5);
+    expect(clampCanvasCardCount(80)).toBe(20);
     const store = new BenchmarkSceneStore();
-    const elements = store.scene.elements;
-    const glasses = store.scene.glasses;
-    store.scene.camera = { ...store.scene.camera, pan: { x: 321, y: -78 }, zoom: 1.4 };
+    store.setCanvasCardCount(99);
+    expect(store.scene.canvasCardCount).toBe(20);
+  });
 
-    store.setArchitecture("B");
-    store.setArchitecture("C");
+  it("clamps Canvas Elements to integer values from 1 through 100", () => {
+    expect(clampCanvasElementCount(0)).toBe(1);
+    expect(clampCanvasElementCount(49.6)).toBe(50);
+    expect(clampCanvasElementCount(999)).toBe(100);
+    const store = new BenchmarkSceneStore();
+    store.setCanvasElementCount(999);
+    expect(store.scene.elements).toHaveLength(100);
+    store.setCanvasElementCount(-1);
+    expect(store.scene.elements).toHaveLength(1);
+  });
 
-    expect(store.scene.elements).toBe(elements);
-    expect(store.scene.glasses).toBe(glasses);
-    expect(store.scene.camera).toMatchObject({ pan: { x: 321, y: -78 }, zoom: 1.4 });
+  it("changes only the amount of existing deterministic canvas element models", () => {
+    const store = new BenchmarkSceneStore();
+    store.setCanvasElementCount(50);
+
+    expect(store.scene.elements).toHaveLength(50);
+    expect(store.scene.elements[0]).toMatchObject({
+      kind: "text-card",
+      ...deterministicElementPosition(0),
+    });
+    expect(store.scene.elements[6]).toMatchObject({
+      kind: "container",
+      ...deterministicElementPosition(6),
+    });
+  });
+
+  it("commits a valid Canvas Card order once", () => {
+    const store = new BenchmarkSceneStore();
+    const version = store.getVersion();
+
+    expect(store.commitCanvasCardOrder([2, 0, 1, 3, 4])).toBe(true);
+
+    expect(store.scene.canvasCardOrder).toEqual([2, 0, 1, 3, 4]);
+    expect(store.getVersion()).toBe(version + 1);
+    expect(store.commitCanvasCardOrder([0, 0, 1, 2, 3])).toBe(false);
+  });
+
+  it("tracks exactly one active Canvas Card and falls back when its card is removed", () => {
+    const store = new BenchmarkSceneStore();
+    expect(store.selectCanvasCard(4)).toBe(true);
+    expect(store.scene.activeCanvasCardId).toBe(4);
+    expect(store.selectCanvasCard(30)).toBe(false);
+
+    store.setCanvasCardCount(3);
+    expect(store.scene.activeCanvasCardId).toBe(0);
   });
 
   it("uses deterministic bulk positions and resets that sequence when clearing", () => {
@@ -35,23 +78,14 @@ describe("renderer benchmark scene store", () => {
     expect({ x: item.x, y: item.y }).toEqual(deterministicElementPosition(0));
   });
 
-  it("changes actual model z values for elements and glass", () => {
+  it("changes actual model z values for elements", () => {
     const store = new BenchmarkSceneStore();
     const element = store.scene.elements[0];
-    const glass = store.addGlass();
     const elementZ = element.z;
-    const glassZ = glass.z;
 
     store.adjustElementZ(element.id, -1);
-    store.adjustGlassZ(glass.id, 1);
 
     expect(store.scene.elements.find(({ id }) => id === element.id)?.z).toBe(elementZ - 1);
-    expect(store.scene.glasses.find(({ id }) => id === glass.id)?.z).toBe(glassZ + 1);
-  });
-
-  it("keeps continuous glass resize state and enforces minimum geometry", () => {
-    expect(clampBenchmarkGlassSize(420, 260)).toEqual({ width: 420, height: 260 });
-    expect(clampBenchmarkGlassSize(20, 30)).toEqual({ width: 190, height: 120 });
   });
 
   it("publishes committed geometry once without mutating the previous element", () => {

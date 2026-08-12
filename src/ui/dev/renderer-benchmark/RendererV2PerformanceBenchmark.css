@@ -10,8 +10,7 @@
 .renderer-benchmark__canvas,
 .renderer-benchmark__liquid-stage,
 .renderer-benchmark__liquid-canvas,
-.renderer-benchmark__coarse-host,
-.renderer-benchmark__liquid-background-host {
+.renderer-benchmark__coarse-host {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -26,7 +25,6 @@
   user-select: none;
 }
 
-.renderer-benchmark__canvas[data-panning="true"],
 .renderer-benchmark__liquid-canvas[data-panning="true"] {
   cursor: grabbing;
 }
@@ -51,33 +49,154 @@
   transform-origin: 0 0;
 }
 
-.renderer-benchmark__canvas--liquid-scene {
-  --renderer-benchmark-dot-size: 1.25px;
-
-  position: relative;
-  inset: auto;
-  width: 3600px;
-  height: 3000px;
-  background-color: #0f1011;
-  background-image: radial-gradient(
-    circle,
-    rgb(70 79 96 / 50%) var(--renderer-benchmark-dot-size),
-    transparent calc(var(--renderer-benchmark-dot-size) + 0.5px)
-  );
-  background-position: 0 0;
-  background-size: 24px 24px;
-}
-
 .renderer-benchmark__liquid-canvas {
   display: block;
   cursor: grab;
   touch-action: none;
 }
 
-.renderer-benchmark__liquid-element-host,
-.renderer-benchmark__liquid-glass-host {
+.renderer-benchmark__canvas-browser-host,
+.renderer-benchmark__canvas-card-host {
   width: 100%;
   height: 100%;
+}
+
+.renderer-benchmark__canvas-browser,
+.renderer-benchmark__canvas-card {
+  width: 100%;
+  height: 100%;
+  color: rgb(255 255 255 / 88%);
+}
+
+.renderer-benchmark__canvas-browser {
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 14px;
+  pointer-events: auto;
+}
+
+.renderer-benchmark__canvas-browser-header {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  border-bottom: 1px solid rgb(255 255 255 / 9%);
+  background: rgb(8 10 12 / 20%);
+}
+
+.renderer-benchmark__canvas-browser-header div,
+.renderer-benchmark__canvas-card div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.renderer-benchmark__canvas-browser-header strong {
+  font-size: 14px;
+}
+
+.renderer-benchmark__canvas-browser-header span,
+.renderer-benchmark__canvas-card span {
+  color: rgb(255 255 255 / 58%);
+  font-size: 10px;
+}
+
+.renderer-benchmark__canvas-browser-header output {
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.renderer-benchmark__canvas-browser-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  scrollbar-width: none;
+  scroll-snap-type: y proximity;
+}
+
+.renderer-benchmark__canvas-browser-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.renderer-benchmark__canvas-browser-spacer {
+  position: relative;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.renderer-benchmark__canvas-card-slot {
+  height: 84px;
+  flex: 0 0 84px;
+  scroll-snap-align: start;
+}
+
+.renderer-benchmark__canvas-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 12px;
+  padding: 9px 10px;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.renderer-benchmark__canvas-card:active {
+  cursor: grabbing;
+}
+
+.renderer-benchmark__canvas-card-active {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 22px;
+  transform: translateY(-50%);
+  border-radius: 0 3px 3px 0;
+  background: #ff922b;
+  box-shadow: 0 0 8px rgb(255 146 43 / 52%);
+  opacity: 0;
+}
+
+.renderer-benchmark__canvas-card.is-active .renderer-benchmark__canvas-card-active {
+  opacity: 1;
+}
+
+.renderer-benchmark__canvas-card svg {
+  width: 96px;
+  height: 58px;
+  flex: 0 0 96px;
+}
+
+.renderer-benchmark__canvas-card svg rect:not(:first-child) {
+  fill: rgb(205 220 232 / 68%);
+}
+
+.renderer-benchmark__canvas-card-bg {
+  fill: #101214;
+}
+
+.renderer-benchmark__canvas-card strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .renderer-benchmark__element {

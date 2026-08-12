@@ -24,6 +24,18 @@ describe("Renderer V2 production composition", () => {
     expect(sources.join("\n")).not.toContain("backdrop-filter");
   });
 
+  it("keeps Canvas Browser scrolling invisible and active selection short and orange", async () => {
+    const css = await readFile(
+      "src/features/workspace-chrome/RendererV2ApplicationChrome.css",
+      "utf8",
+    );
+    expect(css).toMatch(/\.taskmap-canvas-browser__list\s*\{[^}]*scrollbar-width:\s*none/s);
+    expect(css).toContain(".taskmap-canvas-browser__list::-webkit-scrollbar");
+    expect(css).toMatch(
+      /\.taskmap-canvas-card__active-bar\s*\{[^}]*height:\s*22px[^}]*background:\s*#ff922b/s,
+    );
+  });
+
   it("keeps the ephemeral workspace bootstrap development-only", async () => {
     const bootstrap = await readFile(
       "src/features/workspace-chrome/useDevelopmentWorkspaceBootstrap.ts",

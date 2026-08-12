@@ -123,6 +123,11 @@
   flex-direction: column;
   gap: 8px;
   padding: 2px 3px 8px 1px;
+  scrollbar-width: none;
+}
+
+.taskmap-canvas-browser__list::-webkit-scrollbar {
+  display: none;
 }
 
 .taskmap-canvas-card-anchor {
@@ -167,13 +172,14 @@
 
 .taskmap-canvas-card__active-bar {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
+  top: 50%;
   left: 0;
   width: 3px;
+  height: 22px;
+  transform: translateY(-50%);
   border-radius: 0 3px 3px 0;
-  background: #5dd7dd;
-  box-shadow: 0 0 12px rgb(93 215 221 / 0.55);
+  background: #ff922b;
+  box-shadow: 0 0 9px rgb(255 146 43 / 0.52);
   opacity: 0;
 }
 
