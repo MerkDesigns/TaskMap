@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 
 export function pointerTarget() {
   const target = document.createElement("article");
@@ -18,4 +19,8 @@ export function pointerEvent(type: string, clientY: number) {
     clientY: { value: clientY },
   });
   return event as PointerEvent;
+}
+
+export function settleWheel(runtime: LiquidSceneBenchmarkRuntime, startAt: number) {
+  for (let frame = 1; frame <= 100; frame += 1) runtime.tick(startAt + frame * 16);
 }

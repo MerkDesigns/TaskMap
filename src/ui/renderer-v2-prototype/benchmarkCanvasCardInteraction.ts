@@ -10,29 +10,59 @@ export const BENCHMARK_CARD_AUTO_SCROLL = Object.freeze({
 export const BENCHMARK_CARD_AUTO_SCROLL_EDGE = BENCHMARK_CARD_AUTO_SCROLL.startInset;
 export const BENCHMARK_CARD_AUTO_SCROLL_MAX = BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed;
 
-export function reorderCanvasCardsAtCenter(
+export function calculateCanvasCardInsertionIndex(
   order: readonly number[],
   draggedId: number,
   centerY: number,
-  previousCenterY: number,
   listTop: number,
   scrollTop: number,
   slotSize: number,
 ) {
+  let targetIndex = order.indexOf(draggedId);
+  if (targetIndex < 0) return -1;
+
+  const centerInListSpace = centerY + scrollTop - listTop;
+  while (
+    targetIndex < order.length - 1 &&
+    centerInListSpace >= (targetIndex + 1) * slotSize + slotSize / 2
+  ) {
+    targetIndex += 1;
+  }
+  while (targetIndex > 0 && centerInListSpace <= (targetIndex - 1) * slotSize + slotSize / 2) {
+    targetIndex -= 1;
+  }
+  return targetIndex;
+}
+
+export function reorderCanvasCardToIndex(
+  order: readonly number[],
+  draggedId: number,
+  targetIndex: number,
+) {
   const fromIndex = order.indexOf(draggedId);
-  if (fromIndex < 0 || centerY === previousCenterY) return order;
-
-  const direction = centerY > previousCenterY ? 1 : -1;
-  const neighborIndex = fromIndex + direction;
-  if (neighborIndex < 0 || neighborIndex >= order.length) return order;
-
-  const neighborMidpoint = listTop + neighborIndex * slotSize - scrollTop + slotSize / 2;
-  if (direction > 0 ? centerY < neighborMidpoint : centerY > neighborMidpoint) return order;
-
+  if (
+    fromIndex < 0 ||
+    targetIndex < 0 ||
+    targetIndex >= order.length ||
+    fromIndex === targetIndex
+  ) {
+    return order;
+  }
   const next = [...order];
   const [dragged] = next.splice(fromIndex, 1);
-  next.splice(neighborIndex, 0, dragged);
+  next.splice(targetIndex, 0, dragged);
   return next;
+}
+
+export function calculateCanvasCardInteractionCenter(
+  pointerY: number,
+  pointerOffsetY: number,
+  listTop: number,
+  listBottom: number,
+  cardHeight: number,
+) {
+  const effectivePointerY = Math.min(listBottom, Math.max(listTop, pointerY));
+  return effectivePointerY - pointerOffsetY + cardHeight / 2;
 }
 
 export function calculateCanvasCardAutoScroll(
@@ -64,49 +94,12 @@ export function calculateCanvasCardAutoScrollOutsideExtension(browserBodyHeight:
   );
 }
 
-export function calculateBoundedCanvasCardScrollTop(
-  currentScrollTop: number,
-  delta: number,
-  clientHeight: number,
-  scrollHeight: number,
-) {
-  const maximumScrollTop = Math.max(0, scrollHeight - clientHeight);
-  return Math.min(maximumScrollTop, Math.max(0, currentScrollTop + delta));
-}
-
 function normalizedProgress(value: number, start: number, end: number) {
   return Math.min(1, Math.max(0, (value - start) / (end - start)));
 }
 
 function smoothstep(progress: number) {
   return progress * progress * (3 - 2 * progress);
-}
-
-export function reorderThroughCrossedCanvasCardSlots(
-  order: readonly number[],
-  draggedId: number,
-  centerY: number,
-  previousCenterY: number,
-  listTop: number,
-  scrollTop: number,
-  slotSize: number,
-) {
-  const direction = Math.sign(centerY - previousCenterY);
-  if (direction === 0) return order;
-  let next = order;
-  while (true) {
-    const candidate = reorderCanvasCardsAtCenter(
-      next,
-      draggedId,
-      centerY,
-      centerY - direction,
-      listTop,
-      scrollTop,
-      slotSize,
-    );
-    if (candidate === next) return next;
-    next = candidate;
-  }
 }
 
 export function haveSameCanvasCardIds(left: readonly number[], right: readonly number[]) {

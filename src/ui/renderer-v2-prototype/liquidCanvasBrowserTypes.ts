@@ -14,7 +14,6 @@ export interface CanvasCardDragState {
   readonly pointerOffsetY: number;
   readonly initialOrder: readonly number[];
   pointerY: number;
-  previousCenterY: number;
   order: readonly number[];
   active: boolean;
   finish: "commit" | "cancel" | null;

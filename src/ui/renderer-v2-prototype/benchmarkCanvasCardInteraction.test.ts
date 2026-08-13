@@ -4,21 +4,40 @@ import {
   BENCHMARK_CARD_AUTO_SCROLL,
   BENCHMARK_CARD_AUTO_SCROLL_EDGE,
   BENCHMARK_CARD_AUTO_SCROLL_MAX,
-  calculateBoundedCanvasCardScrollTop,
   calculateCanvasCardAutoScroll,
   calculateCanvasCardAutoScrollOutsideExtension,
-  reorderCanvasCardsAtCenter,
+  calculateCanvasCardInteractionCenter,
+  calculateCanvasCardInsertionIndex,
+  reorderCanvasCardToIndex,
 } from "./benchmarkCanvasCardInteraction";
 
 describe("benchmark Canvas Card physical reorder math", () => {
-  it("reorders when the dragged center crosses the direction-aware neighbor midpoint", () => {
+  it("derives an absolute insertion slot from the current center and scroll position", () => {
     const order = [0, 1, 2, 3, 4];
-    expect(reorderCanvasCardsAtCenter(order, 2, 410, 300, 74, 0, 92)).toEqual([0, 1, 3, 2, 4]);
-    expect(reorderCanvasCardsAtCenter(order, 2, 120, 240, 74, 0, 92)).toEqual([0, 2, 1, 3, 4]);
+    const down = calculateCanvasCardInsertionIndex(order, 2, 410, 74, 0, 92);
+    const up = calculateCanvasCardInsertionIndex(order, 2, 150, 74, 0, 92);
+
+    expect(reorderCanvasCardToIndex(order, 2, down)).toEqual([0, 1, 3, 2, 4]);
+    expect(reorderCanvasCardToIndex(order, 2, up)).toEqual([0, 2, 1, 3, 4]);
   });
 
-  it("accounts for scrollTop when calculating row midpoints", () => {
-    expect(reorderCanvasCardsAtCenter([0, 1, 2], 1, 230, 180, 74, 100, 92)).toEqual([0, 2, 1]);
+  it("changes insertion while the center is stationary and only scroll moves", () => {
+    const order = [0, 1, 2, 3, 4];
+    expect(calculateCanvasCardInsertionIndex(order, 2, 300, 74, 0, 92)).toBe(2);
+    expect(calculateCanvasCardInsertionIndex(order, 2, 300, 74, 120, 92)).toBe(3);
+  });
+
+  it("supports deterministic multi-slot movement and preserves identity at the same slot", () => {
+    const order = [0, 1, 2, 3, 4, 5];
+    const target = calculateCanvasCardInsertionIndex(order, 1, 580, 74, 0, 92);
+    expect(target).toBe(5);
+    expect(reorderCanvasCardToIndex(order, 1, target)).toEqual([0, 2, 3, 4, 5, 1]);
+    expect(reorderCanvasCardToIndex(order, 1, 1)).toBe(order);
+  });
+
+  it("clamps only the reorder coordinate when the pointer is outside the browser", () => {
+    expect(calculateCanvasCardInteractionCenter(-100, 42, 74, 488, 84)).toBe(74);
+    expect(calculateCanvasCardInteractionCenter(700, 42, 74, 488, 84)).toBe(488);
   });
 
   it("preserves the existing 52px in-browser start trigger positions", () => {
@@ -60,11 +79,5 @@ describe("benchmark Canvas Card physical reorder math", () => {
     expect(calculateCanvasCardAutoScroll(listBottom + extension + 200, listTop, listBottom)).toBe(
       BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed,
     );
-  });
-
-  it("stops at either list bound and when there is no overflow", () => {
-    expect(calculateBoundedCanvasCardScrollTop(0, -16, 798, 1_840)).toBe(0);
-    expect(calculateBoundedCanvasCardScrollTop(1_042, 16, 798, 1_840)).toBe(1_042);
-    expect(calculateBoundedCanvasCardScrollTop(0, 16, 798, 798)).toBe(0);
   });
 });

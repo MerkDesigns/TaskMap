@@ -1,5 +1,3 @@
-import { calculateBoundedCanvasCardScrollTop } from "./benchmarkCanvasCardInteraction";
-
 export interface CanvasBrowserScrollFrame {
   readonly previousScrollY: number;
   readonly currentScrollY: number;
@@ -7,47 +5,65 @@ export interface CanvasBrowserScrollFrame {
   readonly changed: boolean;
 }
 
+const WHEEL_SCROLL_TIME_CONSTANT_MS = 45;
+const WHEEL_SCROLL_SETTLE_EPSILON = 0.01;
+
 export class CanvasBrowserScrollState {
-  private pendingDeltaY = 0;
   private maximumScrollY = 0;
   currentScrollY = 0;
+  targetScrollY = 0;
 
   setRange(viewportHeight: number, contentHeight: number) {
+    const previousScrollY = this.currentScrollY;
     this.maximumScrollY = Math.max(0, contentHeight - viewportHeight);
-    this.pendingDeltaY = 0;
-    return this.apply(0, viewportHeight, contentHeight);
+    this.currentScrollY = this.clamp(this.currentScrollY);
+    this.targetScrollY = this.clamp(this.targetScrollY);
+    return this.frame(previousScrollY);
   }
 
-  requestDelta(deltaY: number) {
-    if (Number.isFinite(deltaY)) this.pendingDeltaY += deltaY;
+  requestWheelDelta(deltaY: number) {
+    if (Number.isFinite(deltaY)) this.targetScrollY = this.clamp(this.targetScrollY + deltaY);
   }
 
-  flush(viewportHeight: number, contentHeight: number) {
-    const requestedDeltaY = this.pendingDeltaY;
-    this.pendingDeltaY = 0;
-    return this.apply(requestedDeltaY, viewportHeight, contentHeight);
+  tick(deltaTimeMs: number, directDeltaY?: number) {
+    const previousScrollY = this.currentScrollY;
+    if (directDeltaY !== undefined) {
+      this.currentScrollY = this.clamp(this.currentScrollY + directDeltaY);
+      this.targetScrollY = this.currentScrollY;
+      return this.frame(previousScrollY);
+    }
+
+    const remaining = this.targetScrollY - this.currentScrollY;
+    if (Math.abs(remaining) <= WHEEL_SCROLL_SETTLE_EPSILON) {
+      this.currentScrollY = this.targetScrollY;
+      return this.frame(previousScrollY);
+    }
+    const elapsed = Math.max(0, deltaTimeMs);
+    const progress = 1 - Math.exp(-elapsed / WHEEL_SCROLL_TIME_CONSTANT_MS);
+    this.currentScrollY = this.clamp(this.currentScrollY + remaining * progress);
+    if (Math.abs(this.targetScrollY - this.currentScrollY) <= WHEEL_SCROLL_SETTLE_EPSILON) {
+      this.currentScrollY = this.targetScrollY;
+    }
+    return this.frame(previousScrollY);
   }
 
-  clearPending() {
-    this.pendingDeltaY = 0;
+  synchronizeTarget() {
+    this.targetScrollY = this.currentScrollY;
   }
 
   snapshot() {
     return {
       currentScrollY: this.currentScrollY,
-      pendingDeltaY: this.pendingDeltaY,
+      targetScrollY: this.targetScrollY,
       maximumScrollY: this.maximumScrollY,
     };
   }
 
-  private apply(deltaY: number, viewportHeight: number, contentHeight: number) {
-    const previousScrollY = this.currentScrollY;
-    this.currentScrollY = calculateBoundedCanvasCardScrollTop(
-      previousScrollY,
-      deltaY,
-      viewportHeight,
-      contentHeight,
-    );
+  private clamp(scrollY: number) {
+    return Math.min(this.maximumScrollY, Math.max(0, scrollY));
+  }
+
+  private frame(previousScrollY: number) {
     return {
       previousScrollY,
       currentScrollY: this.currentScrollY,

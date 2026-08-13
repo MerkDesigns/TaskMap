@@ -77,7 +77,8 @@ describe("canonical Renderer V2 prototype composition", () => {
     expect(runtime).toContain("BENCHMARK_CARD_DRAG_THRESHOLD");
     expect(runtime).toContain("this.dragContainer.add(record.glass)");
     expect(runtime).toContain("record.glass.y = top");
-    expect(runtime).toContain("reorderThroughCrossedCanvasCardSlots");
+    expect(runtime).toContain("calculateCanvasCardInsertionIndex");
+    expect(runtime).toContain("reorderCanvasCardToIndex");
     expect(runtime).toContain("calculateCanvasCardAutoScroll");
     expect(runtime).toContain("this.positionCards(nextOrder, now, true)");
     expect(runtime).toContain("drag.snapStartedAt = now");
@@ -104,8 +105,8 @@ describe("canonical Renderer V2 prototype composition", () => {
     expect(headerRule).not.toContain("border-bottom");
     expect(browser).not.toMatch(/scrollTop|onScroll/);
     expect(runtime).not.toMatch(/scrollElement|pendingScrollTop/);
-    expect(runtime).toContain("this.requestScrollDelta(pixels)");
-    expect(runtime).toContain("this.requestScrollDelta(delta)");
+    expect(runtime).toContain("this.scroll.requestWheelDelta(pixels)");
+    expect(runtime).toContain("this.scroll.tick(deltaTime, dragScrollDelta)");
   });
 
   it("keeps Canvas Elements on the existing benchmark element renderer", async () => {
