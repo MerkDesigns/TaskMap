@@ -5,6 +5,10 @@ export interface CanvasBrowserRuntimeCounts {
   readonly cardGeometrySyncs: number;
   readonly scrollGroupTransformUpdates: number;
   readonly dragTransformUpdates: number;
+  readonly browserRuntimeTicks: number;
+  readonly cardVisibilitySyncs: number;
+  readonly visibleCardCount: number;
+  readonly totalCardCount: number;
 }
 
 export interface CanvasCardDragState {

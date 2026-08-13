@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { BenchmarkPresentation } from "./benchmarkPresentation";
+import type { CanvasBrowserDiagnosticMode } from "./canvasBrowserDiagnostics";
 import { BenchmarkCanvasBrowser } from "./BenchmarkCanvasBrowser";
 import { BenchmarkDomCanvas } from "./BenchmarkDomCanvas";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
@@ -15,6 +16,7 @@ interface Props {
   reportCapture: (width: number | null, height: number | null) => void;
   onPresentation: (presentation: BenchmarkPresentation | null) => void;
   onSpawnMenu: (request: BenchmarkSpawnMenuRequest | null) => void;
+  diagnosticMode: CanvasBrowserDiagnosticMode;
 }
 
 export function BenchmarkLiquidStage({
@@ -25,6 +27,7 @@ export function BenchmarkLiquidStage({
   reportCapture,
   onPresentation,
   onSpawnMenu,
+  diagnosticMode,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [runtime, setRuntime] = useState<LiquidSceneBenchmarkRuntime | null>(null);
@@ -35,6 +38,7 @@ export function BenchmarkLiquidStage({
     if (!host) return;
     const next = new LiquidSceneBenchmarkRuntime(reportCapture);
     host.append(next.canvas);
+    host.append(next.canvasBrowserPlaceholderOverlay);
     next.resize(host.clientWidth, host.clientHeight);
     setRuntime(next);
     const observer = new ResizeObserver(() => next.resize(host.clientWidth, host.clientHeight));
@@ -44,12 +48,17 @@ export function BenchmarkLiquidStage({
       setRuntime(null);
       next.destroy();
       next.canvas.remove();
+      next.canvasBrowserPlaceholderOverlay.remove();
     };
   }, [reportCapture]);
 
   useLayoutEffect(() => {
     runtime?.setCaptureInstrumentation(metricsEnabled);
   }, [metricsEnabled, runtime]);
+
+  useLayoutEffect(() => {
+    runtime?.setCanvasBrowserDiagnosticMode(diagnosticMode);
+  }, [diagnosticMode, runtime]);
 
   useLayoutEffect(() => {
     if (!runtime) return;

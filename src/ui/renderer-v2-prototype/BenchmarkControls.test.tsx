@@ -20,6 +20,8 @@ describe("BenchmarkControls workload sliders", () => {
           onMetricsEnabledChange={vi.fn()}
           onResetMetrics={vi.fn()}
           onStartSample={vi.fn()}
+          diagnosticMode="full"
+          onDiagnosticModeChange={vi.fn()}
         />
       </TaskMapMantineProvider>,
     );

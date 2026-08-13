@@ -51,6 +51,7 @@ export function BenchmarkDomCanvas({
           );
           lastGridZoom.current = current.zoom;
         }
+        runtime.invalidateFrame();
       },
       syncElement() {},
       tick(now) {
@@ -69,6 +70,8 @@ export function BenchmarkDomCanvas({
       },
       getLiquidCounts: () => runtime.getCounts(),
       resetLiquidCounts: () => runtime.resetCounters(),
+      needsFrame: () => runtime.needsFrame(),
+      setFrameRequestListener: (listener) => runtime.setFrameRequestListener(listener),
     }),
     [runtime, store],
   );

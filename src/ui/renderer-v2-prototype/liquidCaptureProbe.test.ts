@@ -22,9 +22,10 @@ describe("benchmark Liquid capture probe", () => {
       copyElementImageToTexture: (...arguments_: unknown[]) => void;
     };
 
-    queue.copyElementImageToTexture({ source: {} }, { width: 320, height: 180 });
+    const source = {};
+    queue.copyElementImageToTexture({ source }, { width: 320, height: 180 });
     expect(probe.available).toBe(true);
-    expect(report).toHaveBeenCalledWith(320, 180);
+    expect(report).toHaveBeenCalledWith({ width: 320, height: 180, source });
     expect(copy).toHaveBeenCalledOnce();
 
     probe.dispose();

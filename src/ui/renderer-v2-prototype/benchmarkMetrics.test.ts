@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BenchmarkMetricsSampler, calculateFrameStatistics } from "./benchmarkMetrics";
 
 describe("renderer benchmark metrics", () => {
-  it("calculates current, average, p95, and worst frame time", () => {
+  it("calculates frame percentiles and missed 120/60 Hz frame budgets", () => {
     const statistics = calculateFrameStatistics([10, 20, 30, 40, 100]);
     expect(statistics).toMatchObject({
       fps: 10,
@@ -11,7 +11,10 @@ describe("renderer benchmark metrics", () => {
       frameTime: 100,
       averageFrameTime: 40,
       p95FrameTime: 100,
+      p99FrameTime: 100,
       worstFrameTime: 100,
+      framesOver8Point33Ms: 5,
+      framesOver16Point67Ms: 4,
       samples: 5,
     });
   });

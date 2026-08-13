@@ -2,6 +2,10 @@ import { Paper, Text } from "@mantine/core";
 import type { BenchmarkMetricsSampler } from "./benchmarkMetrics";
 import type { BenchmarkLiquidCounts } from "./benchmarkPresentation";
 import type { BenchmarkSceneCounts, BenchmarkSceneModel } from "./benchmarkTypes";
+import {
+  CANVAS_BROWSER_DIAGNOSTIC_LABELS,
+  type CanvasBrowserDiagnosticMode,
+} from "./canvasBrowserDiagnostics";
 
 type MetricsSnapshot = ReturnType<BenchmarkMetricsSampler["snapshot"]>;
 
@@ -11,13 +15,21 @@ interface Props {
   liquid: BenchmarkLiquidCounts;
   metrics: MetricsSnapshot;
   metricsEnabled: boolean;
+  diagnosticMode: CanvasBrowserDiagnosticMode;
 }
 
 const number = (value: number) => value.toFixed(1);
 const integer = (value: number | null) =>
   value === null ? "n/a" : Math.round(value).toLocaleString();
 
-export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metricsEnabled }: Props) {
+export function BenchmarkMetricsOverlay({
+  scene,
+  counts,
+  liquid,
+  metrics,
+  metricsEnabled,
+  diagnosticMode,
+}: Props) {
   const result = metrics.timedResult;
   return (
     <Paper className="renderer-benchmark__metrics" p="sm" radius="md" shadow="md">
@@ -34,9 +46,14 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
             <span>
               {number(metrics.frames.frameTime)} / {number(metrics.frames.averageFrameTime)} ms
             </span>
-            <strong>p95 / worst</strong>
+            <strong>p95 / p99 / worst</strong>
             <span>
-              {number(metrics.frames.p95FrameTime)} / {number(metrics.frames.worstFrameTime)} ms
+              {number(metrics.frames.p95FrameTime)} / {number(metrics.frames.p99FrameTime)} /{" "}
+              {number(metrics.frames.worstFrameTime)} ms
+            </span>
+            <strong>Frames &gt;8.33 / &gt;16.67 ms</strong>
+            <span>
+              {metrics.frames.framesOver8Point33Ms} / {metrics.frames.framesOver16Point67Ms}
             </span>
             <strong>Samples</strong>
             <span>{metrics.frames.samples}</span>
@@ -45,6 +62,12 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
         <strong>Scene</strong>
         <span>
           {counts.elements} Canvas Elements · {scene.canvasCardCount} Canvas Cards
+        </span>
+        <strong>Browser diagnostic</strong>
+        <span>{CANVAS_BROWSER_DIAGNOSTIC_LABELS[diagnosticMode]}</span>
+        <strong>Visible / total Canvas Cards</strong>
+        <span>
+          {liquid.visibleCanvasCards} / {liquid.totalCanvasCards}
         </span>
         <strong>Zoom / DPR</strong>
         <span>
@@ -56,6 +79,32 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
         <span>{liquid.containers}</span>
         <strong>Liquid Glass shapes</strong>
         <span>{liquid.glassShapes}</span>
+        <strong>Renderer renders / sec</strong>
+        <span>{number(liquid.rendererRenderCallsPerSecond)}</span>
+        <strong>Browser ticks / sec</strong>
+        <span>{number(liquid.browserRuntimeTicksPerSecond)}</span>
+        <strong>Scroll Group updates / sec</strong>
+        <span>{number(liquid.scrollGroupTransformUpdatesPerSecond)}</span>
+        <strong>Card visibility syncs / sec</strong>
+        <span>{number(liquid.cardVisibilitySyncsPerSecond)}</span>
+        <strong>RAF requests / coalesced</strong>
+        <span>
+          {number(liquid.rafRequestsPerSecond)} / {number(liquid.coalescedRafRequestsPerSecond)}/s
+        </span>
+        <strong>Invalidations / coalesced</strong>
+        <span>
+          {number(liquid.invalidationsPerSecond)} / {number(liquid.coalescedInvalidationsPerSecond)}
+          /s
+        </span>
+        <strong>Capture wakeups / capture-only frames</strong>
+        <span>
+          {number(liquid.captureCompletionWakeupsPerSecond)} /{" "}
+          {number(liquid.captureOnlyFramesPerSecond)}/s
+        </span>
+        <strong>Multi-capture frames / filtered paints</strong>
+        <span>
+          {liquid.multiCaptureCompletionFrameTotal} / {liquid.filteredTransformPaintTotal}
+        </span>
         <strong>Card geometry syncs</strong>
         <span>{liquid.cardGeometrySyncs}</span>
         <strong>Scroll Group updates</strong>
@@ -74,6 +123,16 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
                 ? "n/a"
                 : `${number(metrics.captureCallsPerSecond)}/s`}
             </span>
+            <strong>Card / Browser captures</strong>
+            <span>
+              {integer(liquid.cardCaptureTotal)} / {integer(liquid.browserCaptureTotal)} total Â·{" "}
+              {number(liquid.cardCapturesPerSecond)} / {number(liquid.browserCapturesPerSecond)}/s
+            </span>
+            <strong>Coarse / unknown captures</strong>
+            <span>
+              {integer(liquid.coarseCaptureTotal)} / {integer(liquid.unknownCaptureTotal)} total Â·{" "}
+              {number(liquid.coarseCapturesPerSecond)} / {number(liquid.unknownCapturesPerSecond)}/s
+            </span>
             <strong>Copied texels</strong>
             <span>{integer(metrics.copiedTexels)}</span>
           </>
@@ -87,9 +146,11 @@ export function BenchmarkMetricsOverlay({ scene, counts, liquid, metrics, metric
       {metricsEnabled && result ? (
         <Text size="xs" mt={6} className="renderer-benchmark__sample-result">
           10s sample: {number(result.averageFps)} FPS · {number(result.averageFrameTime)} ms avg ·{" "}
-          {number(result.p95FrameTime)} ms p95 · {number(result.worstFrameTime)} ms worst ·{" "}
-          {result.samples} frames · {integer(result.captureCalls)} captures ·{" "}
-          {integer(result.copiedTexels)} texels · {result.counts.elements} Canvas Elements/
+          {number(result.p95FrameTime)} ms p95 · {number(result.p99FrameTime)} ms p99 ·{" "}
+          {number(result.worstFrameTime)} ms worst · {result.framesOver8Point33Ms}/
+          {result.framesOver16Point67Ms} frames &gt;8.33/&gt;16.67 ms · {result.samples} frames ·{" "}
+          {integer(result.captureCalls)} captures · {integer(result.copiedTexels)} texels ·{" "}
+          {result.counts.elements} Canvas Elements/
           {result.counts.canvasCards} Canvas Cards
         </Text>
       ) : null}

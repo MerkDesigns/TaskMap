@@ -13,19 +13,34 @@ import {
   BENCHMARK_CANVAS_BROWSER,
   canvasBrowserBodyBottom,
   canvasBrowserScrollHeight,
-  calculateCanvasBrowserLayout,
 } from "./benchmarkCanvasBrowserLayout";
 import * as BrowserScroll from "./canvasBrowserScrollState";
+import type { CanvasBrowserDiagnosticMode } from "./canvasBrowserDiagnostics";
+import { convertCanvasBrowserWheelDelta } from "./canvasBrowserWheelDelta";
+import {
+  CanvasBrowserRuntimeMetrics,
+  CanvasCardDiagnosticPresentation,
+} from "./canvasCardDiagnosticPresentation";
 import { CanvasCardPointerSession } from "./canvasCardPointerSession";
 import * as CardGeometry from "./liquidCanvasCardGeometry";
+import {
+  reconcileLiquidCanvasCardRecords,
+  resizeLiquidCanvasBrowserSurface,
+} from "./liquidCanvasCardFactory";
 import type * as BrowserTypes from "./liquidCanvasBrowserTypes";
-
-const cardStep = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap;
-const cardWidth = BENCHMARK_CANVAS_BROWSER.width - BENCHMARK_CANVAS_BROWSER.cardInset * 2;
+const cardStep = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap,
+  cardWidth = BENCHMARK_CANVAS_BROWSER.width - BENCHMARK_CANVAS_BROWSER.cardInset * 2;
 const bodyTop = BENCHMARK_CANVAS_BROWSER.y + BENCHMARK_CANVAS_BROWSER.headerHeight;
-const easeOutQuart = (progress: number) => 1 - (1 - progress) ** 4;
+const cardFactories = {
+  createGroup: () => new Group(),
+  createGlass: (options: Record<string, number | boolean>) => new Glass(options),
+  createHtml: (host: HTMLDivElement) => new Html({ element: host }),
+};
 export class LiquidCanvasBrowserRuntime {
   readonly browserHost = document.createElement("div");
+  private readonly diagnostic = new CanvasCardDiagnosticPresentation();
+  private readonly metrics = new CanvasBrowserRuntimeMetrics();
+  readonly placeholderOverlay = this.diagnostic.placeholderOverlay;
   private readonly browserContainer: Container;
   private readonly browserGlass: Glass;
   private readonly browserContent: Html;
@@ -41,11 +56,11 @@ export class LiquidCanvasBrowserRuntime {
   private drag: BrowserTypes.CanvasCardDragState | null = null;
   private dragContainer: Container | null = null;
   private suppressedClickId: number | null = null;
-  private scrollGroupTransformUpdates = 0;
-  private dragTransformUpdates = 0;
   private previousTickAt: number | null = null;
-
-  constructor(private readonly scene: Scene) {
+  constructor(
+    private readonly scene: Scene,
+    private readonly invalidate: () => void,
+  ) {
     this.browserHost.className = "renderer-benchmark__canvas-browser-host";
     this.browserContainer = scene.add(
       new Container({ ...LIQUID_MATERIAL_OPTICS["large-panel"], zIndex: 40 }),
@@ -61,56 +76,41 @@ export class LiquidCanvasBrowserRuntime {
   }
   resize(viewportHeight: number) {
     this.viewportHeight = viewportHeight;
-    const layout = calculateCanvasBrowserLayout(viewportHeight, this.cards.size, 0);
-    Object.assign(this.browserGlass, {
-      x: layout.x,
-      y: layout.y,
-      width: layout.width,
-      height: layout.height,
-      cornerRadius: BENCHMARK_CANVAS_BROWSER.cornerRadius,
-    });
-    this.browserContent.width = layout.width;
-    this.browserContent.height = layout.height;
+    resizeLiquidCanvasBrowserSurface(
+      this.browserGlass,
+      this.browserContent,
+      viewportHeight,
+      this.cards.size,
+    );
     this.commitScrollFrame(this.updateScrollRange());
     this.syncCardVisibility();
+    this.invalidate();
   }
   reconcile(order: readonly number[]) {
     if (this.drag && !haveSameCanvasCardIds(order, this.drag.initialOrder)) {
       this.finishDragImmediately();
     }
-    const ids = new Set(order);
-    for (const [id, record] of this.cards) {
-      if (ids.has(id)) continue;
-      record.content.remove();
-      record.glass.remove();
-      record.group.remove();
-      this.cards.delete(id);
-    }
-    for (const id of order) {
-      if (this.cards.has(id)) continue;
-      const group = this.scrollGroup.add(new Group());
-      const glass = group.add(
-        new Glass({
-          width: cardWidth,
-          height: BENCHMARK_CANVAS_BROWSER.cardHeight,
-          cornerRadius: BENCHMARK_CANVAS_BROWSER.cardCornerRadius,
-          cornerSmoothing: 0,
-          pointerEvents: false,
-        }),
-      );
-      const host = document.createElement("div");
-      host.className = "renderer-benchmark__canvas-card-host";
-      host.style.width = `${cardWidth}px`;
-      host.style.height = `${BENCHMARK_CANVAS_BROWSER.cardHeight}px`;
-      const content = glass.add(new Html({ element: host }));
-      content.width = cardWidth;
-      content.height = BENCHMARK_CANVAS_BROWSER.cardHeight;
-      this.cards.set(id, { id, group, glass, content, host });
-    }
+    const cardSetChanged = reconcileLiquidCanvasCardRecords(
+      this.cards,
+      order,
+      this.scrollGroup,
+      cardWidth,
+      this.diagnostic,
+      cardFactories,
+    );
+    if (cardSetChanged) this.diagnostic.setMode(this.diagnostic.mode, this.cards);
     this.displayOrder = this.drag?.order ?? [...order];
     this.commitScrollFrame(this.updateScrollRange());
     this.positionCards(this.displayOrder, 0, false);
     this.syncCardVisibility();
+    this.invalidate();
+  }
+  setDiagnosticMode(mode: CanvasBrowserDiagnosticMode) {
+    if (this.diagnostic.mode === mode) return;
+    this.finishDragImmediately();
+    this.diagnostic.setMode(mode, this.cards);
+    this.syncCardVisibility();
+    this.invalidate();
   }
   attachOrderCommit(commitOrder: (order: readonly number[]) => void) {
     this.commitOrder = commitOrder;
@@ -119,15 +119,13 @@ export class LiquidCanvasBrowserRuntime {
     };
   }
   scrollByWheel(deltaY: number, deltaMode: number) {
-    const pixels =
-      deltaMode === 1
-        ? deltaY * 16
-        : deltaMode === 2
-          ? deltaY * this.scrollViewportHeight()
-          : deltaY;
-    this.scroll.requestWheelDelta(pixels);
+    this.scroll.requestWheelDelta(
+      convertCanvasBrowserWheelDelta(deltaY, deltaMode, this.scrollViewportHeight()),
+    );
+    this.invalidate();
   }
   tick(now: number) {
+    this.metrics.ticks += 1;
     const deltaTime =
       this.previousTickAt === null ? 16 : Math.max(0, Math.min(64, now - this.previousTickAt));
     this.previousTickAt = now;
@@ -140,9 +138,12 @@ export class LiquidCanvasBrowserRuntime {
   getScrollState() {
     return { ...this.scroll.snapshot(), scrollGroupY: this.scrollGroup.y };
   }
-  getCardHost(id: number) {
-    return this.cards.get(id)?.host ?? null;
-  }
+  isCardCaptureHostOnlyPaint = (event: Event) => this.diagnostic.isCardCaptureHostOnlyPaint(event);
+  classifyCaptureSource = (source: unknown) =>
+    this.diagnostic.classifyCaptureSource(source, this.browserContent.host);
+  paintTouchesManagedCapture = (event: Event) =>
+    this.diagnostic.paintTouchesManagedCapture(event, this.browserContent.host);
+  getCardHost = (id: number) => this.cards.get(id)?.host ?? null;
   beginCardDrag(id: number, event: PointerEvent, element: HTMLElement) {
     if (event.button !== 0 || this.drag) return false;
     const index = this.displayOrder.indexOf(id);
@@ -170,6 +171,7 @@ export class LiquidCanvasBrowserRuntime {
         if (!this.drag || this.drag.pointerId !== pointerEvent.pointerId) return;
         pointerEvent.preventDefault();
         this.drag.pointerY = pointerEvent.clientY;
+        this.invalidate();
       },
       (pointerEvent, finish) => {
         if (!this.drag || this.drag.pointerId !== pointerEvent.pointerId) return;
@@ -177,29 +179,33 @@ export class LiquidCanvasBrowserRuntime {
         if (this.drag.active) this.drag.finish = finish;
         else this.drag = null;
         this.pointerSession.release(pointerEvent.pointerId);
+        this.invalidate();
       },
     );
+    this.invalidate();
     return true;
   }
   consumeSuppressedClick(id: number) {
-    const suppressed = this.suppressedClickId === id;
-    if (suppressed) this.suppressedClickId = null;
-    return suppressed;
+    return this.suppressedClickId === id && ((this.suppressedClickId = null), true);
   }
   getCounts(): BrowserTypes.CanvasBrowserRuntimeCounts {
-    return {
-      html: 1 + this.cards.size,
-      containers: 2 + (this.dragContainer ? 1 : 0),
-      glassShapes: 1 + this.cards.size,
-      cardGeometrySyncs: this.geometry.syncCount,
-      scrollGroupTransformUpdates: this.scrollGroupTransformUpdates,
-      dragTransformUpdates: this.dragTransformUpdates,
-    };
+    return this.metrics.snapshot(
+      this.diagnostic.features(),
+      this.cards.size,
+      2 + (this.dragContainer ? 1 : 0),
+      this.geometry.syncCount,
+    );
+  }
+  needsFrame() {
+    return (
+      this.scroll.currentScrollY !== this.scroll.targetScrollY ||
+      this.drag !== null ||
+      this.geometry.isAnimating()
+    );
   }
   resetCounters() {
     this.geometry.resetSyncCount();
-    this.scrollGroupTransformUpdates = 0;
-    this.dragTransformUpdates = 0;
+    this.metrics.reset();
   }
   destroy() {
     this.finishDragImmediately();
@@ -213,26 +219,21 @@ export class LiquidCanvasBrowserRuntime {
     this.browserGlass.remove();
     this.browserContainer.remove();
     this.cardsContainer.remove();
+    this.diagnostic.destroy();
   }
   private updateScrollRange() {
     return this.scroll.setRange(this.scrollViewportHeight(), this.scrollContentHeight());
   }
-
   private commitScrollFrame(frame: BrowserScroll.CanvasBrowserScrollFrame) {
     if (!frame.changed) return;
     this.scrollGroup.y = -frame.currentScrollY;
-    this.scrollGroupTransformUpdates += 1;
+    this.metrics.scrollUpdates += 1;
     this.syncCardVisibility();
   }
-
   private scrollViewportHeight() {
     return Math.max(0, canvasBrowserBodyBottom(this.viewportHeight) - bodyTop);
   }
-
-  private scrollContentHeight() {
-    return canvasBrowserScrollHeight(this.cards.size);
-  }
-
+  private scrollContentHeight = () => canvasBrowserScrollHeight(this.cards.size);
   private positionCards(order: readonly number[], now: number, animate: boolean) {
     this.geometry.position(
       order,
@@ -243,8 +244,8 @@ export class LiquidCanvasBrowserRuntime {
       this.drag?.active ? this.drag.id : null,
     );
   }
-
   private syncCardVisibility() {
+    this.metrics.visibilitySyncs += 1;
     this.geometry.syncVisibility(
       this.displayOrder,
       this.cards,
@@ -254,8 +255,16 @@ export class LiquidCanvasBrowserRuntime {
       cardWidth,
       this.drag?.active ? this.drag.id : null,
     );
+    this.metrics.visibleCards = this.diagnostic.syncPlaceholders(
+      this.displayOrder,
+      this.cards,
+      this.scroll.currentScrollY,
+      bodyTop,
+      canvasBrowserBodyBottom(this.viewportHeight),
+      cardWidth,
+      this.drag?.active ? this.drag.id : null,
+    );
   }
-
   private activateDrag() {
     const drag = this.drag;
     if (!drag || drag.active) return;
@@ -276,7 +285,6 @@ export class LiquidCanvasBrowserRuntime {
     this.suppressedClickId = drag.id;
     drag.snapFromY = currentTop;
   }
-
   private prepareDragForFrame() {
     const drag = this.drag;
     if (!drag) return;
@@ -284,7 +292,6 @@ export class LiquidCanvasBrowserRuntime {
       this.activateDrag();
     }
   }
-
   private tickDrag(now: number) {
     const drag = this.drag;
     if (!drag) return;
@@ -293,13 +300,12 @@ export class LiquidCanvasBrowserRuntime {
       this.tickSnap(now);
       return;
     }
-
     const record = this.cards.get(drag.id);
     if (!record) return;
     const top = drag.pointerY - drag.pointerOffsetY;
     if (record.glass.y !== top) {
       record.glass.y = top;
-      this.dragTransformUpdates += 1;
+      this.metrics.dragUpdates += 1;
     }
     if (drag.finish) {
       if (drag.finish === "cancel") {
@@ -312,7 +318,6 @@ export class LiquidCanvasBrowserRuntime {
       drag.snapStartedAt = now;
       return;
     }
-
     const interactionCenter = calculateCanvasCardInteractionCenter(
       drag.pointerY,
       drag.pointerOffsetY,
@@ -336,7 +341,6 @@ export class LiquidCanvasBrowserRuntime {
       this.syncCardVisibility();
     }
   }
-
   private calculateDragAutoScroll() {
     if (!this.drag?.active || this.drag.finish || this.drag.snapStartedAt !== null)
       return undefined;
@@ -346,15 +350,15 @@ export class LiquidCanvasBrowserRuntime {
       canvasBrowserBodyBottom(this.viewportHeight),
     );
   }
-
   private tickSnap(now: number) {
     const drag = this.drag;
     const record = drag ? this.cards.get(drag.id) : null;
     if (!drag || !record || drag.snapStartedAt === null) return;
     const target = bodyTop + drag.order.indexOf(drag.id) * cardStep - this.scroll.currentScrollY;
     const progress = Math.min(1, (now - drag.snapStartedAt) / BENCHMARK_CARD_SLOT_TRANSITION_MS);
-    record.glass.y = drag.snapFromY + (target - drag.snapFromY) * easeOutQuart(progress);
-    this.dragTransformUpdates += 1;
+    record.glass.y =
+      drag.snapFromY + (target - drag.snapFromY) * CardGeometry.easeOutQuart(progress);
+    this.metrics.dragUpdates += 1;
     if (progress < 1) return;
     const finalOrder = drag.order;
     const shouldCommit = drag.finish === "commit";
@@ -373,7 +377,6 @@ export class LiquidCanvasBrowserRuntime {
     this.syncCardVisibility();
     if (shouldCommit) this.commitOrder?.(finalOrder);
   }
-
   private finishDragImmediately() {
     const drag = this.drag;
     if (!drag) return;

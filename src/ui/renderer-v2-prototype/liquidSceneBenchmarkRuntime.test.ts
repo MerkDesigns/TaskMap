@@ -143,9 +143,9 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
       cardGeometrySyncs: before.cardGeometrySyncs,
     });
     const scroll = runtime.getCanvasBrowserScrollState();
-    expect(scroll.targetScrollY).toBe(96);
+    expect(scroll.targetScrollY).toBeCloseTo(76.8);
     expect(scroll.currentScrollY).toBeGreaterThan(0);
-    expect(scroll.currentScrollY).toBeLessThan(96);
+    expect(scroll.currentScrollY).toBeLessThan(76.8);
     expect(scroll.scrollGroupY).toBe(-scroll.currentScrollY);
     runtime.destroy();
   });
@@ -159,12 +159,12 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
 
     runtime.scrollCanvasBrowserByWheel(3, 1);
     runtime.tick(16);
-    expect(runtime.getCanvasBrowserScrollState()).toMatchObject({ targetScrollY: 48 });
-    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeLessThan(48);
+    expect(runtime.getCanvasBrowserScrollState().targetScrollY).toBeCloseTo(38.4);
+    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeLessThan(38.4);
     expect(runtime.getCounts().scrollGroupTransformUpdates).toBe(1);
     runtime.destroy();
   });
-  it("accumulates arbitrary pixel wheel deltas without slot quantization", () => {
+  it("scales normal pixel wheel deltas by exactly 0.8 without slot quantization", () => {
     const store = new BenchmarkSceneStore();
     store.setCanvasCardCount(20);
     const runtime = new LiquidSceneBenchmarkRuntime(() => {});
@@ -178,9 +178,9 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.scrollCanvasBrowserByWheel(1.5, 0);
     runtime.tick(32);
     const scroll = runtime.getCanvasBrowserScrollState();
-    expect(scroll.targetScrollY).toBe(3.75);
+    expect(scroll.targetScrollY).toBe(3);
     expect(scroll.currentScrollY).toBeGreaterThan(0);
-    expect(scroll.currentScrollY).toBeLessThan(3.75);
+    expect(scroll.currentScrollY).toBeLessThan(3);
     expect(liquidCalls.groups[0]?.y).toBe(-scroll.currentScrollY);
     expect(Math.abs(liquidCalls.groups[0]?.y ?? 0)).toBeLessThan(84);
     expect(commitOrder).not.toHaveBeenCalled();
@@ -195,17 +195,18 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.reconcile(store.scene);
 
     expect(cardGlass(4)).toMatchObject({ y: 0, width: 264, height: 30 });
-    expect(cardHtml(4)).toMatchObject({ y: 0, width: 264, height: 30 });
+    expect(cardHtml(4)).toMatchObject({ y: 0, width: 264, height: 84 });
     runtime.scrollCanvasBrowserByWheel(20, 0);
     settleWheel(runtime, 0);
-    expect(cardGlass(0)).toMatchObject({ y: 20, width: 264, height: 64 });
-    expect(cardHtml(0)).toMatchObject({ y: 0, width: 264, height: 64 });
-    expect(runtime.getCanvasCardHost(0)?.style.transform).toBe("translate3d(0, -20px, 0)");
+    expect(cardGlass(0)).toMatchObject({ y: 16, width: 264, height: 68, scaleX: 1, scaleY: 1 });
+    expect(cardHtml(0)).toMatchObject({ y: -16, width: 264, height: 84 });
+    expect(runtime.getCanvasCardHost(0)?.style.transform).toBe("");
 
     runtime.scrollCanvasBrowserByWheel(180, 0);
     settleWheel(runtime, 1_600);
-    expect(cardGlass(0)).toMatchObject({ width: 0, height: 0 });
-    expect(cardHtml(0)).toMatchObject({ width: 0, height: 0 });
+    expect(cardGlass(0)).toMatchObject({ width: 264, height: 84 });
+    expect(cardGlass(0).y).toBeLessThan(-90_000);
+    expect(cardHtml(0)).toMatchObject({ width: 264, height: 84 });
     runtime.destroy();
   });
 
@@ -268,8 +269,8 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.beginCanvasCardDrag(7, pointerEvent("pointerdown", 638), target);
     document.dispatchEvent(pointerEvent("pointermove", 860));
     runtime.tick(1_616);
-    expect(cardGlass(7).y).toBe(820);
-    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeGreaterThan(120);
+    expect(cardGlass(7).y).toBe(844);
+    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeGreaterThan(96);
     expect(runtime.getCounts().scrollGroupTransformUpdates).toBe(1);
     document.dispatchEvent(pointerEvent("pointerup", 860));
     runtime.tick(1_632);
@@ -278,8 +279,7 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     expect(liquidCalls.groups[0]?.y).toBe(-runtime.getCanvasBrowserScrollState().currentScrollY);
     (commits[0] ?? []).forEach((id, index) => {
       expect(liquidCalls.groups[id + 1]?.y).toBe(74 + index * 92);
-      expect(cardHtml(id).y).toBe(0);
-      expect(cardHtml(id).height).toBe(cardGlass(id).height);
+      expect(cardHtml(id)).toMatchObject({ width: 264, height: 84 });
     });
     expect(runtime.getCounts().containers).toBe(2);
     runtime.destroy();
@@ -326,9 +326,9 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.tick(239);
     expect(finalOrder.map((id) => liquidCalls.groups[id + 1]?.y)).toEqual(settledGeometry);
     const wheelScroll = runtime.getCanvasBrowserScrollState();
-    expect(wheelScroll.targetScrollY).toBe(2.5);
+    expect(wheelScroll.targetScrollY).toBe(2);
     expect(wheelScroll.currentScrollY).toBeGreaterThan(0);
-    expect(wheelScroll.currentScrollY).toBeLessThan(2.5);
+    expect(wheelScroll.currentScrollY).toBeLessThan(2);
     expect(wheelScroll.scrollGroupY).toBe(-wheelScroll.currentScrollY);
 
     const secondTarget = pointerTarget();
@@ -381,7 +381,7 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.beginCanvasCardDrag(7, pointerEvent("pointerdown", 500), target);
     document.dispatchEvent(pointerEvent("pointermove", -40));
     runtime.tick(1_616);
-    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeLessThan(300);
+    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeLessThan(240);
     expect(runtime.getCounts().scrollGroupTransformUpdates).toBeGreaterThan(1);
     runtime.destroy();
   });

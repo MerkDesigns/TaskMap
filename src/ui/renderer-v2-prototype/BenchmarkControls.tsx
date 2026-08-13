@@ -1,4 +1,20 @@
-import { Button, Checkbox, Group, Paper, Slider, Stack, Switch, Text, Title } from "@mantine/core";
+import {
+  Button,
+  Checkbox,
+  Group,
+  Paper,
+  Select,
+  Slider,
+  Stack,
+  Switch,
+  Text,
+  Title,
+} from "@mantine/core";
+import {
+  CANVAS_BROWSER_DIAGNOSTIC_LABELS,
+  CANVAS_BROWSER_DIAGNOSTIC_MODES,
+  type CanvasBrowserDiagnosticMode,
+} from "./canvasBrowserDiagnostics";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import { BENCHMARK_CANVAS_CARD_COUNT, BENCHMARK_CANVAS_ELEMENT_COUNT } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
@@ -10,6 +26,8 @@ interface Props {
   onMetricsEnabledChange: (enabled: boolean) => void;
   onResetMetrics: () => void;
   onStartSample: () => void;
+  diagnosticMode: CanvasBrowserDiagnosticMode;
+  onDiagnosticModeChange: (mode: CanvasBrowserDiagnosticMode) => void;
 }
 
 export function BenchmarkControls({
@@ -19,6 +37,8 @@ export function BenchmarkControls({
   onMetricsEnabledChange,
   onResetMetrics,
   onStartSample,
+  diagnosticMode,
+  onDiagnosticModeChange,
 }: Props) {
   const { scene } = store;
   return (
@@ -32,6 +52,20 @@ export function BenchmarkControls({
             UI/design prototype · shared synthetic scene state
           </Text>
         </div>
+        {import.meta.env.DEV ? (
+          <Select
+            label="Canvas Browser diagnostic"
+            size="xs"
+            value={diagnosticMode}
+            data={CANVAS_BROWSER_DIAGNOSTIC_MODES.map((value) => ({
+              value,
+              label: CANVAS_BROWSER_DIAGNOSTIC_LABELS[value],
+            }))}
+            onChange={(value) => {
+              if (value) onDiagnosticModeChange(value as CanvasBrowserDiagnosticMode);
+            }}
+          />
+        ) : null}
         <div className="renderer-benchmark__workload-sliders">
           <WorkloadSlider
             label="Canvas Cards"

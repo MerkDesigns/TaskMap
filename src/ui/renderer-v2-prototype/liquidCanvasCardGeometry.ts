@@ -2,16 +2,20 @@ import type { Glass, Group, Html } from "@liquid-dom/core";
 import { BENCHMARK_CARD_SLOT_TRANSITION_MS } from "./benchmarkCanvasCardInteraction";
 import { BENCHMARK_CANVAS_BROWSER } from "./benchmarkCanvasBrowserLayout";
 
+const OFFSCREEN_CAPTURE_Y = -100_000;
+
 interface GeometryRecord {
   readonly group: Group;
   readonly glass: Glass;
   readonly content: Html;
   readonly host: HTMLDivElement;
+  readonly contentDirect?: boolean;
 }
 
 export interface LiquidCanvasCardRecord extends GeometryRecord {
   readonly id: number;
   readonly host: HTMLDivElement;
+  contentDirect: boolean;
 }
 
 interface SlotAnimation {
@@ -27,6 +31,10 @@ export class LiquidCanvasCardGeometry {
 
   resetSyncCount() {
     this.syncCount = 0;
+  }
+
+  isAnimating() {
+    return this.animations.size > 0;
   }
 
   position(
@@ -72,19 +80,25 @@ export class LiquidCanvasCardGeometry {
       const clippedBottom = Math.min(top + BENCHMARK_CANVAS_BROWSER.cardHeight, bodyBottom);
       const visibleHeight = Math.max(0, clippedBottom - clippedTop);
       const clipOffset = visibleHeight > 0 ? clippedTop - top : 0;
-      const width = visibleHeight > 0 ? cardWidth : 0;
+      const visible = visibleHeight > 0;
 
-      if (record.glass.y !== clipOffset) record.glass.y = clipOffset;
-      if (record.glass.width !== width) record.glass.width = width;
-      if (record.glass.height !== visibleHeight) record.glass.height = visibleHeight;
-      if (record.content.y !== 0) record.content.y = 0;
-      if (record.content.width !== width) record.content.width = width;
-      if (record.content.height !== visibleHeight) record.content.height = visibleHeight;
-      record.host.style.transform = clipOffset === 0 ? "" : `translate3d(0, ${-clipOffset}px, 0)`;
+      // Keep the full-size Html registered in Liquid's shared content atlas. Zero-sized Glass
+      // geometry removes the entry and makes the next visible card repack and recopy the atlas.
+      // Counter-positioning makes offscreen capture-host transforms stable as Scroll Group moves.
+      const glassHeight = visible ? visibleHeight : BENCHMARK_CANVAS_BROWSER.cardHeight;
+      const glassY = visible ? clipOffset : scrollTop - record.group.y + OFFSCREEN_CAPTURE_Y;
+      if (record.glass.y !== glassY) record.glass.y = glassY;
+      if (record.glass.width !== cardWidth) record.glass.width = cardWidth;
+      if (record.glass.height !== glassHeight) record.glass.height = glassHeight;
+      // Liquid's Glass shader masks its child Html texture. Keep the capture full-size and offset
+      // it in scene space so partial cards crop on the GPU without dirtying DOM capture geometry.
+      const contentY = record.contentDirect === true ? clipOffset : -clipOffset;
+      if (record.content.y !== contentY) record.content.y = contentY;
     });
   }
 
   resetFullCardViewport(record: GeometryRecord, cardWidth: number) {
+    record.glass.y = 0;
     record.glass.width = cardWidth;
     record.glass.height = BENCHMARK_CANVAS_BROWSER.cardHeight;
     record.content.x = 0;
@@ -126,4 +140,4 @@ export class LiquidCanvasCardGeometry {
   }
 }
 
-const easeOutQuart = (progress: number) => 1 - (1 - progress) ** 4;
+export const easeOutQuart = (progress: number) => 1 - (1 - progress) ** 4;

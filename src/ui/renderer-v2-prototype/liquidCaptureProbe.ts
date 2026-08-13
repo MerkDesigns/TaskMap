@@ -3,7 +3,13 @@ export interface LiquidCaptureProbe {
   dispose(): void;
 }
 
-type CaptureReporter = (width: number | null, height: number | null) => void;
+export interface LiquidCaptureSample {
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly source: unknown;
+}
+
+type CaptureReporter = (sample: LiquidCaptureSample) => void;
 type CopyMethod = (this: unknown, ...arguments_: unknown[]) => unknown;
 
 function dimensionsFromArguments(arguments_: unknown[]) {
@@ -26,6 +32,14 @@ function dimensionsFromArguments(arguments_: unknown[]) {
   return { width: null, height: null };
 }
 
+function sourceFromArguments(arguments_: unknown[]) {
+  const currentSource = arguments_[0];
+  if (typeof currentSource === "object" && currentSource !== null && "source" in currentSource) {
+    return (currentSource as { source?: unknown }).source;
+  }
+  return currentSource;
+}
+
 export function installLiquidCaptureProbe(report: CaptureReporter): LiquidCaptureProbe {
   const gpuQueue = (globalThis as typeof globalThis & { GPUQueue?: { prototype?: object } })
     .GPUQueue;
@@ -36,7 +50,7 @@ export function installLiquidCaptureProbe(report: CaptureReporter): LiquidCaptur
   const descriptor = Object.getOwnPropertyDescriptor(prototype, "copyElementImageToTexture");
   const wrapped: CopyMethod = function (...arguments_) {
     const { width, height } = dimensionsFromArguments(arguments_);
-    report(width, height);
+    report({ width, height, source: sourceFromArguments(arguments_) });
     return original.apply(this, arguments_);
   };
 

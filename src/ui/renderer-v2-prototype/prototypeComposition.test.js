@@ -105,7 +105,9 @@ describe("canonical Renderer V2 prototype composition", () => {
     expect(headerRule).not.toContain("border-bottom");
     expect(browser).not.toMatch(/scrollTop|onScroll/);
     expect(runtime).not.toMatch(/scrollElement|pendingScrollTop/);
-    expect(runtime).toContain("this.scroll.requestWheelDelta(pixels)");
+    expect(runtime).toContain(
+      "convertCanvasBrowserWheelDelta(deltaY, deltaMode, this.scrollViewportHeight())",
+    );
     expect(runtime).toContain("this.scroll.tick(deltaTime, dragScrollDelta)");
   });
 
@@ -116,5 +118,19 @@ describe("canonical Renderer V2 prototype composition", () => {
     ]);
     expect(domCanvas).toContain("<BenchmarkSceneElement");
     expect(liquidStage).toContain("<BenchmarkDomCanvas");
+  });
+
+  it("keeps render-on-demand isolated behind the diagnostic mode", async () => {
+    const [root, runtime, diagnostics] = await Promise.all([
+      readFile("src/ui/renderer-v2-prototype/RendererV2Prototype.tsx", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/canvasBrowserDiagnostics.ts", "utf8"),
+    ]);
+
+    expect(diagnostics).toContain('"render-on-demand"');
+    expect(root).toContain("presentation?.needsFrame()");
+    expect(root).toContain("setFrameRequestListener(renderOnDemand ? schedule : null)");
+    expect(runtime).toContain("this.renderer.render()");
+    expect(runtime).toContain("this.frameRequestListener?.(reason)");
   });
 });

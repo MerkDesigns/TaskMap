@@ -121,6 +121,22 @@
   padding: 0 12px 12px;
 }
 
+.renderer-benchmark__canvas-card-placeholder-overlay {
+  position: absolute;
+  z-index: 60;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.renderer-benchmark__canvas-card-placeholder {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 6%);
+}
+
 .renderer-benchmark__canvas-card {
   position: relative;
   display: flex;

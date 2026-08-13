@@ -8,7 +8,10 @@ export interface FrameStatistics {
   frameTime: number;
   averageFrameTime: number;
   p95FrameTime: number;
+  p99FrameTime: number;
   worstFrameTime: number;
+  framesOver8Point33Ms: number;
+  framesOver16Point67Ms: number;
   samples: number;
 }
 
@@ -26,7 +29,10 @@ export function calculateFrameStatistics(samples: readonly number[]): FrameStati
       frameTime: 0,
       averageFrameTime: 0,
       p95FrameTime: 0,
+      p99FrameTime: 0,
       worstFrameTime: 0,
+      framesOver8Point33Ms: 0,
+      framesOver16Point67Ms: 0,
       samples: 0,
     };
   }
@@ -35,13 +41,17 @@ export function calculateFrameStatistics(samples: readonly number[]): FrameStati
   const average = total / samples.length;
   const sorted = [...samples].sort((left, right) => left - right);
   const p95 = sorted[Math.max(0, Math.ceil(sorted.length * 0.95) - 1)] ?? 0;
+  const p99 = sorted[Math.max(0, Math.ceil(sorted.length * 0.99) - 1)] ?? 0;
   return {
     fps: latest > 0 ? 1000 / latest : 0,
     averageFps: average > 0 ? 1000 / average : 0,
     frameTime: latest,
     averageFrameTime: average,
     p95FrameTime: p95,
+    p99FrameTime: p99,
     worstFrameTime: sorted[sorted.length - 1] ?? 0,
+    framesOver8Point33Ms: samples.filter((duration) => duration > 8.33).length,
+    framesOver16Point67Ms: samples.filter((duration) => duration > 16.67).length,
     samples: samples.length,
   };
 }
