@@ -57,7 +57,7 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     );
     expect(patternCss).toContain("var(--taskmap-motion-fast)");
     expect(toolbarSource).toContain("useMaterialSurfaceGeometryInvalidation");
-    expect(appShellSource.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShellSource).toContain("<RendererV2Prototype />");
   });
 
   it("leaves Settings behind its existing callback boundary", async () => {

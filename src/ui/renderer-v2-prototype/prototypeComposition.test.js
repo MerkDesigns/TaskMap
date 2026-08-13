@@ -1,31 +1,31 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
-describe("Renderer V2 performance benchmark entry", () => {
-  it("is lazy, development-only, and selected without changing AppShell", async () => {
+describe("canonical Renderer V2 prototype composition", () => {
+  it("is the normal application entry with no alternate renderer gates", async () => {
     const source = await readFile("src/main.tsx", "utf8");
     const appShell = await readFile("src/app/AppShell.tsx", "utf8");
 
-    expect(source).toContain("import.meta.env.DEV");
-    expect(source).toContain('import.meta.env.VITE_TASKMAP_RENDERER_BENCHMARK === "1"');
-    expect(source).toContain(
-      'import("./ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark")',
+    expect(source).toContain("<AppShell />");
+    expect(source).not.toContain("import(");
+    expect(appShell).toContain(
+      'import { RendererV2Prototype } from "../ui/renderer-v2-prototype/RendererV2Prototype"',
     );
-    expect(source).toContain("DevelopmentRendererBenchmark ?");
-    expect(appShell).not.toContain("RendererV2PerformanceBenchmark");
+    expect(appShell).toContain("<RendererV2Prototype />");
+    expect(appShell).not.toContain("import(");
   });
 
-  it("keeps benchmark direct Liquid imports in its runtime adapters", async () => {
+  it("keeps direct Liquid imports in the canonical prototype runtime adapters", async () => {
     const component = await readFile(
-      "src/ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark.tsx",
+      "src/ui/renderer-v2-prototype/RendererV2Prototype.tsx",
       "utf8",
     );
     const runtime = await readFile(
-      "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+      "src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts",
       "utf8",
     );
     const browserRuntime = await readFile(
-      "src/ui/dev/renderer-benchmark/liquidCanvasBrowserRuntime.ts",
+      "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
       "utf8",
     );
 
@@ -35,19 +35,13 @@ describe("Renderer V2 performance benchmark entry", () => {
   });
 
   it("contains only the selected coarse architecture and no architecture selector", async () => {
-    const root = await readFile(
-      "src/ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark.tsx",
-      "utf8",
-    );
-    const domCanvas = await readFile(
-      "src/ui/dev/renderer-benchmark/BenchmarkDomCanvas.tsx",
-      "utf8",
-    );
+    const root = await readFile("src/ui/renderer-v2-prototype/RendererV2Prototype.tsx", "utf8");
+    const domCanvas = await readFile("src/ui/renderer-v2-prototype/BenchmarkDomCanvas.tsx", "utf8");
     const liquidStage = await readFile(
-      "src/ui/dev/renderer-benchmark/BenchmarkLiquidStage.tsx",
+      "src/ui/renderer-v2-prototype/BenchmarkLiquidStage.tsx",
       "utf8",
     );
-    const controls = await readFile("src/ui/dev/renderer-benchmark/BenchmarkControls.tsx", "utf8");
+    const controls = await readFile("src/ui/renderer-v2-prototype/BenchmarkControls.tsx", "utf8");
 
     expect(root).toContain("<BenchmarkLiquidStage");
     expect(root).not.toContain("architecture");
@@ -60,11 +54,11 @@ describe("Renderer V2 performance benchmark entry", () => {
 
   it("installs capture instrumentation only when metrics are enabled", async () => {
     const runtime = await readFile(
-      "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+      "src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts",
       "utf8",
     );
     const liquidStage = await readFile(
-      "src/ui/dev/renderer-benchmark/BenchmarkLiquidStage.tsx",
+      "src/ui/renderer-v2-prototype/BenchmarkLiquidStage.tsx",
       "utf8",
     );
 
@@ -75,10 +69,18 @@ describe("Renderer V2 performance benchmark entry", () => {
 
   it("moves physical Canvas Card glass without clone or opacity presentation", async () => {
     const runtime = await readFile(
-      "src/ui/dev/renderer-benchmark/liquidCanvasBrowserRuntime.ts",
+      "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
       "utf8",
     );
 
+    expect(runtime).toContain("BENCHMARK_CARD_DRAG_THRESHOLD");
+    expect(runtime).toContain("this.dragContainer.add(record.glass)");
+    expect(runtime).toContain("record.glass.y = top");
+    expect(runtime).toContain("reorderThroughCrossedCanvasCardSlots");
+    expect(runtime).toContain("calculateCanvasCardAutoScroll");
+    expect(runtime).toContain("this.positionCards(nextOrder, now, true)");
+    expect(runtime).toContain("drag.snapStartedAt = now");
+    expect(runtime).toContain("this.suppressedClickId = drag.id");
     expect(runtime).toContain("this.dragContainer.add(record.glass)");
     expect(runtime).toContain("record.group.add(record.glass)");
     expect(runtime).not.toContain("cloneNode");
@@ -87,8 +89,8 @@ describe("Renderer V2 performance benchmark entry", () => {
 
   it("keeps Canvas Elements on the existing benchmark element renderer", async () => {
     const [domCanvas, liquidStage] = await Promise.all([
-      readFile("src/ui/dev/renderer-benchmark/BenchmarkDomCanvas.tsx", "utf8"),
-      readFile("src/ui/dev/renderer-benchmark/BenchmarkLiquidStage.tsx", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/BenchmarkDomCanvas.tsx", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/BenchmarkLiquidStage.tsx", "utf8"),
     ]);
     expect(domCanvas).toContain("<BenchmarkSceneElement");
     expect(liquidStage).toContain("<BenchmarkDomCanvas");

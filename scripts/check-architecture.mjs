@@ -149,17 +149,9 @@ for (const file of targetFiles) {
     if (lines >= 250) violations.push(`${rel}: AppShell must remain below 250 lines`);
     const allowedImports = new Set([
       "react",
-      "../canvas/RendererV2CanvasViewport",
-      "../features/phase2-database/DevelopmentPhase2Entry",
-      "../features/workspace-chrome/RendererV2ApplicationWorkspace",
-      "../legacy/LegacyApplication",
-      "../ui/dev/DevelopmentUiLab",
-      "../ui/materials/MaterialCompositorProvider",
-      "../ui/materials/materialCompositorPresentation",
-      "./AppProviders",
+      "../ui/renderer-v2-prototype/RendererV2Prototype",
       "./errors/ApplicationErrorBoundary",
       "./errors/applicationErrorReporter",
-      "./windowCloseCoordinator",
     ]);
     for (const specifier of importSpecifiers(source)) {
       if (!allowedImports.has(specifier)) {

@@ -419,21 +419,12 @@ buttons, checkbox/switch/radio/range semantics, focus, explicit Field control-ID
 merged explicit plus Field-owned description/error references. ContextMenu cases cover external
 coordinate placement, roving focus, ArrowUp/Down, Home/End, Tab/Escape/outside dismissal, action
 focus return, disabled skipping, and exit presence.
-Tabs and LiquidTabs share click, arrow, Home/End, disabled-skip, ARIA, and roving-tabindex tests. UI
-Lab source gates prove the dynamic entry requires both `DEV` and `VITE_TASKMAP_UI_LAB=1`, remains an
-eager-import-free production boundary, and scopes the target theme to the Lab root. Stable-bundle
-inspection rejects UI Lab markers.
-
-Lab cases mount the real catalog, lock local-only theme scope, verify Tab/Shift+Tab traversal and the
-pseudo-class-only focus architecture, distinguish system reduced motion from the non-persistent
-scoped simulation, and verify explicit Cutout geometry. Playground cases prove pan, cursor-anchored
-zoom, deterministic reset, existing-material preset mapping, shared visible/BackdropScene model
-identity, high-contrast thin geometry, one existing presentation publisher, and absence of a second
-provider, backdrop-filter, persistence, Redux, or history.
-
-Lab stacking-contract cases lock the synthetic playground scene below the base compositor plane and
-the Lab's material surfaces above it. They also reject a Lab-root stacking context that would trap
-surface content below the provider-owned canvas or require per-component inline z-index repairs.
+Tabs and LiquidTabs share click, arrow, Home/End, disabled-skip, ARIA, and roving-tabindex tests.
+Renderer prototype composition tests lock the normal application entry, normal DOM canvas, coarse
+Liquid backdrop, capture instrumentation, and the absence of alternate renderer gates. Canvas
+Browser runtime tests cover grouped scrolling, card visibility, 6px activation, Liquid-native drag,
+midpoint and multi-slot reorder, edge auto-scroll, displaced-card animation, final snap, selection,
+and click suppression.
 
 Liquid cases additionally lock the `7px` resting radius, bounded `14px` deformation radius, exact
 radius return on settlement, unit-scale labels, the clear `7.5%` white selection wash, inherited

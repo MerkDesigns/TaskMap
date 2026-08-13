@@ -233,11 +233,9 @@ Animated cached-acrylic surfaces call `useMaterialSurfaceGeometryInvalidation()`
 material boundary. This schedules only coalesced geometry/mask work; it must not request an expensive
 backdrop build or perform persistent work.
 
-The opt-in C1 UI Lab is the sole development exception that temporarily publishes a synthetic scene
-through the existing `MaterialCompositorPresentationPublisher`. AppShell still composes exactly one
-`MaterialCompositorProvider`; stable builds and ordinary development runs retain the legacy
-presentation owner. The Lab fixture and its visible SVG consume one shared generic BackdropScene
-model and never import production canvas state.
+The former opt-in C1 UI Lab entry has been retired. Renderer diagnostics and synthetic visual
+coverage now live inside the one canonical Renderer V2 prototype; shared material and motion
+foundations remain available for the later architecture-v1 port.
 
 ## Adding a platform operation
 

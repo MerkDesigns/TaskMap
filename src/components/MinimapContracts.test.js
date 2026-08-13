@@ -92,7 +92,7 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     expect(boundary).not.toMatch(
       /requestAnimationFrame|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShell).toContain("<RendererV2Prototype />");
   });
 
   it("keeps reset-only behavior and does not add navigation handlers", async () => {

@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TaskMapMantineProvider } from "../../mantine/TaskMapMantineProvider";
+import { TaskMapMantineProvider } from "../mantine/TaskMapMantineProvider";
 import { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import { BenchmarkViewportController } from "./benchmarkViewportController";
 import { BenchmarkControls } from "./BenchmarkControls";

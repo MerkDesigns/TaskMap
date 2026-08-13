@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { worldToScreen } from "../../../canvas/geometry/viewportMath";
+import { worldToScreen } from "../../canvas/geometry/viewportMath";
 import { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import { BenchmarkViewportController } from "./benchmarkViewportController";
 

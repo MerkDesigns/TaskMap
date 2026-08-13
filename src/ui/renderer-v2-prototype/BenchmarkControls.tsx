@@ -26,10 +26,10 @@ export function BenchmarkControls({
       <Stack gap="xs">
         <div>
           <Title order={3} size="h5">
-            Renderer V2 benchmark
+            Renderer V2 Prototype
           </Title>
           <Text size="xs" c="dimmed">
-            Development-only · shared scene state
+            UI/design prototype · shared synthetic scene state
           </Text>
         </div>
         <div className="renderer-benchmark__workload-sliders">

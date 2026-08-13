@@ -106,7 +106,7 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     ]);
     const patterns = `${modalPattern}\n${modalCss}\n${settingsPattern}\n${settingsCss}`;
 
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShell).toContain("<RendererV2Prototype />");
     expect(materialTypes).toMatch(/MaterialPlane\s*=\s*"base"\s*\|\s*"modal"/);
     expect(patterns).not.toMatch(
       /requestAnimationFrame|backdrop-filter|createBrowserAcrylicRuntime|acrylicCache|Redux|persistence|database|domain|tauri/i,

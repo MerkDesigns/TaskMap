@@ -1,5 +1,5 @@
-import { createViewport } from "../../../canvas/geometry/viewportMath";
-import type { CanvasPoint } from "../../../canvas/geometry/canvasGeometry";
+import { createViewport } from "../../canvas/geometry/viewportMath";
+import type { CanvasPoint } from "../../canvas/geometry/canvasGeometry";
 import type {
   BenchmarkElementKind,
   BenchmarkElementModel,

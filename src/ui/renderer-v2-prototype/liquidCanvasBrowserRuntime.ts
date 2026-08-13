@@ -1,5 +1,5 @@
 import { Container, Glass, Group, Html, type Scene } from "@liquid-dom/core";
-import { LIQUID_MATERIAL_OPTICS } from "../../materials/liquid-dom/materialRoles";
+import { LIQUID_MATERIAL_OPTICS } from "../materials/liquid-dom/materialRoles";
 import {
   BENCHMARK_CARD_DRAG_THRESHOLD,
   BENCHMARK_CARD_SLOT_TRANSITION_MS,

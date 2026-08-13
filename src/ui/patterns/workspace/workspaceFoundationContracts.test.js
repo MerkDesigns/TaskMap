@@ -60,7 +60,7 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     expect(patternSources).not.toMatch(
       /backdrop-filter|MaterialSurface|MaterialCompositorProvider|createBrowserAcrylicRuntime|acrylicCache|Redux|persistence/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShell).toContain("<RendererV2Prototype />");
   });
 
   it("leaves all stage and world interaction ownership in App", async () => {

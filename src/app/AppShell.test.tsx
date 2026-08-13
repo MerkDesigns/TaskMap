@@ -6,34 +6,26 @@ import AppShell from "./AppShell";
 import { selectActiveApplicationBoundary } from "./selectors/applicationSelectors";
 import { createAppStore } from "./store";
 
-const canvasTestState = vi.hoisted(() => ({ shouldFail: false }));
+const prototypeTestState = vi.hoisted(() => ({ shouldFail: false }));
 
-vi.mock("../features/workspace-chrome/RendererV2ApplicationWorkspace", () => ({
-  RendererV2ApplicationWorkspace: () => {
-    if (canvasTestState.shouldFail) throw new Error("Renderer V2 canvas failure");
-    return <div>Renderer V2 application workspace</div>;
+vi.mock("../ui/renderer-v2-prototype/RendererV2Prototype", () => ({
+  RendererV2Prototype: () => {
+    if (prototypeTestState.shouldFail) throw new Error("Renderer V2 prototype failure");
+    return <div>Renderer V2 Prototype</div>;
   },
-}));
-
-vi.mock("../ui/materials/MaterialCompositorProvider", () => ({
-  MaterialCompositorProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
-
-vi.mock("../features/phase2-database/DevelopmentPhase2Entry", () => ({
-  DevelopmentPhase2Entry: () => null,
 }));
 
 afterEach(() => {
   cleanup();
-  canvasTestState.shouldFail = false;
+  prototypeTestState.shouldFail = false;
   vi.restoreAllMocks();
 });
 
 describe("AppShell", () => {
-  it("renders the production Renderer V2 application workspace", () => {
+  it("renders the canonical Renderer V2 prototype", () => {
     render(<AppShell />);
 
-    expect(screen.getByText("Renderer V2 application workspace")).toBeInTheDocument();
+    expect(screen.getByText("Renderer V2 Prototype")).toBeInTheDocument();
   });
 
   it("initializes the Redux provider", () => {
@@ -54,7 +46,7 @@ describe("AppShell", () => {
   });
 
   it("contains Renderer V2 failures inside the application error boundary", () => {
-    canvasTestState.shouldFail = true;
+    prototypeTestState.shouldFail = true;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const preventExpectedError = (event: ErrorEvent) => event.preventDefault();
     window.addEventListener("error", preventExpectedError);

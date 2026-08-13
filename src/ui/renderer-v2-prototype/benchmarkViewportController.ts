@@ -3,8 +3,8 @@ import {
   screenToWorld,
   translateViewport,
   wheelZoomViewport,
-} from "../../../canvas/geometry/viewportMath";
-import type { CanvasPoint, CanvasSize } from "../../../canvas/geometry/canvasGeometry";
+} from "../../canvas/geometry/viewportMath";
+import type { CanvasPoint, CanvasSize } from "../../canvas/geometry/canvasGeometry";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 
 interface PanGesture {

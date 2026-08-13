@@ -7,7 +7,7 @@ values.
 
 ## Status key
 
-- **Foundation implemented** — reusable C1 code or tokens exist and are covered by tests/Lab use.
+- **Foundation implemented** — reusable C1 code or tokens exist and are covered by tests.
 - **Implement during C2** — production chrome/settings migration should supply the real contract.
 - **Implement during C3** — overlays and advanced application presentation need production usage.
 - **Feature-specific Phase 5+** — belongs with an element/feature module, using shared primitives.
@@ -42,7 +42,6 @@ feature or TaskMap pattern
   lifecycle ownership in the feature/App. C3A adds the modal-plane `ModalLayer` stacking boundary
   and the presentation-only `SettingsShell`/`SettingsIsland`/`SettingsRow` patterns for primary
   Settings. Password/update/color-picker and all other overlay shells remain unmigrated.
-- `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
 import compositor internals or create a material ID for a button, tab, pill, toolbar, or card.
@@ -430,35 +429,8 @@ actions and production coordinate placement remain outside the primitive.
 its generated ID through context. Explicit `aria-describedby` references are de-duplicated and merged
 with Field-owned description/error references rather than replacing either source.
 
-## Development UI Lab
+## Renderer V2 prototype
 
-The Lab is dynamically reachable only when Vite replaces `import.meta.env.DEV` with true and the
-explicit flag equals `1`. It applies `.taskmap-target-theme` to the Lab root only and uses the real
-material provider, primitives, shared motion scheduler, and LiquidTabs.
-
-While active, the Lab replaces the hidden legacy UI and temporarily publishes a synthetic generic
-BackdropScene through the existing compositor presentation bridge. The visible SVG fixture and the
-Worker/fallback projection consume the same frozen scene model. Its fixed MaterialSurface preview
-can compare Acrylic Large, Acrylic Small, compact Small, liquid-selection geometry, and Cutout while
-local pan/zoom moves high-contrast stress geometry behind it. No second provider, runtime, cache, or
-blur implementation exists.
-
-The Lab separately reports the real system reduced-motion preference and offers an in-memory scoped
-simulation override. Without that provider, production motion continues to use only
-`prefers-reduced-motion`.
-
-The Lab's left-column Button material tests show the reusable acrylic toggle, four-option LiquidTabs,
-normal accessible ghost icon button, liquid toggle switch, three confirm flows, and animated
-checkbox. Its development-only container context-menu fixture mirrors the current production menu's
-compact presentation ordering using inert local state. The trigger remains embedded over the
-synthetic playground, while the opaque material intentionally prevents that arbitrary content from
-showing through; it does not import or migrate production menu behavior.
-
-```powershell
-$env:VITE_TASKMAP_UI_LAB="1"
-npm run app:dev
-Remove-Item Env:VITE_TASKMAP_UI_LAB
-```
-
-There are no compositor tuning controls, persistence connections, Redux state, schema fields, or
-local-storage writes in the Lab.
+Renderer V2 visual and interaction verification now happens in the canonical prototype. Renderer
+metrics, workload controls, GIF coverage, and capture instrumentation stay inside that application
+rather than using a separate UI Lab or verification fixture.

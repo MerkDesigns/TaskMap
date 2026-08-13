@@ -74,9 +74,9 @@ export function findMaterialArchitectureViolations(entries) {
     const approvedLiquidDomRuntime =
       path === "src/ui/materials/liquid-dom/liquidDomRuntime.ts" ||
       [
-        "src/ui/dev/renderer-benchmark/liquidCanvasBrowserRuntime.ts",
-        "src/ui/dev/renderer-benchmark/liquidCanvasCardGeometry.ts",
-        "src/ui/dev/renderer-benchmark/liquidSceneBenchmarkRuntime.ts",
+        "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
+        "src/ui/renderer-v2-prototype/liquidCanvasCardGeometry.ts",
+        "src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts",
       ].includes(path);
     if (importsLiquidDomDirectly && !approvedLiquidDomRuntime) {
       violations.push(

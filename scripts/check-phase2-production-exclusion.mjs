@@ -30,26 +30,19 @@ if (!stableHandler || stableHandler.includes("phase2_")) {
   throw new Error("stable Rust invoke handler contains a Phase 2 command");
 }
 if (
-  !appShell.includes('import.meta.env.MODE === "phase2"') ||
-  appShell.includes("import { DevelopmentPhase2Entry }")
-) {
-  throw new Error("Phase 2 frontend entry is not a development-only dynamic import");
-}
-if (
-  !appShell.includes('import.meta.env.DEV && import.meta.env.VITE_TASKMAP_UI_LAB === "1"') ||
-  !appShell.includes('import("../ui/dev/DevelopmentUiLab")') ||
-  appShell.includes("import { DevelopmentUiLab }")
-) {
-  throw new Error("UI Lab frontend entry is not a DEV-and-opt-in dynamic import");
-}
-if (
-  !rendererEntry.includes(
-    'import.meta.env.DEV && import.meta.env.VITE_TASKMAP_RENDERER_BENCHMARK === "1"',
+  !appShell.includes(
+    'import { RendererV2Prototype } from "../ui/renderer-v2-prototype/RendererV2Prototype"',
   ) ||
-  !rendererEntry.includes('import("./ui/dev/renderer-benchmark/RendererV2PerformanceBenchmark")') ||
-  rendererEntry.includes("import { RendererV2PerformanceBenchmark }")
+  !appShell.includes("<RendererV2Prototype />")
 ) {
-  throw new Error("Renderer benchmark entry is not a DEV-and-opt-in dynamic import");
+  throw new Error("Renderer V2 Prototype is not the canonical application entry");
+}
+if (
+  appShell.includes("import(") ||
+  rendererEntry.includes("import(") ||
+  !rendererEntry.includes("<AppShell />")
+) {
+  throw new Error("An obsolete alternate frontend entry remains wired into the application");
 }
 
 async function files(directory) {
@@ -73,12 +66,10 @@ for (const path of stableAssets.filter((item) => /\.(?:js|html|css)$/.test(item)
     content.includes("TaskMap UI Lab") ||
     content.includes("Acrylic compositor playground") ||
     content.includes("data-taskmap-ui-lab") ||
-    content.includes("Renderer V2 benchmark") ||
-    content.includes("VITE_TASKMAP_RENDERER_BENCHMARK") ||
     content.includes("Add test element")
   ) {
     throw new Error(`stable frontend bundle contains Phase 2 harness content: ${path}`);
   }
 }
 
-console.log("Stable frontend excludes Phase 2 IPC, the UI Lab, and the Renderer V2 benchmark.");
+console.log("Stable frontend uses the canonical prototype and excludes obsolete alternate UIs.");

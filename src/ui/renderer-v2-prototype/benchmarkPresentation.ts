@@ -1,4 +1,4 @@
-import type { CanvasViewport } from "../../../canvas/geometry/viewportMath";
+import type { CanvasViewport } from "../../canvas/geometry/viewportMath";
 import type { BenchmarkElementModel } from "./benchmarkTypes";
 
 export interface BenchmarkLiquidCounts {

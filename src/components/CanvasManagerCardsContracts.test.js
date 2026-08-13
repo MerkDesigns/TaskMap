@@ -73,7 +73,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(boundary).not.toMatch(
       /backdrop-filter|createBrowserAcrylicRuntime|createMaterialSurfaceRegistry|MaterialCompositorProvider|acrylicCache/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShell).toContain("<RendererV2Prototype />");
   });
 
   it("keeps Canvas C2D boundaries intact after the isolated C2E Extensions migration", async () => {

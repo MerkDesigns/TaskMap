@@ -8,7 +8,7 @@ import { BenchmarkSceneStore, countBenchmarkScene } from "./benchmarkSceneStore"
 import { BenchmarkSpawnMenu } from "./BenchmarkSpawnMenu";
 import type { BenchmarkSpawnMenuRequest } from "./useBenchmarkCanvasInput";
 import { BenchmarkViewportController } from "./benchmarkViewportController";
-import "./RendererV2PerformanceBenchmark.css";
+import "./RendererV2Prototype.css";
 import "./BenchmarkOverlays.css";
 
 const EMPTY_LIQUID_COUNTS: BenchmarkLiquidCounts = {
@@ -21,7 +21,7 @@ const EMPTY_LIQUID_COUNTS: BenchmarkLiquidCounts = {
   captureAvailable: false,
 };
 
-export function RendererV2PerformanceBenchmark() {
+export function RendererV2Prototype() {
   const [store] = useState(() => new BenchmarkSceneStore());
   const [viewport] = useState(() => new BenchmarkViewportController(store));
   const [version, setVersion] = useState(store.getVersion());

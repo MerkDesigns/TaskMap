@@ -87,6 +87,6 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(boundary).not.toMatch(
       /requestAnimationFrame|useMaterialSurfaceMaskOpacity|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShell).toContain("<RendererV2Prototype />");
   });
 });

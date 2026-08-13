@@ -216,7 +216,8 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 
 - [x] **C1 foundation:** add scoped semantic geometry/state/typography tokens, reusable semantic UI
       primitives, deterministic shared motion/spring/FLIP infrastructure, accessible LiquidTabs,
-      the permanent UI capability catalog, and a doubly gated development UI Lab.
+      and the permanent UI capability catalog. The former development UI Lab entry is retired on
+      the renderer-v2 prototype branch.
 - [x] Apply the first C1 visual-review correction: keyboard-focus demonstration, Lab-only motion
       simulation, real shared-compositor playground, bounded rounded-rectangle liquid selection,
       and reduced acrylic radial highlights.

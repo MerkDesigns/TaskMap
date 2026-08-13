@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getVisibleElementIds } from "../../../canvas/virtualization/viewportCulling";
+import { getVisibleElementIds } from "../../canvas/virtualization/viewportCulling";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
 

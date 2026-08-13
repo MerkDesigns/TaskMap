@@ -72,7 +72,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(boundary).not.toMatch(
       /backdrop-filter|z-index|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
+    expect(appShell).toContain("<RendererV2Prototype />");
   });
 
   it("retains embedded and portal boundaries as later C2 slices migrate panel contents", async () => {

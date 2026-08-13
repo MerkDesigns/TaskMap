@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { CanvasPoint } from "../../../canvas/geometry/canvasGeometry";
+import type { CanvasPoint } from "../../canvas/geometry/canvasGeometry";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
 
 export interface BenchmarkSpawnMenuRequest {
