@@ -37,19 +37,16 @@ export class LiquidSceneBenchmarkRuntime {
     this.browser.reconcile(scene.canvasCardOrder);
   }
 
-  attachCanvasBrowserScrollElement(
-    element: HTMLDivElement,
-    commitOrder: (order: readonly number[]) => void,
-  ) {
-    return this.browser.attachScrollElement(element, commitOrder);
-  }
-
-  setCanvasBrowserScroll(scrollTop: number) {
-    this.browser.queueScroll(scrollTop);
+  attachCanvasBrowserOrderCommit(commitOrder: (order: readonly number[]) => void) {
+    return this.browser.attachOrderCommit(commitOrder);
   }
 
   scrollCanvasBrowserByWheel(deltaY: number, deltaMode: number) {
     this.browser.scrollByWheel(deltaY, deltaMode);
+  }
+
+  getCanvasBrowserScrollState() {
+    return this.browser.getScrollState();
   }
 
   setCaptureInstrumentation(enabled: boolean) {
@@ -70,7 +67,7 @@ export class LiquidSceneBenchmarkRuntime {
   }
 
   beginCanvasCardDrag(id: number, event: PointerEvent, element: HTMLElement) {
-    this.browser.beginCardDrag(id, event, element);
+    return this.browser.beginCardDrag(id, event, element);
   }
 
   consumeSuppressedCanvasCardClick(id: number) {

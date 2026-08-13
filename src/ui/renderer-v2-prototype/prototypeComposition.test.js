@@ -68,10 +68,11 @@ describe("canonical Renderer V2 prototype composition", () => {
   });
 
   it("moves physical Canvas Card glass without clone or opacity presentation", async () => {
-    const runtime = await readFile(
-      "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
-      "utf8",
-    );
+    const [runtime, pointerSession, interaction] = await Promise.all([
+      readFile("src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/canvasCardPointerSession.ts", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/benchmarkCanvasCardInteraction.ts", "utf8"),
+    ]);
 
     expect(runtime).toContain("BENCHMARK_CARD_DRAG_THRESHOLD");
     expect(runtime).toContain("this.dragContainer.add(record.glass)");
@@ -85,6 +86,26 @@ describe("canonical Renderer V2 prototype composition", () => {
     expect(runtime).toContain("record.group.add(record.glass)");
     expect(runtime).not.toContain("cloneNode");
     expect(runtime).not.toMatch(/style\.opacity|\.opacity\s*=/);
+    expect(`${runtime}\n${pointerSession}`).not.toContain("setTimeout");
+    expect(interaction).toContain("BENCHMARK_CARD_SLOT_TRANSITION_MS = 190");
+  });
+
+  it("keeps wheel scrolling continuous and removes the browser header separator", async () => {
+    const [css, browser, runtime] = await Promise.all([
+      readFile("src/ui/renderer-v2-prototype/RendererV2Prototype.css", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/BenchmarkCanvasBrowser.tsx", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts", "utf8"),
+    ]);
+    const scrollRule = css.match(/\.renderer-benchmark__canvas-browser-scroll\s*\{([^}]*)\}/)?.[1];
+    const headerRule = css.match(/\.renderer-benchmark__canvas-browser-header\s*\{([^}]*)\}/)?.[1];
+
+    expect(scrollRule).not.toContain("scroll-snap");
+    expect(scrollRule).toContain("overflow: hidden");
+    expect(headerRule).not.toContain("border-bottom");
+    expect(browser).not.toMatch(/scrollTop|onScroll/);
+    expect(runtime).not.toMatch(/scrollElement|pendingScrollTop/);
+    expect(runtime).toContain("this.requestScrollDelta(pixels)");
+    expect(runtime).toContain("this.requestScrollDelta(delta)");
   });
 
   it("keeps Canvas Elements on the existing benchmark element renderer", async () => {

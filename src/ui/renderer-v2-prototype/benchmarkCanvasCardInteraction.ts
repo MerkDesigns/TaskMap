@@ -1,7 +1,14 @@
 export const BENCHMARK_CARD_DRAG_THRESHOLD = 6;
 export const BENCHMARK_CARD_SLOT_TRANSITION_MS = 190;
-export const BENCHMARK_CARD_AUTO_SCROLL_EDGE = 52;
-export const BENCHMARK_CARD_AUTO_SCROLL_MAX = 16;
+export const BENCHMARK_CARD_AUTO_SCROLL = Object.freeze({
+  startInset: 52,
+  outsideExtensionRatio: 0.2,
+  minimumOutsideExtension: 96,
+  maximumOutsideExtension: 180,
+  maximumSpeed: 16,
+});
+export const BENCHMARK_CARD_AUTO_SCROLL_EDGE = BENCHMARK_CARD_AUTO_SCROLL.startInset;
+export const BENCHMARK_CARD_AUTO_SCROLL_MAX = BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed;
 
 export function reorderCanvasCardsAtCenter(
   order: readonly number[],
@@ -33,15 +40,46 @@ export function calculateCanvasCardAutoScroll(
   listTop: number,
   listBottom: number,
 ) {
-  if (pointerY < listTop + BENCHMARK_CARD_AUTO_SCROLL_EDGE) {
-    const proximity = 1 - Math.max(0, pointerY - listTop) / BENCHMARK_CARD_AUTO_SCROLL_EDGE;
-    return -BENCHMARK_CARD_AUTO_SCROLL_MAX * proximity * proximity;
+  const outsideExtension = calculateCanvasCardAutoScrollOutsideExtension(listBottom - listTop);
+  const topStart = listTop + BENCHMARK_CARD_AUTO_SCROLL.startInset;
+  const bottomStart = listBottom - BENCHMARK_CARD_AUTO_SCROLL.startInset;
+  if (pointerY < topStart) {
+    const progress = normalizedProgress(pointerY, topStart, listTop - outsideExtension);
+    return -BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed * smoothstep(progress);
   }
-  if (pointerY > listBottom - BENCHMARK_CARD_AUTO_SCROLL_EDGE) {
-    const proximity = 1 - Math.max(0, listBottom - pointerY) / BENCHMARK_CARD_AUTO_SCROLL_EDGE;
-    return BENCHMARK_CARD_AUTO_SCROLL_MAX * proximity * proximity;
+  if (pointerY > bottomStart) {
+    const progress = normalizedProgress(pointerY, bottomStart, listBottom + outsideExtension);
+    return BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed * smoothstep(progress);
   }
   return 0;
+}
+
+export function calculateCanvasCardAutoScrollOutsideExtension(browserBodyHeight: number) {
+  return Math.min(
+    BENCHMARK_CARD_AUTO_SCROLL.maximumOutsideExtension,
+    Math.max(
+      BENCHMARK_CARD_AUTO_SCROLL.minimumOutsideExtension,
+      browserBodyHeight * BENCHMARK_CARD_AUTO_SCROLL.outsideExtensionRatio,
+    ),
+  );
+}
+
+export function calculateBoundedCanvasCardScrollTop(
+  currentScrollTop: number,
+  delta: number,
+  clientHeight: number,
+  scrollHeight: number,
+) {
+  const maximumScrollTop = Math.max(0, scrollHeight - clientHeight);
+  return Math.min(maximumScrollTop, Math.max(0, currentScrollTop + delta));
+}
+
+function normalizedProgress(value: number, start: number, end: number) {
+  return Math.min(1, Math.max(0, (value - start) / (end - start)));
+}
+
+function smoothstep(progress: number) {
+  return progress * progress * (3 - 2 * progress);
 }
 
 export function reorderThroughCrossedCanvasCardSlots(

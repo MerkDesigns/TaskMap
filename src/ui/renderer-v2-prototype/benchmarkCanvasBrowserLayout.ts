@@ -47,7 +47,7 @@ export function calculateCanvasBrowserLayout(
       y,
       width: cardWidth,
       height: browser.cardHeight,
-      visible: y >= bodyTop && y + browser.cardHeight <= bodyBottom,
+      visible: y < bodyBottom && y + browser.cardHeight > bodyTop,
     };
   });
   return { x: browser.x, y: browser.y, width: browser.width, height, cards };

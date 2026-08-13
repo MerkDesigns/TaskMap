@@ -1,6 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
-import { canvasBrowserScrollHeight } from "./benchmarkCanvasBrowserLayout";
 import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 
 interface Props {
@@ -20,17 +19,9 @@ export function BenchmarkCanvasBrowser({
   onOrderCommit,
   onSelect,
 }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
   useLayoutEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-    return runtime.attachCanvasBrowserScrollElement(element, onOrderCommit);
+    return runtime.attachCanvasBrowserOrderCommit(onOrderCommit);
   }, [onOrderCommit, runtime]);
-
-  useLayoutEffect(() => {
-    runtime.setCanvasBrowserScroll(scrollRef.current?.scrollTop ?? 0);
-  }, [canvasCardCount, runtime]);
 
   const browser = (
     <section
@@ -51,21 +42,7 @@ export function BenchmarkCanvasBrowser({
         </div>
         <output>{canvasCardCount}</output>
       </header>
-      <div
-        ref={scrollRef}
-        className="renderer-benchmark__canvas-browser-scroll"
-        aria-label="Canvas Cards"
-        onScroll={(event) => runtime.setCanvasBrowserScroll(event.currentTarget.scrollTop)}
-      >
-        <div
-          className="renderer-benchmark__canvas-browser-spacer"
-          style={{ height: canvasBrowserScrollHeight(canvasCardCount) }}
-        >
-          {canvasCardOrder.map((id) => (
-            <div key={id} className="renderer-benchmark__canvas-card-slot" />
-          ))}
-        </div>
-      </div>
+      <div className="renderer-benchmark__canvas-browser-scroll" aria-label="Canvas Cards" />
     </section>
   );
 
