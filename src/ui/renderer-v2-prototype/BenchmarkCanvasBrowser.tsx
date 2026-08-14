@@ -1,11 +1,13 @@
 import { useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
+import type { BenchmarkCanvasCardPresentation } from "./benchmarkCanvasBrowserLayout";
 import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 
 interface Props {
   readonly canvasCardCount: number;
   readonly canvasCardOrder: readonly number[];
   readonly activeCanvasCardId: number;
+  readonly cardPresentation: BenchmarkCanvasCardPresentation;
   readonly runtime: LiquidSceneBenchmarkRuntime;
   readonly onOrderCommit: (order: readonly number[]) => void;
   readonly onSelect: (id: number) => void;
@@ -15,6 +17,7 @@ export function BenchmarkCanvasBrowser({
   canvasCardCount,
   canvasCardOrder,
   activeCanvasCardId,
+  cardPresentation,
   runtime,
   onOrderCommit,
   onSelect,
@@ -56,6 +59,7 @@ export function BenchmarkCanvasBrowser({
               <BenchmarkCanvasCardContent
                 id={id}
                 active={id === activeCanvasCardId}
+                cardPresentation={cardPresentation}
                 runtime={runtime}
                 onSelect={onSelect}
               />,
@@ -70,11 +74,13 @@ export function BenchmarkCanvasBrowser({
 function BenchmarkCanvasCardContent({
   id,
   active,
+  cardPresentation,
   runtime,
   onSelect,
 }: {
   id: number;
   active: boolean;
+  cardPresentation: BenchmarkCanvasCardPresentation;
   runtime: LiquidSceneBenchmarkRuntime;
   onSelect: (id: number) => void;
 }) {
@@ -99,16 +105,32 @@ function BenchmarkCanvasCardContent({
       }}
     >
       <span className="renderer-benchmark__canvas-card-active" />
-      <svg viewBox="0 0 96 58" aria-hidden="true">
-        <rect width="96" height="58" rx="6" className="renderer-benchmark__canvas-card-bg" />
+      <svg viewBox="0 0 96 54" aria-hidden="true">
         <rect x="12" y="11" width="31" height="16" rx="3" />
         <rect x="49" y="18" width="33" height="25" rx="3" />
         <rect x="19" y="34" width="24" height="11" rx="3" />
       </svg>
-      <div>
-        <strong>Canvas {id + 1}</strong>
-        <span>{active ? "Active canvas" : "TaskMap canvas"}</span>
+      <div className="renderer-benchmark__canvas-card-copy">
+        <strong>{formatCardText(cardPresentation.largeText, id, active)}</strong>
+        <span>{formatCardText(cardPresentation.smallText, id, active)}</span>
       </div>
+      <button
+        type="button"
+        className="renderer-benchmark__canvas-card-options"
+        aria-label={`Canvas ${id + 1} options`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span className="renderer-benchmark__canvas-card-options-dots" aria-hidden="true" />
+      </button>
     </article>
   );
+}
+
+function formatCardText(template: string, id: number, active: boolean) {
+  return template
+    .split("{number}")
+    .join(String(id + 1))
+    .split("{status}")
+    .join(active ? "Active" : "TaskMap");
 }

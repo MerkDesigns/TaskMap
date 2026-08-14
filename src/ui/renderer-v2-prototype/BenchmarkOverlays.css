@@ -6,6 +6,11 @@
   background: #17181b;
 }
 
+.renderer-benchmark__material-menu {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
 .renderer-benchmark__controls {
   top: 12px;
   left: 322px;

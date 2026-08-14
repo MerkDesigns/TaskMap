@@ -2,6 +2,11 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BenchmarkCanvasBrowser } from "./BenchmarkCanvasBrowser";
+import {
+  calculateCanvasBrowserLayout,
+  canvasBrowserScrollHeight,
+  DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION,
+} from "./benchmarkCanvasBrowserLayout";
 import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 
 afterEach(() => {
@@ -38,6 +43,7 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
           canvasCardCount={3}
           canvasCardOrder={[0, 1, 2]}
           activeCanvasCardId={0}
+          cardPresentation={DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION}
           runtime={runtime}
           onOrderCommit={vi.fn()}
           onSelect={onSelect}
@@ -83,6 +89,7 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
           canvasCardCount={3}
           canvasCardOrder={[2, 0, 1]}
           activeCanvasCardId={activeId}
+          cardPresentation={DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION}
           runtime={runtime}
           onOrderCommit={vi.fn()}
           onSelect={setActiveId}
@@ -100,5 +107,15 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
     expect(selected).toHaveClass("is-active");
     expect(selected).toHaveAttribute("aria-current", "true");
     expect(previous).not.toHaveClass("is-active");
+  });
+});
+
+describe("BenchmarkCanvasBrowser layout", () => {
+  it("fits short card lists and caps long lists at the viewport edge gap", () => {
+    expect(calculateCanvasBrowserLayout(900, 1, 0).height).toBe(154);
+    expect(calculateCanvasBrowserLayout(900, 2, 0).height).toBe(248);
+    expect(canvasBrowserScrollHeight(2)).toBe(178);
+
+    expect(calculateCanvasBrowserLayout(900, 20, 0).height).toBe(868);
   });
 });

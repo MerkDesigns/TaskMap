@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import { pointerEvent, pointerTarget, settleWheel } from "./canvasCardRuntimeTestSupport";
 import { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
+import { createRendererV2MaterialControls } from "./rendererV2PanelMaterials";
 interface LiquidNodeProbe {
   x: number;
   y: number;
@@ -46,11 +47,13 @@ vi.mock("@liquid-dom/core", () => {
   }
   class Scene extends FakeNode {}
   class Group extends FakeNode {
-    constructor() {
+    constructor(options?: unknown) {
       super();
+      Object.assign(this, options);
       liquidCalls.groups.push(this);
     }
   }
+  const StackingContext = Group;
   class Container extends FakeNode {
     constructor(options: unknown) {
       super();
@@ -78,7 +81,7 @@ vi.mock("@liquid-dom/core", () => {
     render() {}
     destroy() {}
   }
-  return { Container, Glass, Group, Html, Renderer, Scene };
+  return { Container, Glass, Group, Html, Renderer, Scene, StackingContext };
 });
 afterEach(() => {
   liquidCalls.containers.length = 0;
@@ -107,13 +110,46 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
   it("changes card Glass count without recreating either shared Container", () => {
     const store = new BenchmarkSceneStore();
     const runtime = new LiquidSceneBenchmarkRuntime(() => {});
+    runtime.resize(1_280, 900);
     runtime.reconcile(store.scene);
     expect(runtime.getCounts().glassShapes).toBe(6);
+    expect(liquidCalls.glassNodes[0]).toMatchObject({ height: 530 });
 
     store.setCanvasCardCount(12);
     runtime.reconcile(store.scene);
     expect(liquidCalls.containers).toHaveLength(2);
     expect(runtime.getCounts()).toMatchObject({ containers: 2, glassShapes: 13 });
+    expect(liquidCalls.glassNodes[0]).toMatchObject({ height: 868 });
+    runtime.destroy();
+  });
+  it("applies live material controls and card spacing to both panel roles", () => {
+    const runtime = new LiquidSceneBenchmarkRuntime(() => {});
+    runtime.resize(1_280, 900);
+    runtime.reconcile(new BenchmarkSceneStore().scene);
+    const materials = createRendererV2MaterialControls();
+    materials["large-panel"] = {
+      ...materials["large-panel"],
+      blur: 24,
+      cornerRadius: 18,
+    };
+    materials["small-panel"] = {
+      ...materials["small-panel"],
+      tint: "#336699",
+      tintOpacity: 0.4,
+      cornerRadius: 9,
+      borderOpacity: 0.25,
+    };
+
+    runtime.setCanvasBrowserAppearance(materials, 16);
+
+    expect(liquidCalls.containerNodes[0]).toMatchObject({ blur: 24 });
+    expect(liquidCalls.containerNodes[1]).toMatchObject({
+      specularOpacity: 0.25,
+      tint: { r: 0.2, g: 0.4, b: 0.6, a: 0.4 },
+    });
+    expect(liquidCalls.glassNodes[0]).toMatchObject({ cornerRadius: 18 });
+    expect(liquidCalls.glassNodes[1]).toMatchObject({ cornerRadius: 9 });
+    expect(liquidCalls.groups[2]).toMatchObject({ y: 174 });
     runtime.destroy();
   });
   it("releases a click-only pointer session without waiting for another frame", () => {
@@ -143,9 +179,9 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
       cardGeometrySyncs: before.cardGeometrySyncs,
     });
     const scroll = runtime.getCanvasBrowserScrollState();
-    expect(scroll.targetScrollY).toBeCloseTo(76.8);
+    expect(scroll.targetScrollY).toBeCloseTo(43.2);
     expect(scroll.currentScrollY).toBeGreaterThan(0);
-    expect(scroll.currentScrollY).toBeLessThan(76.8);
+    expect(scroll.currentScrollY).toBeLessThan(43.2);
     expect(scroll.scrollGroupY).toBe(-scroll.currentScrollY);
     runtime.destroy();
   });
@@ -159,12 +195,12 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
 
     runtime.scrollCanvasBrowserByWheel(3, 1);
     runtime.tick(16);
-    expect(runtime.getCanvasBrowserScrollState().targetScrollY).toBeCloseTo(38.4);
-    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeLessThan(38.4);
+    expect(runtime.getCanvasBrowserScrollState().targetScrollY).toBeCloseTo(21.6);
+    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeLessThan(21.6);
     expect(runtime.getCounts().scrollGroupTransformUpdates).toBe(1);
     runtime.destroy();
   });
-  it("scales normal pixel wheel deltas by exactly 0.8 without slot quantization", () => {
+  it("scales normal pixel wheel deltas by exactly 0.45 without slot quantization", () => {
     const store = new BenchmarkSceneStore();
     store.setCanvasCardCount(20);
     const runtime = new LiquidSceneBenchmarkRuntime(() => {});
@@ -178,9 +214,9 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.scrollCanvasBrowserByWheel(1.5, 0);
     runtime.tick(32);
     const scroll = runtime.getCanvasBrowserScrollState();
-    expect(scroll.targetScrollY).toBe(3);
+    expect(scroll.targetScrollY).toBeCloseTo(1.6875);
     expect(scroll.currentScrollY).toBeGreaterThan(0);
-    expect(scroll.currentScrollY).toBeLessThan(3);
+    expect(scroll.currentScrollY).toBeLessThan(1.6875);
     expect(liquidCalls.groups[0]?.y).toBe(-scroll.currentScrollY);
     expect(Math.abs(liquidCalls.groups[0]?.y ?? 0)).toBeLessThan(84);
     expect(commitOrder).not.toHaveBeenCalled();
@@ -198,8 +234,8 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     expect(cardHtml(4)).toMatchObject({ y: 0, width: 264, height: 84 });
     runtime.scrollCanvasBrowserByWheel(20, 0);
     settleWheel(runtime, 0);
-    expect(cardGlass(0)).toMatchObject({ y: 16, width: 264, height: 68, scaleX: 1, scaleY: 1 });
-    expect(cardHtml(0)).toMatchObject({ y: -16, width: 264, height: 84 });
+    expect(cardGlass(0)).toMatchObject({ y: 9, width: 264, height: 75, scaleX: 1, scaleY: 1 });
+    expect(cardHtml(0)).toMatchObject({ y: -9, width: 264, height: 84 });
     expect(runtime.getCanvasCardHost(0)?.style.transform).toBe("");
 
     runtime.scrollCanvasBrowserByWheel(180, 0);
@@ -269,8 +305,8 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.beginCanvasCardDrag(7, pointerEvent("pointerdown", 638), target);
     document.dispatchEvent(pointerEvent("pointermove", 860));
     runtime.tick(1_616);
-    expect(cardGlass(7).y).toBe(844);
-    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeGreaterThan(96);
+    expect(cardGlass(7).y).toBe(886);
+    expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeGreaterThan(48);
     expect(runtime.getCounts().scrollGroupTransformUpdates).toBe(1);
     document.dispatchEvent(pointerEvent("pointerup", 860));
     runtime.tick(1_632);
@@ -326,9 +362,9 @@ describe("LiquidSceneBenchmarkRuntime repeated Canvas Cards", () => {
     runtime.tick(239);
     expect(finalOrder.map((id) => liquidCalls.groups[id + 1]?.y)).toEqual(settledGeometry);
     const wheelScroll = runtime.getCanvasBrowserScrollState();
-    expect(wheelScroll.targetScrollY).toBe(2);
+    expect(wheelScroll.targetScrollY).toBeCloseTo(1.125);
     expect(wheelScroll.currentScrollY).toBeGreaterThan(0);
-    expect(wheelScroll.currentScrollY).toBeLessThan(2);
+    expect(wheelScroll.currentScrollY).toBeLessThan(1.125);
     expect(wheelScroll.scrollGroupY).toBe(-wheelScroll.currentScrollY);
 
     const secondTarget = pointerTarget();

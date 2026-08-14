@@ -15,9 +15,17 @@ import {
   CANVAS_BROWSER_DIAGNOSTIC_MODES,
   type CanvasBrowserDiagnosticMode,
 } from "./canvasBrowserDiagnostics";
+import {
+  CANVAS_ISLAND_DIAGNOSTIC_LABELS,
+  CANVAS_ISLAND_DIAGNOSTIC_MODES,
+  type CanvasIslandDiagnosticMode,
+} from "./canvasIslandDiagnostics";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import { BENCHMARK_CANVAS_CARD_COUNT, BENCHMARK_CANVAS_ELEMENT_COUNT } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
+import { BenchmarkMaterialMenu } from "./BenchmarkMaterialMenu";
+import type { BenchmarkCanvasCardPresentation } from "./benchmarkCanvasBrowserLayout";
+import type { RendererV2MaterialControls } from "./rendererV2PanelMaterials";
 
 interface Props {
   store: BenchmarkSceneStore;
@@ -28,6 +36,16 @@ interface Props {
   onStartSample: () => void;
   diagnosticMode: CanvasBrowserDiagnosticMode;
   onDiagnosticModeChange: (mode: CanvasBrowserDiagnosticMode) => void;
+  canvasIslandMode: CanvasIslandDiagnosticMode;
+  onCanvasIslandModeChange: (mode: CanvasIslandDiagnosticMode) => void;
+  materials: RendererV2MaterialControls;
+  cardGap: number;
+  accent: string;
+  cardPresentation: BenchmarkCanvasCardPresentation;
+  onMaterialsChange: (materials: RendererV2MaterialControls) => void;
+  onCardGapChange: (gap: number) => void;
+  onAccentChange: (accent: string) => void;
+  onCardPresentationChange: (presentation: BenchmarkCanvasCardPresentation) => void;
 }
 
 export function BenchmarkControls({
@@ -39,6 +57,16 @@ export function BenchmarkControls({
   onStartSample,
   diagnosticMode,
   onDiagnosticModeChange,
+  canvasIslandMode,
+  onCanvasIslandModeChange,
+  materials,
+  cardGap,
+  accent,
+  cardPresentation,
+  onMaterialsChange,
+  onCardGapChange,
+  onAccentChange,
+  onCardPresentationChange,
 }: Props) {
   const { scene } = store;
   return (
@@ -53,18 +81,32 @@ export function BenchmarkControls({
           </Text>
         </div>
         {import.meta.env.DEV ? (
-          <Select
-            label="Canvas Browser diagnostic"
-            size="xs"
-            value={diagnosticMode}
-            data={CANVAS_BROWSER_DIAGNOSTIC_MODES.map((value) => ({
-              value,
-              label: CANVAS_BROWSER_DIAGNOSTIC_LABELS[value],
-            }))}
-            onChange={(value) => {
-              if (value) onDiagnosticModeChange(value as CanvasBrowserDiagnosticMode);
-            }}
-          />
+          <Group grow align="end">
+            <Select
+              label="Canvas architecture"
+              size="xs"
+              value={canvasIslandMode}
+              data={CANVAS_ISLAND_DIAGNOSTIC_MODES.map((value) => ({
+                value,
+                label: CANVAS_ISLAND_DIAGNOSTIC_LABELS[value],
+              }))}
+              onChange={(value) => {
+                if (value) onCanvasIslandModeChange(value as CanvasIslandDiagnosticMode);
+              }}
+            />
+            <Select
+              label="Canvas Browser diagnostic"
+              size="xs"
+              value={diagnosticMode}
+              data={CANVAS_BROWSER_DIAGNOSTIC_MODES.map((value) => ({
+                value,
+                label: CANVAS_BROWSER_DIAGNOSTIC_LABELS[value],
+              }))}
+              onChange={(value) => {
+                if (value) onDiagnosticModeChange(value as CanvasBrowserDiagnosticMode);
+              }}
+            />
+          </Group>
         ) : null}
         <div className="renderer-benchmark__workload-sliders">
           <WorkloadSlider
@@ -109,6 +151,16 @@ export function BenchmarkControls({
           />
         </Group>
         <Group gap={6} grow>
+          <BenchmarkMaterialMenu
+            materials={materials}
+            cardGap={cardGap}
+            accent={accent}
+            cardPresentation={cardPresentation}
+            onMaterialsChange={onMaterialsChange}
+            onCardGapChange={onCardGapChange}
+            onAccentChange={onAccentChange}
+            onCardPresentationChange={onCardPresentationChange}
+          />
           <Button size="compact-xs" variant="default" onClick={() => viewport.reset()}>
             Reset camera
           </Button>

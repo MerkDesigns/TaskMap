@@ -1,11 +1,30 @@
-import { Html, Renderer, Scene } from "@liquid-dom/core";
+import { Group, Html, Renderer, Scene, StackingContext } from "@liquid-dom/core";
 import { LiquidCaptureAttribution, type LiquidCaptureOwner } from "./liquidCaptureAttribution";
 import { installLiquidCaptureProbe, type LiquidCaptureProbe } from "./liquidCaptureProbe";
 import { LiquidFrameWakeMetrics } from "./liquidFrameWakeMetrics";
 import { BENCHMARK_LIQUID_MAX_DPR } from "./benchmarkWorld";
 import { LiquidCanvasBrowserRuntime } from "./liquidCanvasBrowserRuntime";
+import { LiquidDynamicCanvasRuntime, type DynamicGroupNode } from "./liquidDynamicCanvasRuntime";
 import type { BenchmarkLiquidCounts } from "./benchmarkPresentation";
 import type { BenchmarkSceneModel } from "./benchmarkTypes";
+import type { DynamicElementClassification } from "./dynamicCanvasIslands";
+import type { RendererV2MaterialControls } from "./rendererV2PanelMaterials";
+
+function createDynamicCanvasFactories(scene: Scene) {
+  return {
+    createGroup: (parent: DynamicGroupNode, options: { x: number; y: number }) =>
+      (parent as Group).add(new Group(options)),
+    createHtml: (parent: DynamicGroupNode, host: HTMLDivElement, zIndex: number) =>
+      (parent as Group).add(new Html({ element: host, zIndex })),
+    createStackingContext: (options: {
+      zIndex: number;
+      x: number;
+      y: number;
+      scaleX: number;
+      scaleY: number;
+    }) => scene.add(new StackingContext(options)),
+  };
+}
 
 export class LiquidSceneBenchmarkRuntime {
   readonly canvas: HTMLCanvasElement;
@@ -16,6 +35,7 @@ export class LiquidSceneBenchmarkRuntime {
   private readonly renderer: Renderer;
   private readonly backdropNode: Html;
   private readonly browser: LiquidCanvasBrowserRuntime;
+  private readonly dynamicCanvas: LiquidDynamicCanvasRuntime;
   private probe: LiquidCaptureProbe | null = null;
   private frameRequestListener: ((reason: "capture-completion" | "mutation") => boolean) | null =
     null;
@@ -28,7 +48,10 @@ export class LiquidSceneBenchmarkRuntime {
   private readonly handleLiquidPaint = (event: Event) => {
     // Liquid mirrors scene transforms onto its capture hosts. Host-only paint events do not mean
     // the card DOM changed, so retain the already-copied texture instead of recapturing it.
-    if (this.browser.isCardCaptureHostOnlyPaint(event)) {
+    if (
+      this.browser.isCardCaptureHostOnlyPaint(event) ||
+      this.dynamicCanvas.isCaptureHostOnlyPaint(event)
+    ) {
       this.frameWakes.recordFilteredTransformPaint();
       event.stopImmediatePropagation();
       return;
@@ -45,6 +68,10 @@ export class LiquidSceneBenchmarkRuntime {
     this.coarseHost.className = "renderer-benchmark__coarse-host";
     this.backdropNode = this.scene.add(new Html({ element: this.coarseHost, zIndex: 0 }));
     this.browser = new LiquidCanvasBrowserRuntime(this.scene, () => this.requestFrame());
+    this.dynamicCanvas = new LiquidDynamicCanvasRuntime(
+      () => this.requestFrame(),
+      createDynamicCanvasFactories(this.scene),
+    );
     this.canvasBrowserHost = this.browser.browserHost;
     this.canvasBrowserPlaceholderOverlay = this.browser.placeholderOverlay;
     this.renderer = new Renderer({ scene: this.scene, maxDpr: BENCHMARK_LIQUID_MAX_DPR });
@@ -65,10 +92,39 @@ export class LiquidSceneBenchmarkRuntime {
     this.requestFrame();
   }
 
+  reconcileDynamicElements(classifications: readonly DynamicElementClassification[]) {
+    return this.dynamicCanvas.reconcile(classifications);
+  }
+
+  presentDynamicCamera(camera: BenchmarkSceneModel["camera"]) {
+    this.dynamicCanvas.presentCamera(camera);
+  }
+
+  presentDynamicElementPosition(id: string, x: number, y: number) {
+    this.dynamicCanvas.presentElementPosition(id, x, y);
+  }
+
+  syncDynamicElement(element: BenchmarkSceneModel["elements"][number]) {
+    this.dynamicCanvas.syncElement(element);
+  }
+
+  hasDynamicElement(id: string) {
+    return this.dynamicCanvas.hasElement(id);
+  }
+
+  getDynamicElementHost(id: string) {
+    return this.dynamicCanvas.getHost(id);
+  }
+
   setCanvasBrowserDiagnosticMode(
     mode: import("./canvasBrowserDiagnostics").CanvasBrowserDiagnosticMode,
   ) {
     this.browser.setDiagnosticMode(mode);
+  }
+
+  setCanvasBrowserAppearance(materials: RendererV2MaterialControls, cardGap: number) {
+    this.browser.setCanvasBrowserAppearance(materials, cardGap);
+    this.requestFrame();
   }
 
   attachCanvasBrowserOrderCommit(commitOrder: (order: readonly number[]) => void) {
@@ -102,7 +158,13 @@ export class LiquidSceneBenchmarkRuntime {
     if (enabled && !this.probe) {
       this.probe = installLiquidCaptureProbe(({ width, height, source }) => {
         this.reportCapture(width, height);
-        this.captureAttribution.record(this.classifyCaptureSource(source));
+        const classification = this.classifyCaptureSource(source);
+        this.captureAttribution.record(
+          classification.owner,
+          width,
+          height,
+          classification.positionOnly,
+        );
       });
     } else if (!enabled && this.probe) {
       this.probe.dispose();
@@ -134,9 +196,10 @@ export class LiquidSceneBenchmarkRuntime {
 
   getCounts(): BenchmarkLiquidCounts {
     const counts = this.browser.getCounts();
+    const dynamicCounts = this.dynamicCanvas.getCounts();
     this.updateRates(counts);
     return {
-      html: 1 + counts.html,
+      html: 1 + counts.html + dynamicCounts.promotedElementCount,
       containers: counts.containers,
       glassShapes: counts.glassShapes,
       cardGeometrySyncs: counts.cardGeometrySyncs,
@@ -148,6 +211,7 @@ export class LiquidSceneBenchmarkRuntime {
       browserRuntimeTicksPerSecond: this.rates.browserTicks,
       scrollGroupTransformUpdatesPerSecond: this.rates.scrollUpdates,
       cardVisibilitySyncsPerSecond: this.rates.visibilitySyncs,
+      ...dynamicCounts,
       ...this.captureAttribution.snapshot(),
       ...this.frameWakes.snapshot(),
       rafRequestTotal: 0,
@@ -160,6 +224,7 @@ export class LiquidSceneBenchmarkRuntime {
 
   resetCounters() {
     this.browser.resetCounters();
+    this.dynamicCanvas.resetCounters();
     this.rendererRenderCalls = 0;
     this.rateSample = createRateSample();
     this.rates = emptyRates();
@@ -169,6 +234,7 @@ export class LiquidSceneBenchmarkRuntime {
 
   destroy() {
     this.browser.destroy();
+    this.dynamicCanvas.destroy();
     this.canvas.removeEventListener("paint", this.handleLiquidPaint, true);
     this.backdropNode.remove();
     this.renderer.destroy();
@@ -183,9 +249,17 @@ export class LiquidSceneBenchmarkRuntime {
     this.frameWakes.recordInvalidation(reason, scheduled);
   }
 
-  private classifyCaptureSource(source: unknown): LiquidCaptureOwner {
-    if (source === this.backdropNode.host) return "coarse";
-    return this.browser.classifyCaptureSource(source) ?? "other";
+  private classifyCaptureSource(source: unknown): {
+    owner: LiquidCaptureOwner;
+    positionOnly: boolean;
+  } {
+    if (source === this.backdropNode.host) return { owner: "coarse", positionOnly: false };
+    const dynamic = this.dynamicCanvas.classifyCaptureSource(source);
+    if (dynamic) return { owner: "dynamic", positionOnly: dynamic.positionOnly };
+    return {
+      owner: this.browser.classifyCaptureSource(source) ?? "other",
+      positionOnly: false,
+    };
   }
 
   private paintTouchesManagedCapture(event: Event) {
@@ -197,7 +271,9 @@ export class LiquidSceneBenchmarkRuntime {
         (element) =>
           element instanceof Element &&
           (element === backdropHost || backdropHost.contains(element)),
-      ) || this.browser.paintTouchesManagedCapture(event)
+      ) ||
+      this.dynamicCanvas.paintTouchesCapture(event) ||
+      this.browser.paintTouchesManagedCapture(event)
     );
   }
 

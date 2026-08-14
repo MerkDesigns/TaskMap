@@ -21,6 +21,10 @@ export interface BenchmarkLiquidCounts
   browserRuntimeTicksPerSecond: number;
   scrollGroupTransformUpdatesPerSecond: number;
   cardVisibilitySyncsPerSecond: number;
+  promotedElementCount: number;
+  dynamicTransformUpdates: number;
+  dynamicAttachTotal: number;
+  dynamicDetachTotal: number;
   captureAvailable: boolean;
 }
 

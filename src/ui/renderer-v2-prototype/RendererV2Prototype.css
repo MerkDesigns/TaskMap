@@ -1,4 +1,14 @@
 .renderer-benchmark {
+  --renderer-benchmark-accent: #ff922b;
+  --renderer-benchmark-browser-corner-radius: 23px;
+  --renderer-benchmark-card-corner-radius: 13px;
+  --renderer-benchmark-card-preview-inset: 7px;
+  --renderer-benchmark-card-preview-aspect-ratio: 1.7333;
+  --renderer-benchmark-card-preview-corner-radius: 8px;
+  --renderer-benchmark-card-large-text-size: 14px;
+  --renderer-benchmark-card-small-text-size: 11px;
+  --renderer-benchmark-card-options-right-gap: 11px;
+
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -66,6 +76,7 @@
   width: 100%;
   height: 100%;
   color: rgb(255 255 255 / 88%);
+  font-family: "Segoe UI", system-ui, sans-serif;
 }
 
 .renderer-benchmark__canvas-browser {
@@ -73,7 +84,7 @@
   overflow: hidden;
   flex-direction: column;
   border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 14px;
+  border-radius: var(--renderer-benchmark-browser-corner-radius);
   pointer-events: auto;
 }
 
@@ -84,7 +95,6 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 13px;
-  background: rgb(8 10 12 / 20%);
 }
 
 .renderer-benchmark__canvas-browser-header div,
@@ -133,7 +143,7 @@
   position: absolute;
   box-sizing: border-box;
   border: 1px solid rgb(255 255 255 / 22%);
-  border-radius: 12px;
+  border-radius: var(--renderer-benchmark-card-corner-radius);
   background: rgb(255 255 255 / 6%);
 }
 
@@ -144,8 +154,8 @@
   gap: 10px;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 12px;
-  padding: 9px 10px;
+  border-radius: var(--renderer-benchmark-card-corner-radius);
+  padding: var(--renderer-benchmark-card-preview-inset);
   cursor: grab;
   pointer-events: auto;
   touch-action: none;
@@ -163,8 +173,8 @@
   height: 22px;
   transform: translateY(-50%);
   border-radius: 0 3px 3px 0;
-  background: #ff922b;
-  box-shadow: 0 0 8px rgb(255 146 43 / 52%);
+  background: var(--renderer-benchmark-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--renderer-benchmark-accent) 52%, transparent);
   opacity: 0;
 }
 
@@ -173,24 +183,82 @@
 }
 
 .renderer-benchmark__canvas-card svg {
-  width: 96px;
-  height: 58px;
-  flex: 0 0 96px;
+  display: block;
+  box-sizing: border-box;
+  width: auto;
+  height: 100%;
+  overflow: hidden;
+  aspect-ratio: var(--renderer-benchmark-card-preview-aspect-ratio);
+  border: 1px solid rgb(128 128 128 / 20%);
+  border-radius: var(--renderer-benchmark-card-preview-corner-radius);
+  background: #101214;
+  flex: 0 0 auto;
 }
 
-.renderer-benchmark__canvas-card svg rect:not(:first-child) {
+.renderer-benchmark__canvas-card svg rect {
   fill: rgb(205 220 232 / 68%);
-}
-
-.renderer-benchmark__canvas-card-bg {
-  fill: #101214;
 }
 
 .renderer-benchmark__canvas-card strong {
   overflow: hidden;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--renderer-benchmark-card-large-text-size);
+  line-height: calc(1.2em - 2px);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.renderer-benchmark__canvas-card div > span {
+  font-size: var(--renderer-benchmark-card-small-text-size);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.renderer-benchmark__canvas-card-copy {
+  gap: 2px;
+  flex: 1;
+  padding-right: calc(16px + var(--renderer-benchmark-card-options-right-gap));
+}
+
+.renderer-benchmark__canvas-card-options {
+  position: absolute;
+  top: 50%;
+  right: var(--renderer-benchmark-card-options-right-gap);
+  display: grid;
+  width: auto;
+  height: auto;
+  padding: 3px 2px;
+  transform: translateY(-50%);
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  outline: 0;
+  color: rgb(255 255 255 / 78%);
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+.renderer-benchmark__canvas-card-options:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.renderer-benchmark__canvas-card-options:focus,
+.renderer-benchmark__canvas-card-options:focus-visible,
+.renderer-benchmark__canvas-card-options:active {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.renderer-benchmark__canvas-card-options-dots {
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow:
+    0 -4.5px currentcolor,
+    0 4.5px currentcolor;
 }
 
 .renderer-benchmark__element {

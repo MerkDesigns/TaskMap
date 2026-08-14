@@ -37,7 +37,9 @@ export class CanvasCardDiagnosticPresentation {
       this.captureHosts.add(record.content.host);
       record.content.remove();
       record.glass.remove();
-      if (features.cardGlass) record.group.add(record.glass);
+      if (features.cardGlass) {
+        record.group.add(record.glass);
+      }
       if (features.cardHtml) {
         record.contentDirect = !features.cardGlass;
         if (features.cardGlass) record.glass.add(record.content);

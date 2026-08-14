@@ -25,12 +25,16 @@ interface SlotAnimation {
 }
 
 export class LiquidCanvasCardGeometry {
-  readonly slotSize = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap;
+  slotSize = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap;
   private readonly animations = new Map<number, SlotAnimation>();
   syncCount = 0;
 
   resetSyncCount() {
     this.syncCount = 0;
+  }
+
+  setCardGap(cardGap: number) {
+    this.slotSize = BENCHMARK_CANVAS_BROWSER.cardHeight + cardGap;
   }
 
   isAnimating() {

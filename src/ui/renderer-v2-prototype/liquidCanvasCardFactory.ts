@@ -78,7 +78,14 @@ export function createLiquidCanvasCard(
   const content = glass.add(createHtml(host));
   content.width = cardWidth;
   content.height = BENCHMARK_CANVAS_BROWSER.cardHeight;
-  return { id, group, glass, content, host, contentDirect: false };
+  return {
+    id,
+    group,
+    glass,
+    content,
+    host,
+    contentDirect: false,
+  };
 }
 
 export function resizeLiquidCanvasBrowserSurface(
@@ -86,14 +93,16 @@ export function resizeLiquidCanvasBrowserSurface(
   content: CardHtml,
   viewportHeight: number,
   cardCount: number,
+  cardGap: number = BENCHMARK_CANVAS_BROWSER.cardGap,
+  cornerRadius: number = BENCHMARK_CANVAS_BROWSER.cornerRadius,
 ) {
-  const layout = calculateCanvasBrowserLayout(viewportHeight, cardCount, 0);
+  const layout = calculateCanvasBrowserLayout(viewportHeight, cardCount, 0, cardGap);
   Object.assign(glass, {
     x: layout.x,
     y: layout.y,
     width: layout.width,
     height: layout.height,
-    cornerRadius: BENCHMARK_CANVAS_BROWSER.cornerRadius,
+    cornerRadius,
   });
   content.width = layout.width;
   content.height = layout.height;

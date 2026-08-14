@@ -1,5 +1,4 @@
 import { Container, Glass, Group, Html, type Scene } from "@liquid-dom/core";
-import { LIQUID_MATERIAL_OPTICS } from "../materials/liquid-dom/materialRoles";
 import {
   BENCHMARK_CARD_DRAG_THRESHOLD,
   BENCHMARK_CARD_SLOT_TRANSITION_MS,
@@ -9,11 +8,7 @@ import {
   haveSameCanvasCardIds,
   reorderCanvasCardToIndex,
 } from "./benchmarkCanvasCardInteraction";
-import {
-  BENCHMARK_CANVAS_BROWSER,
-  canvasBrowserBodyBottom,
-  canvasBrowserScrollHeight,
-} from "./benchmarkCanvasBrowserLayout";
+import { BENCHMARK_CANVAS_BROWSER } from "./benchmarkCanvasBrowserLayout";
 import * as BrowserScroll from "./canvasBrowserScrollState";
 import type { CanvasBrowserDiagnosticMode } from "./canvasBrowserDiagnostics";
 import { convertCanvasBrowserWheelDelta } from "./canvasBrowserWheelDelta";
@@ -23,13 +18,14 @@ import {
 } from "./canvasCardDiagnosticPresentation";
 import { CanvasCardPointerSession } from "./canvasCardPointerSession";
 import * as CardGeometry from "./liquidCanvasCardGeometry";
-import {
-  reconcileLiquidCanvasCardRecords,
-  resizeLiquidCanvasBrowserSurface,
-} from "./liquidCanvasCardFactory";
+import { reconcileLiquidCanvasCardRecords } from "./liquidCanvasCardFactory";
 import type * as BrowserTypes from "./liquidCanvasBrowserTypes";
-const cardStep = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap,
-  cardWidth = BENCHMARK_CANVAS_BROWSER.width - BENCHMARK_CANVAS_BROWSER.cardInset * 2;
+import { LiquidCanvasBrowserAppearance } from "./liquidCanvasBrowserAppearance";
+import {
+  RENDERER_V2_PANEL_OPTICS,
+  type RendererV2MaterialControls,
+} from "./rendererV2PanelMaterials";
+const cardWidth = BENCHMARK_CANVAS_BROWSER.width - BENCHMARK_CANVAS_BROWSER.cardInset * 2;
 const bodyTop = BENCHMARK_CANVAS_BROWSER.y + BENCHMARK_CANVAS_BROWSER.headerHeight;
 const cardFactories = {
   createGroup: () => new Group(),
@@ -50,6 +46,7 @@ export class LiquidCanvasBrowserRuntime {
   private readonly geometry = new CardGeometry.LiquidCanvasCardGeometry();
   private readonly pointerSession = new CanvasCardPointerSession();
   private readonly scroll = new BrowserScroll.CanvasBrowserScrollState();
+  private readonly appearance = new LiquidCanvasBrowserAppearance();
   private viewportHeight = 0;
   private commitOrder: ((order: readonly number[]) => void) | null = null;
   private displayOrder: readonly number[] = [];
@@ -63,20 +60,20 @@ export class LiquidCanvasBrowserRuntime {
   ) {
     this.browserHost.className = "renderer-benchmark__canvas-browser-host";
     this.browserContainer = scene.add(
-      new Container({ ...LIQUID_MATERIAL_OPTICS["large-panel"], zIndex: 40 }),
+      new Container({ ...RENDERER_V2_PANEL_OPTICS["large-panel"], zIndex: 40 }),
     );
     this.browserGlass = this.browserContainer.add(
       new Glass({ cornerSmoothing: 0, pointerEvents: false }),
     );
     this.browserContent = this.browserGlass.add(new Html({ element: this.browserHost }));
     this.cardsContainer = scene.add(
-      new Container({ ...LIQUID_MATERIAL_OPTICS["small-panel"], spacing: 0, zIndex: 60 }),
+      new Container({ ...RENDERER_V2_PANEL_OPTICS["small-panel"], spacing: 0, zIndex: 60 }),
     );
     this.scrollGroup = this.cardsContainer.add(new Group());
   }
   resize(viewportHeight: number) {
     this.viewportHeight = viewportHeight;
-    resizeLiquidCanvasBrowserSurface(
+    this.appearance.resizeSurface(
       this.browserGlass,
       this.browserContent,
       viewportHeight,
@@ -99,7 +96,33 @@ export class LiquidCanvasBrowserRuntime {
       cardFactories,
     );
     if (cardSetChanged) this.diagnostic.setMode(this.diagnostic.mode, this.cards);
+    if (cardSetChanged) {
+      this.appearance.resizeSurface(
+        this.browserGlass,
+        this.browserContent,
+        this.viewportHeight,
+        this.cards.size,
+      );
+      this.appearance.applyCardCornerRadius([...this.cards.values()].map(({ glass }) => glass));
+    }
     this.displayOrder = this.drag?.order ?? [...order];
+    this.commitScrollFrame(this.updateScrollRange());
+    this.positionCards(this.displayOrder, 0, false);
+    this.syncCardVisibility();
+    this.invalidate();
+  }
+  setCanvasBrowserAppearance(materials: RendererV2MaterialControls, cardGap: number) {
+    this.appearance.apply(materials, cardGap, {
+      browserContainer: this.browserContainer,
+      cardsContainer: this.cardsContainer,
+      dragContainer: this.dragContainer,
+      browserGlass: this.browserGlass,
+      cardGlasses: [...this.cards.values()].map(({ glass }) => glass),
+      browserContent: this.browserContent,
+      geometry: this.geometry,
+      viewportHeight: this.viewportHeight,
+      cardCount: this.cards.size,
+    });
     this.commitScrollFrame(this.updateScrollRange());
     this.positionCards(this.displayOrder, 0, false);
     this.syncCardVisibility();
@@ -150,7 +173,7 @@ export class LiquidCanvasBrowserRuntime {
     if (index < 0) return false;
     this.suppressedClickId = null;
     event.preventDefault();
-    const top = bodyTop + index * cardStep - this.scroll.currentScrollY;
+    const top = bodyTop + index * this.appearance.cardStep() - this.scroll.currentScrollY;
     this.drag = {
       id,
       pointerId: event.pointerId,
@@ -231,9 +254,9 @@ export class LiquidCanvasBrowserRuntime {
     this.syncCardVisibility();
   }
   private scrollViewportHeight() {
-    return Math.max(0, canvasBrowserBodyBottom(this.viewportHeight) - bodyTop);
+    return Math.max(0, this.appearance.bodyBottom(this.viewportHeight, this.cards.size) - bodyTop);
   }
-  private scrollContentHeight = () => canvasBrowserScrollHeight(this.cards.size);
+  private scrollContentHeight = () => this.appearance.scrollHeight(this.cards.size);
   private positionCards(order: readonly number[], now: number, animate: boolean) {
     this.geometry.position(
       order,
@@ -250,7 +273,7 @@ export class LiquidCanvasBrowserRuntime {
       this.displayOrder,
       this.cards,
       bodyTop,
-      canvasBrowserBodyBottom(this.viewportHeight),
+      this.appearance.bodyBottom(this.viewportHeight, this.cards.size),
       this.scroll.currentScrollY,
       cardWidth,
       this.drag?.active ? this.drag.id : null,
@@ -260,7 +283,7 @@ export class LiquidCanvasBrowserRuntime {
       this.cards,
       this.scroll.currentScrollY,
       bodyTop,
-      canvasBrowserBodyBottom(this.viewportHeight),
+      this.appearance.bodyBottom(this.viewportHeight, this.cards.size),
       cardWidth,
       this.drag?.active ? this.drag.id : null,
     );
@@ -271,11 +294,11 @@ export class LiquidCanvasBrowserRuntime {
     const record = this.cards.get(drag.id);
     if (!record) return;
     this.geometry.cancel(drag.id);
-    this.dragContainer = this.scene.add(
-      new Container({ ...LIQUID_MATERIAL_OPTICS["small-panel"], spacing: 0, zIndex: 80 }),
-    );
+    this.dragContainer = this.scene.add(new Container(this.appearance.smallPanelOptions(80)));
     const currentTop =
-      bodyTop + this.displayOrder.indexOf(drag.id) * cardStep - this.scroll.currentScrollY;
+      bodyTop +
+      this.displayOrder.indexOf(drag.id) * this.appearance.cardStep() -
+      this.scroll.currentScrollY;
     record.glass.x = BENCHMARK_CANVAS_BROWSER.x + BENCHMARK_CANVAS_BROWSER.cardInset;
     record.glass.y = currentTop;
     this.geometry.resetFullCardViewport(record, cardWidth);
@@ -322,7 +345,7 @@ export class LiquidCanvasBrowserRuntime {
       drag.pointerY,
       drag.pointerOffsetY,
       bodyTop,
-      canvasBrowserBodyBottom(this.viewportHeight),
+      this.appearance.bodyBottom(this.viewportHeight, this.cards.size),
       BENCHMARK_CANVAS_BROWSER.cardHeight,
     );
     const targetIndex = calculateCanvasCardInsertionIndex(
@@ -331,7 +354,7 @@ export class LiquidCanvasBrowserRuntime {
       interactionCenter,
       bodyTop,
       this.scroll.currentScrollY,
-      cardStep,
+      this.appearance.cardStep(),
     );
     const nextOrder = reorderCanvasCardToIndex(drag.order, drag.id, targetIndex);
     if (nextOrder !== drag.order) {
@@ -347,14 +370,17 @@ export class LiquidCanvasBrowserRuntime {
     return calculateCanvasCardAutoScroll(
       this.drag.pointerY,
       bodyTop,
-      canvasBrowserBodyBottom(this.viewportHeight),
+      this.appearance.bodyBottom(this.viewportHeight, this.cards.size),
     );
   }
   private tickSnap(now: number) {
     const drag = this.drag;
     const record = drag ? this.cards.get(drag.id) : null;
     if (!drag || !record || drag.snapStartedAt === null) return;
-    const target = bodyTop + drag.order.indexOf(drag.id) * cardStep - this.scroll.currentScrollY;
+    const target =
+      bodyTop +
+      drag.order.indexOf(drag.id) * this.appearance.cardStep() -
+      this.scroll.currentScrollY;
     const progress = Math.min(1, (now - drag.snapStartedAt) / BENCHMARK_CARD_SLOT_TRANSITION_MS);
     record.glass.y =
       drag.snapFromY + (target - drag.snapFromY) * CardGeometry.easeOutQuart(progress);

@@ -1,12 +1,15 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { BenchmarkPresentation } from "./benchmarkPresentation";
 import type { CanvasBrowserDiagnosticMode } from "./canvasBrowserDiagnostics";
+import type { CanvasIslandDiagnosticMode } from "./canvasIslandDiagnostics";
 import { BenchmarkCanvasBrowser } from "./BenchmarkCanvasBrowser";
+import type { BenchmarkCanvasCardPresentation } from "./benchmarkCanvasBrowserLayout";
 import { BenchmarkDomCanvas } from "./BenchmarkDomCanvas";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
 import { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 import type { BenchmarkSpawnMenuRequest } from "./useBenchmarkCanvasInput";
+import type { RendererV2MaterialControls } from "./rendererV2PanelMaterials";
 
 interface Props {
   store: BenchmarkSceneStore;
@@ -17,6 +20,10 @@ interface Props {
   onPresentation: (presentation: BenchmarkPresentation | null) => void;
   onSpawnMenu: (request: BenchmarkSpawnMenuRequest | null) => void;
   diagnosticMode: CanvasBrowserDiagnosticMode;
+  canvasIslandMode: CanvasIslandDiagnosticMode;
+  materials: RendererV2MaterialControls;
+  cardGap: number;
+  cardPresentation: BenchmarkCanvasCardPresentation;
 }
 
 export function BenchmarkLiquidStage({
@@ -28,6 +35,10 @@ export function BenchmarkLiquidStage({
   onPresentation,
   onSpawnMenu,
   diagnosticMode,
+  canvasIslandMode,
+  materials,
+  cardGap,
+  cardPresentation,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [runtime, setRuntime] = useState<LiquidSceneBenchmarkRuntime | null>(null);
@@ -61,6 +72,10 @@ export function BenchmarkLiquidStage({
   }, [diagnosticMode, runtime]);
 
   useLayoutEffect(() => {
+    runtime?.setCanvasBrowserAppearance(materials, cardGap);
+  }, [cardGap, materials, runtime]);
+
+  useLayoutEffect(() => {
     if (!runtime) return;
     runtime.reconcile(store.scene);
     setRuntimeRevision((value) => value + 1);
@@ -77,11 +92,13 @@ export function BenchmarkLiquidStage({
             runtime={runtime}
             onPresentation={onPresentation}
             onSpawnMenu={onSpawnMenu}
+            canvasIslandMode={canvasIslandMode}
           />
           <BenchmarkCanvasBrowser
             canvasCardCount={store.scene.canvasCardCount}
             canvasCardOrder={store.scene.canvasCardOrder}
             activeCanvasCardId={store.scene.activeCanvasCardId}
+            cardPresentation={cardPresentation}
             runtime={runtime}
             onOrderCommit={(order) => store.commitCanvasCardOrder(order)}
             onSelect={(id) => viewport.selectCanvas(id)}

@@ -1,4 +1,4 @@
-export const NORMAL_WHEEL_DELTA_SCALE = 0.8;
+export const NORMAL_WHEEL_DELTA_SCALE = 0.45;
 
 export function convertCanvasBrowserWheelDelta(
   deltaY: number,
