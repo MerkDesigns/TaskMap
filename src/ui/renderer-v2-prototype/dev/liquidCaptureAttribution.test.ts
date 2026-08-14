@@ -9,24 +9,19 @@ describe("Liquid capture attribution", () => {
     attribution.record("card");
     attribution.record("card");
     attribution.record("browser");
-    attribution.record("coarse");
-    attribution.record("dynamic", 20, 10, true);
+    attribution.record("coarse", 20, 10);
     attribution.record("other");
 
     expect(attribution.snapshot(1_000)).toEqual({
       cardCaptureTotal: 2,
       browserCaptureTotal: 1,
       coarseCaptureTotal: 1,
-      dynamicCaptureTotal: 1,
       unknownCaptureTotal: 1,
       cardCapturesPerSecond: 2,
       browserCapturesPerSecond: 1,
       coarseCapturesPerSecond: 1,
-      dynamicCapturesPerSecond: 1,
       unknownCapturesPerSecond: 1,
-      coarseCopiedTexelsPerSecond: 0,
-      dynamicCopiedTexelsPerSecond: 200,
-      positionOnlyPromotedCapturesPerSecond: 1,
+      coarseCopiedTexelsPerSecond: 200,
       totalCopiedTexelsPerSecond: 200,
     });
   });

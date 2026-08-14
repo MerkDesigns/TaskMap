@@ -1,12 +1,10 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { BenchmarkPresentation } from "./benchmarkPresentation";
 import { BenchmarkSceneElement } from "./BenchmarkSceneElement";
-import type { CanvasIslandDiagnosticMode } from "./canvasIslandDiagnostics";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
 import type { BenchmarkViewportController } from "./benchmarkViewportController";
 import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
-import { selectDynamicCanvasElements } from "./dynamicCanvasIslands";
 import { useBenchmarkCanvasInput, type BenchmarkSpawnMenuRequest } from "./useBenchmarkCanvasInput";
 import { useBenchmarkVisibleElements } from "./useBenchmarkVisibleElements";
 
@@ -17,7 +15,6 @@ interface Props {
   runtime: LiquidSceneBenchmarkRuntime;
   onPresentation: (presentation: BenchmarkPresentation | null) => void;
   onSpawnMenu: (request: BenchmarkSpawnMenuRequest | null) => void;
-  canvasIslandMode: CanvasIslandDiagnosticMode;
 }
 
 export function BenchmarkDomCanvas({
@@ -27,22 +24,13 @@ export function BenchmarkDomCanvas({
   runtime,
   onPresentation,
   onSpawnMenu,
-  canvasIslandMode,
 }: Props) {
   const worldRef = useRef<HTMLDivElement>(null);
   const elementNodes = useRef(new Map<string, HTMLElement>());
   const cardsWereAnimating = useRef(false);
   const lastGridZoom = useRef<number | null>(null);
-  const [runtimeRevision, setRuntimeRevision] = useState(0);
   const moveCards = store.scene.animations.moveCards;
   const { elements, pinElement } = useBenchmarkVisibleElements(store, viewport, version);
-  const desiredDynamicElements = useMemo(() => {
-    void version;
-    return selectDynamicCanvasElements(elements, store.scene.animations, canvasIslandMode);
-  }, [canvasIslandMode, elements, store, version]);
-  void runtimeRevision;
-  const dynamicElements = elements.filter(({ id }) => runtime.hasDynamicElement(id));
-  const staticElements = elements.filter(({ id }) => !runtime.hasDynamicElement(id));
   const registerElement = useCallback((id: string, element: HTMLElement | null) => {
     if (element) elementNodes.current.set(id, element);
     else elementNodes.current.delete(id);
@@ -63,11 +51,7 @@ export function BenchmarkDomCanvas({
           );
           lastGridZoom.current = current.zoom;
         }
-        runtime.presentDynamicCamera(current);
         runtime.invalidateFrame();
-      },
-      syncElement(element) {
-        runtime.syncDynamicElement(element);
       },
       tick(now) {
         const active = store.scene.animations.moveCards;
@@ -75,12 +59,8 @@ export function BenchmarkDomCanvas({
           for (const element of store.scene.elements) {
             const offset =
               active && element.ordinal % 5 === 0 ? Math.sin(now / 520 + element.ordinal) * 34 : 0;
-            if (canvasIslandMode === "dynamic-islands") {
-              runtime.presentDynamicElementPosition(element.id, element.x + offset, element.y);
-            } else {
-              const node = elementNodes.current.get(element.id);
-              if (node) node.style.translate = `${offset}px 0`;
-            }
+            const node = elementNodes.current.get(element.id);
+            if (node) node.style.translate = `${offset}px 0`;
           }
         }
         cardsWereAnimating.current = active;
@@ -91,14 +71,8 @@ export function BenchmarkDomCanvas({
       needsFrame: () => runtime.needsFrame(),
       setFrameRequestListener: (listener) => runtime.setFrameRequestListener(listener),
     }),
-    [canvasIslandMode, runtime, store],
+    [runtime, store],
   );
-
-  useLayoutEffect(() => {
-    if (runtime.reconcileDynamicElements(desiredDynamicElements)) {
-      setRuntimeRevision((current) => current + 1);
-    }
-  }, [desiredDynamicElements, runtime]);
 
   useLayoutEffect(() => {
     if (moveCards) return;
@@ -122,12 +96,11 @@ export function BenchmarkDomCanvas({
       data-active-benchmark-canvas={store.scene.activeCanvasCardId}
     >
       <div ref={worldRef} className="renderer-benchmark__world">
-        {staticElements.map((element) => (
+        {elements.map((element) => (
           <BenchmarkSceneElement
             key={element.id}
             element={element}
             store={store}
-            presentation={presentation}
             liquidPositioned={false}
             moveImage={store.scene.animations.moveImage}
             showGif={store.scene.animations.showGif}
@@ -136,24 +109,6 @@ export function BenchmarkDomCanvas({
           />
         ))}
       </div>
-      {dynamicElements.map((element) => {
-        const host = runtime.getDynamicElementHost(element.id);
-        if (!host) return null;
-        return createPortal(
-          <BenchmarkSceneElement
-            element={element}
-            store={store}
-            presentation={presentation}
-            liquidPositioned
-            moveImage={store.scene.animations.moveImage}
-            showGif={store.scene.animations.showGif}
-            registerElement={registerElement}
-            onGesturePin={pinElement}
-          />,
-          host,
-          element.id,
-        );
-      })}
     </div>
   );
 

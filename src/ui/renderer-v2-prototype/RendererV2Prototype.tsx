@@ -1,35 +1,33 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { BenchmarkMetricsSampler } from "./benchmarkMetrics";
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
+import { BenchmarkMetricsSampler } from "./dev/benchmarkMetrics";
 import type { BenchmarkLiquidCounts, BenchmarkPresentation } from "./benchmarkPresentation";
 import {
   canvasBrowserNeedsContinuousFrames,
   canvasBrowserDiagnosticFeatures,
   DEFAULT_CANVAS_BROWSER_DIAGNOSTIC_MODE,
   type CanvasBrowserDiagnosticMode,
-} from "./canvasBrowserDiagnostics";
-import {
-  DEFAULT_CANVAS_ISLAND_DIAGNOSTIC_MODE,
-  type CanvasIslandDiagnosticMode,
-} from "./canvasIslandDiagnostics";
-import { BenchmarkControls } from "./BenchmarkControls";
+} from "./dev/canvasBrowserDiagnostics";
+import { BenchmarkControls } from "./dev/BenchmarkControls";
 import { BenchmarkLiquidStage } from "./BenchmarkLiquidStage";
-import { BenchmarkMetricsOverlay } from "./BenchmarkMetricsOverlay";
+import { BenchmarkMetricsOverlay } from "./dev/BenchmarkMetricsOverlay";
 import { BenchmarkSceneStore, countBenchmarkScene } from "./benchmarkSceneStore";
 import { BenchmarkSpawnMenu } from "./BenchmarkSpawnMenu";
 import type { BenchmarkSpawnMenuRequest } from "./useBenchmarkCanvasInput";
 import { BenchmarkViewportController } from "./benchmarkViewportController";
-import { PrototypeFrameSchedulerMetrics } from "./prototypeFrameSchedulerMetrics";
+import { PrototypeFrameSchedulerMetrics } from "./dev/prototypeFrameSchedulerMetrics";
 import {
   createRendererV2MaterialControls,
   DEFAULT_RENDERER_V2_ACCENT,
 } from "./rendererV2PanelMaterials";
+import { createRendererV2PanelGeometry } from "./rendererV2PanelGeometry";
 import {
   BENCHMARK_CANVAS_BROWSER,
   canvasCardPreviewAspectRatio,
   DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION,
 } from "./benchmarkCanvasBrowserLayout";
 import "./RendererV2Prototype.css";
-import "./BenchmarkOverlays.css";
+import "./dev/BenchmarkOverlays.css";
 
 const EMPTY_LIQUID_COUNTS: BenchmarkLiquidCounts = {
   html: 0,
@@ -44,23 +42,15 @@ const EMPTY_LIQUID_COUNTS: BenchmarkLiquidCounts = {
   browserRuntimeTicksPerSecond: 0,
   scrollGroupTransformUpdatesPerSecond: 0,
   cardVisibilitySyncsPerSecond: 0,
-  promotedElementCount: 0,
-  dynamicTransformUpdates: 0,
-  dynamicAttachTotal: 0,
-  dynamicDetachTotal: 0,
   cardCaptureTotal: 0,
   browserCaptureTotal: 0,
   coarseCaptureTotal: 0,
-  dynamicCaptureTotal: 0,
   unknownCaptureTotal: 0,
   cardCapturesPerSecond: 0,
   browserCapturesPerSecond: 0,
   coarseCapturesPerSecond: 0,
-  dynamicCapturesPerSecond: 0,
   unknownCapturesPerSecond: 0,
   coarseCopiedTexelsPerSecond: 0,
-  dynamicCopiedTexelsPerSecond: 0,
-  positionOnlyPromotedCapturesPerSecond: 0,
   totalCopiedTexelsPerSecond: 0,
   invalidationTotal: 0,
   coalescedInvalidationTotal: 0,
@@ -88,10 +78,8 @@ export function RendererV2Prototype() {
   const [diagnosticMode, setDiagnosticMode] = useState<CanvasBrowserDiagnosticMode>(
     DEFAULT_CANVAS_BROWSER_DIAGNOSTIC_MODE,
   );
-  const [canvasIslandMode, setCanvasIslandMode] = useState<CanvasIslandDiagnosticMode>(
-    DEFAULT_CANVAS_ISLAND_DIAGNOSTIC_MODE,
-  );
   const [materials, setMaterials] = useState(createRendererV2MaterialControls);
+  const [panelGeometry, setPanelGeometry] = useState(createRendererV2PanelGeometry);
   const [cardGap, setCardGap] = useState<number>(BENCHMARK_CANVAS_BROWSER.cardGap);
   const [accent, setAccent] = useState(DEFAULT_RENDERER_V2_ACCENT);
   const [cardPresentation, setCardPresentation] = useState(
@@ -224,8 +212,8 @@ export function RendererV2Prototype() {
       style={
         {
           "--renderer-benchmark-accent": accent,
-          "--renderer-benchmark-browser-corner-radius": `${materials["large-panel"].cornerRadius}px`,
-          "--renderer-benchmark-card-corner-radius": `${materials["small-panel"].cornerRadius}px`,
+          "--renderer-benchmark-browser-corner-radius": `${panelGeometry["large-panel"].cornerRadius}px`,
+          "--renderer-benchmark-card-corner-radius": `${panelGeometry["small-panel"].cornerRadius}px`,
           "--renderer-benchmark-card-preview-inset": `${cardPresentation.previewInset}px`,
           "--renderer-benchmark-card-preview-aspect-ratio": canvasCardPreviewAspectRatio(
             cardPresentation.previewRatioPercent,
@@ -244,8 +232,8 @@ export function RendererV2Prototype() {
           version={version}
           metricsEnabled={metricsEnabled}
           diagnosticMode={diagnosticMode}
-          canvasIslandMode={canvasIslandMode}
           materials={materials}
+          panelGeometry={panelGeometry}
           cardGap={cardGap}
           cardPresentation={cardPresentation}
           reportCapture={reportCapture}
@@ -268,13 +256,13 @@ export function RendererV2Prototype() {
         onStartSample={startSample}
         diagnosticMode={diagnosticMode}
         onDiagnosticModeChange={setDiagnosticMode}
-        canvasIslandMode={canvasIslandMode}
-        onCanvasIslandModeChange={setCanvasIslandMode}
         materials={materials}
+        panelGeometry={panelGeometry}
         cardGap={cardGap}
         accent={accent}
         cardPresentation={cardPresentation}
         onMaterialsChange={setMaterials}
+        onPanelGeometryChange={setPanelGeometry}
         onCardGapChange={setCardGap}
         onAccentChange={setAccent}
         onCardPresentationChange={setCardPresentation}
@@ -286,7 +274,6 @@ export function RendererV2Prototype() {
         metrics={metrics}
         metricsEnabled={metricsEnabled}
         diagnosticMode={diagnosticMode}
-        canvasIslandMode={canvasIslandMode}
       />
       <BenchmarkSpawnMenu request={spawnMenu} store={store} onClose={() => setSpawnMenu(null)} />
       <div className="renderer-benchmark__interaction-hint">

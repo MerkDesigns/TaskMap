@@ -1,10 +1,11 @@
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
 import {
   canvasBrowserDiagnosticFeatures,
   type CanvasBrowserDiagnosticMode,
 } from "./canvasBrowserDiagnostics";
-import { BENCHMARK_CANVAS_BROWSER } from "./benchmarkCanvasBrowserLayout";
-import type { LiquidCanvasCardRecord } from "./liquidCanvasCardGeometry";
-import type { CanvasBrowserRuntimeCounts } from "./liquidCanvasBrowserTypes";
+import { BENCHMARK_CANVAS_BROWSER } from "../benchmarkCanvasBrowserLayout";
+import type { LiquidCanvasCardRecord } from "../liquidCanvasCardGeometry";
+import type { CanvasBrowserRuntimeCounts } from "../liquidCanvasBrowserTypes";
 
 export class CanvasCardDiagnosticPresentation {
   readonly placeholderOverlay = document.createElement("div");
@@ -41,11 +42,7 @@ export class CanvasCardDiagnosticPresentation {
         record.group.add(record.glass);
       }
       if (features.cardHtml) {
-        record.contentDirect = !features.cardGlass;
-        if (features.cardGlass) record.glass.add(record.content);
-        else record.group.add(record.content);
-      } else {
-        record.contentDirect = false;
+        record.glass.add(record.content);
       }
       const placeholder = this.placeholders.get(id);
       if (!placeholder) continue;

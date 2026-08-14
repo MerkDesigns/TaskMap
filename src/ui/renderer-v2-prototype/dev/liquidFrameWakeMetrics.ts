@@ -1,3 +1,4 @@
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
 export interface LiquidFrameWakeSnapshot {
   readonly invalidationTotal: number;
   readonly coalescedInvalidationTotal: number;

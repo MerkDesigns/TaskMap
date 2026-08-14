@@ -72,3 +72,13 @@ export class CanvasBrowserScrollState {
     } satisfies CanvasBrowserScrollFrame;
   }
 }
+export class CanvasBrowserFrameClock {
+  private previousTickAt: number | null = null;
+
+  tick(now: number) {
+    const deltaTime =
+      this.previousTickAt === null ? 16 : Math.max(0, Math.min(64, now - this.previousTickAt));
+    this.previousTickAt = now;
+    return deltaTime;
+  }
+}

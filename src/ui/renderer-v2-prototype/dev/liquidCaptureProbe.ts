@@ -1,3 +1,4 @@
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
 export interface LiquidCaptureProbe {
   readonly available: boolean;
   dispose(): void;

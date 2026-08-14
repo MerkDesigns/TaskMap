@@ -1,3 +1,4 @@
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
 export interface PrototypeFrameSchedulerSnapshot {
   readonly rafRequestTotal: number;
   readonly coalescedRafRequestTotal: number;

@@ -1,3 +1,4 @@
+/* DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation. */
 .renderer-benchmark__controls,
 .renderer-benchmark__metrics {
   position: fixed;

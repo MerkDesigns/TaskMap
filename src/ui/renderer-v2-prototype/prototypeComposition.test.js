@@ -41,13 +41,22 @@ describe("canonical Renderer V2 prototype composition", () => {
       "src/ui/renderer-v2-prototype/BenchmarkLiquidStage.tsx",
       "utf8",
     );
-    const controls = await readFile("src/ui/renderer-v2-prototype/BenchmarkControls.tsx", "utf8");
+    const runtime = await readFile(
+      "src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts",
+      "utf8",
+    );
+    const controls = await readFile(
+      "src/ui/renderer-v2-prototype/dev/BenchmarkControls.tsx",
+      "utf8",
+    );
 
     expect(root).toContain("<BenchmarkLiquidStage");
     expect(root).not.toContain("architecture");
     expect(controls).not.toContain("SegmentedControl");
     expect(domCanvas).toContain("import type { LiquidSceneBenchmarkRuntime }");
     expect(domCanvas).not.toContain('from "@liquid-dom/core"');
+    expect(domCanvas).not.toMatch(/Dynamic|dynamic-islands|canvasIsland/);
+    expect(runtime).not.toMatch(/Dynamic|dynamic-islands|canvasIsland/);
     expect(liquidStage).toContain("<BenchmarkDomCanvas");
     expect(liquidStage).not.toMatch(/mode=/);
   });
@@ -124,7 +133,7 @@ describe("canonical Renderer V2 prototype composition", () => {
     const [root, runtime, diagnostics] = await Promise.all([
       readFile("src/ui/renderer-v2-prototype/RendererV2Prototype.tsx", "utf8"),
       readFile("src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts", "utf8"),
-      readFile("src/ui/renderer-v2-prototype/canvasBrowserDiagnostics.ts", "utf8"),
+      readFile("src/ui/renderer-v2-prototype/dev/canvasBrowserDiagnostics.ts", "utf8"),
     ]);
 
     expect(diagnostics).toContain('"render-on-demand"');

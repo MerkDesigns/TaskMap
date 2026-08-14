@@ -1,8 +1,8 @@
 import type { CanvasViewport } from "../../canvas/geometry/viewportMath";
-import type { BenchmarkElementModel } from "./benchmarkTypes";
-import type { LiquidCaptureAttributionSnapshot } from "./liquidCaptureAttribution";
-import type { LiquidFrameWakeSnapshot } from "./liquidFrameWakeMetrics";
-import type { PrototypeFrameSchedulerSnapshot } from "./prototypeFrameSchedulerMetrics";
+// DEV/PROTOTYPE ONLY — benchmark instrumentation contracts.
+import type { LiquidCaptureAttributionSnapshot } from "./dev/liquidCaptureAttribution";
+import type { LiquidFrameWakeSnapshot } from "./dev/liquidFrameWakeMetrics";
+import type { PrototypeFrameSchedulerSnapshot } from "./dev/prototypeFrameSchedulerMetrics";
 
 export interface BenchmarkLiquidCounts
   extends
@@ -21,16 +21,11 @@ export interface BenchmarkLiquidCounts
   browserRuntimeTicksPerSecond: number;
   scrollGroupTransformUpdatesPerSecond: number;
   cardVisibilitySyncsPerSecond: number;
-  promotedElementCount: number;
-  dynamicTransformUpdates: number;
-  dynamicAttachTotal: number;
-  dynamicDetachTotal: number;
   captureAvailable: boolean;
 }
 
 export interface BenchmarkPresentation {
   presentCamera(viewport: CanvasViewport): void;
-  syncElement(element: BenchmarkElementModel): void;
   tick(now: number): void;
   getLiquidCounts(): BenchmarkLiquidCounts;
   resetLiquidCounts(): void;

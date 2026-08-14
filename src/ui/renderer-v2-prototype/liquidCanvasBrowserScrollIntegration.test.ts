@@ -132,7 +132,7 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     runtime.tick(254);
     const afterDrag = runtime.getCanvasBrowserScrollState();
     expect(afterDrag.currentScrollY).toBeGreaterThan(duringDrag.currentScrollY);
-    expect(afterDrag.targetScrollY).toBe(duringDrag.currentScrollY + 32);
+    expect(afterDrag.targetScrollY).toBe(duringDrag.currentScrollY + 18);
     runtime.destroy();
   });
 
@@ -152,11 +152,6 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     expect(runtime.getCounts()).toMatchObject({ html: 2, glassShapes: 6 });
     expect(cardGlass?.parent).toBe(cardGroup);
     expect(cardHtml?.parent).toBeNull();
-
-    runtime.setCanvasBrowserDiagnosticMode("no-card-glass");
-    expect(runtime.getCounts()).toMatchObject({ html: 7, glassShapes: 1 });
-    expect(cardGlass?.parent).toBeNull();
-    expect(cardHtml?.parent).toBe(cardGroup);
 
     runtime.setCanvasBrowserDiagnosticMode("no-card-glass-or-html");
     expect(runtime.getCounts()).toMatchObject({ html: 2, glassShapes: 1 });
@@ -203,8 +198,8 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     runtime.scrollCanvasBrowserByWheel(20, 0);
     for (let frame = 1; frame <= 100; frame += 1) runtime.tick(frame * 16);
 
-    expect(diagnosticNodes.groups[0]?.y).toBe(-16);
-    expect(cardHtml).toMatchObject({ y: -16, width: 264, height: 84 });
+    expect(diagnosticNodes.groups[0]?.y).toBe(-9);
+    expect(cardHtml).toMatchObject({ y: -9, width: 264, height: 84 });
     expect(cardHtml?.parent).toBe(originalParent);
     expect(diagnosticNodes.html).toHaveLength(htmlNodeCount);
     expect(runtime.getCanvasCardHost(0)?.style.transform).toBe("");

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { BenchmarkPresentation } from "./benchmarkPresentation";
-import type { CanvasBrowserDiagnosticMode } from "./canvasBrowserDiagnostics";
-import type { CanvasIslandDiagnosticMode } from "./canvasIslandDiagnostics";
+// DEV/PROTOTYPE ONLY — diagnostic mode wiring.
+import type { CanvasBrowserDiagnosticMode } from "./dev/canvasBrowserDiagnostics";
 import { BenchmarkCanvasBrowser } from "./BenchmarkCanvasBrowser";
 import type { BenchmarkCanvasCardPresentation } from "./benchmarkCanvasBrowserLayout";
 import { BenchmarkDomCanvas } from "./BenchmarkDomCanvas";
@@ -10,6 +10,7 @@ import type { BenchmarkViewportController } from "./benchmarkViewportController"
 import { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 import type { BenchmarkSpawnMenuRequest } from "./useBenchmarkCanvasInput";
 import type { RendererV2MaterialControls } from "./rendererV2PanelMaterials";
+import type { RendererV2PanelGeometry } from "./rendererV2PanelGeometry";
 
 interface Props {
   store: BenchmarkSceneStore;
@@ -20,8 +21,8 @@ interface Props {
   onPresentation: (presentation: BenchmarkPresentation | null) => void;
   onSpawnMenu: (request: BenchmarkSpawnMenuRequest | null) => void;
   diagnosticMode: CanvasBrowserDiagnosticMode;
-  canvasIslandMode: CanvasIslandDiagnosticMode;
   materials: RendererV2MaterialControls;
+  panelGeometry: RendererV2PanelGeometry;
   cardGap: number;
   cardPresentation: BenchmarkCanvasCardPresentation;
 }
@@ -35,8 +36,8 @@ export function BenchmarkLiquidStage({
   onPresentation,
   onSpawnMenu,
   diagnosticMode,
-  canvasIslandMode,
   materials,
+  panelGeometry,
   cardGap,
   cardPresentation,
 }: Props) {
@@ -72,8 +73,8 @@ export function BenchmarkLiquidStage({
   }, [diagnosticMode, runtime]);
 
   useLayoutEffect(() => {
-    runtime?.setCanvasBrowserAppearance(materials, cardGap);
-  }, [cardGap, materials, runtime]);
+    runtime?.setCanvasBrowserAppearance(materials, panelGeometry, cardGap);
+  }, [cardGap, materials, panelGeometry, runtime]);
 
   useLayoutEffect(() => {
     if (!runtime) return;
@@ -92,7 +93,6 @@ export function BenchmarkLiquidStage({
             runtime={runtime}
             onPresentation={onPresentation}
             onSpawnMenu={onSpawnMenu}
-            canvasIslandMode={canvasIslandMode}
           />
           <BenchmarkCanvasBrowser
             canvasCardCount={store.scene.canvasCardCount}

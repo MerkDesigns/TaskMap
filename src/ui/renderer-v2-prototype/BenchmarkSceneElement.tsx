@@ -1,6 +1,5 @@
 import { memo, type PointerEvent, useCallback, useLayoutEffect, useRef } from "react";
 import { BenchmarkElementContent } from "./BenchmarkElementContent";
-import type { BenchmarkPresentation } from "./benchmarkPresentation";
 import type { BenchmarkGeometryCommit, BenchmarkSceneStore } from "./benchmarkSceneStore";
 import type { BenchmarkElementModel } from "./benchmarkTypes";
 import {
@@ -11,7 +10,6 @@ import {
 interface Props {
   element: BenchmarkElementModel;
   store: BenchmarkSceneStore;
-  presentation: BenchmarkPresentation;
   liquidPositioned: boolean;
   moveImage: boolean;
   showGif: boolean;
@@ -39,7 +37,6 @@ interface PointerSample {
 function BenchmarkSceneElementComponent({
   element,
   store,
-  presentation,
   liquidPositioned,
   moveImage,
   showGif,
@@ -55,9 +52,8 @@ function BenchmarkSceneElementComponent({
   useLayoutEffect(() => {
     const node = ref.current;
     registerElement?.(element.id, node);
-    presentation.syncElement(element);
     return () => registerElement?.(element.id, null);
-  }, [element, presentation, registerElement]);
+  }, [element.id, registerElement]);
 
   const applySample = useCallback(
     (sample: PointerSample) => {
@@ -89,9 +85,8 @@ function BenchmarkSceneElementComponent({
       } else if (!liquidPositioned && node) {
         node.style.transform = `translate3d(${geometry.x - active.x}px, ${geometry.y - active.y}px, 0)`;
       }
-      presentation.syncElement({ ...element, ...geometry });
     },
-    [element, liquidPositioned, presentation, store],
+    [liquidPositioned, store],
   );
 
   const flushPendingSample = useCallback(() => {

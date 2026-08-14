@@ -3,16 +3,26 @@ import {
   calculateCanvasBrowserLayout,
 } from "./benchmarkCanvasBrowserLayout";
 import type { LiquidCanvasCardRecord } from "./liquidCanvasCardGeometry";
-import type { CanvasCardDiagnosticPresentation } from "./canvasCardDiagnosticPresentation";
+import type { CanvasCardDiagnosticPresentation } from "./dev/canvasCardDiagnosticPresentation";
 
 type CardGroup = LiquidCanvasCardRecord["group"];
 type CardGlass = LiquidCanvasCardRecord["glass"];
 type CardHtml = LiquidCanvasCardRecord["content"];
+type BrowserSurfaceGlass = Pick<CardGlass, "x" | "y" | "width" | "height" | "cornerRadius">;
+type BrowserSurfaceHtml = Pick<CardHtml, "width" | "height">;
 
 export interface LiquidCanvasCardFactories {
   createGroup: () => CardGroup;
   createGlass: (options: Record<string, number | boolean>) => CardGlass;
   createHtml: (host: HTMLDivElement) => CardHtml;
+}
+
+export function removeLiquidCanvasCardRecords(cards: ReadonlyMap<number, LiquidCanvasCardRecord>) {
+  cards.forEach(({ content, glass, group }) => {
+    content.remove();
+    glass.remove();
+    group.remove();
+  });
 }
 
 export function reconcileLiquidCanvasCardRecords(
@@ -84,13 +94,12 @@ export function createLiquidCanvasCard(
     glass,
     content,
     host,
-    contentDirect: false,
   };
 }
 
 export function resizeLiquidCanvasBrowserSurface(
-  glass: CardGlass,
-  content: CardHtml,
+  glass: BrowserSurfaceGlass,
+  content: BrowserSurfaceHtml,
   viewportHeight: number,
   cardCount: number,
   cardGap: number = BENCHMARK_CANVAS_BROWSER.cardGap,

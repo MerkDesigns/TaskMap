@@ -1,4 +1,5 @@
-import type { BenchmarkSceneCounts } from "./benchmarkTypes";
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
+import type { BenchmarkSceneCounts } from "../benchmarkTypes";
 
 const ROLLING_FRAME_LIMIT = 600;
 

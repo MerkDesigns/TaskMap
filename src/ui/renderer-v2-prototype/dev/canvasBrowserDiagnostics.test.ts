@@ -1,11 +1,21 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  CANVAS_BROWSER_DIAGNOSTIC_MODES,
   canvasBrowserNeedsContinuousFrames,
   DEFAULT_CANVAS_BROWSER_DIAGNOSTIC_MODE,
 } from "./canvasBrowserDiagnostics";
 
 describe("Canvas Browser render scheduling diagnostics", () => {
+  it("exposes only the retained diagnostic modes", () => {
+    expect(CANVAS_BROWSER_DIAGNOSTIC_MODES).toEqual([
+      "full",
+      "no-card-html",
+      "no-card-glass-or-html",
+      "render-on-demand",
+    ]);
+  });
+
   it("promotes render-on-demand to the prototype default", () => {
     expect(DEFAULT_CANVAS_BROWSER_DIAGNOSTIC_MODE).toBe("render-on-demand");
     expect(

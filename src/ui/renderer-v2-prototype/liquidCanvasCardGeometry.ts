@@ -9,13 +9,11 @@ interface GeometryRecord {
   readonly glass: Glass;
   readonly content: Html;
   readonly host: HTMLDivElement;
-  readonly contentDirect?: boolean;
 }
 
 export interface LiquidCanvasCardRecord extends GeometryRecord {
   readonly id: number;
   readonly host: HTMLDivElement;
-  contentDirect: boolean;
 }
 
 interface SlotAnimation {
@@ -96,7 +94,7 @@ export class LiquidCanvasCardGeometry {
       if (record.glass.height !== glassHeight) record.glass.height = glassHeight;
       // Liquid's Glass shader masks its child Html texture. Keep the capture full-size and offset
       // it in scene space so partial cards crop on the GPU without dirtying DOM capture geometry.
-      const contentY = record.contentDirect === true ? clipOffset : -clipOffset;
+      const contentY = -clipOffset;
       if (record.content.y !== contentY) record.content.y = contentY;
     });
   }

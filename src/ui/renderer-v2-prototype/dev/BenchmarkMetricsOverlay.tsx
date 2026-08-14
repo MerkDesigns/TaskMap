@@ -1,15 +1,12 @@
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
 import { Paper, Text } from "@mantine/core";
 import type { BenchmarkMetricsSampler } from "./benchmarkMetrics";
-import type { BenchmarkLiquidCounts } from "./benchmarkPresentation";
-import type { BenchmarkSceneCounts, BenchmarkSceneModel } from "./benchmarkTypes";
+import type { BenchmarkLiquidCounts } from "../benchmarkPresentation";
+import type { BenchmarkSceneCounts, BenchmarkSceneModel } from "../benchmarkTypes";
 import {
   CANVAS_BROWSER_DIAGNOSTIC_LABELS,
   type CanvasBrowserDiagnosticMode,
 } from "./canvasBrowserDiagnostics";
-import {
-  CANVAS_ISLAND_DIAGNOSTIC_LABELS,
-  type CanvasIslandDiagnosticMode,
-} from "./canvasIslandDiagnostics";
 
 type MetricsSnapshot = ReturnType<BenchmarkMetricsSampler["snapshot"]>;
 
@@ -20,7 +17,6 @@ interface Props {
   metrics: MetricsSnapshot;
   metricsEnabled: boolean;
   diagnosticMode: CanvasBrowserDiagnosticMode;
-  canvasIslandMode: CanvasIslandDiagnosticMode;
 }
 
 const number = (value: number) => value.toFixed(1);
@@ -34,7 +30,6 @@ export function BenchmarkMetricsOverlay({
   metrics,
   metricsEnabled,
   diagnosticMode,
-  canvasIslandMode,
 }: Props) {
   const result = metrics.timedResult;
   return (
@@ -71,8 +66,6 @@ export function BenchmarkMetricsOverlay({
         </span>
         <strong>Browser diagnostic</strong>
         <span>{CANVAS_BROWSER_DIAGNOSTIC_LABELS[diagnosticMode]}</span>
-        <strong>Canvas architecture</strong>
-        <span>{CANVAS_ISLAND_DIAGNOSTIC_LABELS[canvasIslandMode]}</span>
         <strong>Visible / total Canvas Cards</strong>
         <span>
           {liquid.visibleCanvasCards} / {liquid.totalCanvasCards}
@@ -83,10 +76,6 @@ export function BenchmarkMetricsOverlay({
         </span>
         <strong>Liquid Html</strong>
         <span>{liquid.html}</span>
-        <strong>Promoted Canvas Elements</strong>
-        <span>{liquid.promotedElementCount}</span>
-        <strong>Dynamic transform updates</strong>
-        <span>{liquid.dynamicTransformUpdates}</span>
         <strong>Liquid Containers</strong>
         <span>{liquid.containers}</span>
         <strong>Liquid Glass shapes</strong>
@@ -145,14 +134,8 @@ export function BenchmarkMetricsOverlay({
               {integer(liquid.coarseCaptureTotal)} / {integer(liquid.unknownCaptureTotal)} total Â·{" "}
               {number(liquid.coarseCapturesPerSecond)} / {number(liquid.unknownCapturesPerSecond)}/s
             </span>
-            <strong>Dynamic Html captures</strong>
-            <span>{number(liquid.dynamicCapturesPerSecond)}/s</span>
-            <strong>Position-only promoted captures</strong>
-            <span>{number(liquid.positionOnlyPromotedCapturesPerSecond)}/s</span>
             <strong>Static coarse copied texels</strong>
             <span>{integer(liquid.coarseCopiedTexelsPerSecond)}/s</span>
-            <strong>Dynamic copied texels</strong>
-            <span>{integer(liquid.dynamicCopiedTexelsPerSecond)}/s</span>
             <strong>Total copied texels</strong>
             <span>{integer(liquid.totalCopiedTexelsPerSecond)}/s</span>
             <strong>Copied texels</strong>

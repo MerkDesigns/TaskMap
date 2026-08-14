@@ -1,39 +1,34 @@
-import {
-  ActionIcon,
-  Button,
-  ColorInput,
-  Divider,
-  Group,
-  Popover,
-  Select,
-  Slider,
-  Stack,
-  Text,
-  TextInput,
-  Textarea,
-} from "@mantine/core";
-import { IconAdjustments, IconRestore } from "@tabler/icons-react";
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
+import { Button, Divider, Popover, Select, Stack, Textarea } from "@mantine/core";
+import { IconAdjustments } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import {
   BENCHMARK_CANVAS_BROWSER,
   DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION,
   type BenchmarkCanvasCardPresentation,
-} from "./benchmarkCanvasBrowserLayout";
+} from "../benchmarkCanvasBrowserLayout";
 import {
   DEFAULT_RENDERER_V2_ACCENT,
   DEFAULT_RENDERER_V2_MATERIAL_CONTROLS,
-  RENDERER_V2_PANEL_ROLES,
   type RendererV2MaterialControls,
   type RendererV2PanelControls,
+} from "../rendererV2PanelMaterials";
+import {
+  DEFAULT_RENDERER_V2_PANEL_GEOMETRY,
+  RENDERER_V2_PANEL_ROLES,
+  type RendererV2PanelGeometry,
   type RendererV2PanelRole,
-} from "./rendererV2PanelMaterials";
+} from "../rendererV2PanelGeometry";
+import { ResettableColor, ResettableSlider, ResettableText } from "./BenchmarkMaterialControls";
 
 interface Props {
   readonly materials: RendererV2MaterialControls;
+  readonly panelGeometry: RendererV2PanelGeometry;
   readonly cardGap: number;
   readonly accent: string;
   readonly cardPresentation: BenchmarkCanvasCardPresentation;
   readonly onMaterialsChange: (materials: RendererV2MaterialControls) => void;
+  readonly onPanelGeometryChange: (geometry: RendererV2PanelGeometry) => void;
   readonly onCardGapChange: (gap: number) => void;
   readonly onAccentChange: (accent: string) => void;
   readonly onCardPresentationChange: (presentation: BenchmarkCanvasCardPresentation) => void;
@@ -41,10 +36,12 @@ interface Props {
 
 export function BenchmarkMaterialMenu({
   materials,
+  panelGeometry,
   cardGap,
   accent,
   cardPresentation,
   onMaterialsChange,
+  onPanelGeometryChange,
   onCardGapChange,
   onAccentChange,
   onCardPresentationChange,
@@ -52,6 +49,8 @@ export function BenchmarkMaterialMenu({
   const [role, setRole] = useState<RendererV2PanelRole>("large-panel");
   const selected = materials[role];
   const defaults = DEFAULT_RENDERER_V2_MATERIAL_CONTROLS[role];
+  const selectedGeometry = panelGeometry[role];
+  const geometryDefaults = DEFAULT_RENDERER_V2_PANEL_GEOMETRY[role];
   const update = <Key extends keyof RendererV2PanelControls>(
     key: Key,
     value: RendererV2PanelControls[Key],
@@ -94,12 +93,17 @@ export function BenchmarkMaterialMenu({
           />
           <ResettableSlider
             label="Corner radius"
-            value={selected.cornerRadius}
-            resetValue={defaults.cornerRadius}
+            value={selectedGeometry.cornerRadius}
+            resetValue={geometryDefaults.cornerRadius}
             minimum={0}
             maximum={36}
             step={1}
-            onChange={(value) => update("cornerRadius", value)}
+            onChange={(cornerRadius) =>
+              onPanelGeometryChange({
+                ...panelGeometry,
+                [role]: { cornerRadius },
+              })
+            }
           />
           <ResettableSlider
             label="Blur"
@@ -224,32 +228,6 @@ export function BenchmarkMaterialMenu({
   );
 }
 
-function ResettableText({
-  label,
-  value,
-  resetValue,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly resetValue: string;
-  readonly onChange: (value: string) => void;
-}) {
-  return (
-    <Group align="end" gap={6} wrap="nowrap">
-      <TextInput
-        label={label}
-        description="Tokens: {number}, {status}"
-        size="xs"
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        className="flex-1"
-      />
-      <ResetButton label={label} onClick={() => onChange(resetValue)} />
-    </Group>
-  );
-}
-
 function MaterialJsonEditor({
   value,
   onChange,
@@ -309,12 +287,11 @@ function parseMaterialJson(source: string): RendererV2PanelControls | null {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const material = value as Record<string, unknown>;
     if (typeof material.tint !== "string") return null;
-    const numericKeys = ["tintOpacity", "cornerRadius", "blur", "borderOpacity"] as const;
+    const numericKeys = ["tintOpacity", "blur", "borderOpacity"] as const;
     if (numericKeys.some((key) => !isFiniteNumber(material[key]))) return null;
     return {
       tint: material.tint,
       tintOpacity: material.tintOpacity as number,
-      cornerRadius: material.cornerRadius as number,
       blur: material.blur as number,
       borderOpacity: material.borderOpacity as number,
     };
@@ -325,75 +302,4 @@ function parseMaterialJson(source: string): RendererV2PanelControls | null {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
-}
-
-function ResettableSlider({
-  label,
-  value,
-  resetValue,
-  minimum,
-  maximum,
-  step,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: number;
-  readonly resetValue: number;
-  readonly minimum: number;
-  readonly maximum: number;
-  readonly step: number;
-  readonly onChange: (value: number) => void;
-}) {
-  return (
-    <div>
-      <Group justify="space-between" gap="xs" mb={4}>
-        <Text size="xs" fw={600}>
-          {label} · {Number.isInteger(value) ? value : value.toFixed(2)}
-        </Text>
-        <ResetButton label={label} onClick={() => onChange(resetValue)} />
-      </Group>
-      <Slider
-        value={value}
-        min={minimum}
-        max={maximum}
-        step={step}
-        thumbLabel={label}
-        onChange={onChange}
-      />
-    </div>
-  );
-}
-
-function ResettableColor({
-  label,
-  value,
-  resetValue,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly resetValue: string;
-  readonly onChange: (value: string) => void;
-}) {
-  return (
-    <Group align="end" gap={6} wrap="nowrap">
-      <ColorInput
-        label={label}
-        size="xs"
-        value={value}
-        popoverProps={{ withinPortal: false }}
-        onChange={onChange}
-        className="flex-1"
-      />
-      <ResetButton label={label} onClick={() => onChange(resetValue)} />
-    </Group>
-  );
-}
-
-function ResetButton({ label, onClick }: { readonly label: string; readonly onClick: () => void }) {
-  return (
-    <ActionIcon size="sm" variant="subtle" aria-label={`Reset ${label}`} onClick={onClick}>
-      <IconRestore size={13} />
-    </ActionIcon>
-  );
 }

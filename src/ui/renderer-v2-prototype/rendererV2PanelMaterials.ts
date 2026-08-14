@@ -1,32 +1,26 @@
 import type { LiquidMaterialOptics } from "../materials/liquid-dom/materialRoles";
-
-export type RendererV2PanelRole = "large-panel" | "small-panel";
+import type { RendererV2PanelRole } from "./rendererV2PanelGeometry";
 
 export interface RendererV2PanelControls {
   readonly tint: string;
   readonly tintOpacity: number;
-  readonly cornerRadius: number;
   readonly blur: number;
   readonly borderOpacity: number;
 }
 
 export type RendererV2MaterialControls = Record<RendererV2PanelRole, RendererV2PanelControls>;
-
-export const RENDERER_V2_PANEL_ROLES = ["large-panel", "small-panel"] as const;
 export const DEFAULT_RENDERER_V2_ACCENT = "#ff922b";
 export const DEFAULT_RENDERER_V2_MATERIAL_CONTROLS: Readonly<RendererV2MaterialControls> =
   Object.freeze({
     "large-panel": Object.freeze({
       tint: "#2d2d2f",
       tintOpacity: 0.3,
-      cornerRadius: 23,
       blur: 100,
       borderOpacity: 0.66,
     }),
     "small-panel": Object.freeze({
       tint: "#2d2d2f",
       tintOpacity: 0,
-      cornerRadius: 13,
       blur: 30,
       borderOpacity: 0.66,
     }),

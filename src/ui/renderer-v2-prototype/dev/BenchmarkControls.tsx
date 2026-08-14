@@ -1,3 +1,4 @@
+// DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.
 import {
   Button,
   Checkbox,
@@ -15,17 +16,16 @@ import {
   CANVAS_BROWSER_DIAGNOSTIC_MODES,
   type CanvasBrowserDiagnosticMode,
 } from "./canvasBrowserDiagnostics";
+import type { BenchmarkSceneStore } from "../benchmarkSceneStore";
 import {
-  CANVAS_ISLAND_DIAGNOSTIC_LABELS,
-  CANVAS_ISLAND_DIAGNOSTIC_MODES,
-  type CanvasIslandDiagnosticMode,
-} from "./canvasIslandDiagnostics";
-import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
-import { BENCHMARK_CANVAS_CARD_COUNT, BENCHMARK_CANVAS_ELEMENT_COUNT } from "./benchmarkSceneStore";
-import type { BenchmarkViewportController } from "./benchmarkViewportController";
+  BENCHMARK_CANVAS_CARD_COUNT,
+  BENCHMARK_CANVAS_ELEMENT_COUNT,
+} from "../benchmarkSceneStore";
+import type { BenchmarkViewportController } from "../benchmarkViewportController";
 import { BenchmarkMaterialMenu } from "./BenchmarkMaterialMenu";
-import type { BenchmarkCanvasCardPresentation } from "./benchmarkCanvasBrowserLayout";
-import type { RendererV2MaterialControls } from "./rendererV2PanelMaterials";
+import type { BenchmarkCanvasCardPresentation } from "../benchmarkCanvasBrowserLayout";
+import type { RendererV2MaterialControls } from "../rendererV2PanelMaterials";
+import type { RendererV2PanelGeometry } from "../rendererV2PanelGeometry";
 
 interface Props {
   store: BenchmarkSceneStore;
@@ -36,13 +36,13 @@ interface Props {
   onStartSample: () => void;
   diagnosticMode: CanvasBrowserDiagnosticMode;
   onDiagnosticModeChange: (mode: CanvasBrowserDiagnosticMode) => void;
-  canvasIslandMode: CanvasIslandDiagnosticMode;
-  onCanvasIslandModeChange: (mode: CanvasIslandDiagnosticMode) => void;
   materials: RendererV2MaterialControls;
+  panelGeometry: RendererV2PanelGeometry;
   cardGap: number;
   accent: string;
   cardPresentation: BenchmarkCanvasCardPresentation;
   onMaterialsChange: (materials: RendererV2MaterialControls) => void;
+  onPanelGeometryChange: (geometry: RendererV2PanelGeometry) => void;
   onCardGapChange: (gap: number) => void;
   onAccentChange: (accent: string) => void;
   onCardPresentationChange: (presentation: BenchmarkCanvasCardPresentation) => void;
@@ -57,13 +57,13 @@ export function BenchmarkControls({
   onStartSample,
   diagnosticMode,
   onDiagnosticModeChange,
-  canvasIslandMode,
-  onCanvasIslandModeChange,
   materials,
+  panelGeometry,
   cardGap,
   accent,
   cardPresentation,
   onMaterialsChange,
+  onPanelGeometryChange,
   onCardGapChange,
   onAccentChange,
   onCardPresentationChange,
@@ -81,32 +81,18 @@ export function BenchmarkControls({
           </Text>
         </div>
         {import.meta.env.DEV ? (
-          <Group grow align="end">
-            <Select
-              label="Canvas architecture"
-              size="xs"
-              value={canvasIslandMode}
-              data={CANVAS_ISLAND_DIAGNOSTIC_MODES.map((value) => ({
-                value,
-                label: CANVAS_ISLAND_DIAGNOSTIC_LABELS[value],
-              }))}
-              onChange={(value) => {
-                if (value) onCanvasIslandModeChange(value as CanvasIslandDiagnosticMode);
-              }}
-            />
-            <Select
-              label="Canvas Browser diagnostic"
-              size="xs"
-              value={diagnosticMode}
-              data={CANVAS_BROWSER_DIAGNOSTIC_MODES.map((value) => ({
-                value,
-                label: CANVAS_BROWSER_DIAGNOSTIC_LABELS[value],
-              }))}
-              onChange={(value) => {
-                if (value) onDiagnosticModeChange(value as CanvasBrowserDiagnosticMode);
-              }}
-            />
-          </Group>
+          <Select
+            label="Canvas Browser diagnostic"
+            size="xs"
+            value={diagnosticMode}
+            data={CANVAS_BROWSER_DIAGNOSTIC_MODES.map((value) => ({
+              value,
+              label: CANVAS_BROWSER_DIAGNOSTIC_LABELS[value],
+            }))}
+            onChange={(value) => {
+              if (value) onDiagnosticModeChange(value as CanvasBrowserDiagnosticMode);
+            }}
+          />
         ) : null}
         <div className="renderer-benchmark__workload-sliders">
           <WorkloadSlider
@@ -153,10 +139,12 @@ export function BenchmarkControls({
         <Group gap={6} grow>
           <BenchmarkMaterialMenu
             materials={materials}
+            panelGeometry={panelGeometry}
             cardGap={cardGap}
             accent={accent}
             cardPresentation={cardPresentation}
             onMaterialsChange={onMaterialsChange}
+            onPanelGeometryChange={onPanelGeometryChange}
             onCardGapChange={onCardGapChange}
             onAccentChange={onAccentChange}
             onCardPresentationChange={onCardPresentationChange}
