@@ -332,7 +332,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 
 | File                                                                         | Lines | Responsibility                                                                              |
 | ---------------------------------------------------------------------------- | ----: | ------------------------------------------------------------------------------------------- |
-| `scripts/apply-liquid-dom-webview2-patch.mjs`                                |    58 | Repository maintenance script                                                               |
+| `scripts/apply-liquid-dom-webview2-patch.mjs`                                |    68 | Repository maintenance script                                                               |
 | `scripts/check-architecture.mjs`                                             |   264 | Repository maintenance script                                                               |
 | `scripts/check-phase2-production-exclusion.mjs`                              |    76 | Repository maintenance script                                                               |
 | `scripts/check-version.mjs`                                                  |    56 | Repository maintenance script                                                               |
@@ -762,7 +762,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/benchmarkWorld.test.ts`                        |    36 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/benchmarkWorld.ts`                             |     6 | The coarse backdrop is capped at 2 DPR. These dimensions retain ample pan space for the     |
 | `src/ui/renderer-v2-prototype/canvasBrowserScrollState.test.ts`              |    77 | @vitest-environment node                                                                    |
-| `src/ui/renderer-v2-prototype/canvasBrowserScrollState.ts`                   |    75 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/canvasBrowserScrollState.ts`                   |    85 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/canvasBrowserWheelDelta.test.ts`               |    16 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/canvasBrowserWheelDelta.ts`                    |    11 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/canvasCardDragSession.ts`                      |    66 | TypeScript application module                                                               |
@@ -777,7 +777,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/dev/BenchmarkMetricsOverlay.tsx`               |   165 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/dev/canvasBrowserDiagnostics.test.ts`          |    36 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/dev/canvasBrowserDiagnostics.ts`               |    38 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
-| `src/ui/renderer-v2-prototype/dev/canvasCardDiagnosticPresentation.ts`       |   173 | The first host paint supplies the initial texture; only later host-only paints can be the   |
+| `src/ui/renderer-v2-prototype/dev/canvasCardDiagnosticPresentation.ts`       |   173 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/dev/liquidCaptureAttribution.test.ts`          |    29 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/dev/liquidCaptureAttribution.ts`               |    70 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/dev/liquidCaptureProbe.test.ts`                |    35 | @vitest-environment node                                                                    |
@@ -786,10 +786,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/dev/prototypeFrameSchedulerMetrics.test.ts`    |    21 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/dev/prototypeFrameSchedulerMetrics.ts`         |    46 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/liquidCanvasBrowserAppearance.ts`              |   121 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts`                 |   401 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts`                 |   400 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/liquidCanvasBrowserScrollIntegration.test.ts`  |   325 | Tests for the adjacent module                                                               |
 | `src/ui/renderer-v2-prototype/liquidCanvasBrowserTypes.ts`                   |    27 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasCardFactory.ts`                    |   111 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasCardFactory.ts`                    |   119 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/liquidCanvasCardGeometry.ts`                   |   146 | Keep the full-size Html registered in Liquid's shared content atlas. Zero-sized Glass       |
 | `src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.structure.test.ts` |   150 | Tests for the adjacent module                                                               |
 | `src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.test.ts`           |   372 | Tests for the adjacent module                                                               |

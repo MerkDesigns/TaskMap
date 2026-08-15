@@ -65,11 +65,11 @@ values.
 ## Canvas presentation
 
 Canvas elements are ordinary React/DOM content. This includes containers, cards, text blocks,
-images, animated GIFs, mind-map nodes, and connection presentation. Canvas elements do not use
+images, static GIF posters/frames, mind-map nodes, and connection presentation. Canvas elements do not use
 Liquid DOM materials, including when selected, edited, dragged, resized, or animated.
 
 The live DOM canvas must remain visible to Liquid DOM chrome so glass can blur and refract actual
-text, images, and animated GIF frames. Do not replace this with a simplified scene projection,
+text, images, and static GIF posters/frames. Do not replace this with a simplified scene projection,
 thumbnail-only backdrop, DOM-to-canvas capture loop, or application-owned acrylic compositor.
 
 The established canvas appearance remains the starting target:
@@ -82,6 +82,20 @@ The established canvas appearance remains the starting target:
 
 Retained element appearance and animation are accepted against feature-parity evidence. Intentional
 changes must be documented here or in a later ADR before implementation.
+
+### Coarse-canvas animation policy
+
+Continuous autonomous animation must not run inside the coarse canvas DOM because any repaint can
+require recapturing the coarse Liquid `Html` surface in WebView2. Static SVGs and icons, discrete
+state changes, and user-driven dragging, resizing, and panning are fine. Do not use perpetual CSS
+spinners, pulses, or morphing gradients inside Canvas Elements. GIFs display a static poster/frame
+on the canvas; animated GIF and video playback belongs in a separate preview or UI surface. A
+running-command button uses discrete states such as `Run` -> `Running...` -> `Done`.
+
+The coarse canvas remains one coarse Liquid `Html` capture and relies on Liquid DOM's normal full
+capture behavior for DOM changes. Partial dirty-region capture was investigated and intentionally
+abandoned because WebView2 did not provide useful `changedElements` metadata and its planner,
+partial-copy, fallback, and diagnostic complexity was not justified by measured benefit.
 
 ## Liquid DOM material boundary
 
@@ -118,12 +132,12 @@ Tauri/WebView2 builds. Acceptance scenes include:
 - crisp and antialiased text at multiple zoom levels;
 - user-colored DOM elements and grid lines;
 - still images with high-frequency detail;
-- animated GIFs while frames change;
+- static GIF posters/frames;
 - overlapping and moving canvas content;
 - base chrome, portals, menus, and modals; and
 - common Windows display-scale and viewport combinations.
 
-A successful static screenshot is insufficient for animated media or interaction acceptance.
+A successful static screenshot is insufficient for interaction acceptance.
 
 ### Fallback
 

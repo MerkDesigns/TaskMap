@@ -134,7 +134,7 @@ export function BenchmarkMetricsOverlay({
               {integer(liquid.coarseCaptureTotal)} / {integer(liquid.unknownCaptureTotal)} total Â·{" "}
               {number(liquid.coarseCapturesPerSecond)} / {number(liquid.unknownCapturesPerSecond)}/s
             </span>
-            <strong>Static coarse copied texels</strong>
+            <strong>Coarse copied texels / sec</strong>
             <span>{integer(liquid.coarseCopiedTexelsPerSecond)}/s</span>
             <strong>Total copied texels</strong>
             <span>{integer(liquid.totalCopiedTexelsPerSecond)}/s</span>

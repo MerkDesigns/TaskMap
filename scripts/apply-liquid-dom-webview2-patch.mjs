@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const PATCH_MARKER = "/* taskmap-liquid-dom-webview2-151-patch:v1 */";
+const COMPATIBILITY_MARKER = "/* taskmap-liquid-dom-webview2-copy-signature:v1 */";
 const TARGETS = [
   "node_modules/@liquid-dom/core/dist/index.js",
   "node_modules/@liquid-dom/core/dist/index.cjs",
@@ -25,7 +25,7 @@ function replaceCopyCall(source, { label, texture }, includeMarker) {
           entry.deviceHeight,
           { texture: ${texture} }
         );`;
-  const replacement = `${includeMarker ? `${PATCH_MARKER}\n        ` : ""}this.device.queue.copyElementImageToTexture(
+  const copy = `this.device.queue.copyElementImageToTexture(
           { source: entry.html.host },
           {
             destination: { texture: ${texture} },
@@ -33,17 +33,27 @@ function replaceCopyCall(source, { label, texture }, includeMarker) {
             height: entry.deviceHeight
           }
         );`;
+  const replacement = `${includeMarker ? `${COMPATIBILITY_MARKER}\n        ` : ""}${copy}`;
   const first = source.indexOf(original);
-  if (first < 0 || source.indexOf(original, first + original.length) >= 0) {
+  if (first >= 0) {
+    if (source.indexOf(original, first + original.length) >= 0) {
+      throw new Error(`Found multiple ${label} calls; @liquid-dom/core may have changed.`);
+    }
+    return source.slice(0, first) + replacement + source.slice(first + original.length);
+  }
+
+  const patched = source.indexOf(copy);
+  if (patched < 0 || source.indexOf(copy, patched + copy.length) >= 0) {
     throw new Error(`Could not find one unambiguous ${label}; @liquid-dom/core may have changed.`);
   }
-  return source.slice(0, first) + replacement + source.slice(first + original.length);
+  if (!includeMarker) return source;
+  return source.slice(0, patched) + `${COMPATIBILITY_MARKER}\n        ` + source.slice(patched);
 }
 
 for (const target of TARGETS) {
   const path = resolve(target);
   let source = await readFile(path, "utf8");
-  if (source.includes(PATCH_MARKER)) {
+  if (source.includes(COMPATIBILITY_MARKER)) {
     console.log(`Liquid DOM WebView2 patch already applied: ${target}`);
     continue;
   }

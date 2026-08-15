@@ -10,7 +10,7 @@
 Architecture-v1 proved the normalized document, named-command, history, Redux persistence,
 interaction, and Tauri/Rust boundaries. It also built an application-owned cached Canvas2D acrylic
 compositor. That compositor reconstructs a simplified canvas scene and therefore cannot reliably
-produce glass over the actual rendered DOM content, especially text, images, and animated GIFs.
+produce glass over the actual rendered DOM content, especially text and detailed images.
 
 ADR 001's domain, state-ownership, failure-reporting, and platform-boundary decisions remain in
 force. Its temporary plan to keep `App.tsx` active behind `LegacyApplication` described the
@@ -45,9 +45,22 @@ belong to the consuming component or layout pattern and are not material propert
 not instantiate or tune Liquid DOM independently.
 
 The Liquid DOM integration must blur and refract the live canvas DOM beneath UI surfaces, including
-text, images, and animated GIFs. The architecture-v1 cached Canvas2D compositor, its projected
+text, images, and static GIF posters/frames. The architecture-v1 cached Canvas2D compositor, its projected
 `BackdropScene`, worker/fallback cache, output planes, masks, and invalidation protocol are not used
 by renderer v2.
+
+The coarse canvas remains one coarse Liquid `Html` capture and uses Liquid DOM's normal full-capture
+behavior for DOM changes. Partial coarse capture was investigated and intentionally abandoned.
+WebView2 did not expose useful `changedElements` metadata, and the complexity of dirty rectangles,
+planner bridges, partial GPU copies, fallbacks, and diagnostics was not justified by the measured
+benefit.
+
+Continuous autonomous animation does not run inside the coarse canvas DOM because any repaint can
+require recapturing the coarse `Html` surface. Static SVGs/icons, discrete state changes, and
+user-driven dragging, resizing, and panning are supported. Perpetual CSS spinners, pulses, and
+morphing gradients are not used inside Canvas Elements. GIFs render a static poster/frame on the
+canvas; animated GIF and video playback occurs in a separate preview or UI surface. Running-command
+controls use discrete states such as `Run` -> `Running...` -> `Done`.
 
 Mantine is the standard React UI component library for controls, menus, dialogs, inputs, and related
 interaction primitives. Mantine owns component behavior and accessibility; Liquid DOM owns the
@@ -66,12 +79,12 @@ installation and compatibility proof belong to the renderer-v2 implementation ro
 - Near-complete feature parity remains a user-visible acceptance requirement; old frontend
   implementation structure does not.
 - UI chrome can sample the actual DOM canvas instead of a reconstructed presentation scene.
-- Canvas elements remain normal DOM, preserving native React content and animated media behavior.
+- Canvas elements remain normal DOM; continuously animated media plays outside the coarse canvas.
 - The material boundary has only two optical roles and cannot become a layout system.
 - Mantine becomes the default control vocabulary, reducing bespoke control ownership while leaving
   TaskMap domain and feature behavior outside the library.
 - Renderer-v2 performance acceptance must cover both the interaction hot path and Liquid DOM over
-  live text/image/GIF content in packaged Windows builds.
+  live text, image, and static GIF-poster content in packaged Windows builds.
 - ADR 003 remains historical documentation of architecture-v1. Its implementation-specific
   requirements are not renderer-v2 requirements.
 
@@ -80,7 +93,9 @@ installation and compatibility proof belong to the renderer-v2 implementation ro
 - Incrementally refactor the legacy or architecture-v1 frontend. Rejected because presentation
   coupling would constrain the new renderer and prolong parallel UI architectures.
 - Continue the custom cached Canvas2D compositor. Rejected because it duplicates the scene and does
-  not naturally refract the real DOM, particularly animated media.
+  not naturally refract the real DOM, particularly detailed media.
+- Add partial dirty-region capture for the coarse Liquid `Html`. Rejected because WebView2 did not
+  provide useful changed-element metadata and the integration complexity outweighed measured gains.
 - Put Liquid DOM materials on canvas elements. Rejected because element count and high-frequency
   transforms would make glass part of the canvas hot path.
 - Use Liquid DOM as the control library. Rejected because its responsibility is material rendering;

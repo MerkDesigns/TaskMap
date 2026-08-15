@@ -576,7 +576,7 @@ display scaling. Compare target theme, typography, geometry, portal/modal stacki
 surfaces, controlled non-glass fallback, and Liquid DOM over the real DOM canvas against
 `docs/VISUAL-SYSTEM.md` and approved reference captures.
 
-Acceptance must exercise changing text, detailed still images, and animated GIFs behind both Large
+Acceptance must exercise changing text, detailed still images, and static GIF posters behind both Large
 Panel and Small Panel surfaces. Verify that canvas elements themselves contain no Liquid DOM
 materials and that Privacy's CSS backdrop blur remains confined to content obscuring.
 
