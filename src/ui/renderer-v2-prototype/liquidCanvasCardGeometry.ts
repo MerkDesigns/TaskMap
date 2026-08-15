@@ -1,6 +1,7 @@
 import type { Glass, Group, Html } from "@liquid-dom/core";
 import { BENCHMARK_CARD_SLOT_TRANSITION_MS } from "./benchmarkCanvasCardInteraction";
 import { BENCHMARK_CANVAS_BROWSER } from "./benchmarkCanvasBrowserLayout";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 
 const OFFSCREEN_CAPTURE_Y = -100_000;
 
@@ -12,7 +13,7 @@ interface GeometryRecord {
 }
 
 export interface LiquidCanvasCardRecord extends GeometryRecord {
-  readonly id: number;
+  readonly id: CanvasBrowserItemId;
   readonly host: HTMLDivElement;
 }
 
@@ -24,7 +25,7 @@ interface SlotAnimation {
 
 export class LiquidCanvasCardGeometry {
   slotSize = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap;
-  private readonly animations = new Map<number, SlotAnimation>();
+  private readonly animations = new Map<CanvasBrowserItemId, SlotAnimation>();
   syncCount = 0;
 
   resetSyncCount() {
@@ -40,12 +41,12 @@ export class LiquidCanvasCardGeometry {
   }
 
   position(
-    order: readonly number[],
-    records: ReadonlyMap<number, GeometryRecord>,
+    order: readonly CanvasBrowserItemId[],
+    records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>,
     bodyTop: number,
     now: number,
     animate: boolean,
-    excludedId: number | null,
+    excludedId: CanvasBrowserItemId | null,
   ) {
     order.forEach((id, index) => {
       const record = records.get(id);
@@ -65,14 +66,15 @@ export class LiquidCanvasCardGeometry {
   }
 
   syncVisibility(
-    order: readonly number[],
-    records: ReadonlyMap<number, GeometryRecord>,
+    order: readonly CanvasBrowserItemId[],
+    records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>,
     bodyTop: number,
     bodyBottom: number,
     scrollTop: number,
     cardWidth: number,
-    excludedId: number | null,
+    excludedId: CanvasBrowserItemId | null,
   ) {
+    let visibleCount = excludedId === null ? 0 : 1;
     order.forEach((id) => {
       if (id === excludedId) return;
       const record = records.get(id);
@@ -83,6 +85,7 @@ export class LiquidCanvasCardGeometry {
       const visibleHeight = Math.max(0, clippedBottom - clippedTop);
       const clipOffset = visibleHeight > 0 ? clippedTop - top : 0;
       const visible = visibleHeight > 0;
+      if (visible) visibleCount += 1;
 
       // Keep the full-size Html registered in Liquid's shared content atlas. Zero-sized Glass
       // geometry removes the entry and makes the next visible card repack and recopy the atlas.
@@ -97,6 +100,7 @@ export class LiquidCanvasCardGeometry {
       const contentY = -clipOffset;
       if (record.content.y !== contentY) record.content.y = contentY;
     });
+    return visibleCount;
   }
 
   resetFullCardViewport(record: GeometryRecord, cardWidth: number) {
@@ -110,11 +114,15 @@ export class LiquidCanvasCardGeometry {
     record.host.style.transform = "";
   }
 
-  cancel(id: number) {
+  cancel(id: CanvasBrowserItemId) {
     this.animations.delete(id);
   }
 
-  settle(order: readonly number[], records: ReadonlyMap<number, GeometryRecord>, bodyTop: number) {
+  settle(
+    order: readonly CanvasBrowserItemId[],
+    records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>,
+    bodyTop: number,
+  ) {
     this.animations.clear();
     order.forEach((id, index) => {
       const record = records.get(id);
@@ -124,7 +132,7 @@ export class LiquidCanvasCardGeometry {
     });
   }
 
-  tick(now: number, records: ReadonlyMap<number, GeometryRecord>) {
+  tick(now: number, records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>) {
     let changed = false;
     for (const [id, animation] of this.animations) {
       const record = records.get(id);

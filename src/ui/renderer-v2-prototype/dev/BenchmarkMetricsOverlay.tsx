@@ -126,12 +126,12 @@ export function BenchmarkMetricsOverlay({
             </span>
             <strong>Card / Browser captures</strong>
             <span>
-              {integer(liquid.cardCaptureTotal)} / {integer(liquid.browserCaptureTotal)} total Â·{" "}
+              {integer(liquid.cardCaptureTotal)} / {integer(liquid.browserCaptureTotal)} total ·{" "}
               {number(liquid.cardCapturesPerSecond)} / {number(liquid.browserCapturesPerSecond)}/s
             </span>
             <strong>Coarse / unknown captures</strong>
             <span>
-              {integer(liquid.coarseCaptureTotal)} / {integer(liquid.unknownCaptureTotal)} total Â·{" "}
+              {integer(liquid.coarseCaptureTotal)} / {integer(liquid.unknownCaptureTotal)} total ·{" "}
               {number(liquid.coarseCapturesPerSecond)} / {number(liquid.unknownCapturesPerSecond)}/s
             </span>
             <strong>Coarse copied texels / sec</strong>

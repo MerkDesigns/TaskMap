@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BenchmarkSceneStore } from "./benchmarkSceneStore";
+import { benchmarkCanvasId } from "./benchmarkCanvasIds";
 import { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 import { createRendererV2MaterialControls } from "./rendererV2PanelMaterials";
 import { createRendererV2PanelGeometry } from "./rendererV2PanelGeometry";
@@ -101,7 +102,7 @@ describe("LiquidSceneBenchmarkRuntime structure", () => {
     expect(liquidCalls.containers[1]).toMatchObject({ spacing: 0 });
     expect(liquidCalls.glasses).toHaveLength(21);
     expect(runtime.getCounts()).toMatchObject({ containers: 2, glassShapes: 21 });
-    expect(runtime.getCanvasCardHost(19)).toBeInstanceOf(HTMLDivElement);
+    expect(runtime.getCanvasCardHost(benchmarkCanvasId(19))).toBeInstanceOf(HTMLDivElement);
     runtime.destroy();
   });
 

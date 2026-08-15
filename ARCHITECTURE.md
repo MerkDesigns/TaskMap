@@ -459,7 +459,8 @@ The shared material adapter is the only feature-facing Liquid DOM boundary. Mate
 own dimensions, layout, padding, radius, position, or feature behavior. Canvas elements remain
 ordinary React/DOM content and never become Liquid DOM surfaces. Because Liquid DOM operates over
 the live DOM backdrop, acceptance must prove that UI glass blurs/refracts canvas text, images, and
-animated GIFs in packaged Tauri/WebView2 builds.
+static GIF posters/frames in packaged Tauri/WebView2 builds. Animated GIF/video playback is hosted
+in a separate preview or UI surface outside the coarse canvas.
 
 The custom cached Canvas2D acrylic compositor, `BackdropScene` projection for glass, worker/cache
 runtime, mask planes, and compositor invalidation protocol from ADR 003 are superseded. They are

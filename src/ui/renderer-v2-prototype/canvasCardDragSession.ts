@@ -1,11 +1,11 @@
 import type { CanvasCardPointerSession } from "./canvasCardPointerSession";
-import type { CanvasCardDragState } from "./liquidCanvasBrowserTypes";
+import type { CanvasBrowserItemId, CanvasCardDragState } from "./liquidCanvasBrowserTypes";
 
 interface BeginCanvasCardDragOptions {
-  readonly id: number;
+  readonly id: CanvasBrowserItemId;
   readonly event: PointerEvent;
   readonly element: HTMLElement;
-  readonly displayOrder: readonly number[];
+  readonly displayOrder: readonly CanvasBrowserItemId[];
   readonly cardTop: number;
   readonly currentDrag: CanvasCardDragState | null;
   readonly pointerSession: CanvasCardPointerSession;

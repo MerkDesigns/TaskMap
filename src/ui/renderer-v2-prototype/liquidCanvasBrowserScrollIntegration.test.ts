@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BenchmarkSceneStore } from "./benchmarkSceneStore";
+import { benchmarkCanvasId } from "./benchmarkCanvasIds";
 import { pointerEvent, pointerTarget } from "./canvasCardRuntimeTestSupport";
 import { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 
@@ -91,10 +92,14 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     const runtime = new LiquidSceneBenchmarkRuntime(() => {});
     runtime.resize(1_280, 500);
     runtime.reconcile(store.scene);
-    const commits: number[][] = [];
+    const commits: string[][] = [];
     runtime.attachCanvasBrowserOrderCommit((order) => commits.push([...order]));
 
-    runtime.beginCanvasCardDrag(3, pointerEvent("pointerdown", 392), pointerTarget());
+    runtime.beginCanvasCardDrag(
+      benchmarkCanvasId(3),
+      pointerEvent("pointerdown", 392),
+      pointerTarget(),
+    );
     document.dispatchEvent(pointerEvent("pointermove", 650));
     for (let frame = 1; frame <= 12; frame += 1) runtime.tick(frame * 16);
     document.dispatchEvent(pointerEvent("pointerup", 650));
@@ -102,7 +107,7 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     runtime.tick(398);
 
     expect(commits).toHaveLength(1);
-    expect(commits[0]?.indexOf(3)).toBeGreaterThanOrEqual(5);
+    expect(commits[0]?.indexOf(benchmarkCanvasId(3))).toBeGreaterThanOrEqual(5);
     expect(runtime.getCanvasBrowserScrollState().currentScrollY).toBeGreaterThan(150);
     runtime.destroy();
   });
@@ -118,7 +123,11 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     runtime.tick(16);
     const beforeDrag = runtime.getCanvasBrowserScrollState().currentScrollY;
 
-    runtime.beginCanvasCardDrag(3, pointerEvent("pointerdown", 350), pointerTarget());
+    runtime.beginCanvasCardDrag(
+      benchmarkCanvasId(3),
+      pointerEvent("pointerdown", 350),
+      pointerTarget(),
+    );
     document.dispatchEvent(pointerEvent("pointermove", 650));
     runtime.tick(32);
     const duringDrag = runtime.getCanvasBrowserScrollState();
@@ -202,7 +211,7 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     expect(cardHtml).toMatchObject({ y: -9, width: 264, height: 84 });
     expect(cardHtml?.parent).toBe(originalParent);
     expect(diagnosticNodes.html).toHaveLength(htmlNodeCount);
-    expect(runtime.getCanvasCardHost(0)?.style.transform).toBe("");
+    expect(runtime.getCanvasCardHost(benchmarkCanvasId(0))?.style.transform).toBe("");
 
     runtime.scrollCanvasBrowserByWheel(400, 0);
     for (let frame = 101; frame <= 200; frame += 1) runtime.tick(frame * 16);
@@ -224,7 +233,11 @@ describe("Liquid Canvas Browser smooth-scroll drag integration", () => {
     const requestFrame = vi.fn();
     runtime.setFrameRequestListener(requestFrame);
 
-    runtime.beginCanvasCardDrag(2, pointerEvent("pointerdown", 278), pointerTarget());
+    runtime.beginCanvasCardDrag(
+      benchmarkCanvasId(2),
+      pointerEvent("pointerdown", 278),
+      pointerTarget(),
+    );
     document.dispatchEvent(pointerEvent("pointermove", 410));
     expect(requestFrame).toHaveBeenCalled();
     runtime.tick(16);

@@ -11,8 +11,8 @@ export const BENCHMARK_CARD_AUTO_SCROLL_EDGE = BENCHMARK_CARD_AUTO_SCROLL.startI
 export const BENCHMARK_CARD_AUTO_SCROLL_MAX = BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed;
 
 export function calculateCanvasCardInsertionIndex(
-  order: readonly number[],
-  draggedId: number,
+  order: readonly CanvasBrowserItemId[],
+  draggedId: CanvasBrowserItemId,
   centerY: number,
   listTop: number,
   scrollTop: number,
@@ -35,8 +35,8 @@ export function calculateCanvasCardInsertionIndex(
 }
 
 export function reorderCanvasCardToIndex(
-  order: readonly number[],
-  draggedId: number,
+  order: readonly CanvasBrowserItemId[],
+  draggedId: CanvasBrowserItemId,
   targetIndex: number,
 ) {
   const fromIndex = order.indexOf(draggedId);
@@ -102,6 +102,10 @@ function smoothstep(progress: number) {
   return progress * progress * (3 - 2 * progress);
 }
 
-export function haveSameCanvasCardIds(left: readonly number[], right: readonly number[]) {
+export function haveSameCanvasCardIds(
+  left: readonly CanvasBrowserItemId[],
+  right: readonly CanvasBrowserItemId[],
+) {
   return left.length === right.length && left.every((id) => right.includes(id));
 }
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";

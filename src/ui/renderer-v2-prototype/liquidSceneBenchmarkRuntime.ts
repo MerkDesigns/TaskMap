@@ -3,8 +3,10 @@ import { Html, Renderer, Scene } from "@liquid-dom/core";
 import { LiquidCaptureAttribution, type LiquidCaptureOwner } from "./dev/liquidCaptureAttribution";
 import { installLiquidCaptureProbe, type LiquidCaptureProbe } from "./dev/liquidCaptureProbe";
 import { LiquidFrameWakeMetrics } from "./dev/liquidFrameWakeMetrics";
+import { CanvasCardDiagnosticPresentation } from "./dev/canvasCardDiagnosticPresentation";
 import { BENCHMARK_LIQUID_MAX_DPR } from "./benchmarkWorld";
 import { LiquidCanvasBrowserRuntime } from "./liquidCanvasBrowserRuntime";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 import type { BenchmarkLiquidCounts } from "./benchmarkPresentation";
 import type { BenchmarkSceneModel } from "./benchmarkTypes";
 import type { RendererV2MaterialControls } from "./rendererV2PanelMaterials";
@@ -19,6 +21,7 @@ export class LiquidSceneBenchmarkRuntime {
   private readonly renderer: Renderer;
   private readonly backdropNode: Html;
   private readonly browser: LiquidCanvasBrowserRuntime;
+  private readonly browserDiagnostics = new CanvasCardDiagnosticPresentation();
   private probe: LiquidCaptureProbe | null = null;
   private frameRequestListener: ((reason: "capture-completion" | "mutation") => boolean) | null =
     null;
@@ -47,9 +50,13 @@ export class LiquidSceneBenchmarkRuntime {
   ) {
     this.coarseHost.className = "renderer-benchmark__coarse-host";
     this.backdropNode = this.scene.add(new Html({ element: this.coarseHost, zIndex: 0 }));
-    this.browser = new LiquidCanvasBrowserRuntime(this.scene, () => this.requestFrame());
+    this.browser = new LiquidCanvasBrowserRuntime(
+      this.scene,
+      () => this.requestFrame(),
+      this.browserDiagnostics,
+    );
     this.canvasBrowserHost = this.browser.browserHost;
-    this.canvasBrowserPlaceholderOverlay = this.browser.placeholderOverlay;
+    this.canvasBrowserPlaceholderOverlay = this.browserDiagnostics.placeholderOverlay;
     this.renderer = new Renderer({ scene: this.scene, maxDpr: BENCHMARK_LIQUID_MAX_DPR });
     this.canvas = this.renderer.canvas;
     this.canvas.className = "renderer-benchmark__liquid-canvas";
@@ -71,7 +78,9 @@ export class LiquidSceneBenchmarkRuntime {
   setCanvasBrowserDiagnosticMode(
     mode: import("./dev/canvasBrowserDiagnostics").CanvasBrowserDiagnosticMode,
   ) {
-    this.browser.setDiagnosticMode(mode);
+    if (this.browserDiagnostics.mode === mode) return;
+    this.browserDiagnostics.setMode(mode);
+    this.browser.refreshCardPresentation();
   }
 
   setCanvasBrowserAppearance(
@@ -83,7 +92,7 @@ export class LiquidSceneBenchmarkRuntime {
     this.requestFrame();
   }
 
-  attachCanvasBrowserOrderCommit(commitOrder: (order: readonly number[]) => void) {
+  attachCanvasBrowserOrderCommit(commitOrder: (order: readonly CanvasBrowserItemId[]) => void) {
     return this.browser.attachOrderCommit(commitOrder);
   }
 
@@ -132,15 +141,15 @@ export class LiquidSceneBenchmarkRuntime {
     this.rendererRenderCalls += 1;
   }
 
-  getCanvasCardHost(id: number) {
+  getCanvasCardHost(id: CanvasBrowserItemId) {
     return this.browser.getCardHost(id);
   }
 
-  beginCanvasCardDrag(id: number, event: PointerEvent, element: HTMLElement) {
+  beginCanvasCardDrag(id: CanvasBrowserItemId, event: PointerEvent, element: HTMLElement) {
     return this.browser.beginCardDrag(id, event, element);
   }
 
-  consumeSuppressedCanvasCardClick(id: number) {
+  consumeSuppressedCanvasCardClick(id: CanvasBrowserItemId) {
     return this.browser.consumeSuppressedClick(id);
   }
 

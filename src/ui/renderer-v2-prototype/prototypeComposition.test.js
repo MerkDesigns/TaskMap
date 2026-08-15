@@ -28,10 +28,37 @@ describe("canonical Renderer V2 prototype composition", () => {
       "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
       "utf8",
     );
+    const browserScene = await readFile(
+      "src/ui/renderer-v2-prototype/liquidCanvasBrowserScene.ts",
+      "utf8",
+    );
 
     expect(component).not.toContain("@liquid-dom/core");
     expect(runtime).toContain('from "@liquid-dom/core"');
-    expect(browserRuntime).toContain('from "@liquid-dom/core"');
+    expect(browserRuntime).not.toContain("@liquid-dom/core");
+    expect(browserScene).toContain('from "@liquid-dom/core"');
+  });
+
+  it("keeps reusable Canvas Browser modules independent from DEV diagnostics", async () => {
+    const reusableModules = await Promise.all(
+      [
+        "benchmarkCanvasCardInteraction.ts",
+        "canvasCardDragSession.ts",
+        "canvasCardPointerSession.ts",
+        "liquidCanvasBrowserAppearance.ts",
+        "liquidCanvasBrowserMetrics.ts",
+        "liquidCanvasBrowserPresentation.ts",
+        "liquidCanvasBrowserRuntime.ts",
+        "liquidCanvasBrowserTypes.ts",
+        "liquidCanvasCardFactory.ts",
+        "liquidCanvasCardGeometry.ts",
+      ].map((file) => readFile(`src/ui/renderer-v2-prototype/${file}`, "utf8")),
+    );
+
+    for (const source of reusableModules) {
+      expect(source).not.toMatch(/from ["'][^"']*\/dev\//);
+      expect(source).not.toMatch(/from ["']\.\/dev\//);
+    }
   });
 
   it("contains only the selected coarse architecture and no architecture selector", async () => {

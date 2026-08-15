@@ -47,6 +47,14 @@ const LEGACY_TARGET_FILES = new Set([
   "src/extensions/registry.ts",
   "src/extensions/useExtensionDrag.ts",
 ]);
+const DIRECT_LIQUID_IMPORT_ALLOWLIST = new Set([
+  "src/ui/materials/liquid-dom/liquidDomRuntime.ts",
+  "src/ui/renderer-v2-prototype/liquidCanvasBrowserScene.ts",
+  "src/ui/renderer-v2-prototype/liquidCanvasCardGeometry.ts",
+  "src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts",
+]);
+const PORTABLE_RENDERER_V2_FILE =
+  /^src\/ui\/renderer-v2-prototype\/(?:benchmarkCanvasCardInteraction|canvasBrowser|canvasCard|liquidCanvasBrowser|liquidCanvasCard)/;
 
 async function pathExists(target) {
   try {
@@ -115,6 +123,36 @@ for (const file of allSourceFiles) {
 
   if (importsTauri(source) && area !== "platform" && !LEGACY_TAURI_IMPORTS.has(rel)) {
     violations.push(`${rel}: only src/platform may add @tauri-apps imports`);
+  }
+
+  if (
+    importSpecifiers(source).includes("@liquid-dom/core") &&
+    !DIRECT_LIQUID_IMPORT_ALLOWLIST.has(rel)
+  ) {
+    violations.push(
+      `${rel}: direct Liquid DOM imports belong in approved renderer/material adapters`,
+    );
+  }
+
+  if (PORTABLE_RENDERER_V2_FILE.test(rel)) {
+    const forbiddenImports = importSpecifiers(source).filter(
+      (specifier) =>
+        /(?:^|\/)dev(?:\/|$)/.test(specifier) ||
+        /(?:^|\/)(?:app|domain|platform|legacy)(?:\/|$)/.test(specifier) ||
+        /(?:@tauri-apps|react-redux|@reduxjs\/toolkit)/.test(specifier),
+    );
+    if (forbiddenImports.length > 0) {
+      violations.push(
+        `${rel}: portable Canvas Browser code must not import DEV, application, domain, persistence, Redux, or Tauri modules`,
+      );
+    }
+  }
+
+  if (
+    rel !== "src/ui/materials/liquid-dom/materialRoles.ts" &&
+    /\b(?:LIQUID_MATERIAL_OPTICS|RENDERER_V2_PANEL_OPTICS(?:_BACKUP)?)\s*=/.test(source)
+  ) {
+    violations.push(`${rel}: Large/Small panel optics must be defined only in materialRoles.ts`);
   }
 }
 

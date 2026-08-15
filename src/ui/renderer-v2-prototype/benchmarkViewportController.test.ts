@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { worldToScreen } from "../../canvas/geometry/viewportMath";
 import { BenchmarkSceneStore } from "./benchmarkSceneStore";
+import { benchmarkCanvasId } from "./benchmarkCanvasIds";
 import { BenchmarkViewportController } from "./benchmarkViewportController";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -61,17 +62,17 @@ describe("benchmark viewport controller", () => {
     const controller = new BenchmarkViewportController(store);
     controller.resize({ width: 1200, height: 800 });
 
-    controller.selectCanvas(2);
-    expect(store.scene.activeCanvasCardId).toBe(2);
+    controller.selectCanvas(benchmarkCanvasId(2));
+    expect(store.scene.activeCanvasCardId).toBe(benchmarkCanvasId(2));
     expect(store.scene.camera.pan).toEqual({ x: 24, y: 28 });
     controller.beginPan(9, { x: 0, y: 0 });
     controller.updatePan(9, { x: 30, y: 20 });
     controller.endPan(9);
     const canvasTwoCamera = store.scene.camera;
 
-    controller.selectCanvas(0);
+    controller.selectCanvas(benchmarkCanvasId(0));
     expect(store.scene.camera.pan).toEqual({ x: 80, y: 64 });
-    controller.selectCanvas(2);
+    controller.selectCanvas(benchmarkCanvasId(2));
     expect(store.scene.camera).toBe(canvasTwoCamera);
   });
 });

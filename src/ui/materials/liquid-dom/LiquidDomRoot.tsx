@@ -1,7 +1,6 @@
 import {
   type HTMLAttributes,
   type ReactNode,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -40,7 +39,7 @@ export function LiquidDomRoot({ backdrop, children, className, ...props }: Liqui
 
     let nextRuntime: LiquidDomRuntime;
     try {
-      nextRuntime = createLiquidDomRuntime();
+      nextRuntime = createLiquidDomRuntime(() => setRuntimeFailed(true));
     } catch {
       setRuntimeFailed(true);
       return;
@@ -60,32 +59,6 @@ export function LiquidDomRoot({ backdrop, children, className, ...props }: Liqui
       setRuntime(null);
     };
   }, []);
-
-  useEffect(() => {
-    if (!runtime) {
-      return;
-    }
-
-    let frame = 0;
-    let stopped = false;
-    const renderFrame = () => {
-      if (stopped) {
-        return;
-      }
-      try {
-        runtime.render();
-        frame = requestAnimationFrame(renderFrame);
-      } catch {
-        setRuntimeFailed(true);
-      }
-    };
-    frame = requestAnimationFrame(renderFrame);
-
-    return () => {
-      stopped = true;
-      cancelAnimationFrame(frame);
-    };
-  }, [runtime]);
 
   const activeRuntime = runtimeFailed ? null : runtime;
   const contextValue = useMemo(

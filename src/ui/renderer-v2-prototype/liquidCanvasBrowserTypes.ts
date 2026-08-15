@@ -1,3 +1,5 @@
+export type CanvasBrowserItemId = string;
+
 export interface CanvasBrowserRuntimeCounts {
   readonly html: number;
   readonly containers: number;
@@ -12,13 +14,13 @@ export interface CanvasBrowserRuntimeCounts {
 }
 
 export interface CanvasCardDragState {
-  readonly id: number;
+  readonly id: CanvasBrowserItemId;
   readonly pointerId: number;
   readonly startY: number;
   readonly pointerOffsetY: number;
-  readonly initialOrder: readonly number[];
+  readonly initialOrder: readonly CanvasBrowserItemId[];
   pointerY: number;
-  order: readonly number[];
+  order: readonly CanvasBrowserItemId[];
   active: boolean;
   finish: "commit" | "cancel" | null;
   snapStartedAt: number | null;

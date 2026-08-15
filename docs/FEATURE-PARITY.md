@@ -83,14 +83,14 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 
 ## Visual system
 
-| Feature                          | Decision                         | Required behavior                                                                       | Status                             |
-| -------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------- |
-| Liquid DOM UI glass              | Redesign approved                | Match `docs/VISUAL-SYSTEM.md`; refract live DOM canvas text, images, and GIFs           | Renderer-v2 implementation pending |
-| Existing frosted/acrylic systems | Supersede by decision            | Retain only as historical baseline evidence; do not reuse their frontend implementation | Renderer-v2 implementation pending |
-| Frosted-glass tuner              | Remove                           | No production or development tuner remains                                              | Removed by decision                |
-| Menus and modals                 | Keep behavior; redesign material | Preserve motion, placement, semantics, and workflow; use Mantine and approved materials | Renderer-v2 implementation pending |
-| Element animations               | Keep                             | Preserve useful entry, delete, drag, and settle behavior                                | Not documented                     |
-| Toasts and feedback              | Keep                             | Preserve clear operation and error feedback                                             | Not documented                     |
+| Feature                          | Decision                         | Required behavior                                                                                  | Status                             |
+| -------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Liquid DOM UI glass              | Redesign approved                | Match `docs/VISUAL-SYSTEM.md`; refract live DOM canvas text, images, and static GIF posters/frames | Renderer-v2 implementation pending |
+| Existing frosted/acrylic systems | Supersede by decision            | Retain only as historical baseline evidence; do not reuse their frontend implementation            | Renderer-v2 implementation pending |
+| Frosted-glass tuner              | Remove                           | No production or development tuner remains                                                         | Removed by decision                |
+| Menus and modals                 | Keep behavior; redesign material | Preserve motion, placement, semantics, and workflow; use Mantine and approved materials            | Renderer-v2 implementation pending |
+| Element animations               | Keep                             | Preserve useful entry, delete, drag, and settle behavior                                           | Not documented                     |
+| Toasts and feedback              | Keep                             | Preserve clear operation and error feedback                                                        | Not documented                     |
 
 ## Persistence and configuration
 

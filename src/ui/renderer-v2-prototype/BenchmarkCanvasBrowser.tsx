@@ -1,16 +1,18 @@
 import { useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import type { BenchmarkCanvasCardPresentation } from "./benchmarkCanvasBrowserLayout";
+import { benchmarkCanvasNumber } from "./benchmarkCanvasIds";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
 
 interface Props {
   readonly canvasCardCount: number;
-  readonly canvasCardOrder: readonly number[];
-  readonly activeCanvasCardId: number;
+  readonly canvasCardOrder: readonly CanvasBrowserItemId[];
+  readonly activeCanvasCardId: CanvasBrowserItemId;
   readonly cardPresentation: BenchmarkCanvasCardPresentation;
   readonly runtime: LiquidSceneBenchmarkRuntime;
-  readonly onOrderCommit: (order: readonly number[]) => void;
-  readonly onSelect: (id: number) => void;
+  readonly onOrderCommit: (order: readonly CanvasBrowserItemId[]) => void;
+  readonly onSelect: (id: CanvasBrowserItemId) => void;
 }
 
 export function BenchmarkCanvasBrowser({
@@ -78,16 +80,17 @@ function BenchmarkCanvasCardContent({
   runtime,
   onSelect,
 }: {
-  id: number;
+  id: CanvasBrowserItemId;
   active: boolean;
   cardPresentation: BenchmarkCanvasCardPresentation;
   runtime: LiquidSceneBenchmarkRuntime;
-  onSelect: (id: number) => void;
+  onSelect: (id: CanvasBrowserItemId) => void;
 }) {
+  const displayNumber = benchmarkCanvasNumber(id);
   return (
     <article
       className={`renderer-benchmark__canvas-card ${active ? "is-active" : ""}`}
-      data-benchmark-canvas-card={id + 1}
+      data-benchmark-canvas-card={displayNumber}
       data-benchmark-glass="canvas-card"
       aria-current={active ? "true" : undefined}
       onPointerDown={(event) => {
@@ -111,13 +114,13 @@ function BenchmarkCanvasCardContent({
         <rect x="19" y="34" width="24" height="11" rx="3" />
       </svg>
       <div className="renderer-benchmark__canvas-card-copy">
-        <strong>{formatCardText(cardPresentation.largeText, id, active)}</strong>
-        <span>{formatCardText(cardPresentation.smallText, id, active)}</span>
+        <strong>{formatCardText(cardPresentation.largeText, displayNumber, active)}</strong>
+        <span>{formatCardText(cardPresentation.smallText, displayNumber, active)}</span>
       </div>
       <button
         type="button"
         className="renderer-benchmark__canvas-card-options"
-        aria-label={`Canvas ${id + 1} options`}
+        aria-label={`Canvas ${displayNumber} options`}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
@@ -127,10 +130,10 @@ function BenchmarkCanvasCardContent({
   );
 }
 
-function formatCardText(template: string, id: number, active: boolean) {
+function formatCardText(template: string, displayNumber: number, active: boolean) {
   return template
     .split("{number}")
-    .join(String(id + 1))
+    .join(String(displayNumber))
     .split("{status}")
     .join(active ? "Active" : "TaskMap");
 }

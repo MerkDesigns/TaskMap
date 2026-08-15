@@ -40,7 +40,8 @@ The old Command Runner is replaced by a structured Workflow Runner that stores e
 13. Canvas elements render as ordinary React/DOM content. They must not use Liquid DOM materials.
 14. Application glass is implemented behind the shared material boundary with `@liquid-dom/core`.
     It must be capable of blurring and refracting the live canvas DOM, including text, images, and
-    animated GIFs. Do not add another application-owned acrylic compositor.
+    static GIF posters/frames. Animated GIF and video playback belongs in a separate preview or UI
+    surface. Do not add another application-owned acrylic compositor.
 15. Mantine is the standard React component library for controls, menus, dialogs, inputs, and
     related UI. Mantine owns control behavior and accessibility; Liquid DOM owns glass/material
     rendering. Keep both dependencies behind intentional UI boundaries.

@@ -70,7 +70,7 @@ local/reference capture without rewriting or deleting this historical record.
 - [ ] Import image by drag and drop
 - [ ] Paste image from clipboard
 - [ ] Transparent image background behavior
-- [ ] Animated GIF playback
+- [ ] Static GIF poster/frame on canvas and animated playback in the separate preview/UI surface
 - [ ] Mind-map node creation
 - [ ] Connection creation from each port
 - [ ] Connection deletion

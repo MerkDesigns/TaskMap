@@ -8,6 +8,9 @@ import {
   DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION,
 } from "./benchmarkCanvasBrowserLayout";
 import type { LiquidSceneBenchmarkRuntime } from "./liquidSceneBenchmarkRuntime";
+import { benchmarkCanvasId } from "./benchmarkCanvasIds";
+
+const ids = [0, 1, 2].map(benchmarkCanvasId);
 
 afterEach(() => {
   cleanup();
@@ -18,7 +21,7 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
   it("selects one card and routes card wheel input to browser scrolling", () => {
     const browserHost = document.createElement("div");
     const cardHosts = new Map(
-      [0, 1, 2].map((id) => {
+      ids.map((id) => {
         const host = document.createElement("div");
         document.body.append(host);
         return [id, host] as const;
@@ -32,7 +35,7 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
       canvasBrowserHost: browserHost,
       attachCanvasBrowserOrderCommit: () => () => undefined,
       scrollCanvasBrowserByWheel: scrollByWheel,
-      getCanvasCardHost: (id: number) => cardHosts.get(id) ?? null,
+      getCanvasCardHost: (id: string) => cardHosts.get(id) ?? null,
       beginCanvasCardDrag: vi.fn(),
       consumeSuppressedCanvasCardClick: () => false,
     } as unknown as LiquidSceneBenchmarkRuntime;
@@ -41,8 +44,8 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
       <div onWheel={canvasWheel}>
         <BenchmarkCanvasBrowser
           canvasCardCount={3}
-          canvasCardOrder={[0, 1, 2]}
-          activeCanvasCardId={0}
+          canvasCardOrder={ids}
+          activeCanvasCardId={ids[0]}
           cardPresentation={DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION}
           runtime={runtime}
           onOrderCommit={vi.fn()}
@@ -60,13 +63,13 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
 
     expect(scrollByWheel).toHaveBeenCalledWith(72, 0);
     expect(canvasWheel).not.toHaveBeenCalled();
-    expect(onSelect).toHaveBeenCalledWith(1);
+    expect(onSelect).toHaveBeenCalledWith(ids[1]);
   });
 
   it("moves the active indicator on the first click after cards reorder", () => {
     const browserHost = document.createElement("div");
     const cardHosts = new Map(
-      [0, 1, 2].map((id) => {
+      ids.map((id) => {
         const host = document.createElement("div");
         document.body.append(host);
         return [id, host] as const;
@@ -77,17 +80,17 @@ describe("BenchmarkCanvasBrowser input and selection", () => {
       canvasBrowserHost: browserHost,
       attachCanvasBrowserOrderCommit: () => () => undefined,
       scrollCanvasBrowserByWheel: vi.fn(),
-      getCanvasCardHost: (id: number) => cardHosts.get(id) ?? null,
+      getCanvasCardHost: (id: string) => cardHosts.get(id) ?? null,
       beginCanvasCardDrag: vi.fn(),
       consumeSuppressedCanvasCardClick: () => false,
     } as unknown as LiquidSceneBenchmarkRuntime;
 
     function SelectionHarness() {
-      const [activeId, setActiveId] = useState(0);
+      const [activeId, setActiveId] = useState(ids[0]);
       return (
         <BenchmarkCanvasBrowser
           canvasCardCount={3}
-          canvasCardOrder={[2, 0, 1]}
+          canvasCardOrder={[ids[2], ids[0], ids[1]]}
           activeCanvasCardId={activeId}
           cardPresentation={DEFAULT_BENCHMARK_CANVAS_CARD_PRESENTATION}
           runtime={runtime}

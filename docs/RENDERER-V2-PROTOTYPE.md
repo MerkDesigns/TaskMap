@@ -25,6 +25,18 @@ Development-only controls, tuning UI, diagnostics, metrics, and capture instrume
 into the final application. Reusable renderer runtime, materials, panel geometry, Canvas Browser
 behavior, and modular Canvas Elements remain outside that boundary.
 
+Portable Renderer V2 presentation consumes renderer-facing data and callbacks only. Canvas Browser
+identity is a string compatible with the domain's opaque `CanvasId`; feature adapters provide
+`items`, `activeId`, `onSelect(id)`, and `onReorder(order)` without exposing Redux, persistence,
+history, Tauri, database, domain-command, or architecture-v1 workspace internals. The benchmark
+uses that same implementation with synthetic `benchmark-canvas-*` IDs. Settings follows the same
+shape: feature state and callbacks feed a Mantine presentation through the shared material boundary.
+
+The general Liquid material adapter owns one shared Container per material role and places surfaces
+in role-local stacking contexts. Its scheduler is invalidation-based: surface/backdrop geometry and
+Liquid paint completion request coalesced frames rather than establishing a permanent RAF loop.
+Panel geometry remains outside optical roles.
+
 Synthetic canvases, canvas elements, selection, camera state, and controls remain the prototype's
 state model; do not connect them to persistence yet.
 

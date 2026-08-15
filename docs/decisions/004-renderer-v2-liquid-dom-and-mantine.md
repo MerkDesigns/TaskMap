@@ -44,6 +44,10 @@ A role selects optical treatment. Width, height, padding, radius, position, and 
 belong to the consuming component or layout pattern and are not material properties. Features do
 not instantiate or tune Liquid DOM independently.
 
+The shared adapter batches surfaces into one Container per material role where practical and uses
+invalidation-driven rendering. Mount, geometry, DOM paint completion, and discrete state changes
+request coalesced frames; the adapter does not own a permanent animation loop.
+
 The Liquid DOM integration must blur and refract the live canvas DOM beneath UI surfaces, including
 text, images, and static GIF posters/frames. The architecture-v1 cached Canvas2D compositor, its projected
 `BackdropScene`, worker/fallback cache, output planes, masks, and invalidation protocol are not used

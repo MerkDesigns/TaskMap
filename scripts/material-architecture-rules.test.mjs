@@ -68,7 +68,7 @@ describe("transitional material architecture rules", () => {
   });
 
   it.each([
-    "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
+    "src/ui/renderer-v2-prototype/liquidCanvasBrowserScene.ts",
     "src/ui/renderer-v2-prototype/liquidCanvasCardGeometry.ts",
     "src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts",
   ])("accepts a canonical prototype Liquid DOM adapter: %s", (path) => {

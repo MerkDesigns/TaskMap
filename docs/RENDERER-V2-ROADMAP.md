@@ -30,8 +30,8 @@ before the affected implementation is accepted:
   WebView2, and content-security-policy setup?
 - Which exact Liquid DOM parameters distinguish Large Panel and Small Panel while matching the
   approved TaskMap visual direction?
-- Does Liquid DOM continuously sample animated GIF frames and transformed DOM content with acceptable
-  quality and cost across supported WebView2/display-scale combinations?
+- Does Liquid DOM sample discrete DOM/content changes with acceptable quality and cost across
+  supported WebView2/display-scale combinations?
 - What exact non-glass fallback tokens and activation criteria provide legible degraded behavior?
 - Which architecture-v1 geometry/interaction/virtualization modules can be reused unchanged, and
   which need renderer-facing adapters without importing legacy models or views?
@@ -66,8 +66,8 @@ before broad feature work.
   platform clients.
 - Establish Mantine theme/token integration without putting product state into the UI library.
 - Implement one shared Liquid DOM adapter exposing only Large Panel and Small Panel roles.
-- Prove that glass samples live DOM text, images, and animated GIFs in development and stable
-  Tauri/WebView2 packages.
+- Prove that glass samples live DOM text, images, and static GIF posters/frames in development and
+  stable Tauri/WebView2 packages. Animated playback is verified in its separate preview/UI surface.
 - Prove reduced-motion, keyboard navigation, focus visibility, portal stacking, and controlled
   non-glass fallback behavior.
 
@@ -101,7 +101,8 @@ Connect the retained document workspace to a new DOM canvas while protecting the
   per pointer sample.
 - A changed completed drag or resize creates exactly one persistent transaction; cancellation and
   no-op completion create none.
-- Normal React/DOM text, image, and animated-GIF elements remain visible and animate beneath glass.
+- Normal React/DOM text, image, and static GIF-poster elements remain visible beneath glass;
+  discrete interaction/state changes recapture correctly.
 - Deterministic interaction and 10,000-element culling gates pass; release-mode FPS evidence is
   recorded before final acceptance.
 
@@ -124,8 +125,8 @@ Liquid DOM.
 
 - Every element type is explicitly registered and independently tested.
 - No element-specific switch accumulates in the generic canvas or shell.
-- Images/GIFs are lazy-loaded, media bytes never enter Redux, and visible GIF playback remains
-  responsive.
+- Images/GIF posters are lazy-loaded, media bytes never enter Redux, and animated playback in the
+  separate preview/UI surface remains responsive.
 
 ## Phase 4 — Extensions
 
@@ -180,7 +181,8 @@ administrator elevation.
 - Complete the retained-feature checklist with screenshots/recordings and manual verification.
 - Run normal and stress fixtures in release-mode packaged Windows builds.
 - Measure pan, zoom, drag, resize, selector/render counts, media scheduling, and Liquid DOM behavior
-  over live text, images, and animated GIFs.
+  over live text, images, and static GIF posters/frames. Measure animated playback separately in its
+  preview/UI surface.
 - Validate keyboard, screen-reader semantics, reduced motion, display scaling, modal/portal stacking,
   stable/dev isolation, recovery, updater, and session lifecycle.
 - Remove or archive superseded frontend implementation only in explicit cleanup changes after the

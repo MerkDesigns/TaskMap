@@ -6,6 +6,8 @@ import type {
   BenchmarkSceneCounts,
   BenchmarkSceneModel,
 } from "./benchmarkTypes";
+import { benchmarkCanvasId, benchmarkCanvasIndex } from "./benchmarkCanvasIds";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 
 export interface BenchmarkGeometryCommit {
   readonly x: number;
@@ -58,8 +60,8 @@ export class BenchmarkSceneStore {
     this.scene = {
       elements: [],
       canvasCardCount: 5,
-      canvasCardOrder: [0, 1, 2, 3, 4],
-      activeCanvasCardId: 0,
+      canvasCardOrder: Array.from({ length: 5 }, (_, index) => benchmarkCanvasId(index)),
+      activeCanvasCardId: benchmarkCanvasId(0),
       camera: createViewport({ x: 80, y: 64 }, 1, { width: 0, height: 0 }),
       animations: { moveCards: false, moveImage: false, showGif: false },
     };
@@ -69,20 +71,21 @@ export class BenchmarkSceneStore {
 
   setCanvasCardCount(count: number) {
     const target = clampCanvasCardCount(count);
-    const retained = this.scene.canvasCardOrder.filter((id) => id < target);
+    const retained = this.scene.canvasCardOrder.filter((id) => benchmarkCanvasIndex(id) < target);
     const retainedIds = new Set(retained);
-    for (let id = 0; id < target; id += 1) {
+    for (let index = 0; index < target; index += 1) {
+      const id = benchmarkCanvasId(index);
       if (!retainedIds.has(id)) retained.push(id);
     }
     this.scene.canvasCardCount = target;
     this.scene.canvasCardOrder = retained;
     if (!retained.includes(this.scene.activeCanvasCardId)) {
-      this.scene.activeCanvasCardId = retained[0] ?? 0;
+      this.scene.activeCanvasCardId = retained[0] ?? benchmarkCanvasId(0);
     }
     this.commit();
   }
 
-  selectCanvasCard(id: number, camera = this.scene.camera) {
+  selectCanvasCard(id: CanvasBrowserItemId, camera = this.scene.camera) {
     if (!this.scene.canvasCardOrder.includes(id)) return false;
     this.scene.activeCanvasCardId = id;
     this.scene.camera = camera;
@@ -90,7 +93,7 @@ export class BenchmarkSceneStore {
     return true;
   }
 
-  commitCanvasCardOrder(order: readonly number[]) {
+  commitCanvasCardOrder(order: readonly CanvasBrowserItemId[]) {
     if (!isCanvasCardPermutation(order, this.scene.canvasCardCount)) return false;
     this.scene.canvasCardOrder = [...order];
     this.commit();
@@ -172,11 +175,10 @@ export class BenchmarkSceneStore {
   }
 }
 
-function isCanvasCardPermutation(order: readonly number[], count: number) {
+function isCanvasCardPermutation(order: readonly CanvasBrowserItemId[], count: number) {
+  const expected = new Set(Array.from({ length: count }, (_, index) => benchmarkCanvasId(index)));
   return (
-    order.length === count &&
-    new Set(order).size === count &&
-    order.every((id) => Number.isInteger(id) && id >= 0 && id < count)
+    order.length === count && new Set(order).size === count && order.every((id) => expected.has(id))
   );
 }
 

@@ -6,6 +6,7 @@ import {
   clampCanvasElementCount,
   deterministicElementPosition,
 } from "./benchmarkSceneStore";
+import { benchmarkCanvasId } from "./benchmarkCanvasIds";
 
 describe("renderer benchmark scene store", () => {
   it("clamps Canvas Cards to integer values from 1 through 20", () => {
@@ -47,21 +48,22 @@ describe("renderer benchmark scene store", () => {
     const store = new BenchmarkSceneStore();
     const version = store.getVersion();
 
-    expect(store.commitCanvasCardOrder([2, 0, 1, 3, 4])).toBe(true);
+    const reordered = [2, 0, 1, 3, 4].map(benchmarkCanvasId);
+    expect(store.commitCanvasCardOrder(reordered)).toBe(true);
 
-    expect(store.scene.canvasCardOrder).toEqual([2, 0, 1, 3, 4]);
+    expect(store.scene.canvasCardOrder).toEqual(reordered);
     expect(store.getVersion()).toBe(version + 1);
-    expect(store.commitCanvasCardOrder([0, 0, 1, 2, 3])).toBe(false);
+    expect(store.commitCanvasCardOrder([0, 0, 1, 2, 3].map(benchmarkCanvasId))).toBe(false);
   });
 
   it("tracks exactly one active Canvas Card and falls back when its card is removed", () => {
     const store = new BenchmarkSceneStore();
-    expect(store.selectCanvasCard(4)).toBe(true);
-    expect(store.scene.activeCanvasCardId).toBe(4);
-    expect(store.selectCanvasCard(30)).toBe(false);
+    expect(store.selectCanvasCard(benchmarkCanvasId(4))).toBe(true);
+    expect(store.scene.activeCanvasCardId).toBe(benchmarkCanvasId(4));
+    expect(store.selectCanvasCard(benchmarkCanvasId(30))).toBe(false);
 
     store.setCanvasCardCount(3);
-    expect(store.scene.activeCanvasCardId).toBe(0);
+    expect(store.scene.activeCanvasCardId).toBe(benchmarkCanvasId(0));
   });
 
   it("uses deterministic bulk positions and resets that sequence when clearing", () => {

@@ -10,29 +10,51 @@ import {
   calculateCanvasCardInsertionIndex,
   reorderCanvasCardToIndex,
 } from "./benchmarkCanvasCardInteraction";
+import { benchmarkCanvasId } from "./benchmarkCanvasIds";
+
+const ids = Array.from({ length: 6 }, (_, index) => benchmarkCanvasId(index));
 
 describe("benchmark Canvas Card physical reorder math", () => {
   it("derives an absolute insertion slot from the current center and scroll position", () => {
-    const order = [0, 1, 2, 3, 4];
-    const down = calculateCanvasCardInsertionIndex(order, 2, 410, 74, 0, 92);
-    const up = calculateCanvasCardInsertionIndex(order, 2, 150, 74, 0, 92);
+    const order = ids.slice(0, 5);
+    const down = calculateCanvasCardInsertionIndex(order, ids[2], 410, 74, 0, 92);
+    const up = calculateCanvasCardInsertionIndex(order, ids[2], 150, 74, 0, 92);
 
-    expect(reorderCanvasCardToIndex(order, 2, down)).toEqual([0, 1, 3, 2, 4]);
-    expect(reorderCanvasCardToIndex(order, 2, up)).toEqual([0, 2, 1, 3, 4]);
+    expect(reorderCanvasCardToIndex(order, ids[2], down)).toEqual([
+      ids[0],
+      ids[1],
+      ids[3],
+      ids[2],
+      ids[4],
+    ]);
+    expect(reorderCanvasCardToIndex(order, ids[2], up)).toEqual([
+      ids[0],
+      ids[2],
+      ids[1],
+      ids[3],
+      ids[4],
+    ]);
   });
 
   it("changes insertion while the center is stationary and only scroll moves", () => {
-    const order = [0, 1, 2, 3, 4];
-    expect(calculateCanvasCardInsertionIndex(order, 2, 300, 74, 0, 92)).toBe(2);
-    expect(calculateCanvasCardInsertionIndex(order, 2, 300, 74, 120, 92)).toBe(3);
+    const order = ids.slice(0, 5);
+    expect(calculateCanvasCardInsertionIndex(order, ids[2], 300, 74, 0, 92)).toBe(2);
+    expect(calculateCanvasCardInsertionIndex(order, ids[2], 300, 74, 120, 92)).toBe(3);
   });
 
   it("supports deterministic multi-slot movement and preserves identity at the same slot", () => {
-    const order = [0, 1, 2, 3, 4, 5];
-    const target = calculateCanvasCardInsertionIndex(order, 1, 580, 74, 0, 92);
+    const order = [...ids];
+    const target = calculateCanvasCardInsertionIndex(order, ids[1], 580, 74, 0, 92);
     expect(target).toBe(5);
-    expect(reorderCanvasCardToIndex(order, 1, target)).toEqual([0, 2, 3, 4, 5, 1]);
-    expect(reorderCanvasCardToIndex(order, 1, 1)).toBe(order);
+    expect(reorderCanvasCardToIndex(order, ids[1], target)).toEqual([
+      ids[0],
+      ids[2],
+      ids[3],
+      ids[4],
+      ids[5],
+      ids[1],
+    ]);
+    expect(reorderCanvasCardToIndex(order, ids[1], 1)).toBe(order);
   });
 
   it("clamps only the reorder coordinate when the pointer is outside the browser", () => {

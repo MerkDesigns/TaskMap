@@ -78,7 +78,6 @@ export class LiquidCanvasBrowserAppearance {
   smallPanelOptions(zIndex: number) {
     return {
       ...rendererV2OpticsWithControls("small-panel", this.controls["small-panel"]),
-      spacing: 0,
       zIndex,
     };
   }

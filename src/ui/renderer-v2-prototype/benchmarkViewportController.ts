@@ -6,6 +6,8 @@ import {
 } from "../../canvas/geometry/viewportMath";
 import type { CanvasPoint, CanvasSize } from "../../canvas/geometry/canvasGeometry";
 import type { BenchmarkSceneStore } from "./benchmarkSceneStore";
+import { benchmarkCanvasIndex } from "./benchmarkCanvasIds";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 
 interface PanGesture {
   pointerId: number;
@@ -17,7 +19,10 @@ export class BenchmarkViewportController {
   private frame: number | null = null;
   private presenter: (() => void) | null = null;
   private visibilityPublisher: (() => void) | null = null;
-  private readonly canvasViewports = new Map<number, ReturnType<typeof createViewport>>();
+  private readonly canvasViewports = new Map<
+    CanvasBrowserItemId,
+    ReturnType<typeof createViewport>
+  >();
 
   constructor(private readonly store: BenchmarkSceneStore) {}
 
@@ -74,14 +79,15 @@ export class BenchmarkViewportController {
     this.schedule();
   }
 
-  selectCanvas(id: number) {
+  selectCanvas(id: CanvasBrowserItemId) {
     const currentId = this.store.scene.activeCanvasCardId;
     if (currentId === id || !this.store.scene.canvasCardOrder.includes(id)) return;
     this.canvasViewports.set(currentId, this.store.scene.camera);
     const screen = this.store.scene.camera.screen;
+    const canvasIndex = benchmarkCanvasIndex(id);
     const next =
       this.canvasViewports.get(id) ??
-      createViewport({ x: 80 - id * 28, y: 64 - id * 18 }, 1, screen);
+      createViewport({ x: 80 - canvasIndex * 28, y: 64 - canvasIndex * 18 }, 1, screen);
     this.store.selectCanvasCard(id, next);
     this.schedule();
     this.publishVisibilityNow();

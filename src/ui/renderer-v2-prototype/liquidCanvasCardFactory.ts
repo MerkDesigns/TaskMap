@@ -3,7 +3,7 @@ import {
   calculateCanvasBrowserLayout,
 } from "./benchmarkCanvasBrowserLayout";
 import type { LiquidCanvasCardRecord } from "./liquidCanvasCardGeometry";
-import type { CanvasCardDiagnosticPresentation } from "./dev/canvasCardDiagnosticPresentation";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 
 type CardGroup = LiquidCanvasCardRecord["group"];
 type CardGlass = LiquidCanvasCardRecord["glass"];
@@ -17,8 +17,18 @@ export interface LiquidCanvasCardFactories {
   createHtml: (host: HTMLDivElement) => CardHtml;
 }
 
-export function removeLiquidCanvasCardRecords(cards: ReadonlyMap<number, LiquidCanvasCardRecord>) {
-  cards.forEach(({ content, glass, group }) => {
+export interface LiquidCanvasCardLifecycle {
+  added(record: LiquidCanvasCardRecord): void;
+  removing(record: LiquidCanvasCardRecord): void;
+}
+
+export function removeLiquidCanvasCardRecords(
+  cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>,
+  lifecycle: LiquidCanvasCardLifecycle,
+) {
+  cards.forEach((record) => {
+    lifecycle.removing(record);
+    const { content, glass, group } = record;
     content.remove();
     glass.remove();
     group.remove();
@@ -26,11 +36,11 @@ export function removeLiquidCanvasCardRecords(cards: ReadonlyMap<number, LiquidC
 }
 
 export function reconcileLiquidCanvasCardRecords(
-  cards: Map<number, LiquidCanvasCardRecord>,
-  order: readonly number[],
+  cards: Map<CanvasBrowserItemId, LiquidCanvasCardRecord>,
+  order: readonly CanvasBrowserItemId[],
   scrollGroup: CardGroup,
   cardWidth: number,
-  diagnostic: CanvasCardDiagnosticPresentation,
+  lifecycle: LiquidCanvasCardLifecycle,
   factories: LiquidCanvasCardFactories,
 ) {
   let changed = false;
@@ -40,24 +50,22 @@ export function reconcileLiquidCanvasCardRecords(
     record.content.remove();
     record.glass.remove();
     record.group.remove();
-    diagnostic.remove(id);
+    lifecycle.removing(record);
     cards.delete(id);
     changed = true;
   }
   for (const id of order) {
     if (cards.has(id)) continue;
-    cards.set(
+    const record = createLiquidCanvasCard(
+      scrollGroup,
       id,
-      createLiquidCanvasCard(
-        scrollGroup,
-        id,
-        cardWidth,
-        factories.createGroup,
-        factories.createGlass,
-        factories.createHtml,
-      ),
+      cardWidth,
+      factories.createGroup,
+      factories.createGlass,
+      factories.createHtml,
     );
-    diagnostic.add(id);
+    cards.set(id, record);
+    lifecycle.added(record);
     changed = true;
   }
   return changed;
@@ -65,7 +73,7 @@ export function reconcileLiquidCanvasCardRecords(
 
 export function createLiquidCanvasCard(
   scrollGroup: CardGroup,
-  id: number,
+  id: CanvasBrowserItemId,
   cardWidth: number,
   createGroup: () => CardGroup,
   createGlass: (options: Record<string, number | boolean>) => CardGlass,

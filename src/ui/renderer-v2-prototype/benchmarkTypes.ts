@@ -1,4 +1,5 @@
 import type { CanvasViewport } from "../../canvas/geometry/viewportMath";
+import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 
 export type BenchmarkElementKind = "text-card" | "container";
 
@@ -22,8 +23,8 @@ export interface BenchmarkAnimationSettings {
 export interface BenchmarkSceneModel {
   elements: BenchmarkElementModel[];
   canvasCardCount: number;
-  canvasCardOrder: number[];
-  activeCanvasCardId: number;
+  canvasCardOrder: CanvasBrowserItemId[];
+  activeCanvasCardId: CanvasBrowserItemId;
   camera: CanvasViewport;
   animations: BenchmarkAnimationSettings;
 }

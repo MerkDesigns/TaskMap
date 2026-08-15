@@ -26,7 +26,6 @@ export interface LiquidMaterialSurfaceProps extends Omit<
 export interface LiquidMaterialSurfaceHandle {
   readonly anchor: HTMLDivElement | null;
   refresh(): void;
-  setPresentationOpacity(opacity: number): void;
 }
 
 function joinClassNames(...values: Array<string | undefined>): string {
@@ -88,9 +87,6 @@ export const LiquidMaterialSurface = forwardRef<
         if (anchor && root && registration) {
           registration.sync(anchor, root);
         }
-      },
-      setPresentationOpacity(opacity) {
-        registration?.setOpacity(opacity);
       },
     }),
     [registration, root],
