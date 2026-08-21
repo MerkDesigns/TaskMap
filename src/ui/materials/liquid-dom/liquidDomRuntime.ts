@@ -10,7 +10,11 @@ export interface LiquidSurfaceRegistration {
 export interface LiquidDomRuntime {
   readonly backdropHost: HTMLDivElement;
   readonly canvas: HTMLCanvasElement;
-  registerSurface(role: LiquidMaterialRole, sceneOrder?: number): LiquidSurfaceRegistration;
+  registerSurface(
+    role: LiquidMaterialRole,
+    sceneOrder?: number,
+    plane?: LiquidScenePlane,
+  ): LiquidSurfaceRegistration;
   syncBackdrop(root: HTMLElement): void;
   invalidate(): void;
   destroy(): void;
@@ -19,6 +23,15 @@ export interface LiquidDomRuntime {
 interface LiquidRoleBatch {
   readonly container: Container;
 }
+
+export type LiquidScenePlane = "base" | "overlay";
+
+const LIQUID_BATCH_ORDER = {
+  "base:large-panel": 0,
+  "base:small-panel": 1,
+  "overlay:large-panel": 2,
+  "overlay:small-panel": 3,
+} as const satisfies Record<`${LiquidScenePlane}:${LiquidMaterialRole}`, number>;
 
 function readCornerRadius(element: HTMLElement): number {
   const value = Number.parseFloat(getComputedStyle(element).borderTopLeftRadius);
@@ -44,7 +57,7 @@ export function createLiquidDomRuntime(
   backdropElement.className = "taskmap-liquid-dom-backdrop-content";
   const backdrop = scene.add(new Html({ zIndex: -1, element: backdropElement }));
   const renderer = new Renderer({ scene, maxDpr: 2 });
-  const roleBatches = new Map<LiquidMaterialRole, LiquidRoleBatch>();
+  const roleBatches = new Map<`${LiquidScenePlane}:${LiquidMaterialRole}`, LiquidRoleBatch>();
   let frame: number | null = null;
   let destroyed = false;
 
@@ -62,17 +75,18 @@ export function createLiquidDomRuntime(
   };
   const handlePaint = () => invalidate();
 
-  const roleBatch = (role: LiquidMaterialRole) => {
-    const existing = roleBatches.get(role);
+  const roleBatch = (plane: LiquidScenePlane, role: LiquidMaterialRole) => {
+    const key = `${plane}:${role}` as const;
+    const existing = roleBatches.get(key);
     if (existing) return existing;
     const container = scene.add(
       new Container({
         ...LIQUID_MATERIAL_OPTICS[role],
-        zIndex: role === "large-panel" ? 0 : 1,
+        zIndex: LIQUID_BATCH_ORDER[key],
       }),
     );
     const batch = { container };
-    roleBatches.set(role, batch);
+    roleBatches.set(key, batch);
     return batch;
   };
 
@@ -83,12 +97,12 @@ export function createLiquidDomRuntime(
   return {
     backdropHost: backdropElement,
     canvas: renderer.canvas,
-    registerSurface(role, sceneOrder = 0) {
-      const { container } = roleBatch(role);
+    registerSurface(role, sceneOrder = 0, plane = "base") {
+      const { container } = roleBatch(plane, role);
       const layer = container.add(new StackingContext({ zIndex: sceneOrder }));
       // The Html host owns interaction when a surface contains normal DOM controls.
       // Renderer-side SDF pointer events are reserved for content-free glass shapes.
-      const glass = container.add(new Glass({ cornerSmoothing: 0, pointerEvents: false }));
+      const glass = layer.add(new Glass({ cornerSmoothing: 0, pointerEvents: false }));
       const contentElement = document.createElement("div");
       contentElement.className = "taskmap-liquid-material-content";
       const content = glass.add(new Html({ element: contentElement }));

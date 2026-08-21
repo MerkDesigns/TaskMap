@@ -1,6 +1,7 @@
 import type { Glass, Group, Html } from "@liquid-dom/core";
 import { BENCHMARK_CARD_SLOT_TRANSITION_MS } from "./benchmarkCanvasCardInteraction";
 import { BENCHMARK_CANVAS_BROWSER } from "./benchmarkCanvasBrowserLayout";
+import type { CanvasBrowserRuntimeInstrumentation } from "./liquidCanvasBrowserInstrumentation";
 import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
 
 const OFFSCREEN_CAPTURE_Y = -100_000;
@@ -12,8 +13,10 @@ interface GeometryRecord {
   readonly host: HTMLDivElement;
 }
 
-export interface LiquidCanvasCardRecord extends GeometryRecord {
-  readonly id: CanvasBrowserItemId;
+export interface LiquidCanvasCardRecord<
+  Id extends string = CanvasBrowserItemId,
+> extends GeometryRecord {
+  readonly id: Id;
   readonly host: HTMLDivElement;
 }
 
@@ -23,14 +26,11 @@ interface SlotAnimation {
   readonly startedAt: number;
 }
 
-export class LiquidCanvasCardGeometry {
+export class LiquidCanvasCardGeometry<Id extends string = CanvasBrowserItemId> {
   slotSize = BENCHMARK_CANVAS_BROWSER.cardHeight + BENCHMARK_CANVAS_BROWSER.cardGap;
-  private readonly animations = new Map<CanvasBrowserItemId, SlotAnimation>();
-  syncCount = 0;
+  private readonly animations = new Map<Id, SlotAnimation>();
 
-  resetSyncCount() {
-    this.syncCount = 0;
-  }
+  constructor(private readonly instrumentation?: CanvasBrowserRuntimeInstrumentation) {}
 
   setCardGap(cardGap: number) {
     this.slotSize = BENCHMARK_CANVAS_BROWSER.cardHeight + cardGap;
@@ -41,12 +41,12 @@ export class LiquidCanvasCardGeometry {
   }
 
   position(
-    order: readonly CanvasBrowserItemId[],
-    records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>,
+    order: readonly Id[],
+    records: ReadonlyMap<Id, GeometryRecord>,
     bodyTop: number,
     now: number,
     animate: boolean,
-    excludedId: CanvasBrowserItemId | null,
+    excludedId: Id | null,
   ) {
     order.forEach((id, index) => {
       const record = records.get(id);
@@ -59,20 +59,20 @@ export class LiquidCanvasCardGeometry {
         this.animations.delete(id);
         if (record.group.y !== target) {
           record.group.y = target;
-          this.syncCount += 1;
+          this.instrumentation?.recordCardGeometrySync();
         }
       }
     });
   }
 
   syncVisibility(
-    order: readonly CanvasBrowserItemId[],
-    records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>,
+    order: readonly Id[],
+    records: ReadonlyMap<Id, GeometryRecord>,
     bodyTop: number,
     bodyBottom: number,
     scrollTop: number,
     cardWidth: number,
-    excludedId: CanvasBrowserItemId | null,
+    excludedId: Id | null,
   ) {
     let visibleCount = excludedId === null ? 0 : 1;
     order.forEach((id) => {
@@ -114,15 +114,11 @@ export class LiquidCanvasCardGeometry {
     record.host.style.transform = "";
   }
 
-  cancel(id: CanvasBrowserItemId) {
+  cancel(id: Id) {
     this.animations.delete(id);
   }
 
-  settle(
-    order: readonly CanvasBrowserItemId[],
-    records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>,
-    bodyTop: number,
-  ) {
+  settle(order: readonly Id[], records: ReadonlyMap<Id, GeometryRecord>, bodyTop: number) {
     this.animations.clear();
     order.forEach((id, index) => {
       const record = records.get(id);
@@ -132,7 +128,7 @@ export class LiquidCanvasCardGeometry {
     });
   }
 
-  tick(now: number, records: ReadonlyMap<CanvasBrowserItemId, GeometryRecord>) {
+  tick(now: number, records: ReadonlyMap<Id, GeometryRecord>) {
     let changed = false;
     for (const [id, animation] of this.animations) {
       const record = records.get(id);
@@ -142,7 +138,7 @@ export class LiquidCanvasCardGeometry {
       }
       const progress = Math.min(1, (now - animation.startedAt) / BENCHMARK_CARD_SLOT_TRANSITION_MS);
       record.group.y = animation.from + (animation.to - animation.from) * easeOutQuart(progress);
-      this.syncCount += 1;
+      this.instrumentation?.recordCardGeometrySync();
       changed = true;
       if (progress === 1) this.animations.delete(id);
     }

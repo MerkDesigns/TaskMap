@@ -10,9 +10,9 @@ export const BENCHMARK_CARD_AUTO_SCROLL = Object.freeze({
 export const BENCHMARK_CARD_AUTO_SCROLL_EDGE = BENCHMARK_CARD_AUTO_SCROLL.startInset;
 export const BENCHMARK_CARD_AUTO_SCROLL_MAX = BENCHMARK_CARD_AUTO_SCROLL.maximumSpeed;
 
-export function calculateCanvasCardInsertionIndex(
-  order: readonly CanvasBrowserItemId[],
-  draggedId: CanvasBrowserItemId,
+export function calculateCanvasCardInsertionIndex<Id extends string>(
+  order: readonly Id[],
+  draggedId: Id,
   centerY: number,
   listTop: number,
   scrollTop: number,
@@ -34,9 +34,9 @@ export function calculateCanvasCardInsertionIndex(
   return targetIndex;
 }
 
-export function reorderCanvasCardToIndex(
-  order: readonly CanvasBrowserItemId[],
-  draggedId: CanvasBrowserItemId,
+export function reorderCanvasCardToIndex<Id extends string>(
+  order: readonly Id[],
+  draggedId: Id,
   targetIndex: number,
 ) {
   const fromIndex = order.indexOf(draggedId);
@@ -102,10 +102,9 @@ function smoothstep(progress: number) {
   return progress * progress * (3 - 2 * progress);
 }
 
-export function haveSameCanvasCardIds(
-  left: readonly CanvasBrowserItemId[],
-  right: readonly CanvasBrowserItemId[],
+export function haveSameCanvasCardIds<Id extends string>(
+  left: readonly Id[],
+  right: readonly Id[],
 ) {
   return left.length === right.length && left.every((id) => right.includes(id));
 }
-import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";

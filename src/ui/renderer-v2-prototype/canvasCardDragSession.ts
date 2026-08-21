@@ -1,20 +1,22 @@
 import type { CanvasCardPointerSession } from "./canvasCardPointerSession";
 import type { CanvasBrowserItemId, CanvasCardDragState } from "./liquidCanvasBrowserTypes";
 
-interface BeginCanvasCardDragOptions {
-  readonly id: CanvasBrowserItemId;
+interface BeginCanvasCardDragOptions<Id extends string> {
+  readonly id: Id;
   readonly event: PointerEvent;
   readonly element: HTMLElement;
-  readonly displayOrder: readonly CanvasBrowserItemId[];
+  readonly displayOrder: readonly Id[];
   readonly cardTop: number;
-  readonly currentDrag: CanvasCardDragState | null;
+  readonly currentDrag: CanvasCardDragState<Id> | null;
   readonly pointerSession: CanvasCardPointerSession;
-  readonly getDrag: () => CanvasCardDragState | null;
-  readonly setDrag: (drag: CanvasCardDragState | null) => void;
+  readonly getDrag: () => CanvasCardDragState<Id> | null;
+  readonly setDrag: (drag: CanvasCardDragState<Id> | null) => void;
   readonly invalidate: () => void;
 }
 
-export function beginCanvasCardDragSession(options: BeginCanvasCardDragOptions) {
+export function beginCanvasCardDragSession<Id extends string = CanvasBrowserItemId>(
+  options: BeginCanvasCardDragOptions<Id>,
+) {
   const { id, event, displayOrder, cardTop } = options;
   if (event.button !== 0 || options.currentDrag) return false;
   if (displayOrder.indexOf(id) < 0) return false;
@@ -42,7 +44,10 @@ export function beginCanvasCardDragSession(options: BeginCanvasCardDragOptions) 
   return true;
 }
 
-function updatePointer(options: BeginCanvasCardDragOptions, event: PointerEvent) {
+function updatePointer<Id extends string>(
+  options: BeginCanvasCardDragOptions<Id>,
+  event: PointerEvent,
+) {
   const drag = options.getDrag();
   if (!drag || drag.pointerId !== event.pointerId) return;
   event.preventDefault();
@@ -50,8 +55,8 @@ function updatePointer(options: BeginCanvasCardDragOptions, event: PointerEvent)
   options.invalidate();
 }
 
-function finishPointer(
-  options: BeginCanvasCardDragOptions,
+function finishPointer<Id extends string>(
+  options: BeginCanvasCardDragOptions<Id>,
   event: PointerEvent,
   finish: "commit" | "cancel",
 ) {

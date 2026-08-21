@@ -5,3 +5,4 @@ export {
   type LiquidMaterialSurfaceProps,
 } from "./LiquidMaterialSurface";
 export type { LiquidMaterialRole } from "./materialRoles";
+export type { LiquidScenePlane } from "./liquidDomRuntime";

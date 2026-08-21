@@ -17,14 +17,14 @@ export interface LiquidCanvasCardFactories {
   createHtml: (host: HTMLDivElement) => CardHtml;
 }
 
-export interface LiquidCanvasCardLifecycle {
-  added(record: LiquidCanvasCardRecord): void;
-  removing(record: LiquidCanvasCardRecord): void;
+export interface LiquidCanvasCardLifecycle<Id extends string = CanvasBrowserItemId> {
+  added(record: LiquidCanvasCardRecord<Id>): void;
+  removing(record: LiquidCanvasCardRecord<Id>): void;
 }
 
-export function removeLiquidCanvasCardRecords(
-  cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>,
-  lifecycle: LiquidCanvasCardLifecycle,
+export function removeLiquidCanvasCardRecords<Id extends string = CanvasBrowserItemId>(
+  cards: ReadonlyMap<Id, LiquidCanvasCardRecord<Id>>,
+  lifecycle: LiquidCanvasCardLifecycle<Id>,
 ) {
   cards.forEach((record) => {
     lifecycle.removing(record);
@@ -35,12 +35,12 @@ export function removeLiquidCanvasCardRecords(
   });
 }
 
-export function reconcileLiquidCanvasCardRecords(
-  cards: Map<CanvasBrowserItemId, LiquidCanvasCardRecord>,
-  order: readonly CanvasBrowserItemId[],
+export function reconcileLiquidCanvasCardRecords<Id extends string = CanvasBrowserItemId>(
+  cards: Map<Id, LiquidCanvasCardRecord<Id>>,
+  order: readonly Id[],
   scrollGroup: CardGroup,
   cardWidth: number,
-  lifecycle: LiquidCanvasCardLifecycle,
+  lifecycle: LiquidCanvasCardLifecycle<Id>,
   factories: LiquidCanvasCardFactories,
 ) {
   let changed = false;
@@ -71,14 +71,14 @@ export function reconcileLiquidCanvasCardRecords(
   return changed;
 }
 
-export function createLiquidCanvasCard(
+export function createLiquidCanvasCard<Id extends string = CanvasBrowserItemId>(
   scrollGroup: CardGroup,
-  id: CanvasBrowserItemId,
+  id: Id,
   cardWidth: number,
   createGroup: () => CardGroup,
   createGlass: (options: Record<string, number | boolean>) => CardGlass,
   createHtml: (host: HTMLDivElement) => CardHtml,
-): LiquidCanvasCardRecord {
+): LiquidCanvasCardRecord<Id> {
   const group = scrollGroup.add(createGroup());
   const glass = group.add(
     createGlass({

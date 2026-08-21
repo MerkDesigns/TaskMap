@@ -657,12 +657,12 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/FrostedSurface.test.tsx`                                   |    22 | Tests for the adjacent module                                                               |
 | `src/ui/materials/FrostedSurface.tsx`                                        |    15 | React component or typed UI module                                                          |
 | `src/ui/materials/frostedSurfaceTypes.ts`                                    |     6 | TypeScript application module                                                               |
-| `src/ui/materials/liquid-dom/index.ts`                                       |     8 | TypeScript application module                                                               |
+| `src/ui/materials/liquid-dom/index.ts`                                       |     9 | TypeScript application module                                                               |
 | `src/ui/materials/liquid-dom/liquidDomContext.ts`                            |    13 | TypeScript application module                                                               |
 | `src/ui/materials/liquid-dom/LiquidDomRoot.tsx`                              |    87 | React component or typed UI module                                                          |
-| `src/ui/materials/liquid-dom/liquidDomRuntime.test.ts`                       |   168 | Tests for the adjacent module                                                               |
-| `src/ui/materials/liquid-dom/liquidDomRuntime.ts`                            |   138 | The Html host owns interaction when a surface contains normal DOM controls.                 |
-| `src/ui/materials/liquid-dom/LiquidMaterialSurface.tsx`                      |   106 | React component or typed UI module                                                          |
+| `src/ui/materials/liquid-dom/liquidDomRuntime.test.ts`                       |   197 | Tests for the adjacent module                                                               |
+| `src/ui/materials/liquid-dom/liquidDomRuntime.ts`                            |   152 | The Html host owns interaction when a surface contains normal DOM controls.                 |
+| `src/ui/materials/liquid-dom/LiquidMaterialSurface.tsx`                      |   108 | React component or typed UI module                                                          |
 | `src/ui/materials/liquid-dom/materialRoles.test.ts`                          |    93 | Tests for the adjacent module                                                               |
 | `src/ui/materials/liquid-dom/materialRoles.ts`                               |    95 | Approved TaskMap optical presets. Geometry and layout deliberately do not belong to a role. |
 | `src/ui/materials/MaterialAcrylicProof.tsx`                                  |    16 | React component or typed UI module                                                          |
@@ -745,7 +745,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/BenchmarkCanvasBrowser.tsx`                    |   140 | React component or typed UI module                                                          |
 | `src/ui/renderer-v2-prototype/benchmarkCanvasBrowserLayout.ts`               |   115 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/benchmarkCanvasCardInteraction.test.ts`        |   106 | @vitest-environment node                                                                    |
-| `src/ui/renderer-v2-prototype/benchmarkCanvasCardInteraction.ts`             |   112 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/benchmarkCanvasCardInteraction.ts`             |   111 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/benchmarkCanvasIds.ts`                         |    17 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/BenchmarkDomCanvas.tsx`                        |   117 | React component or typed UI module                                                          |
 | `src/ui/renderer-v2-prototype/BenchmarkElementContent.tsx`                   |    84 | React component or typed UI module                                                          |
@@ -766,7 +766,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/canvasBrowserScrollState.ts`                   |    85 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/canvasBrowserWheelDelta.test.ts`               |    16 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/canvasBrowserWheelDelta.ts`                    |    11 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/canvasCardDragSession.ts`                      |    66 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/canvasCardDragSession.ts`                      |    71 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/canvasCardPointerSession.ts`                   |    53 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/canvasCardRuntimeTestSupport.ts`               |    27 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/dev/BenchmarkControls.test.tsx`                |    57 | Tests for the adjacent module                                                               |
@@ -778,6 +778,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/dev/BenchmarkMetricsOverlay.tsx`               |   165 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/dev/canvasBrowserDiagnostics.test.ts`          |    36 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/dev/canvasBrowserDiagnostics.ts`               |    38 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
+| `src/ui/renderer-v2-prototype/dev/canvasBrowserRuntimeMetrics.test.ts`       |    28 | Tests for the adjacent module                                                               |
+| `src/ui/renderer-v2-prototype/dev/canvasBrowserRuntimeMetrics.ts`            |    77 | DEV/PROTOTYPE ONLY — benchmark aggregation for optional Canvas Browser instrumentation.     |
 | `src/ui/renderer-v2-prototype/dev/canvasCardDiagnosticPresentation.ts`       |    91 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/dev/liquidCaptureAttribution.test.ts`          |    29 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/dev/liquidCaptureAttribution.ts`               |    70 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
@@ -786,18 +788,19 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/renderer-v2-prototype/dev/liquidFrameWakeMetrics.ts`                 |    92 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
 | `src/ui/renderer-v2-prototype/dev/prototypeFrameSchedulerMetrics.test.ts`    |    21 | @vitest-environment node                                                                    |
 | `src/ui/renderer-v2-prototype/dev/prototypeFrameSchedulerMetrics.ts`         |    46 | DEV/PROTOTYPE ONLY — do not port with Renderer V2 production implementation.                |
-| `src/ui/renderer-v2-prototype/liquidCanvasBrowserAppearance.ts`              |   120 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasBrowserMetrics.ts`                 |    38 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasBrowserPresentation.ts`            |   146 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts`                 |   393 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserAppearance.ts`              |   119 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserInstrumentation.ts`         |    10 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserPresentation.ts`            |   148 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts`                 |   378 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/liquidCanvasBrowserScene.ts`                   |    67 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/liquidCanvasBrowserScrollIntegration.test.ts`  |   338 | Tests for the adjacent module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasBrowserTypes.ts`                   |    29 | TypeScript application module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserTypes.test.ts`              |    34 | Tests for the adjacent module                                                               |
+| `src/ui/renderer-v2-prototype/liquidCanvasBrowserTypes.ts`                   |    16 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/liquidCanvasCardFactory.ts`                    |   127 | TypeScript application module                                                               |
-| `src/ui/renderer-v2-prototype/liquidCanvasCardGeometry.ts`                   |   154 | Keep the full-size Html registered in Liquid's shared content atlas. Zero-sized Glass       |
+| `src/ui/renderer-v2-prototype/liquidCanvasCardGeometry.ts`                   |   150 | Keep the full-size Html registered in Liquid's shared content atlas. Zero-sized Glass       |
 | `src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.structure.test.ts` |   151 | Tests for the adjacent module                                                               |
 | `src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.test.ts`           |   395 | Tests for the adjacent module                                                               |
-| `src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts`                |   259 | DEV/PROTOTYPE ONLY — capture and frame instrumentation.                                     |
+| `src/ui/renderer-v2-prototype/liquidSceneBenchmarkRuntime.ts`                |   265 | DEV/PROTOTYPE ONLY — capture and frame instrumentation.                                     |
 | `src/ui/renderer-v2-prototype/rendererV2PanelGeometry.ts`                    |    21 | TypeScript application module                                                               |
 | `src/ui/renderer-v2-prototype/rendererV2PanelMaterials.test.ts`              |    21 | Tests for the adjacent module                                                               |
 | `src/ui/renderer-v2-prototype/rendererV2PanelMaterials.ts`                   |    65 | TypeScript application module                                                               |

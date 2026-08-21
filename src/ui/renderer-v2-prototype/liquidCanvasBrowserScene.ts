@@ -51,10 +51,10 @@ export type LiquidCanvasBrowserContainer = ReturnType<
   typeof createLiquidCanvasBrowserDragContainer
 >;
 
-export function destroyLiquidCanvasBrowserScene(
+export function destroyLiquidCanvasBrowserScene<Id extends string = CanvasBrowserItemId>(
   nodes: LiquidCanvasBrowserSceneNodes,
-  cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>,
-  presentation: CanvasBrowserPresentationController,
+  cards: ReadonlyMap<Id, LiquidCanvasCardRecord<Id>>,
+  presentation: CanvasBrowserPresentationController<Id>,
 ) {
   removeLiquidCanvasCardRecords(cards, presentation);
   nodes.scrollGroup.remove();

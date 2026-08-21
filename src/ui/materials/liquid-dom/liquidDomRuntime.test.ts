@@ -4,11 +4,13 @@ import { LIQUID_MATERIAL_OPTICS } from "./materialRoles";
 interface NodeRecord {
   readonly options: unknown;
   readonly remove: ReturnType<typeof vi.fn>;
+  readonly children: unknown[];
 }
 
 const coreState = vi.hoisted(() => ({
   containers: [] as NodeRecord[],
   glasses: [] as NodeRecord[],
+  html: [] as NodeRecord[],
   layers: [] as NodeRecord[],
   renderers: [] as Array<{ canvas: HTMLCanvasElement; render: ReturnType<typeof vi.fn> }>,
 }));
@@ -19,9 +21,11 @@ vi.mock("@liquid-dom/core", () => {
     width = 0;
     height = 0;
     readonly remove = vi.fn();
+    readonly children: unknown[] = [];
 
-    constructor(options: { element?: HTMLElement } = {}) {
+    constructor(readonly options: { element?: HTMLElement } = {}) {
       if (options.element) this.host.append(options.element);
+      coreState.html.push(this);
     }
   }
 
@@ -32,24 +36,28 @@ vi.mock("@liquid-dom/core", () => {
     height = 0;
     cornerRadius = 0;
     readonly remove = vi.fn();
+    readonly children: unknown[] = [];
 
     constructor(readonly options: unknown) {
       coreState.glasses.push(this);
     }
 
     add<T>(child: T): T {
+      this.children.push(child);
       return child;
     }
   }
 
   class MockContainer {
     readonly remove = vi.fn();
+    readonly children: unknown[] = [];
 
     constructor(readonly options: unknown) {
       coreState.containers.push(this);
     }
 
     add<T>(child: T): T {
+      this.children.push(child);
       return child;
     }
   }
@@ -62,12 +70,14 @@ vi.mock("@liquid-dom/core", () => {
 
   class MockStackingContext {
     readonly remove = vi.fn();
+    readonly children: unknown[] = [];
 
     constructor(readonly options: unknown) {
       coreState.layers.push(this);
     }
 
     add<T>(child: T): T {
+      this.children.push(child);
       return child;
     }
   }
@@ -98,6 +108,7 @@ describe("Liquid DOM runtime surface ownership", () => {
   beforeEach(() => {
     coreState.containers.length = 0;
     coreState.glasses.length = 0;
+    coreState.html.length = 0;
     coreState.layers.length = 0;
     coreState.renderers.length = 0;
     vi.stubGlobal(
@@ -107,13 +118,15 @@ describe("Liquid DOM runtime surface ownership", () => {
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
   });
 
-  it("shares one material Container per role while surfaces retain local scene order", () => {
+  it("batches by plane and role while surfaces retain local scene order and hierarchy", () => {
     const runtime = createLiquidDomRuntime();
     const first = runtime.registerSurface("large-panel", 10);
     const second = runtime.registerSurface("large-panel", 20);
     const small = runtime.registerSurface("small-panel", 30);
+    const overlayLarge = runtime.registerSurface("large-panel", 40, "overlay");
+    const overlaySmall = runtime.registerSurface("small-panel", 50, "overlay");
 
-    expect(coreState.containers).toHaveLength(2);
+    expect(coreState.containers).toHaveLength(4);
     expect(coreState.containers[0]?.options).toEqual({
       ...LIQUID_MATERIAL_OPTICS["large-panel"],
       zIndex: 0,
@@ -122,16 +135,31 @@ describe("Liquid DOM runtime surface ownership", () => {
       ...LIQUID_MATERIAL_OPTICS["small-panel"],
       zIndex: 1,
     });
+    expect(coreState.containers[2]?.options).toEqual({
+      ...LIQUID_MATERIAL_OPTICS["large-panel"],
+      zIndex: 2,
+    });
+    expect(coreState.containers[3]?.options).toEqual({
+      ...LIQUID_MATERIAL_OPTICS["small-panel"],
+      zIndex: 3,
+    });
     expect(coreState.layers.map(({ options }) => options)).toEqual([
       { zIndex: 10 },
       { zIndex: 20 },
       { zIndex: 30 },
+      { zIndex: 40 },
+      { zIndex: 50 },
     ]);
     expect(coreState.glasses.map(({ options }) => options)).toEqual([
       { cornerSmoothing: 0, pointerEvents: false },
       { cornerSmoothing: 0, pointerEvents: false },
       { cornerSmoothing: 0, pointerEvents: false },
+      { cornerSmoothing: 0, pointerEvents: false },
+      { cornerSmoothing: 0, pointerEvents: false },
     ]);
+    expect(coreState.containers[0]?.children).toEqual([coreState.layers[0], coreState.layers[1]]);
+    expect(coreState.layers[0]?.children).toEqual([coreState.glasses[0]]);
+    expect(coreState.glasses[0]?.children).toEqual([coreState.html[1]]);
 
     first.dispose();
     expect(coreState.glasses[0]?.remove).toHaveBeenCalledOnce();
@@ -140,9 +168,10 @@ describe("Liquid DOM runtime surface ownership", () => {
 
     second.dispose();
     small.dispose();
+    overlayLarge.dispose();
+    overlaySmall.dispose();
     runtime.destroy();
-    expect(coreState.containers[0]?.remove).toHaveBeenCalledOnce();
-    expect(coreState.containers[1]?.remove).toHaveBeenCalledOnce();
+    coreState.containers.forEach(({ remove }) => expect(remove).toHaveBeenCalledOnce());
   });
 
   it("coalesces invalidation and wakes once after a Liquid paint", () => {

@@ -46,9 +46,10 @@ describe("canonical Renderer V2 prototype composition", () => {
         "canvasCardDragSession.ts",
         "canvasCardPointerSession.ts",
         "liquidCanvasBrowserAppearance.ts",
-        "liquidCanvasBrowserMetrics.ts",
+        "liquidCanvasBrowserInstrumentation.ts",
         "liquidCanvasBrowserPresentation.ts",
         "liquidCanvasBrowserRuntime.ts",
+        "liquidCanvasBrowserScene.ts",
         "liquidCanvasBrowserTypes.ts",
         "liquidCanvasCardFactory.ts",
         "liquidCanvasCardGeometry.ts",
@@ -59,6 +60,18 @@ describe("canonical Renderer V2 prototype composition", () => {
       expect(source).not.toMatch(/from ["'][^"']*\/dev\//);
       expect(source).not.toMatch(/from ["']\.\/dev\//);
     }
+
+    const runtime = await readFile(
+      "src/ui/renderer-v2-prototype/liquidCanvasBrowserRuntime.ts",
+      "utf8",
+    );
+    const devMetrics = await readFile(
+      "src/ui/renderer-v2-prototype/dev/canvasBrowserRuntimeMetrics.ts",
+      "utf8",
+    );
+    expect(runtime).not.toMatch(/class\s+CanvasBrowserRuntimeMetrics|\bmetrics\s*=/);
+    expect(runtime).toContain("instrumentation?.recordBrowserTick()");
+    expect(devMetrics).toContain("class CanvasBrowserRuntimeMetrics");
   });
 
   it("contains only the selected coarse architecture and no architecture selector", async () => {

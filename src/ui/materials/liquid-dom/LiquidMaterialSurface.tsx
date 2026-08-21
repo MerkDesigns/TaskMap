@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { LiquidDomContext } from "./liquidDomContext";
-import type { LiquidSurfaceRegistration } from "./liquidDomRuntime";
+import type { LiquidScenePlane, LiquidSurfaceRegistration } from "./liquidDomRuntime";
 import type { LiquidMaterialRole } from "./materialRoles";
 
 export interface LiquidMaterialSurfaceProps extends Omit<
@@ -18,6 +18,8 @@ export interface LiquidMaterialSurfaceProps extends Omit<
   "children"
 > {
   readonly role: LiquidMaterialRole;
+  /** Base chrome by default; overlays include dialogs and menus that must clear every base panel. */
+  readonly plane?: LiquidScenePlane;
   /** Scene stacking order. This is layout, not part of the optical material role. */
   readonly sceneOrder?: number;
   readonly children: ReactNode;
@@ -36,7 +38,7 @@ export const LiquidMaterialSurface = forwardRef<
   LiquidMaterialSurfaceHandle,
   LiquidMaterialSurfaceProps
 >(function LiquidMaterialSurface(
-  { role, sceneOrder = 0, children, className, ...props },
+  { role, plane = "base", sceneOrder = 0, children, className, ...props },
   forwardedRef,
 ) {
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -49,7 +51,7 @@ export const LiquidMaterialSurface = forwardRef<
       return;
     }
 
-    const nextRegistration = runtime.registerSurface(role, sceneOrder);
+    const nextRegistration = runtime.registerSurface(role, sceneOrder, plane);
     const sync = () => nextRegistration.sync(anchor, root);
     sync();
     setRegistration(nextRegistration);
@@ -67,7 +69,7 @@ export const LiquidMaterialSurface = forwardRef<
       setRegistration(null);
       nextRegistration.dispose();
     };
-  }, [role, root, runtime, sceneOrder]);
+  }, [plane, role, root, runtime, sceneOrder]);
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current;

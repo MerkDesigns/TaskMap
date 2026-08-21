@@ -6,18 +6,18 @@ export interface CanvasBrowserCardFeatures {
   readonly cardHtml: boolean;
 }
 
-export interface CanvasBrowserCardPresentation {
-  add(id: CanvasBrowserItemId): void;
-  remove(id: CanvasBrowserItemId): void;
-  apply(cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>): void;
+export interface CanvasBrowserCardPresentation<Id extends string = CanvasBrowserItemId> {
+  add(id: Id): void;
+  remove(id: Id): void;
+  apply(cards: ReadonlyMap<Id, LiquidCanvasCardRecord<Id>>): void;
   sync(
-    order: readonly CanvasBrowserItemId[],
-    cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>,
+    order: readonly Id[],
+    cards: ReadonlyMap<Id, LiquidCanvasCardRecord<Id>>,
     scrollY: number,
     bodyTop: number,
     bodyBottom: number,
     cardWidth: number,
-    draggedId: CanvasBrowserItemId | null,
+    draggedId: Id | null,
   ): void;
   features(): CanvasBrowserCardFeatures;
   destroy(): void;
@@ -28,7 +28,9 @@ const FULL_CARD_FEATURES: CanvasBrowserCardFeatures = Object.freeze({
   cardHtml: true,
 });
 
-export class DefaultCanvasBrowserCardPresentation implements CanvasBrowserCardPresentation {
+export class DefaultCanvasBrowserCardPresentation<
+  Id extends string = CanvasBrowserItemId,
+> implements CanvasBrowserCardPresentation<Id> {
   add() {}
   remove() {}
   apply() {}
@@ -91,33 +93,33 @@ export class CanvasCardCaptureRegistry {
   }
 }
 
-export class CanvasBrowserPresentationController {
+export class CanvasBrowserPresentationController<Id extends string = CanvasBrowserItemId> {
   private readonly captureRegistry = new CanvasCardCaptureRegistry();
 
-  constructor(private readonly presentation: CanvasBrowserCardPresentation) {}
+  constructor(private readonly presentation: CanvasBrowserCardPresentation<Id>) {}
 
-  added = (record: LiquidCanvasCardRecord) => {
+  added = (record: LiquidCanvasCardRecord<Id>) => {
     this.captureRegistry.add(record.content.host);
     this.presentation.add(record.id);
   };
 
-  removing = (record: LiquidCanvasCardRecord) => {
+  removing = (record: LiquidCanvasCardRecord<Id>) => {
     this.captureRegistry.remove(record.content.host);
     this.presentation.remove(record.id);
   };
 
-  apply(cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>) {
+  apply(cards: ReadonlyMap<Id, LiquidCanvasCardRecord<Id>>) {
     this.presentation.apply(cards);
   }
 
   sync(
-    order: readonly CanvasBrowserItemId[],
-    cards: ReadonlyMap<CanvasBrowserItemId, LiquidCanvasCardRecord>,
+    order: readonly Id[],
+    cards: ReadonlyMap<Id, LiquidCanvasCardRecord<Id>>,
     scrollY: number,
     bodyTop: number,
     bodyBottom: number,
     cardWidth: number,
-    draggedId: CanvasBrowserItemId | null,
+    draggedId: Id | null,
   ) {
     this.presentation.sync(order, cards, scrollY, bodyTop, bodyBottom, cardWidth, draggedId);
   }

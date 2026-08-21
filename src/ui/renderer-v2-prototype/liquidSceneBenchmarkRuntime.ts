@@ -4,6 +4,10 @@ import { LiquidCaptureAttribution, type LiquidCaptureOwner } from "./dev/liquidC
 import { installLiquidCaptureProbe, type LiquidCaptureProbe } from "./dev/liquidCaptureProbe";
 import { LiquidFrameWakeMetrics } from "./dev/liquidFrameWakeMetrics";
 import { CanvasCardDiagnosticPresentation } from "./dev/canvasCardDiagnosticPresentation";
+import {
+  CanvasBrowserRuntimeMetrics,
+  type CanvasBrowserRuntimeCounts,
+} from "./dev/canvasBrowserRuntimeMetrics";
 import { BENCHMARK_LIQUID_MAX_DPR } from "./benchmarkWorld";
 import { LiquidCanvasBrowserRuntime } from "./liquidCanvasBrowserRuntime";
 import type { CanvasBrowserItemId } from "./liquidCanvasBrowserTypes";
@@ -22,6 +26,7 @@ export class LiquidSceneBenchmarkRuntime {
   private readonly backdropNode: Html;
   private readonly browser: LiquidCanvasBrowserRuntime;
   private readonly browserDiagnostics = new CanvasCardDiagnosticPresentation();
+  private readonly browserMetrics = new CanvasBrowserRuntimeMetrics();
   private probe: LiquidCaptureProbe | null = null;
   private frameRequestListener: ((reason: "capture-completion" | "mutation") => boolean) | null =
     null;
@@ -54,6 +59,7 @@ export class LiquidSceneBenchmarkRuntime {
       this.scene,
       () => this.requestFrame(),
       this.browserDiagnostics,
+      this.browserMetrics,
     );
     this.canvasBrowserHost = this.browser.browserHost;
     this.canvasBrowserPlaceholderOverlay = this.browserDiagnostics.placeholderOverlay;
@@ -154,7 +160,7 @@ export class LiquidSceneBenchmarkRuntime {
   }
 
   getCounts(): BenchmarkLiquidCounts {
-    const counts = this.browser.getCounts();
+    const counts = this.browserMetrics.snapshot(this.browserDiagnostics.features());
     this.updateRates(counts);
     return {
       html: 1 + counts.html,
@@ -180,7 +186,7 @@ export class LiquidSceneBenchmarkRuntime {
   }
 
   resetCounters() {
-    this.browser.resetCounters();
+    this.browserMetrics.reset();
     this.rendererRenderCalls = 0;
     this.rateSample = createRateSample();
     this.rates = emptyRates();
@@ -222,7 +228,7 @@ export class LiquidSceneBenchmarkRuntime {
     );
   }
 
-  private updateRates(counts: ReturnType<LiquidCanvasBrowserRuntime["getCounts"]>) {
+  private updateRates(counts: CanvasBrowserRuntimeCounts) {
     const now = performance.now();
     const elapsed = now - this.rateSample.at;
     if (elapsed < 100) return;

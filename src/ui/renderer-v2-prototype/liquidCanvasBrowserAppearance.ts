@@ -4,7 +4,6 @@ import {
   canvasBrowserScrollHeight,
 } from "./benchmarkCanvasBrowserLayout";
 import { resizeLiquidCanvasBrowserSurface } from "./liquidCanvasCardFactory";
-import type { LiquidCanvasCardGeometry } from "./liquidCanvasCardGeometry";
 import {
   createRendererV2MaterialControls,
   rendererV2OpticsWithControls,
@@ -22,7 +21,7 @@ interface AppearanceTargets {
   readonly browserGlass: AppearanceGlass;
   readonly cardGlasses: Iterable<AppearanceGlass>;
   readonly browserContent: AppearanceHtml;
-  readonly geometry: LiquidCanvasCardGeometry;
+  readonly geometry: { setCardGap(cardGap: number): void };
   readonly viewportHeight: number;
   readonly cardCount: number;
 }
