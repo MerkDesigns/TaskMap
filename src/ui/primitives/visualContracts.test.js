@@ -21,17 +21,15 @@ describe("C1 visual-state contracts", () => {
     ]);
     const selection = cssRule(
       materialCss,
-      '.taskmap-material-surface--bright-selection[data-material-strategy="cached-acrylic"]',
+      '.taskmap-material-surface[data-material-strategy="native-glass"]',
     );
     const wash = cssRule(
       materialCss,
-      '.taskmap-material-surface--bright-selection[data-material-strategy="cached-acrylic"]::before',
+      '.taskmap-material-surface--bright-selection[data-material-strategy="native-glass"]::before',
     );
     expect(selection).toContain("background: transparent");
     expect(wash).toContain("rgb(255 255 255 / 0.075)");
-    expect(materialCss).toMatch(
-      /\.taskmap-material-surface:is\(\s*\[data-material-strategy="cached-acrylic"\],\s*\[data-material-strategy="opaque"\]\s*\)::after\s*{[^}]*border-radius: inherit/s,
-    );
+    expect(materialCss).toContain(".taskmap-material-native-glass__rim-canvas");
     expect(navigationCss).not.toMatch(/taskmap-liquid-indicator::after\s*{[^}]*opacity:\s*0/s);
   });
 
@@ -86,9 +84,10 @@ describe("C1 visual-state contracts", () => {
     expect(contextMenuSource).not.toContain("menu-glass");
     expect(materialCss).toContain('[data-material-strategy="opaque"]');
     expect(materialCss).not.toContain("taskmap-material-surface--menu-glass");
-    expect(`${contextMenuCss}\n${contextMenuSource}\n${materialCss}`).not.toContain(
-      "backdrop-filter",
-    );
+    expect(`${contextMenuCss}\n${contextMenuSource}`).not.toContain("backdrop-filter");
+    expect(
+      cssRule(materialCss, '.taskmap-material-surface[data-material-strategy="opaque"]'),
+    ).not.toContain("backdrop-filter");
     expect(contextMenuSource).not.toContain("requestAnimationFrame");
   });
 

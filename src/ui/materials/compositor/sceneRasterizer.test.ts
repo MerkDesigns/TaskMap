@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { ACRYLIC_LARGE, ACRYLIC_SMALL } from "../materialDefinitions";
+import { LEGACY_ACRYLIC_LARGE, LEGACY_ACRYLIC_SMALL } from "../legacyCachedAcrylicDefinitions";
 import { MAX_BACKDROP_GRID_MARKS } from "./backdropScene";
 import { parseBackdropScene } from "./backdropSceneValidation";
 import {
@@ -182,8 +182,8 @@ describe("one shared acrylic cache pass", () => {
       saturation: 1,
       brightness: 1,
     });
-    expect(ACRYLIC_LARGE.cacheProfileId).toBe(SHARED_ACRYLIC_RUNTIME_PROFILE.id);
-    expect(ACRYLIC_SMALL.cacheProfileId).toBe(SHARED_ACRYLIC_RUNTIME_PROFILE.id);
+    expect(LEGACY_ACRYLIC_LARGE.cacheProfileId).toBe(SHARED_ACRYLIC_RUNTIME_PROFILE.id);
+    expect(LEGACY_ACRYLIC_SMALL.cacheProfileId).toBe(SHARED_ACRYLIC_RUNTIME_PROFILE.id);
   });
 
   it("converts logical CSS blur to reduced backing scale without tuning it", () => {
@@ -239,6 +239,6 @@ describe("one shared acrylic cache pass", () => {
 
   it("has no separate Small blur profile", () => {
     expect(SHARED_ACRYLIC_RUNTIME_PROFILE.blurRadiusCssPx).not.toBe(32);
-    expect(ACRYLIC_SMALL).not.toHaveProperty("blurRadiusPx");
+    expect(LEGACY_ACRYLIC_SMALL).not.toHaveProperty("blurRadiusPx");
   });
 });

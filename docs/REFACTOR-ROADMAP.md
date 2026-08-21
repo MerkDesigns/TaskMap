@@ -242,6 +242,10 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
       layer contract and migrate only the primary Settings shell, navigation, islands, rows, and
       controls to Acrylic Large/Small plus C1 primitives while preserving feature state, focus,
       callbacks, data/update flows, and deferred nested overlay ownership.
+- [x] **C3B production dialogs and modal presence:** add shared scheduler-driven root/nested modal
+      presence with compositor-group mask synchronization, then migrate Settings presence,
+      standalone/nested Update Available, Clear Canvas, and the Settings password dialog while
+      preserving feature callbacks, focus, mutation timing, and the existing two-plane runtime.
 - [ ] Migrate production application chrome to the target accent.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
@@ -254,9 +258,10 @@ scoped root and canvas frame/grid presentation, C2B migrates the floating toolba
 outer side-panel shells/header/scroll framing, C2D migrates only Canvas Browser card, preview,
 editor, and reorder/drag presentation, C2E migrates only the primary Extensions panel internals,
 and C2F migrates only the production Minimap presentation. C3A migrates only the primary Settings
-presentation. Quick Extensions, shared info/filter overlays, Settings-owned password/update/color
-picker shells, creation UI, menus, other dialogs, toasts, and canvas elements remain unchanged for
-later C3/Phase 5 slices.
+presentation, and C3B migrates shared modal presence plus Update Available, Clear Canvas, and the
+Settings password dialog. Quick Extensions, shared info/filter overlays, the Settings color picker,
+creation UI, menus, command-runner/conflict/other dialogs, toasts, and canvas elements remain
+unchanged for later C3/Phase 5 slices.
 Completion and visual acceptance for 4.5C remain open.
 
 ### 4.5D — Cleanup / acceptance

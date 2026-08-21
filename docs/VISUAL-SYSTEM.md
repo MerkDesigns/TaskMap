@@ -1,9 +1,9 @@
 # TaskMap Visual System
 
-This document is the normative source for TaskMap application theme and material behavior. The
-approved `phase4.5-acrylic-reference.html` is the visual and compositor provenance reference; it
-remains a local review artifact rather than production code. If another document summarizes a value
-differently, this document wins.
+This document is the normative source for TaskMap application theme and material behavior. For the
+current Large and Small glass optics, `REFERENCE_NEW_CSS_GLASS.html` is the accepted provenance
+reference and wins if an older cached-acrylic value below conflicts with it. The standalone lab is
+reference material, not production architecture.
 
 Phase 4.5A defines the contract, Phase 4.5B implements the compositor, and Phase 4.5C migrates the
 production presentation in reviewed slices. C2A activates `.taskmap-target-theme` on the production
@@ -118,77 +118,74 @@ fast/normal motion tokens.
 ## Material contract
 
 Feature UI selects an internal material through `MaterialSurface`; it never chooses blur, cache,
-worker, tint implementation, or Canvas2D behavior. The static registry currently contains:
+worker, tint implementation, native-filter settings, or Canvas2D behavior. The static registry
+currently contains:
 
-- `acrylic-large`, strategy `cached-acrylic`
-- `acrylic-small`, strategy `cached-acrylic`
+- `acrylic-large`, strategy `native-glass`
+- `acrylic-small`, strategy `native-glass`
 - `opaque`, strategy `opaque`
 - `cutout`, strategy `css`
 
-Large and Small share one expensive cache profile. Their different tint, highlight, border, and
-shadow definitions are cheap overlays. Opaque reuses Small's general glass treatment with no blur or
-compositor registration. Cutout is a recessed CSS material. Materials are internal and statically
-registered; this is not a runtime plugin API.
+Large and Small use live native CSS backdrop sampling. Content, including images and GIFs behind a
+surface, remains live DOM/canvas content; no screenshot or reconstructed BackdropScene is used by
+the active material path. Opaque remains a non-blurring CSS surface and Cutout remains recessed CSS.
+Materials are internal and statically registered; this is not a runtime plugin API.
 
-### Shared acrylic cache profile
-
-| Property    | Exact value |
-| ----------- | ----------: |
-| Blur radius |       45 px |
-| Saturation  |         1.0 |
-| Brightness  |         1.0 |
-
-The reference Small CSS values of 32 px blur and 0.50 saturation record prototype provenance only.
-Production must not create a second expensive Small cache. Both acrylic definitions identify the
-same `shared-acrylic` cache profile.
+The cached Canvas2D compositor and its 45px `shared-acrylic` profile are the previous candidate. Its
+source remains temporarily under `src/ui/materials/compositor/` for rollback and comparison, but the
+production provider does not create its runtime or output canvases, and native Large/Small surfaces
+do not register with its surface registry. Removal is intentionally deferred until native-glass
+visual and performance acceptance.
 
 ### Acrylic Large
 
-| Property                    | Exact value                   |
-| --------------------------- | ----------------------------- |
-| Tint RGB                    | `27 27 27`                    |
-| Tint opacity                | `0.40`                        |
-| Highlight opacity           | `0.028`                       |
-| Highlight radius multiplier | `1.00`                        |
-| Border width                | `1px`                         |
-| Border top                  | white `32 / 255`              |
-| Border bottom               | white `18 / 255`              |
-| Shadow                      | `0 7px 20px rgb(0 0 0 / .55)` |
-| Default radius              | `12px`                        |
+| Property           | Exact value                    |
+| ------------------ | ------------------------------ |
+| Pre-blur pass      | `6px`                          |
+| Main blur pass     | `38px`                         |
+| Saturation         | `0.78`                         |
+| Brightness         | `0.82`                         |
+| Contrast           | `1.00`                         |
+| Overscan ratio     | `1.15` of pre-blur + main blur |
+| Tint               | `39 40 42 / 0.45`              |
+| Tone               | `14 15 17 / 0`                 |
+| Default radius     | `23px`                         |
+| Rim                | `1.5px`, base alpha `0.205`    |
+| Rim softness/scale | `0.5px` / `0.9`                |
+| Shadow source      | `0 3.5px 16.5px 0 / 0.50`      |
+
+Large is permanently two-pass. The 6px pre-blur paints before the 38px main material pass; the two
+passes must not be collapsed because this construction removed temporal crawling in the accepted
+reference.
 
 ### Acrylic Small
 
-| Property                    | Exact value                   |
-| --------------------------- | ----------------------------- |
-| Tint RGB                    | `19 20 22`                    |
-| Tint opacity                | `0.40`                        |
-| Highlight opacity           | `0.026`                       |
-| Highlight radius multiplier | `2.00`                        |
-| Border width                | `1px`                         |
-| Border top                  | white `30 / 255`              |
-| Border bottom               | white `16 / 255`              |
-| Shadow                      | `0 5px 12px rgb(0 0 0 / .44)` |
-| Default radius              | `12px`                        |
+| Property           | Exact value                  |
+| ------------------ | ---------------------------- |
+| Moving pre-blur    | `5px`                        |
+| Main blur pass     | `20px`                       |
+| Saturation         | `0.78`                       |
+| Brightness         | `0.90`                       |
+| Contrast           | `1.00`                       |
+| Overscan ratio     | `1.15` of active blur passes |
+| Tint               | `133 133 133 / 0.025`        |
+| Tone               | `148 148 148 / 0`            |
+| Default radius     | `13.5px`                     |
+| Rim                | `1.5px`, base alpha `0.135`  |
+| Rim softness/scale | `0.5px` / `0.9`              |
+| Shadow source      | `0 3.5px 11.5px 0.5px / .48` |
 
-For both acrylic overlays, the radial highlight begins at the surface's top-left. Its exact stops
-are 0% at the material highlight opacity, 38% at `highlight * 0.40`, and 72% transparent. The border
-is a top-to-bottom white gradient using the exact alpha values above and an inside mask. Border,
-shadow, radius, tint, and highlight remain cheap DOM/CSS presentation around the compositor-provided
-acrylic interior.
+Small is one-pass while settled. During drag and snap, a Small surface temporarily paints the 5px
+pre-blur before its normal 20px pass so thin content underneath remains temporally stable. A Small
+surface inherits the nearest logical Large sampling boundary through React context. Its blur-derived
+backdrop overscan is clamped per side to that boundary, including while UI classes or physical DOM
+placement change. Standalone Small and Large surfaces clamp to the application viewport.
 
-The `0.028` Large and `0.026` Small highlight opacities are the first Phase 4.5C visual-review
-revision. Highlight geometry, stops, radius multipliers, tint, borders, shadows, and shared blur are
-unchanged.
-
-The toolbar group uses Acrylic Large at 12 px radius with explicit `elevation="none"`; this suppresses
-only its external shadow. Other Large surfaces retain the material shadow.
-
-Phase 4.5C2B mounts only the production `FloatingToolbar` in the C2A `WorkspaceChromeLayer` at
-layer 41. Its two groups compose the `FloatingCanvasToolbar`/`ToolbarGroup` pattern with Acrylic
-Large and shared `IconButton`/`ToggleButton` states. The expandable privacy/minimap region uses the
-shared fast motion tokens; the material registry's shared ResizeObserver tracks intermediate width
-changes and the public cheap geometry seam covers transition boundaries. No toolbar-local layer,
-blur, cache, provider, or animation frame loop is permitted.
+Both roles use the accepted DPR-aware rounded-perimeter canvas rim. It is redrawn only for geometry,
+DPR, or material changes; there is no permanent rim animation loop. The native backdrop layers may
+overscan beneath their rounded clip while content remains ordinary DOM. The rim is a separately
+clipped material overlay above feature content, so content cannot cover the visible material edge.
+Radius overrides and `elevation="none"` remain supported semantic controls.
 
 ### Opaque
 
@@ -219,6 +216,11 @@ Element-specific canvas surfaces retain their own geometry and material unless e
 These are the approved reference visual targets. They preserve the important exact starting
 geometry after the local HTML reference is removed.
 
+Cached-surface registration and compositor-mask wording retained in the phase-specific notes below
+describes the previous Canvas2D candidate. On the active native path, the same UI motion is applied
+to the DOM surface/group, geometry invalidation refreshes native overscan/rims, and no cache mask is
+registered or rebuilt.
+
 ### Canvas
 
 `src/ui/theme/theme.css` is the normative owner for visible workspace theme values. The DOM-free
@@ -237,8 +239,11 @@ the two representations.
 - Position: `16px` from top and `16px` from left
 - Group gap: `8px`
 - Group: `40px` height, `6px` horizontal padding, `12px` radius
-- Buttons: `28px` square with `6px` radius
+- Buttons: `28px` square with a circular interaction highlight
 - Toolbar material external shadow: suppressed
+
+Production top-bar icon controls use a circular hover/press highlight. Pressed toggles retain their
+accent icon at rest and still show the same hover and pressed feedback as inactive controls.
 
 ### Side panels
 
@@ -251,8 +256,9 @@ the two representations.
 
 Phase 4.5C2C mounts the non-embedded Canvas Manager and Extensions panel beside the toolbar in the
 single layer-41 `WorkspaceChromeLayer`. `WorkspaceSidePanel` owns only this shared geometry and
-material presentation. Embedded variants remain plain unregistered layout containers, and menus,
-filter popovers, tooltips, creation UI, and drag previews retain their existing portals.
+material presentation. Embedded variants remain plain unregistered layout containers. Menus,
+filter popovers, tooltips, and creation UI retain their existing portals; Canvas Browser drag uses
+the stable-host behavior defined below.
 
 Panel entry runs for the shared normal `180ms` duration from `translate(-10px, 2px)` and zero
 opacity; exit runs for the shared fast `120ms` duration toward `translate(-8px, 1px)` and zero
@@ -262,9 +268,16 @@ settles immediately. App-owned closing flags and `120ms` unmount/switch timers r
 
 ### Canvas Browser
 
-- Full card: `84px` minimum height and `12px` radius
+- Floating browser: `16px` top/left, `288px` width, `58px` header, and `23px` Large radius
+- Card layout: `12px` horizontal inset, `264px` width, `84px` height, and `10px` gap
+- Full card: `84px` height and the default Acrylic Small `13.5px` radius
 - Minimal card: `40px` height and `8px` radius
-- Canvas preview: `96px × 64px` with `6px` radius
+- Canvas preview: `114.4px × 66px` with `8px` radius and an even `9px` card inset
+
+Every card mode clips its content wrapper inside the card's inherited radius. The native clip inset
+is the `1.5px` rim plus its `0.5px` softness; Opaque uses its `1px` border width. The material rim
+remains above that wrapper, preventing previews or other content from producing square corners,
+showing through translucent edge pixels, or covering the visible card edge during scrolling.
 
 Phase 4.5C2D maps non-embedded full, minimal, and inline-editor cards to Acrylic Small. Embedded
 Canvas Manager cards use the non-registering Opaque strategy so embedded mode creates no cached-
@@ -272,14 +285,17 @@ acrylic surfaces. The preview shell uses Cutout; its miniature containers, text 
 remain cheap projected geometry and retain user-selected colors and the existing projection math.
 Active/cycle application state uses the scoped target accent tokens.
 
-Canvas Browser reorder FLIP transforms run on the shared UI scheduler. Active frames use only the
-public cheap surface-geometry invalidation seam, settle exactly, and do no further geometry work;
-reduced motion settles immediately. During pointer drag, the registered source card's compositor
-mask opacity follows its hidden DOM state and is restored on completion/cancel. The body-owned drag
-preview is an explicitly unregistered opaque representation derived from the card visual rather
-than a canonical Opaque MaterialSurface. It carries the scoped target theme, removes cloned FLIP
-presentation before fixed positioning, and does not claim a registered material ID. Neither path
-requests a shared backdrop-cache rebuild.
+The Renderer V2-derived Canvas Browser runtime owns one on-demand frame loop for authoritative
+`45ms`-constant wheel smoothing, slot interpolation, pointer following, release snap, and drag
+auto-scroll. Wheel input is normalized by `0.45`; drag activates at `6px`; slot and release motion
+use `190ms` `easeOutQuart`. Transient order is committed once after a completed snap, never per
+pointer frame.
+
+Cards render once into stable React portal hosts. Active drag reparents the same host into a
+temporary unclipped layer owned by the Large Canvas Browser; there is no clone, hidden duplicate,
+or placeholder. React material context therefore keeps the same logical Large sampling boundary
+through activation, drag, snap, and reattachment. Active frames use only DOM transforms and the
+cheap material-geometry invalidation seam. Reduced motion settles immediately.
 
 ### Extensions
 
@@ -329,32 +345,47 @@ matching mount/unmount timeout.
 C3A maps the primary Settings shell to modal-plane Acrylic Large and meaningful Settings islands to
 modal-plane Acrylic Small. Navigation composes the shared `LiquidTabs`; grid style, opacity,
 booleans, data actions, close, and update-check controls compose existing C1 primitives. Text,
-headings, shortcut keycaps, and internal rows remain normal DOM. The password dialog,
-`UpdateAvailableModal`, and `ColorPickerMenu` shells retain their legacy presentation for later C3
-slices.
+headings, shortcut keycaps, and internal rows remain normal DOM. C3B migrates the Settings password
+and update dialogs while `ColorPickerMenu` retains its legacy presentation for a later C3 slice.
 
 ## Material planes
 
 There are exactly two semantic planes: `base` and `modal`. `MaterialSurface` inherits a plane from
 `MaterialPlaneProvider` and defaults to `base`; an instance may override it. React context inheritance
-continues through portals. The compositor owns the output canvases and stacking implementation, so
-features must not hardcode compositor canvas z-index behavior. A third plane requires a new
-architecture decision.
+continues through portals. Native glass keeps these semantics as material metadata and modal/base
+ownership; it does not create separate Canvas2D output planes. Features must not hardcode a material
+backend or expose native filter values. A third plane requires a new architecture decision.
 
-C3A gives production modal DOM the shared semantic layer order: scrim `9999`, the existing modal
-compositor output `10000`, modal content `10001`, and body-owned modal overlay adapters `10002`.
-The Settings scrim is plain DOM below the compositor; `MaterialPlaneProvider` makes its Acrylic
-Large shell, Acrylic Small islands, liquid indicator, and liquid-toggle knobs register on the
-existing modal plane. The layer contract changes no base-plane or workspace-chrome stacking.
+C3A gives production modal DOM the shared semantic layer order: scrim `9999`, modal content `10001`,
+and body-owned modal overlay adapters `10002`; the former compositor slot at `10000` is not mounted.
+The Settings scrim is plain DOM below native Acrylic Large/Small surfaces.
+`MaterialPlaneProvider` preserves their modal ownership without cached surface registration. The
+layer contract changes no base-plane or workspace-chrome stacking.
+
+C3B adds one shared modal-presence mechanism on the existing modal boundary. Root dialogs use one
+root scrim; Settings-owned nested dialogs use a local scrim/content adapter without another material
+provider or plane. Entry uses the shared normal `180ms` duration from opacity `0`, translateY `6px`,
+and scale `0.98`; exit uses the shared fast `120ms` duration toward opacity `0`, translateY `4px`,
+and scale `0.985`. The rest state is exact opacity `1`, zero translation, and scale `1`. Scrim
+opacity follows the same normalized progress to the normative `0.36`; reduced motion writes exact
+entry or exit state immediately.
+
+The modal presentation group applies opacity to the DOM group, so its native glass descendants and
+content compose together. Transform frames issue at most one shared cheap geometry invalidation to
+refresh sampling bounds and rims. They perform no registration, mask update, scene serialization,
+or cached backdrop rebuild.
 
 For the production workspace, all canvas/backdrop DOM is contained by the intentional backdrop
-layer at `0`, the base compositor output remains at layer `40`, and the shared
-`--taskmap-layer-workspace-chrome: 41` contract is the only base-plane content layer above it. The
+layer at `0`, the former base compositor output is not mounted, and the shared
+`--taskmap-layer-workspace-chrome: 41` contract is the base-plane content layer above it. The
 workspace root deliberately has no `z-index`, isolation, transform, filter, opacity, or containment
 that would trap canvas or chrome. Later C2 workspace patterns consume the shared chrome layer rather
 than declaring feature-specific compositor-relative values.
 
-## Backdrop scene boundary
+## Legacy cached-compositor boundary (inactive)
+
+The following sections preserve the Phase 4.5B cached-compositor contract for rollback and
+historical review. They do not describe the active native-glass rendering path.
 
 Phase 4.5B defines the proven runtime `BackdropScene` contract at the material compositor public
 boundary. It is presentation data made of generic, cullable visual primitives such as flat or

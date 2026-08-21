@@ -33,6 +33,11 @@ export interface MaterialSurfaceRegistrySnapshot {
   readonly surfaces: readonly RegisteredMaterialSurface[];
 }
 
+export interface MaterialSurfaceMaskOpacityUpdate {
+  readonly element: MaterialSurfaceElement;
+  readonly maskOpacity: number;
+}
+
 export interface SharedSurfaceResizeObserver {
   observe(element: MaterialSurfaceElement): void;
   unobserve(element: MaterialSurfaceElement): void;
@@ -44,9 +49,11 @@ export type CreateSharedSurfaceResizeObserver = (
 ) => SharedSurfaceResizeObserver;
 
 export interface MaterialSurfaceRegistry {
-  register(registration: MaterialSurfaceRegistration): () => void;
+  register(registration: MaterialSurfaceRegistration, initialMaskOpacity?: number): () => void;
   update(registration: MaterialSurfaceRegistration): void;
   updateMaskOpacity(element: MaterialSurfaceElement, maskOpacity: number): void;
+  updateMaskOpacityBatch(elements: readonly MaterialSurfaceElement[], maskOpacity: number): void;
+  updateMaskOpacitiesBatch(updates: readonly MaterialSurfaceMaskOpacityUpdate[]): void;
   refreshMeasurements(): void;
   getSnapshot(): MaterialSurfaceRegistrySnapshot;
   subscribe(listener: () => void): () => void;
@@ -102,7 +109,7 @@ export function createMaterialSurfaceRegistry(
   };
 
   return Object.freeze({
-    register(registration: MaterialSurfaceRegistration) {
+    register(registration: MaterialSurfaceRegistration, initialMaskOpacity = 1) {
       if (disposed) return () => undefined;
       if (!registration.id.trim()) throw new RangeError("Material surface ID must not be empty");
       if (!Number.isFinite(registration.radiusPx) || registration.radiusPx < 0) {
@@ -121,7 +128,7 @@ export function createMaterialSurfaceRegistry(
         this.update(registration);
         return () => unregister(registration.id, registration.element);
       }
-      const entry = withMeasurement(registration);
+      const entry = withMeasurement(registration, initialMaskOpacity);
       entries.set(registration.id, entry);
       idsByElement.set(registration.element, registration.id);
       observer?.observe(registration.element);
@@ -146,15 +153,28 @@ export function createMaterialSurfaceRegistry(
       }
     },
     updateMaskOpacity(element: MaterialSurfaceElement, maskOpacity: number) {
+      this.updateMaskOpacityBatch([element], maskOpacity);
+    },
+    updateMaskOpacityBatch(elements: readonly MaterialSurfaceElement[], maskOpacity: number) {
+      this.updateMaskOpacitiesBatch(elements.map((element) => ({ element, maskOpacity })));
+    },
+    updateMaskOpacitiesBatch(updates: readonly MaterialSurfaceMaskOpacityUpdate[]) {
       if (disposed) return;
-      const id = idsByElement.get(element);
-      if (!id) return;
-      const current = entries.get(id);
-      if (!current) return;
-      const nextMaskOpacity = normalizeMaskOpacity(maskOpacity);
-      if (current.maskOpacity === nextMaskOpacity) return;
-      entries.set(id, Object.freeze({ ...current, maskOpacity: nextMaskOpacity }));
-      markPlanes(current.plane);
+      const changedPlanes = new Set<MaterialPlane>();
+      const opacityByElement = new Map<MaterialSurfaceElement, number>();
+      for (const { element, maskOpacity } of updates) {
+        opacityByElement.set(element, normalizeMaskOpacity(maskOpacity));
+      }
+      for (const [element, nextMaskOpacity] of opacityByElement) {
+        const id = idsByElement.get(element);
+        if (!id) continue;
+        const current = entries.get(id);
+        if (!current || current.maskOpacity === nextMaskOpacity) continue;
+        entries.set(id, Object.freeze({ ...current, maskOpacity: nextMaskOpacity }));
+        changedPlanes.add(current.plane);
+      }
+      if (changedPlanes.size === 0) return;
+      markPlanes(...changedPlanes);
       publish();
     },
     refreshMeasurements() {

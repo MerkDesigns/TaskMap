@@ -27,12 +27,7 @@ export default function AppShell() {
   const [materialPresentation] = useState(createMaterialCompositorPresentationBridge);
   return (
     <MaterialCompositorProvider presentation={materialPresentation}>
-      {DevelopmentUiLab ? null : (
-        <LegacyApplication
-          onBeforeClose={runWindowCloseGuard}
-          materialPresentation={materialPresentation}
-        />
-      )}
+      {DevelopmentUiLab ? null : <LegacyApplication onBeforeClose={runWindowCloseGuard} />}
       <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
         <AppProviders>
           {DevelopmentPhase2Entry ? (

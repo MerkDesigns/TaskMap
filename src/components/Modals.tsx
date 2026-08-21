@@ -7,13 +7,11 @@ import {
   IconKeyboard,
   IconPalette,
   IconRefresh,
-  IconRotateClockwise,
   IconSettings,
-  IconTrash,
   IconUpload,
   IconX,
 } from "@tabler/icons-react";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
 import { commandErrorMessage } from "../app/commandError";
 import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
 import {
@@ -25,218 +23,16 @@ import {
   SegmentedControl,
   Slider,
 } from "../ui/primitives";
-import { ModalLayer } from "../ui/patterns/overlays";
+import {
+  isNestedModalPresenceBlocking,
+  ModalPresence,
+  useDialogFocus,
+} from "../ui/patterns/overlays";
 import { SettingsIsland, SettingsShell, SettingsToggleRow } from "../ui/patterns/settings";
 import { ColorPickerMenu } from "./ColorPickerMenu";
+import { SettingsPasswordDialog, UpdateAvailableModal } from "./ProductionDialogs";
 
-const FOCUSABLE_SELECTOR = [
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "a[href]",
-  "[tabindex]:not([tabindex='-1'])",
-].join(",");
-
-const useDialogFocus = (open = true) => {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open || !dialogRef.current) {
-      return;
-    }
-
-    const dialog = dialogRef.current;
-    const previousFocus =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusableElements = () =>
-      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-    (focusableElements()[0] ?? dialog).focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") {
-        return;
-      }
-      const openDialogs = Array.from(
-        document.querySelectorAll<HTMLElement>("[role='dialog'][aria-modal='true']"),
-      );
-      if (openDialogs[openDialogs.length - 1] !== dialog) {
-        return;
-      }
-
-      const focusable = focusableElements();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-      previousFocus?.focus();
-    };
-  }, [open]);
-
-  return dialogRef;
-};
-
-type UpdateAvailableModalProps = {
-  update: AppUpdateInfo;
-  onInstall: () => Promise<void>;
-  onDismiss: () => void;
-};
-
-export function UpdateAvailableModal({ update, onInstall, onDismiss }: UpdateAvailableModalProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const dialogRef = useDialogFocus();
-
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) {
-        event.preventDefault();
-        onDismiss();
-      }
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [busy, onDismiss]);
-
-  const handleInstall = async () => {
-    setError("");
-    setBusy(true);
-    try {
-      await onInstall();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="update-available-title"
-        tabIndex={-1}
-        className="w-[380px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <IconDownload size={19} stroke={2} className="text-white/70" />
-            <h2 id="update-available-title" className="text-[16px] font-semibold">
-              Update available
-            </h2>
-          </div>
-          <button
-            className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-            onClick={onDismiss}
-            disabled={busy}
-            title="Close"
-          >
-            <IconX size={17} stroke={2} />
-          </button>
-        </div>
-        <div className="mb-5 space-y-2 text-sm text-white/68">
-          <div>TaskMap {update.version} is ready to download.</div>
-          <div className="text-xs text-white/48">Current version: {update.currentVersion}</div>
-          {error && <div className="text-xs text-red-300">{error}</div>}
-        </div>
-        <div className="flex justify-end gap-2">
-          <button
-            className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-            onClick={onDismiss}
-            disabled={busy}
-          >
-            <IconX size={17} stroke={2} />
-            <span>Not now</span>
-          </button>
-          <button
-            className="flex h-9 items-center gap-2 rounded-md bg-white/[0.12] px-3 text-sm text-white transition-colors hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
-            onClick={handleInstall}
-            disabled={busy}
-          >
-            <IconDownload size={17} stroke={2} />
-            <span>{busy ? "Installing..." : "Update"}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type ClearCanvasModalProps = {
-  onCancel: () => void;
-  onConfirm: () => void;
-};
-
-export function ClearCanvasModal({ onCancel, onConfirm }: ClearCanvasModalProps) {
-  const dialogRef = useDialogFocus();
-
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCancel();
-      }
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [onCancel]);
-
-  return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/45">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="clear-canvas-title"
-        tabIndex={-1}
-        className="w-[360px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
-      >
-        <div className="mb-3 flex items-center gap-2">
-          <IconTrash size={20} stroke={2} className="text-red-300" />
-          <h2 id="clear-canvas-title" className="text-[16px] font-semibold">
-            Clear canvas?
-          </h2>
-        </div>
-        <p className="mb-5 text-sm leading-5 text-white/65">
-          This will remove all content from the canvas, including locked items.
-        </p>
-        <div className="flex justify-end gap-2">
-          <button
-            className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/75 hover:bg-white/[0.10] hover:text-white"
-            onClick={onCancel}
-          >
-            <IconX size={17} stroke={2} />
-            <span>Cancel</span>
-          </button>
-          <button
-            className="flex h-9 items-center gap-2 rounded-md bg-red-500/18 px-3 text-sm text-red-200 hover:bg-red-500/25"
-            onClick={onConfirm}
-          >
-            <IconRotateClockwise size={17} stroke={2} />
-            <span>Clear</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+export { ClearCanvasModal, UpdateAvailableModal } from "./ProductionDialogs";
 
 type SettingsModalProps = {
   canvasGridStyle: CanvasGridStyle;
@@ -374,30 +170,17 @@ export function SettingsModal({
     top: number;
   } | null>(null);
   const dialogRef = useDialogFocus();
-  const passwordDialogRef = useDialogFocus(Boolean(passwordModal));
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-
+      if (event.key !== "Escape" || isNestedModalPresenceBlocking()) return;
       event.preventDefault();
-
-      if (updateModalOpen) {
-        setUpdateModalOpen(false);
-      } else if (passwordModal) {
-        setPasswordModal(null);
-        setPasswordDraft("");
-        setPendingImportFile(null);
-      } else {
-        onClose();
-      }
+      onClose();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [updateModalOpen, passwordModal, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     if (activeTab !== "visual") {
@@ -499,7 +282,7 @@ export function SettingsModal({
   };
 
   return (
-    <ModalLayer>
+    <Fragment>
       <SettingsShell
         ref={dialogRef}
         role="dialog"
@@ -746,84 +529,27 @@ export function SettingsModal({
           }}
         />
       )}
-      {updateModalOpen && availableUpdate && (
-        <UpdateAvailableModal
-          update={availableUpdate}
-          onInstall={onInstallUpdate}
-          onDismiss={() => setUpdateModalOpen(false)}
-        />
-      )}
-      {passwordModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
-          <div
-            ref={passwordDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="data-password-title"
-            tabIndex={-1}
-            className="frosted-glass w-[340px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {passwordModal === "export" ? (
-                  <IconDownload size={19} stroke={2} className="text-white/70" />
-                ) : (
-                  <IconUpload size={19} stroke={2} className="text-white/70" />
-                )}
-                <h2 id="data-password-title" className="text-[16px] font-semibold">
-                  {passwordModal === "export" ? "Export data" : "Import data"}
-                </h2>
-              </div>
-              <button
-                className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white"
-                onClick={closePasswordModal}
-                title="Close"
-              >
-                <IconX size={17} stroke={2} />
-              </button>
-            </div>
-            <input
-              className="left-panel-card mb-4 h-10 w-full rounded-md border border-white/[0.12] bg-black/[0.18] px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/35"
-              type="password"
-              value={passwordDraft}
-              autoFocus
-              spellCheck={false}
-              onChange={(event) => setPasswordDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  submitPassword();
-                }
-
-                if (event.key === "Escape") {
-                  closePasswordModal();
-                }
-              }}
-              placeholder="Password"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
-                onClick={closePasswordModal}
-              >
-                <IconX size={17} stroke={2} />
-                <span>Cancel</span>
-              </button>
-              <button
-                className="flex h-9 items-center gap-2 rounded-md bg-white/[0.12] px-3 text-sm text-white transition-colors hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-45"
-                onClick={submitPassword}
-                disabled={busy}
-              >
-                {passwordModal === "export" ? (
-                  <IconDownload size={17} stroke={2} />
-                ) : (
-                  <IconUpload size={17} stroke={2} />
-                )}
-                <span>{passwordModal === "export" ? "Export" : "Import"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </ModalLayer>
+      <ModalPresence open={updateModalOpen && Boolean(availableUpdate)} placement="nested">
+        {availableUpdate ? (
+          <UpdateAvailableModal
+            update={availableUpdate}
+            onInstall={onInstallUpdate}
+            onDismiss={() => setUpdateModalOpen(false)}
+          />
+        ) : null}
+      </ModalPresence>
+      <ModalPresence open={Boolean(passwordModal)} placement="nested">
+        {passwordModal ? (
+          <SettingsPasswordDialog
+            busy={busy}
+            mode={passwordModal}
+            password={passwordDraft}
+            onPasswordChange={setPasswordDraft}
+            onClose={closePasswordModal}
+            onSubmit={submitPassword}
+          />
+        ) : null}
+      </ModalPresence>
+    </Fragment>
   );
 }

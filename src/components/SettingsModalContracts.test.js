@@ -17,6 +17,7 @@ const settingsPatternPath = new URL(
   import.meta.url,
 );
 const settingsCssPath = new URL("../ui/patterns/settings/SettingsPatterns.css", import.meta.url);
+const productionDialogsPath = new URL("./ProductionDialogs.tsx", import.meta.url);
 
 describe("Phase 4.5C3A Settings architecture contracts", () => {
   it("defines semantic scrim/compositor/content layers without changing the modal canvas layer", async () => {
@@ -54,8 +55,11 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     expect(settingsCss).toContain("overflow-x: hidden");
   });
 
-  it("migrates only the primary Settings tree and retains deferred nested overlays", async () => {
-    const modals = await readFile(modalsPath, "utf8");
+  it("retains the C3A Settings tree while C3B migrates only its nested dialogs", async () => {
+    const [modals, productionDialogs] = await Promise.all([
+      readFile(modalsPath, "utf8"),
+      readFile(productionDialogsPath, "utf8"),
+    ]);
     const primaryStart = modals.indexOf("<SettingsShell");
     const primaryEnd = modals.indexOf("</SettingsShell>", primaryStart);
     const primary = modals.slice(primaryStart, primaryEnd);
@@ -71,9 +75,9 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
       /#318f87|left-panel-card|frosted-glass|backdrop-filter|bg-\[#141519\]|z-40|<button\b/,
     );
     expect(deferred).toContain("<UpdateAvailableModal");
-    expect(deferred).toContain("passwordModal &&");
-    expect(deferred).toContain("frosted-glass");
-    expect(deferred).toContain("left-panel-card");
+    expect(deferred).toContain("<SettingsPasswordDialog");
+    expect(deferred.match(/placement="nested"/g)).toHaveLength(2);
+    expect(productionDialogs).not.toMatch(/frosted-glass|left-panel-card/);
   });
 
   it("retains tab gating, hidden import contract, color-picker placement, and exact shortcuts", async () => {

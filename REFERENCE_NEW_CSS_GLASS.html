@@ -1,0 +1,2012 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TaskMap CSS Glass Lab — Clean Two-pass V3</title>
+<style>
+  :root {
+    color-scheme: dark;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    --canvas-bg: #0f1011;
+    --dot-rgb: 70 79 96;
+    --text: rgb(255 255 255 / 0.88);
+    --muted: rgb(255 255 255 / 0.58);
+    --accent: #ff922b;
+
+    /* Live CSS materials. Large and Small are completely independent. */
+    --large-blur: 38px;
+    --large-preblur: 6px;
+    --large-saturation: 0.78;
+    --large-brightness: 0.82;
+    --large-contrast: 1;
+    --large-tint-rgb: 39 40 42;
+    --large-tint-alpha: 0.45;
+    --large-tone-rgb: 14 15 17;
+    --large-tone-alpha: 0;
+    --large-radius: 23px;
+    --large-rim-base-alpha: 0.205;
+    --large-rim-width: 1.5px;
+    --large-rim-softness: 0.5px;
+    --large-rim-scale: 0.9;
+    --large-shadow-rgb: 0 0 0;
+    --large-shadow-opacity: 0.5;
+    --large-shadow-x: 0px;
+    --large-shadow-y: 3.5px;
+    --large-shadow-blur: 16.5px;
+    --large-shadow-spread: 0px;
+
+    --small-blur: 20px;
+    --small-drag-preblur: 5px;
+    --small-saturation: 0.78;
+    --small-brightness: 0.90;
+    --small-contrast: 1;
+    --small-tint-rgb: 133 133 133;
+    --small-tint-alpha: 0.025;
+    --small-tone-rgb: 148 148 148;
+    --small-tone-alpha: 0;
+    --small-radius: 13.5px;
+    --small-rim-base-alpha: 0.135;
+    --small-rim-width: 1.5px;
+    --small-rim-softness: 0.5px;
+    --small-rim-scale: 0.9;
+    --small-shadow-rgb: 0 0 0;
+    --small-shadow-opacity: 0.48;
+    --small-shadow-x: 0px;
+    --small-shadow-y: 3.5px;
+    --small-shadow-blur: 11.5px;
+    --small-shadow-spread: 0.5px;
+
+    --dot-opacity: 0.50;
+    --dot-size: 1.25px;
+    --dot-spacing: 29px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--canvas-bg); }
+  body { user-select: none; color: var(--text); }
+  button, input { font: inherit; }
+
+  .app {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--canvas-bg);
+  }
+
+  /* ---------- Cheap original/refactor-style DOM canvas ---------- */
+  .canvas {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--canvas-bg);
+    cursor: grab;
+    touch-action: none;
+  }
+  .canvas.is-panning { cursor: grabbing; }
+
+  .world {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3600px;
+    height: 3000px;
+    transform-origin: 0 0;
+    background-color: var(--canvas-bg);
+    background-image: radial-gradient(
+      circle,
+      rgb(var(--dot-rgb) / var(--dot-opacity)) var(--dot-size),
+      transparent calc(var(--dot-size) + 0.5px)
+    );
+    background-size: var(--dot-spacing) var(--dot-spacing);
+    will-change: transform;
+  }
+
+  .world-element {
+    position: absolute;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: 14px;
+    background: #1b1b1e;
+    box-shadow: 0 16px 34px rgb(0 0 0 / 0.32);
+    contain: layout paint;
+    color: var(--text);
+  }
+  .world-element[data-kind="green"] { background: #1f7f55; }
+  .world-element[data-kind="purple"] { background: #5b467d; }
+  .world-element.is-dragging { will-change: transform; }
+
+  .element-header {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 9px;
+    border-bottom: 1px solid rgb(255 255 255 / 0.10);
+    background: rgb(0 0 0 / 0.10);
+    cursor: move;
+  }
+  .element-header strong { font-size: 12px; font-weight: 650; }
+  .element-header span { color: rgb(255 255 255 / 0.56); font-size: 10px; }
+  .element-body {
+    position: relative;
+    height: calc(100% - 38px);
+    overflow: hidden;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .element-body p { margin: 0; color: rgb(255 255 255 / 0.72); }
+  .element-media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+  .world-element.media .element-body { padding: 0; height: 100%; }
+  .world-element.media .element-header {
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 0;
+    top: 0;
+    background: linear-gradient(rgb(5 6 8 / .76), rgb(5 6 8 / .34));
+    backdrop-filter: blur(4px);
+  }
+  .resize-handle {
+    position: absolute;
+    z-index: 5;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    background: linear-gradient(135deg, transparent 45%, rgb(255 255 255 / .62) 47% 54%, transparent 56% 65%, rgb(255 255 255 / .42) 67% 74%, transparent 76%);
+    cursor: nwse-resize;
+    touch-action: none;
+  }
+
+
+  /* ---------- Glass material: native live CSS backdrop, no screenshots ---------- */
+  .glass-surface {
+    position: absolute;
+    border-radius: var(--radius);
+    /* One shadow implementation for every state. It is deliberately separated
+       from the filtered/overscanned backdrop so dragging cannot switch shadow
+       compositing paths. */
+    --shadow-rgb: 0 0 0;
+    --shadow-opacity: .30;
+    --shadow-x: 0px;
+    --shadow-y: 2px;
+    --shadow-blur: 11px;
+    --shadow-spread: 0px;
+  }
+
+  /* Shared shadow for every state. It lives outside the backdrop clip so
+     settled, dragging, and snapping cards use the same shadow composition. */
+  .glass-surface::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      var(--shadow-x) var(--shadow-y)
+      max(0px, calc(var(--shadow-blur) - 4px))
+      var(--shadow-spread)
+      color-mix(in srgb, rgb(var(--shadow-rgb) / var(--shadow-opacity)) 58%, transparent),
+      var(--shadow-x) calc(var(--shadow-y) + 1px)
+      var(--shadow-blur)
+      max(-4px, calc(var(--shadow-spread) - 1px))
+      color-mix(in srgb, rgb(var(--shadow-rgb) / var(--shadow-opacity)) 42%, transparent);
+  }
+
+  .glass-clip {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    /* Keep the visible material exactly on the rounded panel, but let the
+       backdrop-filter child extend past it. That extra filtered area is the
+       real CSS overscan: blur-edge artifacts happen outside the visible clip. */
+    background: transparent;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .glass-preblur,
+  .glass-backdrop {
+    position: absolute;
+    left: calc(0px - var(--overscan-left, 0px));
+    top: calc(0px - var(--overscan-top, 0px));
+    right: calc(0px - var(--overscan-right, 0px));
+    bottom: calc(0px - var(--overscan-bottom, 0px));
+    pointer-events: none;
+    background: rgb(0 0 0 / 0.001);
+  }
+
+  /* Experimental true first backdrop pass. It paints before the normal Large
+     backdrop layer, so the main pass samples an already softened backdrop. */
+  .glass-preblur {
+    z-index: 0;
+    -webkit-backdrop-filter: blur(var(--preblur, 0px));
+    backdrop-filter: blur(var(--preblur, 0px));
+  }
+
+  .glass-backdrop {
+    z-index: 1;
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(var(--saturation)) brightness(var(--brightness)) contrast(var(--contrast));
+    backdrop-filter: blur(var(--blur)) saturate(var(--saturation)) brightness(var(--brightness)) contrast(var(--contrast));
+    will-change: backdrop-filter;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* Tint and tone are separate from blur so enlarging the blur sampling surface
+     cannot change the visible material density. */
+  .glass-highlight {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(rgb(var(--tint-rgb) / var(--tint-alpha)), rgb(var(--tint-rgb) / var(--tint-alpha))),
+      linear-gradient(rgb(var(--tone-rgb) / var(--tone-alpha)), rgb(var(--tone-rgb) / var(--tone-alpha)));
+    pointer-events: none;
+  }
+
+  /* Rim is drawn into a DPR-aware canvas by JS. Unlike four CSS edge shadows,
+     the canvas samples the rounded-rect normal continuously around every corner.
+     This lets the configured Liquid-style light direction peak on the upper-left arc exactly
+     where that arc's normal faces the light, while straight edges remain weaker. */
+  .glass-rim {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    filter: blur(var(--rim-softness));
+  }
+  .glass-rim-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .glass-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+  }
+
+  .glass-large {
+    --radius: var(--large-radius);
+    --blur: var(--large-blur);
+    --preblur: var(--large-preblur);
+    --saturation: var(--large-saturation);
+    --brightness: var(--large-brightness);
+    --contrast: var(--large-contrast);
+    --tint-rgb: var(--large-tint-rgb);
+    --tint-alpha: var(--large-tint-alpha);
+    --tone-rgb: var(--large-tone-rgb);
+    --tone-alpha: var(--large-tone-alpha);
+    --rim-base-alpha: var(--large-rim-base-alpha);
+    --rim-width: var(--large-rim-width);
+    --rim-softness: var(--large-rim-softness);
+    --rim-scale: var(--large-rim-scale);
+    --shadow-rgb: var(--large-shadow-rgb);
+    --shadow-opacity: var(--large-shadow-opacity);
+    --shadow-x: var(--large-shadow-x);
+    --shadow-y: var(--large-shadow-y);
+    --shadow-blur: var(--large-shadow-blur);
+    --shadow-spread: var(--large-shadow-spread);
+  }
+  .glass-small .glass-preblur { display: none; }
+
+  /* Small cards stay one-pass while settled. The actual dragged/snapping card
+     temporarily gets a first backdrop pass so text/cards underneath are softened
+     before the normal Small-panel blur samples them. */
+  .glass-small.canvas-card.is-dragging .glass-preblur,
+  .glass-small.canvas-card.is-snapping .glass-preblur {
+    display: block;
+    --preblur: var(--small-drag-preblur);
+    -webkit-backdrop-filter: blur(var(--small-drag-preblur));
+    backdrop-filter: blur(var(--small-drag-preblur));
+  }
+
+
+  .glass-small {
+    --radius: var(--small-radius);
+    --blur: var(--small-blur);
+    --saturation: var(--small-saturation);
+    --brightness: var(--small-brightness);
+    --contrast: var(--small-contrast);
+    --tint-rgb: var(--small-tint-rgb);
+    --tint-alpha: var(--small-tint-alpha);
+    --tone-rgb: var(--small-tone-rgb);
+    --tone-alpha: var(--small-tone-alpha);
+    --rim-base-alpha: var(--small-rim-base-alpha);
+    --rim-width: var(--small-rim-width);
+    --rim-softness: var(--small-rim-softness);
+    --rim-scale: var(--small-rim-scale);
+    --shadow-rgb: var(--small-shadow-rgb);
+    --shadow-opacity: var(--small-shadow-opacity);
+    --shadow-x: var(--small-shadow-x);
+    --shadow-y: var(--small-shadow-y);
+    --shadow-blur: var(--small-shadow-blur);
+    --shadow-spread: var(--small-shadow-spread);
+  }
+
+  /* Large is permanently two-pass. Small cards are one-pass while settled and
+     temporarily add the pre-blur pass only while dragging/snapping. */
+
+  /* ---------- Renderer V2 Canvas Browser exact layout ---------- */
+  .canvas-browser {
+    position: fixed;
+    z-index: 40;
+    left: 16px;
+    top: 16px;
+    width: 288px;
+    overflow: visible;
+    pointer-events: auto;
+  }
+  .canvas-browser > .glass-content {
+    display: flex;
+    /* Do not clip card shadows here. In V7 this ancestor was the remaining
+       settled-only clipping path; the dragged card escaped it when reparented. */
+    overflow: visible;
+    flex-direction: column;
+    border-radius: inherit;
+  }
+  .canvas-browser-header {
+    display: flex;
+    min-height: 58px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 13px;
+  }
+  .canvas-browser-header > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+  .canvas-browser-header strong { font-size: 14px; font-weight: 650; }
+  .canvas-browser-header span { color: var(--muted); font-size: 10px; }
+  .canvas-browser-header output {
+    display: grid;
+    min-width: 24px;
+    height: 24px;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / .12);
+    border-radius: 999px;
+    font-size: 11px;
+  }
+
+  .browser-body {
+    position: relative;
+    min-height: 0;
+    flex: 1;
+    /* Do not clip Small Panel shadows at the body rectangle. The outer browser
+       glass-content still owns the final rounded clip, so settled cards keep a
+       natural shadow tail instead of a square cutoff. */
+    overflow: visible;
+    margin: 0;
+    padding: 0 12px 12px;
+    touch-action: none;
+  }
+  /* The viewport now spans the full 288px browser width. The 12px side/bottom
+     inset is padding instead of an outer margin, so Small Panel shadow tails can
+     fade into that gutter before the browser clips them. This removes the hard
+     rectangular shadow cutoff visible in V5. */
+  .cards-track {
+    position: absolute;
+    top: 0;
+    right: 12px;
+    left: 12px;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+  }
+  .canvas-card {
+    position: absolute;
+    left: 0;
+    width: 264px;
+    height: 84px;
+    color: rgb(255 255 255 / .88);
+    cursor: grab;
+    touch-action: none;
+  }
+  .canvas-card.is-dragging {
+    z-index: 100;
+    cursor: grabbing;
+  }
+  .canvas-card.is-snapping {
+    z-index: 100;
+  }
+  .canvas-card > .glass-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    border-radius: inherit;
+    padding: 7px;
+  }
+  .card-active {
+    position: absolute;
+    z-index: 5;
+    top: 50%;
+    left: 0;
+    width: 3px;
+    height: 22px;
+    transform: translateY(-50%);
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 52%, transparent);
+    opacity: 0;
+  }
+  .canvas-card.is-active .card-active { opacity: 1; }
+  .canvas-card svg {
+    display: block;
+    box-sizing: border-box;
+    width: auto;
+    height: 100%;
+    overflow: hidden;
+    aspect-ratio: 1.7333;
+    border: 1px solid rgb(255 255 255 / .09);
+    border-radius: 8px;
+    background: #0d0f12;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .018);
+    flex: 0 0 auto;
+  }
+  .canvas-card svg rect { fill: rgb(205 220 232 / .68); }
+  .card-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 27px;
+  }
+  .card-copy strong {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: calc(1.2em - 2px);
+    overflow-wrap: anywhere;
+  }
+  .card-copy span {
+    color: var(--muted);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .card-options {
+    position: absolute;
+    z-index: 6;
+    top: 50%;
+    right: 11px;
+    display: grid;
+    padding: 3px 2px;
+    transform: translateY(-50%);
+    place-items: center;
+    border: 0;
+    border-radius: 4px;
+    color: rgb(255 255 255 / .78);
+    background: transparent;
+    cursor: pointer;
+  }
+  .card-options:hover { background: rgb(255 255 255 / .10); }
+  .card-dots {
+    width: 2.5px;
+    height: 2.5px;
+    border-radius: 50%;
+    background: currentcolor;
+    box-shadow: 0 -4.5px currentcolor, 0 4.5px currentcolor;
+  }
+  .drag-layer .canvas-card { position: fixed; pointer-events: none; }
+
+  body.hide-small-panels .canvas-card {
+    display: none !important;
+  }
+
+  /* ---------- Opaque developer controls: intentionally no extra backdrop blur ---------- */
+  .lab-controls {
+    position: fixed;
+    z-index: 200;
+    top: 16px;
+    right: 16px;
+    width: 320px;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / .12);
+    border-radius: 13px;
+    background: rgb(17 18 20 / .985);
+    box-shadow: 0 12px 34px rgb(0 0 0 / .38);
+  }
+  .controls-head { padding: 12px 12px 8px; }
+  .lab-controls h1 { margin: 0 0 2px; font-size: 14px; }
+  .lab-controls .sub { margin: 0; color: rgb(255 255 255 / .52); font-size: 10px; }
+  .control-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 8px 8px; }
+  .control-tab {
+    min-height: 30px;
+    border: 1px solid rgb(255 255 255 / .10);
+    border-radius: 8px;
+    color: rgb(255 255 255 / .60);
+    background: rgb(255 255 255 / .035);
+    cursor: pointer;
+  }
+  .control-tab[aria-selected="true"] { color: rgb(255 255 255 / .90); background: rgb(255 255 255 / .10); border-color: rgb(255 255 255 / .17); }
+  .control-panels { max-height: calc(100vh - 128px); overflow: auto; padding: 0 10px 12px; scrollbar-width: thin; }
+  .control-panel[hidden] { display: none; }
+  .control-section { margin: 8px 0 11px; padding-top: 8px; border-top: 1px solid rgb(255 255 255 / .07); }
+  .control-section:first-child { border-top: 0; padding-top: 0; }
+  .control-section h2 { margin: 0 0 6px; color: rgb(255 255 255 / .56); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+  .control-row { display: grid; grid-template-columns: minmax(0, 1fr) 58px 24px; gap: 7px; align-items: center; margin: 7px 0; }
+  .control-row label { grid-column: 1; grid-row: 1; font-size: 11px; color: rgb(255 255 255 / .72); }
+  .control-row output { grid-column: 2 / 4; grid-row: 1; color: rgb(255 255 255 / .55); font: 10px/1.2 Consolas, monospace; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+  .control-row input[type="range"] { grid-column: 1 / 3; grid-row: 2; width: 100%; min-width: 0; margin: -2px 0 2px; accent-color: var(--accent); }
+  .control-row > .control-reset { grid-column: 3; grid-row: 2; align-self: center; justify-self: end; }
+  .control-reset {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / .10);
+    border-radius: 6px;
+    color: rgb(255 255 255 / .52);
+    background: rgb(255 255 255 / .035);
+    cursor: pointer;
+  }
+  .control-reset:hover { color: rgb(255 255 255 / .86); background: rgb(255 255 255 / .09); }
+  .check-row .control-reset { margin-left: auto; flex: 0 0 auto; }
+  .control-row input[type="color"] { grid-column: 1 / 3; grid-row: 2; width: 42px; height: 24px; justify-self: start; padding: 1px; border: 1px solid rgb(255 255 255 / .14); border-radius: 6px; background: transparent; }
+  .control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+  .control-actions button, .wide-button, .reset-material {
+    min-height: 30px;
+    border: 1px solid rgb(255 255 255 / .13);
+    border-radius: 8px;
+    color: rgb(255 255 255 / .82);
+    background: rgb(255 255 255 / .065);
+    cursor: pointer;
+  }
+  .control-actions button:hover, .wide-button:hover, .reset-material:hover { background: rgb(255 255 255 / .10); }
+  .wide-button, .reset-material { width: 100%; margin-top: 7px; }
+  .check-row { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 11px; color: rgb(255 255 255 / .70); }
+  .check-row input { accent-color: var(--accent); }
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 8px;
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid rgb(255 255 255 / .09);
+    color: rgb(255 255 255 / .55);
+    font: 10px/1.3 Consolas, monospace;
+  }
+  .metrics strong { color: rgb(255 255 255 / .82); font-weight: 500; }
+
+
+  .json-editor {
+    position: fixed;
+    z-index: 260;
+    left: 328px;
+    top: 16px;
+    width: min(520px, calc(100vw - 680px));
+    min-width: 380px;
+    height: min(720px, calc(100vh - 32px));
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / .14);
+    border-radius: 13px;
+    background: rgb(15 16 18 / .992);
+    box-shadow: 0 18px 50px rgb(0 0 0 / .48);
+  }
+  .json-editor[hidden] { display: none; }
+  .json-editor-head {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px 8px 12px;
+    border-bottom: 1px solid rgb(255 255 255 / .08);
+  }
+  .json-editor-head strong { font-size: 12px; }
+  .json-editor-head span { display: block; margin-top: 1px; color: rgb(255 255 255 / .45); font-size: 9px; }
+  .json-editor-close {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgb(255 255 255 / .10);
+    border-radius: 7px;
+    color: rgb(255 255 255 / .66);
+    background: rgb(255 255 255 / .04);
+    cursor: pointer;
+  }
+  .json-editor-body {
+    display: grid;
+    height: calc(100% - 44px);
+    grid-template-rows: 1fr auto auto;
+    gap: 8px;
+    padding: 10px;
+  }
+  #settingsJson {
+    width: 100%;
+    min-height: 0;
+    resize: none;
+    border: 1px solid rgb(255 255 255 / .10);
+    border-radius: 9px;
+    outline: none;
+    padding: 10px;
+    color: rgb(235 238 243 / .92);
+    background: #0b0c0e;
+    font: 11px/1.45 Consolas, "Cascadia Mono", monospace;
+    tab-size: 2;
+  }
+  #settingsJson:focus { border-color: rgb(255 146 43 / .52); }
+  .json-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .json-actions button {
+    min-height: 30px;
+    border: 1px solid rgb(255 255 255 / .12);
+    border-radius: 7px;
+    color: rgb(255 255 255 / .76);
+    background: rgb(255 255 255 / .055);
+    cursor: pointer;
+  }
+  .json-actions button:hover { background: rgb(255 255 255 / .10); }
+  #jsonApply { border-color: rgb(255 146 43 / .34); }
+  .json-status { min-height: 16px; color: rgb(255 255 255 / .46); font: 10px/1.3 Consolas, monospace; }
+  .json-status.is-error { color: #ff8d8d; }
+  .json-status.is-ok { color: #9fd5a6; }
+
+  @media (max-width: 1040px) {
+    .json-editor {
+      left: 16px;
+      right: 16px;
+      top: 72px;
+      width: auto;
+      min-width: 0;
+      height: calc(100vh - 88px);
+    }
+  }
+
+  .help {
+    position: fixed;
+    z-index: 20;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    padding: 6px 10px;
+    border: 1px solid rgb(255 255 255 / .08);
+    border-radius: 8px;
+    background: rgb(10 11 12 / .76);
+    color: rgb(255 255 255 / .48);
+    font-size: 10px;
+    pointer-events: none;
+  }
+
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="canvas" id="canvas">
+    <div class="world" id="world">
+    </div>
+  </div>
+
+  <section class="canvas-browser glass-surface glass-large" id="browser" aria-label="Canvas Browser">
+    <div class="glass-clip" aria-hidden="true">
+      <div class="glass-preblur"></div>
+      <div class="glass-backdrop"></div>
+      <div class="glass-highlight"></div>
+      <div class="glass-rim"></div>
+    </div>
+    <div class="glass-content">
+      <header class="canvas-browser-header">
+        <div><strong>Canvas Browser</strong><span id="browserSubtitle">5 Canvas Cards</span></div>
+        <output id="browserCount">5</output>
+      </header>
+      <div class="browser-body" id="browserBody">
+        <div class="cards-track" id="cardsTrack">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="drag-layer" id="dragLayer"></div>
+
+  <aside class="lab-controls" id="controls">
+<div class="controls-head"><h1>CSS Glass Lab</h1><p class="sub">Parent-bounded Small overscan · two-pass Large blur · Renderer V2 motion</p></div>
+<div class="control-tabs" role="tablist">
+<button type="button" class="control-tab" data-tab="large" aria-selected="true">Large</button>
+<button type="button" class="control-tab" data-tab="small" aria-selected="false">Small</button>
+<button type="button" class="control-tab" data-tab="other" aria-selected="false">Other</button>
+</div><div class="control-panels"><section class="control-panel" id="panel-large" data-panel="large"><div class="control-section"><h2>Backdrop</h2><div class="control-row"><label for="largeBlur">Blur</label><output></output><input id="largeBlur" type="range" min="0" max="160" step="1" value="38" data-default="38" data-css-var="--large-blur" data-unit="px" data-overscan-role="large" data-format="px"></div><div class="control-row"><label for="largePreblur">Pre-blur pass</label><output></output><input id="largePreblur" type="range" min="0" max="20" step="0.5" value="6" data-default="6" data-css-var="--large-preblur" data-unit="px" data-overscan-role="large" data-format="px1"></div><div class="control-row"><label for="largeSaturation">Saturation</label><output></output><input id="largeSaturation" type="range" min="0" max="2" step="0.01" value="0.78" data-default="0.78" data-css-var="--large-saturation" data-format="factor"></div><div class="control-row"><label for="largeBrightness">Brightness</label><output></output><input id="largeBrightness" type="range" min="0.2" max="1.5" step="0.01" value="0.82" data-default="0.82" data-css-var="--large-brightness" data-format="factor"></div><div class="control-row"><label for="largeContrast">Contrast</label><output></output><input id="largeContrast" type="range" min="0.5" max="1.8" step="0.01" value="1" data-default="1" data-css-var="--large-contrast" data-format="factor"></div><div class="control-row"><label for="largeOverscanRatio">Blur sample margin</label><output></output><input id="largeOverscanRatio" type="range" min="0.25" max="2.5" step="0.05" value="1.15" data-default="1.15" data-overscan-role="large" data-format="overscan"></div></div><div class="control-section"><h2>Surface</h2><div class="control-row"><label for="largeTintColor">Tint color</label><output></output><input id="largeTintColor" type="color" value="#27282a" data-default="#27282a" data-css-rgb-var="--large-tint-rgb" data-format="color"></div><div class="control-row"><label for="largeTintAlpha">Tint opacity</label><output></output><input id="largeTintAlpha" type="range" min="0" max="0.9" step="0.005" value="0.45" data-default="0.45" data-css-var="--large-tint-alpha" data-format="alpha"></div><div class="control-row"><label for="largeToneColor">Surface tone</label><output></output><input id="largeToneColor" type="color" value="#0e0f11" data-default="#0e0f11" data-css-rgb-var="--large-tone-rgb" data-format="color"></div><div class="control-row"><label for="largeToneAlpha">Tone opacity</label><output></output><input id="largeToneAlpha" type="range" min="0" max="0.6" step="0.005" value="0" data-default="0" data-css-var="--large-tone-alpha" data-format="alpha"></div><div class="control-row"><label for="largeRadius">Corner radius</label><output></output><input id="largeRadius" type="range" min="0" max="48" step="0.5" value="23" data-default="23" data-css-var="--large-radius" data-unit="px" data-format="px"></div></div><div class="control-section"><h2>Rim / specular</h2><div class="control-row"><label for="largeRimBaseAlpha">Base edge opacity</label><output></output><input id="largeRimBaseAlpha" type="range" min="0" max="0.5" step="0.005" value="0.205" data-default="0.205" data-css-var="--large-rim-base-alpha" data-format="alpha"></div><div class="control-row"><label for="largeRimWidth">Rim width</label><output></output><input id="largeRimWidth" type="range" min="0.5" max="3" step="0.1" value="1.5" data-default="1.5" data-css-var="--large-rim-width" data-unit="px" data-format="px1"></div><div class="control-row"><label for="largeRimSoftness">Rim softness</label><output></output><input id="largeRimSoftness" type="range" min="0" max="2" step="0.05" value="0.5" data-default="0.5" data-css-var="--large-rim-softness" data-unit="px" data-format="px1"></div><div class="control-row"><label for="largeRimScale">Rim exposure</label><output></output><input id="largeRimScale" type="range" min="0" max="2" step="0.01" value="0.9" data-default="0.9" data-css-var="--large-rim-scale" data-format="factor"></div><div class="control-row"><label for="largeLightDirection">Light direction</label><output></output><input id="largeLightDirection" type="range" min="-180" max="180" step="1" value="-22" data-default="-22" data-rim-role="large" data-format="deg"></div><div class="control-row"><label for="largeSpecularStrength">Primary strength</label><output></output><input id="largeSpecularStrength" type="range" min="0" max="2" step="0.01" value="2" data-default="2" data-rim-role="large" data-format="factor"></div><div class="control-row"><label for="largeOppositeStrength">Opposite strength</label><output></output><input id="largeOppositeStrength" type="range" min="0" max="2" step="0.01" value="1.04" data-default="1.04" data-rim-role="large" data-format="factor"></div><div class="control-row"><label for="largeSpecularSharpness">Sharpness</label><output></output><input id="largeSpecularSharpness" type="range" min="0.5" max="8" step="0.1" value="6" data-default="6" data-rim-role="large" data-format="number1"></div><div class="control-row"><label for="largeSpecularOpacity">Specular opacity</label><output></output><input id="largeSpecularOpacity" type="range" min="0" max="1" step="0.01" value="0.75" data-default="0.75" data-rim-role="large" data-format="alpha"></div></div><div class="control-section"><h2>Shadow</h2><div class="control-row"><label for="largeShadowColor">Shadow color</label><output></output><input id="largeShadowColor" type="color" value="#000000" data-default="#000000" data-css-rgb-var="--large-shadow-rgb" data-format="color"></div><div class="control-row"><label for="largeShadowOpacity">Shadow opacity</label><output></output><input id="largeShadowOpacity" type="range" min="0" max="0.8" step="0.01" value="0.5" data-default="0.5" data-css-var="--large-shadow-opacity" data-format="alpha"></div><div class="control-row"><label for="largeShadowX">Shadow X</label><output></output><input id="largeShadowX" type="range" min="-20" max="20" step="0.5" value="0" data-default="0" data-css-var="--large-shadow-x" data-unit="px" data-format="px1"></div><div class="control-row"><label for="largeShadowY">Shadow Y</label><output></output><input id="largeShadowY" type="range" min="-20" max="20" step="0.5" value="3.5" data-default="3.5" data-css-var="--large-shadow-y" data-unit="px" data-format="px1"></div><div class="control-row"><label for="largeShadowBlur">Shadow blur</label><output></output><input id="largeShadowBlur" type="range" min="0" max="40" step="0.5" value="16.5" data-default="16.5" data-css-var="--large-shadow-blur" data-unit="px" data-format="px1"></div><div class="control-row"><label for="largeShadowSpread">Shadow spread</label><output></output><input id="largeShadowSpread" type="range" min="-5" max="16" step="0.5" value="0" data-default="0" data-css-var="--large-shadow-spread" data-unit="px" data-format="px1"></div></div><button type="button" class="reset-material" data-reset-role="large">Reset Large material</button></section><section class="control-panel" id="panel-small" data-panel="small" hidden><div class="control-section"><h2>Backdrop</h2><div class="control-row"><label for="smallBlur">Blur</label><output></output><input id="smallBlur" type="range" min="0" max="160" step="1" value="20" data-default="20" data-css-var="--small-blur" data-unit="px" data-overscan-role="small" data-format="px"></div><div class="control-row"><label for="smallDragPreblur">Moving-card pre-blur</label><output></output><input id="smallDragPreblur" type="range" min="0" max="16" step="0.5" value="5" data-default="5" data-css-var="--small-drag-preblur" data-unit="px" data-overscan-role="small" data-format="px1"></div><div class="control-row"><label for="smallSaturation">Saturation</label><output></output><input id="smallSaturation" type="range" min="0" max="2" step="0.01" value="0.78" data-default="0.78" data-css-var="--small-saturation" data-format="factor"></div><div class="control-row"><label for="smallBrightness">Brightness</label><output></output><input id="smallBrightness" type="range" min="0.2" max="1.5" step="0.01" value="0.9" data-default="0.9" data-css-var="--small-brightness" data-format="factor"></div><div class="control-row"><label for="smallContrast">Contrast</label><output></output><input id="smallContrast" type="range" min="0.5" max="1.8" step="0.01" value="1" data-default="1" data-css-var="--small-contrast" data-format="factor"></div><div class="control-row"><label for="smallOverscanRatio">Blur sample margin</label><output></output><input id="smallOverscanRatio" type="range" min="0.25" max="2.5" step="0.05" value="1.15" data-default="1.15" data-overscan-role="small" data-format="overscan"></div></div><div class="control-section"><h2>Surface</h2><div class="control-row"><label for="smallTintColor">Tint color</label><output></output><input id="smallTintColor" type="color" value="#858585" data-default="#858585" data-css-rgb-var="--small-tint-rgb" data-format="color"></div><div class="control-row"><label for="smallTintAlpha">Tint opacity</label><output></output><input id="smallTintAlpha" type="range" min="0" max="0.9" step="0.005" value="0.025" data-default="0.025" data-css-var="--small-tint-alpha" data-format="alpha"></div><div class="control-row"><label for="smallToneColor">Surface tone</label><output></output><input id="smallToneColor" type="color" value="#949494" data-default="#949494" data-css-rgb-var="--small-tone-rgb" data-format="color"></div><div class="control-row"><label for="smallToneAlpha">Tone opacity</label><output></output><input id="smallToneAlpha" type="range" min="0" max="0.6" step="0.005" value="0" data-default="0" data-css-var="--small-tone-alpha" data-format="alpha"></div><div class="control-row"><label for="smallRadius">Corner radius</label><output></output><input id="smallRadius" type="range" min="0" max="48" step="0.5" value="13.5" data-default="13.5" data-css-var="--small-radius" data-unit="px" data-format="px"></div></div><div class="control-section"><h2>Rim / specular</h2><div class="control-row"><label for="smallRimBaseAlpha">Base edge opacity</label><output></output><input id="smallRimBaseAlpha" type="range" min="0" max="0.5" step="0.005" value="0.135" data-default="0.135" data-css-var="--small-rim-base-alpha" data-format="alpha"></div><div class="control-row"><label for="smallRimWidth">Rim width</label><output></output><input id="smallRimWidth" type="range" min="0.5" max="3" step="0.1" value="1.5" data-default="1.5" data-css-var="--small-rim-width" data-unit="px" data-format="px1"></div><div class="control-row"><label for="smallRimSoftness">Rim softness</label><output></output><input id="smallRimSoftness" type="range" min="0" max="2" step="0.05" value="0.5" data-default="0.5" data-css-var="--small-rim-softness" data-unit="px" data-format="px1"></div><div class="control-row"><label for="smallRimScale">Rim exposure</label><output></output><input id="smallRimScale" type="range" min="0" max="2" step="0.01" value="0.9" data-default="0.9" data-css-var="--small-rim-scale" data-format="factor"></div><div class="control-row"><label for="smallLightDirection">Light direction</label><output></output><input id="smallLightDirection" type="range" min="-180" max="180" step="1" value="-22" data-default="-22" data-rim-role="small" data-format="deg"></div><div class="control-row"><label for="smallSpecularStrength">Primary strength</label><output></output><input id="smallSpecularStrength" type="range" min="0" max="2" step="0.01" value="2" data-default="2" data-rim-role="small" data-format="factor"></div><div class="control-row"><label for="smallOppositeStrength">Opposite strength</label><output></output><input id="smallOppositeStrength" type="range" min="0" max="2" step="0.01" value="1.04" data-default="1.04" data-rim-role="small" data-format="factor"></div><div class="control-row"><label for="smallSpecularSharpness">Sharpness</label><output></output><input id="smallSpecularSharpness" type="range" min="0.5" max="8" step="0.1" value="6" data-default="6" data-rim-role="small" data-format="number1"></div><div class="control-row"><label for="smallSpecularOpacity">Specular opacity</label><output></output><input id="smallSpecularOpacity" type="range" min="0" max="1" step="0.01" value="0.75" data-default="0.75" data-rim-role="small" data-format="alpha"></div></div><div class="control-section"><h2>Shadow</h2><div class="control-row"><label for="smallShadowColor">Shadow color</label><output></output><input id="smallShadowColor" type="color" value="#000000" data-default="#000000" data-css-rgb-var="--small-shadow-rgb" data-format="color"></div><div class="control-row"><label for="smallShadowOpacity">Shadow opacity</label><output></output><input id="smallShadowOpacity" type="range" min="0" max="0.8" step="0.01" value="0.48" data-default="0.48" data-css-var="--small-shadow-opacity" data-format="alpha"></div><div class="control-row"><label for="smallShadowX">Shadow X</label><output></output><input id="smallShadowX" type="range" min="-20" max="20" step="0.5" value="0" data-default="0" data-css-var="--small-shadow-x" data-unit="px" data-format="px1"></div><div class="control-row"><label for="smallShadowY">Shadow Y</label><output></output><input id="smallShadowY" type="range" min="-20" max="20" step="0.5" value="3.5" data-default="3.5" data-css-var="--small-shadow-y" data-unit="px" data-format="px1"></div><div class="control-row"><label for="smallShadowBlur">Shadow blur</label><output></output><input id="smallShadowBlur" type="range" min="0" max="40" step="0.5" value="11.5" data-default="11.5" data-css-var="--small-shadow-blur" data-unit="px" data-format="px1"></div><div class="control-row"><label for="smallShadowSpread">Shadow spread</label><output></output><input id="smallShadowSpread" type="range" min="-5" max="16" step="0.5" value="0.5" data-default="0.5" data-css-var="--small-shadow-spread" data-unit="px" data-format="px1"></div></div><button type="button" class="reset-material" data-reset-role="small">Reset Small material</button></section><section class="control-panel" id="panel-other" data-panel="other" hidden>
+<div class="control-section"><h2>Canvas</h2>
+<div class="control-row"><label for="canvasBg">Canvas background</label><output></output><input id="canvasBg" type="color" value="#0f1011" data-default="#0f1011" data-css-var="--canvas-bg" data-format="color"></div><div class="control-row"><label for="dotColor">Dot color</label><output></output><input id="dotColor" type="color" value="#464f60" data-default="#464f60" data-css-rgb-var="--dot-rgb" data-format="color"></div><div class="control-row"><label for="dotOpacity">Dot opacity</label><output></output><input id="dotOpacity" type="range" min="0" max="1" step="0.01" value="0.5" data-default="0.5" data-css-var="--dot-opacity" data-format="alpha"></div><div class="control-row"><label for="dotSize">Dot size</label><output></output><input id="dotSize" type="range" min="0.5" max="3" step="0.05" value="1.25" data-default="1.25" data-css-var="--dot-size" data-unit="px" data-format="px2"></div><div class="control-row"><label for="dotSpacing">Dot spacing</label><output></output><input id="dotSpacing" type="range" min="8" max="48" step="1" value="29" data-default="29" data-css-var="--dot-spacing" data-unit="px" data-format="px"></div>
+</div>
+<div class="control-section"><h2>Interaction / test</h2>
+<div class="control-actions"><button type="button" id="addElement">+ Element</button><button type="button" id="importMedia">Import GIF/Image</button></div>
+<input id="fileInput" type="file" accept="image/*" hidden>
+<button type="button" class="wide-button" id="resetView">Reset canvas position</button>
+<label class="check-row"><input id="hideSmallPanels" type="checkbox" data-default="false"> Hide Small panels (Large-only test)</label>
+</div>
+<div class="control-section"><h2>Utilities</h2>
+<button type="button" class="wide-button" id="openJsonEditor">Open JSON editor</button>
+<button type="button" class="wide-button" id="copySettings">Copy settings JSON</button>
+<button type="button" class="wide-button" id="resetAll">Reset all controls</button>
+<div class="metrics"><span>rAF FPS</span><strong id="fps">—</strong><span>Canvas elements</span><strong id="elementCount">0</strong><span>Blur surfaces</span><strong id="surfaceCount">7</strong><span>DPR</span><strong id="dpr">1</strong></div>
+<button type="button" class="reset-material" data-reset-role="other">Reset Other controls</button>
+</div></section></div></aside>
+
+  <aside class="json-editor" id="jsonEditor" hidden aria-label="Settings JSON editor">
+    <div class="json-editor-head">
+      <div><strong>Material settings JSON</strong><span>Edit every Large / Small / Other control directly</span></div>
+      <button type="button" class="json-editor-close" id="jsonClose" aria-label="Close JSON editor">×</button>
+    </div>
+    <div class="json-editor-body">
+      <textarea id="settingsJson" spellcheck="false" aria-label="Material settings JSON"></textarea>
+      <div class="json-actions">
+        <button type="button" id="jsonRefresh">Load current</button>
+        <button type="button" id="jsonPaste">Paste</button>
+        <button type="button" id="jsonCopy">Copy</button>
+        <button type="button" id="jsonApply">Apply JSON</button>
+      </div>
+      <div class="json-status" id="jsonStatus"></div>
+    </div>
+  </aside>
+
+  <div class="help">Drag empty canvas to pan · drag element headers · wheel Canvas Browser · drag cards to reorder</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+  const canvas = $('canvas');
+  const world = $('world');
+  const browser = $('browser');
+  const browserBody = $('browserBody');
+  const cardsTrack = $('cardsTrack');
+  const dragLayer = $('dragLayer');
+  const fileInput = $('fileInput');
+
+  /* Renderer V2 constants, kept exact where they affect Canvas Browser behavior. */
+  const BROWSER = Object.freeze({
+    x: 16, y: 16, width: 288, edgeGap: 16, headerHeight: 58,
+    cardInset: 12, cardHeight: 84, cardGap: 10, radius: 23, cardRadius: 13
+  });
+  const SLOT = BROWSER.cardHeight + BROWSER.cardGap;
+  const DRAG_THRESHOLD = 6;
+  const SLOT_TRANSITION_MS = 190;
+  const AUTO_SCROLL = Object.freeze({ startInset: 52, outsideExtensionRatio: .2, minimumOutsideExtension: 96, maximumOutsideExtension: 180, maximumSpeed: 16 });
+  const SCROLL_TAU_MS = 45;
+  const SCROLL_EPSILON = .01;
+
+  /* Liquid-style rim approximation. The Liquid shader evaluates the rounded-rect
+     SDF normal per fragment, then computes primary + mirrored specular from the
+     configured light direction. Earlier lab versions only evaluated four axis
+     normals, so the corners could never become brighter than the straight edges.
+     Here a small DPR-aware canvas draws the actual rounded perimeter with a
+     continuously changing normal around each corner. */
+  const CSS_SPECULAR_EXPOSURE = 0.30;
+  const rimResizeObserver = new ResizeObserver(entries => {
+    for (const entry of entries) redrawSurfaceRim(entry.target);
+  });
+
+  function rimRoleFor(surface) {
+    return surface.classList.contains('glass-large') ? 'large' : 'small';
+  }
+
+  function specularAlphaForNormal(role, nx, ny) {
+    const direction = Number($(`${role}LightDirection`).value) * Math.PI / 180;
+    const lx = Math.sin(direction);
+    const ly = -Math.cos(direction);
+    const primaryStrength = Number($(`${role}SpecularStrength`).value);
+    const oppositeStrength = Number($(`${role}OppositeStrength`).value);
+    const sharpness = Number($(`${role}SpecularSharpness`).value);
+    const opacity = Number($(`${role}SpecularOpacity`).value);
+    const exposure = Number($(`${role}RimScale`).value);
+    const dot = nx * lx + ny * ly;
+    const primary = Math.pow(Math.max(dot, 0), sharpness) * primaryStrength;
+    const opposite = Math.pow(Math.max(-dot, 0), sharpness) * oppositeStrength;
+    return Math.min(1, (primary + opposite) * opacity * CSS_SPECULAR_EXPOSURE * exposure);
+  }
+
+  function roundedRectPath(ctx, x, y, width, height, radius) {
+    const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.arcTo(x + width, y, x + width, y + r, r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+    ctx.lineTo(x + r, y + height);
+    ctx.arcTo(x, y + height, x, y + height - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function strokeSegment(ctx, x1, y1, x2, y2, alpha, width) {
+    if (alpha <= 0.0005 || width <= 0) return;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.stroke();
+  }
+
+  function redrawSurfaceRim(surface) {
+    if (!surface?.isConnected) return;
+    const rim = surface.querySelector(':scope > .glass-clip > .glass-rim');
+    if (!rim) return;
+    let canvasEl = rim.querySelector('.glass-rim-canvas');
+    if (!canvasEl) {
+      canvasEl = document.createElement('canvas');
+      canvasEl.className = 'glass-rim-canvas';
+      rim.replaceChildren(canvasEl);
+    }
+    const rect = surface.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const pixelWidth = Math.max(1, Math.round(width * dpr));
+    const pixelHeight = Math.max(1, Math.round(height * dpr));
+    if (canvasEl.width !== pixelWidth) canvasEl.width = pixelWidth;
+    if (canvasEl.height !== pixelHeight) canvasEl.height = pixelHeight;
+    const ctx = canvasEl.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    const role = rimRoleFor(surface);
+    const radius = Number($(`${role}Radius`).value);
+    const rimWidth = Number($(`${role}RimWidth`).value);
+    const rimScale = Number($(`${role}RimScale`).value);
+    const baseAlpha = Math.min(1, Number($(`${role}RimBaseAlpha`).value) * rimScale);
+    const half = Math.max(0.35, rimWidth / 2);
+    const x0 = half;
+    const y0 = half;
+    const w = Math.max(0, width - rimWidth);
+    const h = Math.max(0, height - rimWidth);
+    const r = Math.max(0, Math.min(radius - half, w / 2, h / 2));
+
+    if (baseAlpha > 0.0005 && w > 0 && h > 0) {
+      ctx.lineWidth = rimWidth;
+      ctx.strokeStyle = `rgba(255,255,255,${baseAlpha})`;
+      roundedRectPath(ctx, x0, y0, w, h, r);
+      ctx.stroke();
+    }
+
+    // Straight edges: their normal is constant, exactly like the Liquid shader.
+    strokeSegment(ctx, x0 + r, y0, x0 + w - r, y0, specularAlphaForNormal(role, 0, -1), rimWidth);
+    strokeSegment(ctx, x0 + w, y0 + r, x0 + w, y0 + h - r, specularAlphaForNormal(role, 1, 0), rimWidth);
+    strokeSegment(ctx, x0 + w - r, y0 + h, x0 + r, y0 + h, specularAlphaForNormal(role, 0, 1), rimWidth);
+    strokeSegment(ctx, x0, y0 + h - r, x0, y0 + r, specularAlphaForNormal(role, -1, 0), rimWidth);
+
+    // Curved corners: the outward normal rotates continuously. This is the missing
+    // corner exposure that makes Liquid look like a lit physical rim instead of
+    // four independent HTML border lines.
+    const cornerSegments = 28;
+    const corners = [
+      { cx: x0 + w - r, cy: y0 + r, start: -Math.PI / 2, end: 0 },
+      { cx: x0 + w - r, cy: y0 + h - r, start: 0, end: Math.PI / 2 },
+      { cx: x0 + r, cy: y0 + h - r, start: Math.PI / 2, end: Math.PI },
+      { cx: x0 + r, cy: y0 + r, start: Math.PI, end: Math.PI * 1.5 },
+    ];
+    if (r > 0.01) {
+      for (const corner of corners) {
+        for (let i = 0; i < cornerSegments; i++) {
+          const a0 = corner.start + (corner.end - corner.start) * (i / cornerSegments);
+          const a1 = corner.start + (corner.end - corner.start) * ((i + 1) / cornerSegments);
+          const am = (a0 + a1) / 2;
+          const alpha = specularAlphaForNormal(role, Math.cos(am), Math.sin(am));
+          strokeSegment(
+            ctx,
+            corner.cx + Math.cos(a0) * r, corner.cy + Math.sin(a0) * r,
+            corner.cx + Math.cos(a1) * r, corner.cy + Math.sin(a1) * r,
+            alpha, rimWidth,
+          );
+        }
+      }
+    }
+  }
+
+  function registerRimSurface(surface) {
+    if (!surface || surface.dataset.rimRegistered === 'true') return;
+    surface.dataset.rimRegistered = 'true';
+    rimResizeObserver.observe(surface);
+    redrawSurfaceRim(surface);
+  }
+
+  function updateMaterialRim(role) {
+    document.querySelectorAll(`.glass-${role}`).forEach(redrawSurfaceRim);
+  }
+
+  let panX = 0;
+  let panY = 0;
+  let panSession = null;
+  let panRaf = 0;
+  let elementSerial = 0;
+  const mediaUrls = new Set();
+  const elements = new Map();
+
+
+  function applyWorldTransform() {
+    world.style.transform = `translate3d(${panX}px, ${panY}px, 0)`;
+  }
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.target !== canvas && event.target !== world) return;
+    event.preventDefault();
+    canvas.setPointerCapture?.(event.pointerId);
+    panSession = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseX: panX, baseY: panY, x: event.clientX, y: event.clientY };
+    canvas.classList.add('is-panning');
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (!panSession || panSession.pointerId !== event.pointerId) return;
+    panSession.x = event.clientX;
+    panSession.y = event.clientY;
+    if (!panRaf) panRaf = requestAnimationFrame(() => {
+      panRaf = 0;
+      if (!panSession) return;
+      panX = panSession.baseX + panSession.x - panSession.startX;
+      panY = panSession.baseY + panSession.y - panSession.startY;
+      applyWorldTransform();
+    });
+  });
+  const endPan = (event) => {
+    if (!panSession || panSession.pointerId !== event.pointerId) return;
+    panSession = null;
+    canvas.classList.remove('is-panning');
+  };
+  canvas.addEventListener('pointerup', endPan);
+  canvas.addEventListener('pointercancel', endPan);
+
+  function screenToWorld(clientX, clientY) {
+    return { x: clientX - panX, y: clientY - panY };
+  }
+
+  function createWorldElement({ x, y, width = 260, height = 150, kind = 'purple', title, mediaUrl = null }) {
+    const id = `element-${++elementSerial}`;
+    const el = document.createElement('article');
+    el.className = `world-element${mediaUrl ? ' media' : ''}`;
+    el.dataset.kind = kind;
+    el.dataset.id = id;
+    el.style.width = `${width}px`;
+    el.style.height = `${height}px`;
+
+    const header = document.createElement('header');
+    header.className = 'element-header';
+    header.innerHTML = `<strong>${escapeHtml(title || `Element ${elementSerial}`)}</strong><span>drag me</span>`;
+    const body = document.createElement('div');
+    body.className = 'element-body';
+    if (mediaUrl) {
+      const img = document.createElement('img');
+      img.className = 'element-media';
+      img.src = mediaUrl;
+      img.alt = title || 'Imported media';
+      img.draggable = false;
+      body.appendChild(img);
+    } else {
+      body.innerHTML = '<p>Live DOM content. Move this underneath the glass while watching the blur update continuously.</p>';
+    }
+    const resize = document.createElement('button');
+    resize.className = 'resize-handle';
+    resize.type = 'button';
+    resize.setAttribute('aria-label', 'Resize element');
+    el.append(header, body, resize);
+    world.appendChild(el);
+
+    const state = { id, el, x, y, width, height };
+    elements.set(id, state);
+    applyElementTransform(state);
+    installElementDrag(state, header);
+    installElementResize(state, resize);
+    updateElementCount();
+    return state;
+  }
+
+  function applyElementTransform(state) {
+    state.el.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
+    state.el.style.width = `${state.width}px`;
+    state.el.style.height = `${state.height}px`;
+  }
+
+  function installElementDrag(state, handle) {
+    let session = null;
+    let raf = 0;
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.stopPropagation();
+      event.preventDefault();
+      session = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseX: state.x, baseY: state.y, x: event.clientX, y: event.clientY };
+      handle.setPointerCapture?.(event.pointerId);
+      state.el.classList.add('is-dragging');
+    });
+    handle.addEventListener('pointermove', (event) => {
+      if (!session || session.pointerId !== event.pointerId) return;
+      session.x = event.clientX;
+      session.y = event.clientY;
+      if (!raf) raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (!session) return;
+        state.x = session.baseX + session.x - session.startX;
+        state.y = session.baseY + session.y - session.startY;
+        applyElementTransform(state);
+      });
+    });
+    const finish = (event) => {
+      if (!session || session.pointerId !== event.pointerId) return;
+      session = null;
+      state.el.classList.remove('is-dragging');
+    };
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('pointercancel', finish);
+  }
+
+  function installElementResize(state, handle) {
+    let session = null;
+    let raf = 0;
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.stopPropagation();
+      event.preventDefault();
+      session = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, width: state.width, height: state.height, x: event.clientX, y: event.clientY };
+      handle.setPointerCapture?.(event.pointerId);
+    });
+    handle.addEventListener('pointermove', (event) => {
+      if (!session || session.pointerId !== event.pointerId) return;
+      session.x = event.clientX; session.y = event.clientY;
+      if (!raf) raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (!session) return;
+        state.width = Math.max(120, session.width + session.x - session.startX);
+        state.height = Math.max(80, session.height + session.y - session.startY);
+        applyElementTransform(state);
+      });
+    });
+    const finish = (event) => { if (session?.pointerId === event.pointerId) session = null; };
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('pointercancel', finish);
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[ch]);
+  }
+
+  function updateElementCount() { $('elementCount').textContent = String(elements.size); }
+
+  /* Default stress elements are deliberately under the Canvas Browser. */
+  const greenTest = createWorldElement({ x: 58, y: 112, width: 310, height: 170, kind: 'green', title: 'Green blur test' });
+  createWorldElement({ x: 345, y: 348, width: 280, height: 160, kind: 'purple', title: 'TaskMap element' });
+
+  $('addElement').addEventListener('click', () => {
+    const center = screenToWorld(innerWidth * .55, innerHeight * .48);
+    createWorldElement({ x: center.x - 130, y: center.y - 75, kind: elementSerial % 2 ? 'purple' : 'green' });
+  });
+  $('importMedia').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    mediaUrls.add(url);
+    const center = screenToWorld(innerWidth * .55, innerHeight * .48);
+    createWorldElement({ x: center.x - 160, y: center.y - 110, width: 320, height: 220, kind: 'media', title: file.name, mediaUrl: url });
+    fileInput.value = '';
+  });
+  addEventListener('beforeunload', () => mediaUrls.forEach(url => URL.revokeObjectURL(url)));
+
+  $('resetView').addEventListener('click', () => { panX = 0; panY = 0; applyWorldTransform(); });
+
+  /* ---------- Canvas Browser ----------
+     Movement mirrors Renderer V2:
+     - 6px vertical drag threshold
+     - direct pointer-follow while dragging
+     - exact easeOutQuart slot/snap animation over 190ms
+     - 45ms exponential wheel smoothing
+     - 0.45 wheel-delta scale
+     - identical reorder thresholds and auto-scroll curve */
+  let cardOrder = Array.from({ length: 5 }, (_, i) => `canvas-${i + 1}`);
+  let activeCardId = cardOrder[0];
+  const cards = new Map();
+  const cardPositions = new Map();
+  const slotAnimations = new Map();
+
+  let scrollCurrent = 0;
+  let scrollTarget = 0;
+  let maxScroll = 0;
+  let scrollRaf = 0;
+  let lastScrollAt = 0;
+
+  let drag = null;
+  let motionRaf = 0;
+
+  const easeOutQuart = progress => 1 - (1 - progress) ** 4;
+
+  function browserHeight() {
+    const contentHeight =
+      BROWSER.headerHeight +
+      BROWSER.cardInset +
+      cardOrder.length * BROWSER.cardHeight +
+      Math.max(0, cardOrder.length - 1) * BROWSER.cardGap;
+    return Math.min(
+      contentHeight,
+      Math.max(BROWSER.headerHeight, innerHeight - BROWSER.edgeGap * 2),
+    );
+  }
+
+  function layoutBrowser() {
+    const height = browserHeight();
+    browser.style.height = `${height}px`;
+    const bodyHeight = Math.max(0, height - BROWSER.headerHeight - BROWSER.cardInset);
+    const contentHeight =
+      cardOrder.length * BROWSER.cardHeight +
+      Math.max(0, cardOrder.length - 1) * BROWSER.cardGap;
+
+    maxScroll = Math.max(0, contentHeight - bodyHeight);
+    scrollCurrent = clamp(scrollCurrent, 0, maxScroll);
+    scrollTarget = clamp(scrollTarget, 0, maxScroll);
+    cardsTrack.style.height = `${contentHeight}px`;
+
+    settleMissingCardPositions();
+    applyCardLayout();
+    updateBackdropOverscanBounds();
+  }
+
+  function glassChrome() {
+    const clip = document.createElement('div');
+    clip.className = 'glass-clip';
+    clip.innerHTML =
+      '<div class="glass-preblur"></div>' +
+      '<div class="glass-backdrop"></div>' +
+      '<div class="glass-highlight"></div>' +
+      '<div class="glass-rim"></div>';
+    return clip;
+  }
+
+  function createCard(id, number, index) {
+    const card = document.createElement('article');
+    card.className = 'canvas-card glass-surface glass-small';
+    card.dataset.id = id;
+    card.appendChild(glassChrome());
+
+    const content = document.createElement('div');
+    content.className = 'glass-content';
+    content.innerHTML = `
+      <span class="card-active"></span>
+      <svg viewBox="0 0 96 54" aria-hidden="true">
+        <rect x="12" y="11" width="31" height="16" rx="3"></rect>
+        <rect x="49" y="18" width="33" height="25" rx="3"></rect>
+        <rect x="19" y="34" width="24" height="11" rx="3"></rect>
+      </svg>
+      <div class="card-copy"><strong>Canvas ${number}</strong><span class="status">TaskMap canvas</span></div>
+      <button type="button" class="card-options" aria-label="Canvas ${number} options"><span class="card-dots"></span></button>`;
+    card.appendChild(content);
+
+    cardsTrack.appendChild(card);
+    cards.set(id, card);
+    cardPositions.set(id, index * SLOT);
+    registerRimSurface(card);
+
+    card.querySelector('.card-options').addEventListener('pointerdown', e => e.stopPropagation());
+    card.querySelector('.card-options').addEventListener('click', e => e.stopPropagation());
+    card.addEventListener('pointerdown', event => beginCardPointer(id, event));
+    card.addEventListener('wheel', handleBrowserWheel, { passive: false });
+    return card;
+  }
+
+  registerRimSurface(browser);
+  cardOrder.forEach((id, i) => createCard(id, i + 1, i));
+  updateActiveCard();
+  updateMaterialRim('large');
+  updateMaterialRim('small');
+
+  function settleMissingCardPositions() {
+    cardOrder.forEach((id, index) => {
+      if (!cardPositions.has(id)) cardPositions.set(id, index * SLOT);
+    });
+  }
+
+  function settleAllCardPositions() {
+    slotAnimations.clear();
+    cardOrder.forEach((id, index) => cardPositions.set(id, index * SLOT));
+  }
+
+  function applyCardLayout() {
+    cardsTrack.style.transform = `translate3d(0, ${-scrollCurrent}px, 0)`;
+    cardOrder.forEach((id, index) => {
+      const card = cards.get(id);
+      if (!card || (drag?.id === id && drag.active)) return;
+
+      const top = cardPositions.get(id) ?? index * SLOT;
+      card.style.top = `${top}px`;
+      card.style.left = '0px';
+    });
+  }
+
+  function advanceSlotAnimations(now) {
+    let changed = false;
+    for (const [id, animation] of [...slotAnimations]) {
+      const progress = Math.min(1, (now - animation.startedAt) / SLOT_TRANSITION_MS);
+      const top = animation.from + (animation.to - animation.from) * easeOutQuart(progress);
+      cardPositions.set(id, top);
+      changed = true;
+      if (progress === 1) slotAnimations.delete(id);
+    }
+    return changed;
+  }
+
+  function startSlotAnimations(now) {
+    advanceSlotAnimations(now);
+
+    cardOrder.forEach((id, index) => {
+      if (drag?.active && drag.id === id) return;
+
+      const target = index * SLOT;
+      const from = cardPositions.get(id) ?? target;
+
+      if (Math.abs(from - target) > 0.0001) {
+        slotAnimations.set(id, { from, to: target, startedAt: now });
+      } else {
+        slotAnimations.delete(id);
+        cardPositions.set(id, target);
+      }
+    });
+  }
+
+  function updateActiveCard() {
+    for (const [id, card] of cards) {
+      const active = id === activeCardId;
+      card.classList.toggle('is-active', active);
+      const status = card.querySelector('.status');
+      if (status) status.textContent = active ? 'Active canvas' : 'TaskMap canvas';
+    }
+  }
+
+  function browserViewportRect() {
+    const rect = browserBody.getBoundingClientRect();
+    return {
+      top: rect.top,
+      right: rect.right - BROWSER.cardInset,
+      bottom: rect.bottom - BROWSER.cardInset,
+      left: rect.left + BROWSER.cardInset,
+      width: Math.max(0, rect.width - BROWSER.cardInset * 2),
+      height: Math.max(0, rect.height - BROWSER.cardInset),
+    };
+  }
+
+  function normalizeWheel(event) {
+    const viewportHeight = browserViewportRect().height;
+    const pixels =
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? event.deltaY * 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? event.deltaY * viewportHeight
+          : event.deltaY;
+    return pixels * 0.45;
+  }
+
+  function handleBrowserWheel(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (drag?.active) return;
+
+    scrollTarget = clamp(scrollTarget + normalizeWheel(event), 0, maxScroll);
+    requestScrollFrame();
+  }
+
+  browser.addEventListener('wheel', handleBrowserWheel, { passive: false });
+  browser.addEventListener('pointerdown', e => e.stopPropagation());
+
+  function requestScrollFrame() {
+    if (scrollRaf) return;
+    lastScrollAt = performance.now();
+    scrollRaf = requestAnimationFrame(tickScroll);
+  }
+
+  function tickScroll(now) {
+    scrollRaf = 0;
+    const dt = clamp(now - lastScrollAt || 16, 0, 64);
+    lastScrollAt = now;
+
+    const remaining = scrollTarget - scrollCurrent;
+    if (Math.abs(remaining) <= SCROLL_EPSILON) {
+      scrollCurrent = scrollTarget;
+    } else {
+      scrollCurrent += remaining * (1 - Math.exp(-dt / SCROLL_TAU_MS));
+    }
+
+    if (Math.abs(scrollTarget - scrollCurrent) <= SCROLL_EPSILON) {
+      scrollCurrent = scrollTarget;
+    }
+
+    applyCardLayout();
+
+    if (scrollCurrent !== scrollTarget) {
+      scrollRaf = requestAnimationFrame(tickScroll);
+    }
+  }
+
+  function beginCardPointer(id, event) {
+    const index = cardOrder.indexOf(id);
+    if (event.button !== 0 || drag || index < 0) return;
+    if (event.target.closest('.card-options')) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const bodyRect = browserViewportRect();
+    const cardTop = bodyRect.top + index * SLOT - scrollCurrent;
+
+    drag = {
+      id,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      pointerY: event.clientY,
+      pointerOffsetY: event.clientY - cardTop,
+      initialOrder: [...cardOrder],
+      active: false,
+      finish: null,
+      snapStartedAt: null,
+      snapFromY: cardTop,
+    };
+
+    document.addEventListener('pointermove', onCardPointerMove, { passive: false });
+    document.addEventListener('pointerup', onCardPointerUp, { passive: false });
+    document.addEventListener('pointercancel', onCardPointerCancel, { passive: false });
+  }
+
+  function onCardPointerMove(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    drag.pointerY = event.clientY;
+    requestMotionFrame();
+  }
+
+  function onCardPointerUp(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    drag.pointerY = event.clientY;
+
+    if (drag.active) {
+      drag.finish = 'commit';
+      cleanupCardPointer();
+      requestMotionFrame();
+      return;
+    }
+
+    activeCardId = drag.id;
+    updateActiveCard();
+    cleanupCardPointer();
+    drag = null;
+  }
+
+  function onCardPointerCancel(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag.pointerY = event.clientY;
+    if (drag.active) {
+      drag.finish = 'cancel';
+      cleanupCardPointer();
+      requestMotionFrame();
+      return;
+    }
+    cleanupCardPointer();
+    drag = null;
+  }
+
+  function activateCardDrag(now) {
+    if (!drag || drag.active) return;
+
+    const card = cards.get(drag.id);
+    const index = cardOrder.indexOf(drag.id);
+    if (!card || index < 0) return;
+
+    const bodyRect = browserViewportRect();
+    const currentTop = bodyRect.top + index * SLOT - scrollCurrent;
+
+    slotAnimations.delete(drag.id);
+    cardPositions.set(drag.id, index * SLOT);
+
+    dragLayer.appendChild(card);
+    card.classList.add('is-dragging');
+    card.style.width = `${BROWSER.width - BROWSER.cardInset * 2}px`;
+    card.style.height = `${BROWSER.cardHeight}px`;
+    card.style.left = `${bodyRect.left}px`;
+    card.style.top = `${currentTop}px`;
+
+    drag.active = true;
+    drag.snapFromY = currentTop;
+    scrollTarget = scrollCurrent;
+
+    updateBlurSurfaceCount();
+    updateBackdropOverscanBounds();
+    clampSurfaceBackdropToViewport(card);
+  }
+
+  function requestMotionFrame() {
+    if (!motionRaf) motionRaf = requestAnimationFrame(tickMotion);
+  }
+
+  function tickMotion(now) {
+    motionRaf = 0;
+
+    let needsAnotherFrame = advanceSlotAnimations(now);
+
+    if (drag && !drag.active && Math.abs(drag.pointerY - drag.startY) >= DRAG_THRESHOLD) {
+      activateCardDrag(now);
+    }
+
+    if (drag?.active) {
+      if (drag.snapStartedAt !== null) {
+        needsAnotherFrame = tickSnap(now) || needsAnotherFrame;
+      } else if (drag.finish) {
+        beginSnap(now);
+        needsAnotherFrame = true;
+      } else {
+        const bodyRect = browserViewportRect();
+        const card = cards.get(drag.id);
+
+        const auto = calculateAutoScroll(drag.pointerY, bodyRect.top, bodyRect.bottom);
+        if (auto !== 0) {
+          scrollCurrent = clamp(scrollCurrent + auto, 0, maxScroll);
+          scrollTarget = scrollCurrent;
+          needsAnotherFrame = true;
+        } else {
+          scrollTarget = scrollCurrent;
+        }
+
+        if (card) {
+          card.style.top = `${drag.pointerY - drag.pointerOffsetY}px`;
+          card.style.left = `${bodyRect.left}px`;
+          clampSurfaceBackdropToViewport(card);
+        }
+
+        const centerY = calculateInteractionCenter(
+          drag.pointerY,
+          drag.pointerOffsetY,
+          bodyRect.top,
+          bodyRect.bottom,
+        );
+        const targetIndex = calculateInsertionIndex(
+          cardOrder,
+          drag.id,
+          centerY,
+          bodyRect.top,
+          scrollCurrent,
+          SLOT,
+        );
+        const currentIndex = cardOrder.indexOf(drag.id);
+
+        if (targetIndex >= 0 && targetIndex !== currentIndex) {
+          cardOrder = reorderToIndex(cardOrder, drag.id, targetIndex);
+          startSlotAnimations(now);
+          needsAnotherFrame = true;
+        }
+      }
+    }
+
+    applyCardLayout();
+
+    if (
+      needsAnotherFrame ||
+      slotAnimations.size > 0 ||
+      (drag?.active && drag.snapStartedAt !== null)
+    ) {
+      requestMotionFrame();
+    }
+  }
+
+  function beginSnap(now) {
+    if (!drag?.active || drag.snapStartedAt !== null) return;
+
+    if (drag.finish === 'cancel') {
+      cardOrder = [...drag.initialOrder];
+      startSlotAnimations(now);
+    }
+
+    const card = cards.get(drag.id);
+    if (!card) return;
+
+    scrollTarget = scrollCurrent;
+    drag.snapFromY = Number.parseFloat(card.style.top) || 0;
+    drag.snapStartedAt = now;
+
+    card.classList.remove('is-dragging');
+    card.classList.add('is-snapping');
+
+    updateBackdropOverscanBounds();
+    clampSurfaceBackdropToViewport(card);
+  }
+
+  function tickSnap(now) {
+    if (!drag?.active || drag.snapStartedAt === null) return false;
+
+    const card = cards.get(drag.id);
+    if (!card) return false;
+
+    const bodyRect = browserViewportRect();
+    const target =
+      bodyRect.top +
+      cardOrder.indexOf(drag.id) * SLOT -
+      scrollCurrent;
+
+    const progress = Math.min(
+      1,
+      (now - drag.snapStartedAt) / SLOT_TRANSITION_MS,
+    );
+
+    card.style.top = `${
+      drag.snapFromY + (target - drag.snapFromY) * easeOutQuart(progress)
+    }px`;
+    card.style.left = `${bodyRect.left}px`;
+    clampSurfaceBackdropToViewport(card);
+
+    if (progress < 1) return true;
+
+    finalizeCardDrag();
+    return false;
+  }
+
+  function finalizeCardDrag() {
+    if (!drag) return;
+
+    const card = cards.get(drag.id);
+    const draggedId = drag.id;
+
+    settleAllCardPositions();
+
+    if (card) {
+      card.classList.remove('is-snapping', 'is-dragging');
+      card.style.width = '';
+      card.style.height = '';
+      cardsTrack.appendChild(card);
+      card.style.left = '0px';
+      card.style.top = `${cardPositions.get(draggedId) ?? 0}px`;
+    }
+
+    scrollTarget = scrollCurrent;
+    drag = null;
+
+    applyCardLayout();
+    updateBlurSurfaceCount();
+    updateBackdropOverscanBounds();
+  }
+
+  function cleanupCardPointer() {
+    document.removeEventListener('pointermove', onCardPointerMove);
+    document.removeEventListener('pointerup', onCardPointerUp);
+    document.removeEventListener('pointercancel', onCardPointerCancel);
+  }
+
+  function calculateInteractionCenter(pointerY, pointerOffsetY, listTop, listBottom) {
+    const effectivePointerY = Math.min(listBottom, Math.max(listTop, pointerY));
+    return effectivePointerY - pointerOffsetY + BROWSER.cardHeight / 2;
+  }
+
+  function calculateInsertionIndex(order, draggedId, centerY, listTop, scrollTop, slotSize) {
+    let targetIndex = order.indexOf(draggedId);
+    if (targetIndex < 0) return -1;
+
+    const centerInListSpace = centerY + scrollTop - listTop;
+    while (
+      targetIndex < order.length - 1 &&
+      centerInListSpace >= (targetIndex + 1) * slotSize + slotSize / 2
+    ) {
+      targetIndex += 1;
+    }
+    while (
+      targetIndex > 0 &&
+      centerInListSpace <= (targetIndex - 1) * slotSize + slotSize / 2
+    ) {
+      targetIndex -= 1;
+    }
+    return targetIndex;
+  }
+
+  function reorderToIndex(order, draggedId, targetIndex) {
+    const fromIndex = order.indexOf(draggedId);
+    if (
+      fromIndex < 0 ||
+      targetIndex < 0 ||
+      targetIndex >= order.length ||
+      fromIndex === targetIndex
+    ) {
+      return order;
+    }
+
+    const next = [...order];
+    const [item] = next.splice(fromIndex, 1);
+    next.splice(targetIndex, 0, item);
+    return next;
+  }
+
+  function calculateAutoScroll(pointerY, listTop, listBottom) {
+    const bodyHeight = listBottom - listTop;
+    const outside = Math.min(
+      AUTO_SCROLL.maximumOutsideExtension,
+      Math.max(
+        AUTO_SCROLL.minimumOutsideExtension,
+        bodyHeight * AUTO_SCROLL.outsideExtensionRatio,
+      ),
+    );
+    const topStart = listTop + AUTO_SCROLL.startInset;
+    const bottomStart = listBottom - AUTO_SCROLL.startInset;
+
+    if (pointerY < topStart) {
+      return -AUTO_SCROLL.maximumSpeed * smoothstep(
+        normalized(pointerY, topStart, listTop - outside),
+      );
+    }
+    if (pointerY > bottomStart) {
+      return AUTO_SCROLL.maximumSpeed * smoothstep(
+        normalized(pointerY, bottomStart, listBottom + outside),
+      );
+    }
+    return 0;
+  }
+
+  function normalized(value, start, end) {
+    return clamp((value - start) / (end - start), 0, 1);
+  }
+
+  function smoothstep(t) {
+    return t * t * (3 - 2 * t);
+  }
+
+  function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+
+  addEventListener('resize', layoutBrowser);
+  layoutBrowser();
+
+  /* ---------- Real blur-derived overscan ----------
+     The filtered child is enlarged by blur * ratio, then the visible rounded
+     .glass-clip crops it back to the panel. The enlargement is clamped per side
+     to the actual canvas viewport, so it cannot sample outside the app canvas. */
+  function requestedOverscanFor(surface) {
+    const role = surface.classList.contains('glass-large') ? 'large' : 'small';
+    const blur = Number($(`${role}Blur`).value);
+    let preblur = 0;
+
+    if (role === 'large') {
+      preblur = Number($('largePreblur').value);
+    } else if (
+      surface.classList.contains('canvas-card') &&
+      (surface.classList.contains('is-dragging') || surface.classList.contains('is-snapping'))
+    ) {
+      preblur = Number($('smallDragPreblur').value);
+    }
+
+    const ratio = Number($(`${role}OverscanRatio`).value);
+    return Math.max(0, (blur + preblur) * ratio);
+  }
+
+  function backdropSamplingBoundsFor(surface) {
+    /*
+      Small Canvas Browser cards always belong to the Large browser material,
+      including while dragging/snapping. Their backdrop overscan must therefore
+      never reach outside the Large panel and sample raw canvas pixels.
+
+      Large/standalone surfaces still use the canvas viewport as their boundary.
+    */
+    if (surface.classList.contains('canvas-card')) {
+      return browser.getBoundingClientRect();
+    }
+    return canvas.getBoundingClientRect();
+  }
+
+  function clampSurfaceBackdropToViewport(surface) {
+    if (!surface?.isConnected) return;
+    const requested = requestedOverscanFor(surface);
+    const rect = surface.getBoundingClientRect();
+    const bounds = backdropSamplingBoundsFor(surface);
+
+    const left = Math.min(requested, Math.max(0, rect.left - bounds.left));
+    const top = Math.min(requested, Math.max(0, rect.top - bounds.top));
+    const right = Math.min(requested, Math.max(0, bounds.right - rect.right));
+    const bottom = Math.min(requested, Math.max(0, bounds.bottom - rect.bottom));
+
+    surface.style.setProperty('--overscan-left', `${left.toFixed(2)}px`);
+    surface.style.setProperty('--overscan-top', `${top.toFixed(2)}px`);
+    surface.style.setProperty('--overscan-right', `${right.toFixed(2)}px`);
+    surface.style.setProperty('--overscan-bottom', `${bottom.toFixed(2)}px`);
+  }
+
+  function updateBackdropOverscanBounds() {
+    document.querySelectorAll('.glass-surface').forEach(clampSurfaceBackdropToViewport);
+  }
+
+  const glassBoundsObserver = new ResizeObserver(() => {
+    updateBackdropOverscanBounds();
+    document.querySelectorAll('.glass-surface').forEach(redrawSurfaceRim);
+  });
+  glassBoundsObserver.observe(browser);
+  addEventListener('resize', () => {
+    updateBackdropOverscanBounds();
+    document.querySelectorAll('.glass-surface').forEach(redrawSurfaceRim);
+  });
+
+  /* ---------- Material + lab controls ---------- */
+  function hexToRgbTriplet(hex) {
+    const value = hex.replace('#', '');
+    const n = parseInt(value.length === 3 ? value.split('').map(ch => ch + ch).join('') : value, 16);
+    return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+  }
+  function formatControlValue(input) {
+    const n = Number(input.value);
+    switch (input.dataset.format) {
+      case 'px': return `${Math.round(n)}px`;
+      case 'px1': return `${n.toFixed(1)}px`;
+      case 'px2': return `${n.toFixed(2)}px`;
+      case 'alpha': return n.toFixed(3);
+      case 'factor': return `${n.toFixed(2)}×`;
+      case 'deg': return `${Math.round(n)}°`;
+      case 'number1': return n.toFixed(1);
+      case 'color': return input.value.toUpperCase();
+      case 'overscan': {
+        const role = input.dataset.overscanRole;
+        const blur = Number($(`${role}Blur`).value);
+        return `${n.toFixed(2)}× · ${Math.ceil(blur * n)}px`;
+      }
+      default: return input.value;
+    }
+  }
+  function applyControl(input) {
+    if (input.dataset.cssVar) {
+      const unit = input.dataset.unit || '';
+      root.style.setProperty(input.dataset.cssVar, `${input.value}${unit}`);
+    }
+    if (input.dataset.cssRgbVar) root.style.setProperty(input.dataset.cssRgbVar, hexToRgbTriplet(input.value));
+    const materialRole = input.id.startsWith('large') ? 'large' : input.id.startsWith('small') ? 'small' : null;
+    if (input.dataset.rimRole || (materialRole && /(Radius|Rim|Specular|Opposite|LightDirection)/.test(input.id))) {
+      updateMaterialRim(materialRole || input.dataset.rimRole);
+    }
+    if (input.dataset.overscanRole) updateBackdropOverscanBounds();
+    const out = input.closest('.control-row')?.querySelector('output');
+    if (out) out.textContent = formatControlValue(input);
+    if (input.dataset.overscanRole && !input.id.endsWith('OverscanRatio')) {
+      const role = input.dataset.overscanRole;
+      const ratio = $(`${role}OverscanRatio`);
+      const ratioOut = ratio?.closest('.control-row')?.querySelector('output');
+      if (ratioOut) ratioOut.textContent = formatControlValue(ratio);
+    }
+  }
+  const tunableInputs = [...document.querySelectorAll('.control-panel input[data-css-var], .control-panel input[data-css-rgb-var], .control-panel input[data-rim-role], .control-panel input[data-overscan-role]')];
+  for (const input of tunableInputs) {
+    input.addEventListener('input', () => applyControl(input));
+    applyControl(input);
+  }
+
+  for (const button of document.querySelectorAll('.control-tab')) {
+    button.addEventListener('click', () => {
+      const tab = button.dataset.tab;
+      document.querySelectorAll('.control-tab').forEach(item => item.setAttribute('aria-selected', String(item === button)));
+      document.querySelectorAll('.control-panel').forEach(panel => { panel.hidden = panel.dataset.panel !== tab; });
+    });
+  }
+
+  function notifyControl(input) {
+    if (input.type === 'checkbox') {
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function resetInput(input) {
+    if (!input || input.dataset.default === undefined) return;
+    if (input.type === 'checkbox') input.checked = input.dataset.default === 'true';
+    else input.value = input.dataset.default;
+    notifyControl(input);
+  }
+
+  function resetInputs(scope) {
+    scope.querySelectorAll('input[data-default]').forEach(resetInput);
+  }
+
+  /* One reset button per controller, in addition to role-level resets. */
+  document.querySelectorAll('.control-row').forEach(row => {
+    const input = row.querySelector('input[data-default]');
+    if (!input || row.querySelector('.control-reset')) return;
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'control-reset';
+    reset.textContent = '↺';
+    reset.title = `Reset ${row.querySelector('label')?.textContent || input.id}`;
+    reset.setAttribute('aria-label', reset.title);
+    reset.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      resetInput(input);
+    });
+    row.appendChild(reset);
+  });
+
+  document.querySelectorAll('.check-row').forEach(row => {
+    const input = row.querySelector('input[data-default]');
+    if (!input || row.querySelector('.control-reset')) return;
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'control-reset';
+    reset.textContent = '↺';
+    reset.title = 'Reset this setting';
+    reset.setAttribute('aria-label', reset.title);
+    reset.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      resetInput(input);
+    });
+    row.appendChild(reset);
+  });
+
+  document.querySelectorAll('[data-reset-role]').forEach(button =>
+    button.addEventListener('click', () => resetInputs($(`panel-${button.dataset.resetRole}`)))
+  );
+
+
+  function updateBlurSurfaceCount() {
+    const hideSmall = $('hideSmallPanels')?.checked ?? false;
+    const smallMainPasses = hideSmall ? 0 : cardOrder.length;
+    const movingSmallPreblur = !hideSmall && drag?.active ? 1 : 0;
+    /* Large always has pre-blur + main blur. */
+    $('surfaceCount').textContent = String(2 + smallMainPasses + movingSmallPreblur);
+  }
+
+  function valueForJson(input) {
+    if (input.type === 'checkbox') return input.checked;
+    if (input.type === 'range' || input.type === 'number') return Number(input.value);
+    return input.value;
+  }
+
+  function collectSettings() {
+    const result = { version: 1, large: {}, small: {}, other: {} };
+    for (const name of ['large', 'small', 'other']) {
+      const panel = $(`panel-${name}`);
+      panel?.querySelectorAll('input[id]').forEach(input => {
+        if (input.type === 'file') return;
+        result[name][input.id] = valueForJson(input);
+      });
+    }
+    return result;
+  }
+
+  function prettySettings() {
+    return JSON.stringify(collectSettings(), null, 2);
+  }
+
+  function setJsonStatus(message, kind = '') {
+    const status = $('jsonStatus');
+    status.textContent = message;
+    status.classList.toggle('is-error', kind === 'error');
+    status.classList.toggle('is-ok', kind === 'ok');
+  }
+
+  function refreshJsonEditor() {
+    $('settingsJson').value = prettySettings();
+    setJsonStatus('Loaded current controls.');
+  }
+
+  function applySettingsObject(settings) {
+    const buckets = [];
+    if (settings && typeof settings === 'object') {
+      for (const key of ['large', 'small', 'other']) {
+        if (settings[key] && typeof settings[key] === 'object') buckets.push(settings[key]);
+      }
+      /* Also accept the old flat { inputId: value } shape. */
+      if (!buckets.length) buckets.push(settings);
+    }
+    let applied = 0;
+    for (const bucket of buckets) {
+      for (const [id, value] of Object.entries(bucket)) {
+        const input = $(id);
+        if (!(input instanceof HTMLInputElement) || input.type === 'file') continue;
+        if (input.type === 'checkbox') input.checked = Boolean(value);
+        else input.value = String(value);
+        notifyControl(input);
+        applied++;
+      }
+    }
+    document.body.classList.toggle('hide-small-panels', $('hideSmallPanels').checked);
+    updateBlurSurfaceCount();
+    updateMaterialRim('large');
+    updateMaterialRim('small');
+    updateBackdropOverscanBounds();
+    applyWorldTransform();
+    return applied;
+  }
+
+  function applyJsonEditor() {
+    try {
+      const parsed = JSON.parse($('settingsJson').value);
+      const count = applySettingsObject(parsed);
+      $('settingsJson').value = prettySettings();
+      setJsonStatus(`Applied ${count} settings.`, 'ok');
+    } catch (error) {
+      setJsonStatus(`Invalid JSON: ${error.message}`, 'error');
+    }
+  }
+
+  $('openJsonEditor').addEventListener('click', () => {
+    refreshJsonEditor();
+    $('jsonEditor').hidden = false;
+  });
+  $('jsonClose').addEventListener('click', () => { $('jsonEditor').hidden = true; });
+  $('jsonRefresh').addEventListener('click', refreshJsonEditor);
+  $('jsonApply').addEventListener('click', applyJsonEditor);
+
+  $('jsonCopy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText($('settingsJson').value);
+      setJsonStatus('JSON copied.', 'ok');
+    } catch {
+      setJsonStatus('Clipboard write was blocked by the browser.', 'error');
+    }
+  });
+
+  $('jsonPaste').addEventListener('click', async () => {
+    try {
+      $('settingsJson').value = await navigator.clipboard.readText();
+      setJsonStatus('Clipboard pasted. Press Apply JSON to use it.');
+    } catch {
+      setJsonStatus('Clipboard read was blocked by the browser.', 'error');
+    }
+  });
+
+  $('hideSmallPanels').addEventListener('change', (event) => {
+    document.body.classList.toggle('hide-small-panels', event.currentTarget.checked);
+    updateBlurSurfaceCount();
+  });
+
+  $('copySettings').addEventListener('click', async () => {
+    const json = prettySettings();
+    try { await navigator.clipboard.writeText(json); }
+    catch { console.log(json); }
+  });
+
+  $('resetAll').addEventListener('click', () => {
+    resetInputs(document);
+    document.body.classList.toggle('hide-small-panels', $('hideSmallPanels').checked);
+    updateBlurSurfaceCount();
+    applyWorldTransform();
+    updateMaterialRim('large');
+    updateMaterialRim('small');
+    updateBackdropOverscanBounds();
+    if (!$('jsonEditor').hidden) refreshJsonEditor();
+  });
+
+  /* ---------- Lightweight FPS observer; no permanent app animation loop required ---------- */
+  $('dpr').textContent = devicePixelRatio.toFixed(2);
+  let fpsFrames = 0;
+  let fpsStart = performance.now();
+  function fpsTick(now) {
+    fpsFrames++;
+    if (now - fpsStart >= 500) {
+      $('fps').textContent = Math.round(fpsFrames * 1000 / (now - fpsStart)).toString();
+      fpsFrames = 0;
+      fpsStart = now;
+    }
+    requestAnimationFrame(fpsTick);
+  }
+  requestAnimationFrame(fpsTick);
+
+  document.body.classList.toggle('hide-small-panels', $('hideSmallPanels').checked);
+  applyWorldTransform();
+  updateBlurSurfaceCount();
+})();
+</script>
+</body>
+</html>

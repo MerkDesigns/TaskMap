@@ -23,7 +23,8 @@ describe("C2F Minimap", () => {
     expect((interior as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
       "6px",
     );
-    expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    expect(shell).toHaveAttribute("data-material-strategy", "native-glass");
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(screen.getByText("125%")).toBeInTheDocument();
 
     const reset = screen.getByRole("button", { name: "Reset zoom" });

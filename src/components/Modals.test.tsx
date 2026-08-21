@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
+import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
+import { ModalPresence } from "../ui/patterns/overlays";
 import { ClearCanvasModal, SettingsModal } from "./Modals";
 
 describe("modal keyboard behavior", () => {
@@ -12,7 +14,13 @@ describe("modal keyboard behavior", () => {
     document.body.append(opener);
     opener.focus();
 
-    const { unmount } = render(<ClearCanvasModal onCancel={onCancel} onConfirm={vi.fn()} />);
+    const { unmount } = render(
+      <ReducedMotionProvider override>
+        <ModalPresence open>
+          <ClearCanvasModal onCancel={onCancel} onConfirm={vi.fn()} />
+        </ModalPresence>
+      </ReducedMotionProvider>,
+    );
     const cancel = await screen.findByRole("button", { name: "Cancel" });
     const clear = screen.getByRole("button", { name: "Clear" });
     await waitFor(() => expect(cancel).toHaveFocus());
@@ -37,37 +45,41 @@ describe("modal keyboard behavior", () => {
     const onAllowLockedElementDeletionChange = vi.fn();
 
     render(
-      <SettingsModal
-        canvasGridStyle="dots"
-        onCanvasGridStyleChange={vi.fn()}
-        canvasGridOpacity={50}
-        onCanvasGridOpacityChange={vi.fn()}
-        defaultElementColors={DEFAULT_ELEMENT_COLORS}
-        onDefaultElementColorChange={onDefaultElementColorChange}
-        recentColors={["#ABCDEF"]}
-        onRememberRecentColor={onRememberRecentColor}
-        shadowsUnderElements
-        onShadowsUnderElementsChange={vi.fn()}
-        allowLockedElementDeletion
-        onAllowLockedElementDeletionChange={onAllowLockedElementDeletionChange}
-        onExportData={vi.fn(async () => true)}
-        onImportData={vi.fn(async () => undefined)}
-        discordRpcEnabled={false}
-        onDiscordRpcEnabledChange={vi.fn()}
-        discordRpcShowCanvas={true}
-        onDiscordRpcShowCanvasChange={vi.fn()}
-        availableUpdate={null}
-        appVersion="0.2.8"
-        fpsCounterVisible={false}
-        onFpsCounterVisibleChange={vi.fn()}
-        privacyModeEnabled={false}
-        onPrivacyModeEnabledChange={vi.fn()}
-        temporaryPanelsVisible={false}
-        onTemporaryPanelsVisibleChange={vi.fn()}
-        onCheckForUpdate={vi.fn(async () => null)}
-        onInstallUpdate={vi.fn(async () => undefined)}
-        onClose={vi.fn()}
-      />,
+      <ReducedMotionProvider override>
+        <ModalPresence open>
+          <SettingsModal
+            canvasGridStyle="dots"
+            onCanvasGridStyleChange={vi.fn()}
+            canvasGridOpacity={50}
+            onCanvasGridOpacityChange={vi.fn()}
+            defaultElementColors={DEFAULT_ELEMENT_COLORS}
+            onDefaultElementColorChange={onDefaultElementColorChange}
+            recentColors={["#ABCDEF"]}
+            onRememberRecentColor={onRememberRecentColor}
+            shadowsUnderElements
+            onShadowsUnderElementsChange={vi.fn()}
+            allowLockedElementDeletion
+            onAllowLockedElementDeletionChange={onAllowLockedElementDeletionChange}
+            onExportData={vi.fn(async () => true)}
+            onImportData={vi.fn(async () => undefined)}
+            discordRpcEnabled={false}
+            onDiscordRpcEnabledChange={vi.fn()}
+            discordRpcShowCanvas={true}
+            onDiscordRpcShowCanvasChange={vi.fn()}
+            availableUpdate={null}
+            appVersion="0.2.8"
+            fpsCounterVisible={false}
+            onFpsCounterVisibleChange={vi.fn()}
+            privacyModeEnabled={false}
+            onPrivacyModeEnabledChange={vi.fn()}
+            temporaryPanelsVisible={false}
+            onTemporaryPanelsVisibleChange={vi.fn()}
+            onCheckForUpdate={vi.fn(async () => null)}
+            onInstallUpdate={vi.fn(async () => undefined)}
+            onClose={vi.fn()}
+          />
+        </ModalPresence>
+      </ReducedMotionProvider>,
     );
 
     await user.click(screen.getByTitle("Choose default containers color"));

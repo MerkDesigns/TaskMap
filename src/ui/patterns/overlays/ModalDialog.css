@@ -1,0 +1,74 @@
+.taskmap-modal-dialog {
+  max-width: calc(100vw - 2rem);
+  padding: var(--taskmap-space-4);
+  color: var(--taskmap-text);
+}
+
+.taskmap-modal-dialog > * {
+  position: relative;
+  z-index: 2;
+}
+
+.taskmap-modal-dialog__header,
+.taskmap-modal-dialog__identity,
+.taskmap-modal-dialog__actions {
+  display: flex;
+  align-items: center;
+}
+
+.taskmap-modal-dialog__header {
+  justify-content: space-between;
+  margin-bottom: var(--taskmap-space-4);
+}
+
+.taskmap-modal-dialog__identity {
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-modal-dialog__icon {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-modal-dialog__title {
+  margin: 0;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-section-size);
+  font-weight: 650;
+  line-height: var(--taskmap-text-section-line);
+}
+
+.taskmap-modal-dialog__body {
+  margin-bottom: var(--taskmap-space-5);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-body-size);
+  line-height: var(--taskmap-text-body-line);
+}
+
+.taskmap-modal-dialog__secondary {
+  margin-top: var(--taskmap-space-2);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+}
+
+.taskmap-modal-dialog__error {
+  margin-top: var(--taskmap-space-2);
+  color: var(--taskmap-danger);
+  font-size: var(--taskmap-text-caption-size);
+}
+
+.taskmap-modal-dialog__danger-icon {
+  color: var(--taskmap-danger);
+}
+
+.taskmap-modal-dialog__clear-copy {
+  margin-top: var(--taskmap-space-3);
+}
+
+.taskmap-modal-dialog__actions {
+  justify-content: flex-end;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-modal-dialog__password {
+  margin-bottom: var(--taskmap-space-4);
+}

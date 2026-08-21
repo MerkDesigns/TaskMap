@@ -1,5 +1,4 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
-import { useMaterialSurfaceMaskOpacity } from "../../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../../motion/MotionProvider";
 import { interpolate, normalizedProgress } from "../../motion/motionMath";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
@@ -13,7 +12,6 @@ export function useMinimapVisibilityMotion(
 ): void {
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const setMaskOpacity = useMaterialSurfaceMaskOpacity(surfaceRef);
   const opacityRef = useRef(visible ? 0 : 1);
   const initializedRef = useRef(false);
 
@@ -26,9 +24,8 @@ export function useMinimapVisibilityMotion(
         surface.style.opacity = `${settledOpacity}`;
         surface.style.willChange = active ? "opacity" : "";
       }
-      setMaskOpacity(settledOpacity);
     },
-    [setMaskOpacity, surfaceRef],
+    [surfaceRef],
   );
 
   useLayoutEffect(() => {

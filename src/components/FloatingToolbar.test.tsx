@@ -68,6 +68,7 @@ describe("FloatingToolbar", () => {
     );
     expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Redo" })).toBeEnabled();
+    expect(screen.getByLabelText("Canvas toolbar")).not.toHaveAttribute("data-side-panel-open");
   });
 
   it("keeps collapsed controls aria-hidden and outside the tab order", () => {
@@ -113,13 +114,13 @@ describe("FloatingToolbar", () => {
     const groups = container.querySelectorAll('[data-material="acrylic-large"]');
     expect(groups).toHaveLength(2);
     groups.forEach((group) => {
-      expect(group).toHaveAttribute("data-material-strategy", "cached-acrylic");
+      expect(group).toHaveAttribute("data-material-strategy", "native-glass");
       expect(group).toHaveAttribute("data-material-elevation", "none");
       expect((group as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
-        "12px",
+        "23px",
       );
     });
-    expect(registry.getSnapshot().surfaces).toHaveLength(2);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     const invalidationsAfterMount = notifySurfaceGeometryChanged.mock.calls.length;
     const privacy = screen.getByTitle("Enable privacy mode");
     const optionalControls = privacy.parentElement as HTMLElement;

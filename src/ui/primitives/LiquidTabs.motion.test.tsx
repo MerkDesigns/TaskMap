@@ -39,12 +39,12 @@ class ControlledFrameDriver implements MotionFrameDriver {
   }
 }
 
-let resizeCallback: ResizeObserverCallback | null = null;
+let resizeCallbacks: ResizeObserverCallback[] = [];
 let shortcutWidth = 160;
 
 class TestResizeObserver implements ResizeObserver {
   constructor(callback: ResizeObserverCallback) {
-    resizeCallback = callback;
+    resizeCallbacks.push(callback);
   }
   observe(): void {}
   unobserve(): void {}
@@ -53,7 +53,7 @@ class TestResizeObserver implements ResizeObserver {
 
 beforeEach(() => {
   shortcutWidth = 160;
-  resizeCallback = null;
+  resizeCallbacks = [];
   vi.stubGlobal("ResizeObserver", TestResizeObserver);
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
     this: HTMLElement,
@@ -119,14 +119,14 @@ describe("LiquidTabs material motion", () => {
     expect(
       Number.parseFloat(indicator?.style.getPropertyValue("--taskmap-material-radius") ?? "0"),
     ).toBeGreaterThan(7);
-    expect(registry.getSnapshot().surfaces[0]?.radiusPx).toBeGreaterThan(7);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     act(() => driver.flush());
     expect(indicator?.style.transform).toBe("translate3d(220px, 0, 0)");
     expect(indicator?.style.width).toBe("160px");
     expect(indicator).toHaveStyle("--taskmap-material-radius: 7px");
 
     shortcutWidth = 220;
-    act(() => resizeCallback?.([], {} as ResizeObserver));
+    act(() => resizeCallbacks.forEach((callback) => callback([], {} as ResizeObserver)));
     act(() => driver.flush());
     expect(indicator?.style.width).toBe("220px");
     expect(indicator).toHaveAttribute("data-material", "acrylic-small");

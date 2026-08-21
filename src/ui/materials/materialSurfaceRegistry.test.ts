@@ -83,6 +83,43 @@ describe("central material surface registry", () => {
     registry.updateMaskOpacity(element, Number.NaN);
     expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
   });
+
+  it("batches group mask opacity into one cheap revision per affected plane", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const first = new FakeSurfaceElement();
+    const second = new FakeSurfaceElement();
+    const unrelated = new FakeSurfaceElement();
+    registry.register(registration("first", first));
+    registry.register(registration("second", second));
+    registry.register({ ...registration("unrelated", unrelated), plane: "modal" });
+    const before = registry.getSnapshot();
+
+    registry.updateMaskOpacityBatch([first, second], 0.4);
+    const after = registry.getSnapshot();
+    expect(after.planeRevisions.base).toBe(before.planeRevisions.base + 1);
+    expect(after.planeRevisions.modal).toBe(before.planeRevisions.modal);
+    expect(after.surfaces.map(({ maskOpacity }) => maskOpacity)).toEqual([0.4, 0.4, 1]);
+  });
+
+  it("batches distinct effective group opacities without touching unrelated surfaces", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const root = new FakeSurfaceElement();
+    const nested = new FakeSurfaceElement();
+    const unrelated = new FakeSurfaceElement();
+    registry.register({ ...registration("root", root), plane: "modal" });
+    registry.register({ ...registration("nested", nested), plane: "modal" });
+    registry.register(registration("unrelated", unrelated));
+    const before = registry.getSnapshot();
+
+    registry.updateMaskOpacitiesBatch([
+      { element: root, maskOpacity: 0.5 },
+      { element: nested, maskOpacity: 0.2 },
+    ]);
+    const after = registry.getSnapshot();
+    expect(after.planeRevisions.modal).toBe(before.planeRevisions.modal + 1);
+    expect(after.planeRevisions.base).toBe(before.planeRevisions.base);
+    expect(after.surfaces.map(({ maskOpacity }) => maskOpacity)).toEqual([0.5, 0.2, 1]);
+  });
 });
 
 function registration(id: string, element: FakeSurfaceElement) {

@@ -494,23 +494,18 @@ and no post-settlement geometry or mask work.
 
 ### Phase 4.5C2D Canvas Browser coverage
 
-Fifteen focused C2D cases across the Canvas Manager card component/contracts and shared layout-
-motion suites lock the production full/minimal Acrylic Small radii, Cutout preview geometry,
+Focused Canvas Manager, runtime, pure-math, scroll, and architecture-contract suites lock the
+production `288px` browser geometry, full/minimal Acrylic Small radii, Cutout preview geometry,
 embedded zero-acrylic behavior, target-token active/cycle states, unchanged preview projection and
-user colors, inline editor focus/constraints/save/cancel/Enter/Escape behavior, and IconButton menu
-trigger ownership. Reorder characterization preserves threshold/order callbacks while proving the
-shared scheduler drives FLIP geometry refreshes only while active, stops after exact settlement,
-and settles immediately for reduced motion.
+user colors, editor behavior, feature callbacks, and wheel-route ownership.
 
-Drag coverage proves the registered source mask opacity follows the hidden source DOM and returns to
-one on completion. The body-owned preview is an unregistered opaque representation with its own
-target-theme scope; cloned FLIP transform, transform-origin, and will-change presentation is removed
-before fixed positioning. Static contracts reject new card-local animation frames, backdrop
-filters, compositor/cache/provider ownership, hardcoded legacy teal application state, and
-migration leakage into Extensions, Minimap, Settings, creation UI, or context menus. Existing
-material coordinator/registry tests provide the corresponding proof that geometry- and mask-only
-updates do not request or rebuild the acrylic backdrop cache. These structural tests do not claim
-pixel-level or manual visual acceptance.
+Interaction coverage proves the `6px` threshold, multi-slot and scrolled insertion, `0.45` wheel
+normalization, `45ms` smooth-scroll convergence, extended edge auto-scroll, `190ms`
+`easeOutQuart` slot/snap motion, click suppression, cancellation, and one final persistent order
+commit. Integration tests prove the same card DOM remains live while its stable portal host moves
+to the drag layer, no clone/duplicate/placeholder exists, and logical Large sampling ownership is
+`inherited` before, during, and after drag. Static contracts reject clone-based drag and new
+backdrop/compositor ownership. These tests do not claim pixel-level or manual visual acceptance.
 
 ### Phase 4.5C2E primary Extensions Browser coverage
 
@@ -559,10 +554,30 @@ shortcut order, footer version, and DEV callbacks.
 
 Static contracts require one existing compositor provider and only the base/modal planes, reject
 Settings-local compositor z-index, backdrop filters, requestAnimationFrame, persistence/domain
-ownership, legacy teal, and primary `left-panel-card` usage. They separately retain the legacy
-password dialog, `UpdateAvailableModal`, `ColorPickerMenu` portal/positioning, Clear Canvas, Quick
-Extensions, context menus, ToastStack, storage-error UI, and command-runner overlays for later C3
-slices. These structural and DOM tests do not claim rendered acrylic pixels or visual acceptance.
+ownership, legacy teal, and primary `left-panel-card` usage. C3A originally retained nested dialogs;
+C3B coverage below supersedes that presentation boundary for password, Update Available, and Clear
+Canvas while still retaining `ColorPickerMenu`, Quick Extensions, context menus, ToastStack,
+storage-error UI, and command-runner overlays for later C3 slices. These structural and DOM tests do
+not claim rendered acrylic pixels or visual acceptance.
+
+### Phase 4.5C3B production modal coverage
+
+Focused modal, Settings, material-registry, and compositor-coordinator suites cover shared
+enter/open/closing presence, exact `180ms` entry and `120ms` exit settlement, retained exit DOM,
+mid-exit reopening, reduced-motion removal, scrim progress, and zero scheduler work after settlement.
+They synchronize the root shell and every registered descendant mask to modal DOM opacity, verify
+late registrations inherit current group opacity, preserve unrelated surfaces, batch cheap plane
+updates, and prove mask/geometry-only frames request zero shared backdrop-cache rebuilds.
+
+Consumer tests cover root and nested Update Available placement and busy/error behavior, Clear
+Canvas danger/cancel behavior and immediate mutation ownership, Settings password export/import
+flows, topmost Escape ordering, focus retention through visible exit, and focus return only after
+presence completion. Static contracts retain exactly one compositor/provider, only base/modal
+planes, no direct animation frame or feature-specific timeout ownership, and no legacy frosted,
+backdrop-filter, or local global-layer shell styling in migrated dialogs. Color Picker, Quick
+Extensions, filter/info/context overlays, command-runner/conflict dialogs, ToastStack, storage-error,
+creation UI, C3C, and Phase 5 remain explicitly outside this coverage. DOM tests do not claim pixel
+composition or visual acceptance.
 
 ### Phase 4.5D visual and performance acceptance
 

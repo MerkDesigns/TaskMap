@@ -19,12 +19,12 @@ values.
 feature or TaskMap pattern
   -> src/ui/primitives
   -> src/ui/materials + src/ui/motion
-  -> compositor public boundary
+  -> centralized material backend
 ```
 
 - `theme/` owns scoped target tokens. C2A applies them only to the production workspace root.
-- `materials/` owns surface strategies and compositor integration. Component states are not material
-  IDs.
+- `materials/` owns surface strategies, live native glass, logical sampling boundaries, and the
+  parked legacy compositor integration. Component states are not material IDs.
 - `motion/` owns deterministic calculations, reduced-motion preference, and the shared UI frame
   scheduler. It does not import application state, persistence, Redux, domain, or Tauri.
 - `primitives/` owns generic semantic controls, form elements, navigation, layout, and status.
@@ -41,11 +41,14 @@ feature or TaskMap pattern
   `MinimapSurface`/`MinimapViewport` production pattern while leaving projection and visibility
   lifecycle ownership in the feature/App. C3A adds the modal-plane `ModalLayer` stacking boundary
   and the presentation-only `SettingsShell`/`SettingsIsland`/`SettingsRow` patterns for primary
-  Settings. Password/update/color-picker and all other overlay shells remain unmigrated.
+  Settings. C3B adds shared modal presence, dialog, and nested-overlay patterns; migrates Settings
+  presence plus Update, Clear Canvas, and Settings password dialogs; and leaves color-picker,
+  command-runner, conflict, quick-extension, menu, tooltip, toast, and other overlay shells deferred.
 - `dev/` owns the opt-in development UI Lab and no production behavior.
 
 Feature code may compose `MaterialSurface + material + radius + elevation + behavior`. It must not
-import compositor internals or create a material ID for a button, tab, pill, toolbar, or card.
+import native-filter or compositor internals or create a material ID for a button, tab, pill,
+toolbar, or card.
 
 The `Text` primitive exposes body, body-small, label, caption, heading, section-heading, muted, and
 monospace roles using the scoped typography tokens.
@@ -59,7 +62,7 @@ monospace roles using the scoped typography tokens.
 | Cutout                             | Foundation implemented                                                 |
 | Solid/opaque surface               | Foundation implemented (`opaque` MaterialSurface and plain containers) |
 | Transparent layout surface         | Foundation implemented (`Stack`/`Inline`)                              |
-| Modal scrim                        | C3A foundation implemented for the primary Settings modal              |
+| Modal scrim                        | C3B production root/nested fade implemented for migrated dialogs       |
 | Accent wash                        | Foundation implemented as a scoped effect token                        |
 | Selection state                    | Foundation implemented as shared state styling/token                   |
 | Bright glass selection             | Foundation implemented as a reusable `MaterialSurface` effect          |
@@ -180,8 +183,8 @@ strong glow. Invalid/error presentation remains semantic danger red.
 | ContextMenu              | Foundation implemented; production behavior migration remains C3 |
 | Nested submenu           | Implement during C3                                              |
 | SelectMenu               | Implement during C3                                              |
-| Modal/Dialog             | C3A modal-plane/shell foundation; remaining dialogs during C3    |
-| ConfirmDialog            | Implement during C3                                              |
+| Modal/Dialog             | C3B production use for Settings/Update/Clear/password            |
+| ConfirmDialog            | C3B production Clear Canvas implementation                       |
 | AlertDialog              | Implement during C3                                              |
 | Drawer/Sheet             | Implement during C3                                              |
 | Inspector                | Implement during C3                                              |
@@ -223,9 +226,10 @@ Nested menus, portals, generalized collision systems, and production menu migrat
 
 ## H. TaskMap canvas patterns
 
-These were cataloged in C1. C2A implements the production canvas frame/grid foundation and C2D
-implements only Canvas Browser card/preview/editor presentation; minimap and canvas-world element
-presentation remain later work.
+These were cataloged in C1. C2A implements the production canvas frame/grid foundation. C2D owns
+the Canvas Browser card/preview/editor presentation, and the current Phase 4.5 behavior slice adds
+the Renderer V2-derived transient scrolling and reorder runtime. Minimap and canvas-world element
+presentation remain separate.
 
 | Capability              | Status                     |
 | ----------------------- | -------------------------- |
@@ -272,7 +276,8 @@ the feature retains the pure projection plus reset-only interaction contract.
 ## I. Settings patterns
 
 The C3A primary Settings migration implements only capabilities exercised by the retained production
-Settings screen. Deferred nested overlays keep their existing presentation until later C3 slices.
+Settings screen. C3B migrates its password and update dialogs plus Settings modal presence; the
+color-picker and other excluded overlays retain their existing presentation until later C3 slices.
 
 | Capability                 | Status                                                         |
 | -------------------------- | -------------------------------------------------------------- |
@@ -321,18 +326,19 @@ Settings screen. Deferred nested overlays keep their existing presentation until
 
 | Capability              | Status                                             |
 | ----------------------- | -------------------------------------------------- |
-| FLIP position           | C2D shared-scheduler production use                |
+| FLIP position           | Foundation retained; Canvas Browser uses slot math |
 | FLIP resize             | Foundation implemented with local measurement math |
 | Reorder                 | C2D Canvas Browser production use                  |
 | Shared-element movement | Capability only                                    |
 | Insert/remove           | Implement during C2                                |
-| Drag lift               | Feature-specific Phase 5+                          |
-| Drop settle             | Feature-specific Phase 5+                          |
-| Reparent transition     | Feature-specific Phase 5+                          |
+| Drag lift               | Canvas Browser actual-card portal implemented      |
+| Drop settle             | Canvas Browser 190ms snap implemented              |
+| Reparent transition     | Canvas Browser stable portal host implemented      |
 
-FLIP is restricted to local participating components and is not suitable for the canvas-world element
-population. C2D drives local card transforms from the shared UI scheduler and refreshes registered
-material geometry through the cheap public invalidation seam on active frames only.
+FLIP remains restricted to local participating components and is not suitable for the canvas-world
+element population. Canvas Browser uses a dedicated on-demand transient runtime because scrolling,
+auto-scroll, slot interpolation, and the actual-card drag must advance from one authoritative frame
+clock. It refreshes material geometry through the cheap public invalidation seam on changed frames.
 
 ### Liquid motion
 
@@ -351,13 +357,13 @@ material geometry through the cheap public invalidation seam on active frames on
 
 | Capability             | Status                                                         |
 | ---------------------- | -------------------------------------------------------------- |
-| Modal entry/exit       | Implement during C3                                            |
+| Modal entry/exit       | C3B production foundation for migrated dialogs                 |
 | Anchored popover entry | Implement during C3                                            |
 | Context-menu pop       | Foundation implemented with shared tokens on an opaque surface |
 | Tooltip fade           | Implement during C3                                            |
 | Toast slide            | Implement during C3                                            |
 | Drawer slide           | Implement during C3                                            |
-| Scrim fade             | Implement during C3                                            |
+| Scrim fade             | C3B production root/nested implementation                      |
 
 ### State motion
 

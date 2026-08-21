@@ -71,3 +71,14 @@
   display: grid;
   place-items: center;
 }
+
+.taskmap-workspace-panel-header .taskmap-workspace-panel-header__icon-toggle[aria-pressed="true"],
+.taskmap-workspace-panel-header
+  .taskmap-workspace-panel-header__icon-toggle[aria-pressed="true"]:hover:not(:disabled),
+.taskmap-workspace-panel-header
+  .taskmap-workspace-panel-header__icon-toggle[aria-pressed="true"]:active:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--taskmap-accent);
+  box-shadow: none;
+}

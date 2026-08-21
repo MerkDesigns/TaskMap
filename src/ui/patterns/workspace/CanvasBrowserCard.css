@@ -1,37 +1,18 @@
 .taskmap-canvas-browser-card {
   position: relative;
-  display: flex;
   width: 100%;
-  overflow: clip;
-  color: var(--taskmap-text);
-  cursor: pointer;
+  height: var(--taskmap-canvas-card-visible-height, var(--taskmap-canvas-card-full-height, 84px));
+  overflow: hidden;
+  color: rgb(255 255 255 / 88%);
+  cursor: grab;
+  font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: none;
+  transform: translate3d(0, var(--taskmap-canvas-card-clip-offset, 0px), 0);
   user-select: none;
-  transition:
-    outline-color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
-    opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard);
-  overflow-clip-margin: 100vw;
 }
 
-.taskmap-canvas-browser-card::before {
-  position: absolute;
-  z-index: 0;
-  border-radius: inherit;
-  background: var(--taskmap-state-hover);
-  content: "";
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard);
-}
-
-.taskmap-canvas-browser-card:hover::before {
-  opacity: 0.55;
-}
-
-.taskmap-canvas-browser-card[data-active="true"]::before {
-  background: var(--taskmap-accent-wash);
-  opacity: 1;
+.taskmap-canvas-browser-card:active {
+  cursor: grabbing;
 }
 
 .taskmap-canvas-browser-card[data-cycle-highlighted="true"] {
@@ -39,20 +20,37 @@
   outline-offset: -2px;
 }
 
-.taskmap-canvas-browser-card > * {
-  position: relative;
+.taskmap-canvas-browser-card__content-mask {
+  position: absolute;
   z-index: 2;
+  overflow: hidden;
+  border-radius: calc(
+    var(--taskmap-material-radius) - var(--taskmap-material-content-clip-inset, 0px)
+  );
+  inset: var(--taskmap-material-content-clip-inset, 0px);
 }
 
-.taskmap-canvas-browser-card--full {
-  min-height: 84px;
-  gap: var(--taskmap-space-3);
-  padding: var(--taskmap-space-2) var(--taskmap-space-2) var(--taskmap-space-2)
-    var(--taskmap-space-3);
+.taskmap-canvas-browser-card__content {
+  position: absolute;
+  top: calc(0px - var(--taskmap-material-content-clip-inset, 0px));
+  left: calc(0px - var(--taskmap-material-content-clip-inset, 0px));
+  display: flex;
+  width: calc(
+    100% + var(--taskmap-material-content-clip-inset, 0px) +
+      var(--taskmap-material-content-clip-inset, 0px)
+  );
+  height: var(--taskmap-canvas-card-full-height, 84px);
+  transform: translate3d(0, calc(0px - var(--taskmap-canvas-card-clip-offset, 0px)), 0);
+}
+
+.taskmap-canvas-browser-card--full .taskmap-canvas-browser-card__content {
+  align-items: center;
+  gap: 10px;
+  padding: 9px;
   text-align: left;
 }
 
-.taskmap-canvas-browser-card--minimal {
+.taskmap-canvas-browser-card--minimal .taskmap-canvas-browser-card__content {
   height: 40px;
   align-items: center;
   gap: var(--taskmap-space-2);
@@ -60,7 +58,8 @@
   text-align: left;
 }
 
-.taskmap-canvas-browser-card--editor {
+.taskmap-canvas-browser-card--editor .taskmap-canvas-browser-card__content {
+  height: auto;
   min-height: 84px;
   flex-direction: column;
   gap: var(--taskmap-space-3);
@@ -69,22 +68,19 @@
   cursor: default;
 }
 
-.taskmap-canvas-browser-card > .taskmap-canvas-browser-card__active-indicator {
+.taskmap-canvas-browser-card__active-indicator {
   position: absolute;
   z-index: 3;
   top: 50%;
-  left: 0;
+  left: var(--taskmap-material-content-clip-inset, 0px);
   width: 3px;
-  border-radius: var(--taskmap-radius-pill);
+  height: 22px;
+  border-radius: 0 3px 3px 0;
   background: var(--taskmap-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--taskmap-accent) 52%, transparent);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-50%);
-  transition: opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard);
-}
-
-.taskmap-canvas-browser-card--full .taskmap-canvas-browser-card__active-indicator {
-  height: 32px;
 }
 
 .taskmap-canvas-browser-card--minimal .taskmap-canvas-browser-card__active-indicator {
@@ -96,17 +92,90 @@
 }
 
 .taskmap-canvas-preview {
+  position: relative;
   box-sizing: border-box;
-  width: 96px;
-  height: 64px;
-  flex: none;
+  width: 114.4px;
+  height: 66px;
+  flex: 0 0 auto;
   overflow: hidden;
+  background: #101214;
 }
 
-.taskmap-canvas-browser-card--drag-preview {
-  opacity: 1 !important;
-  pointer-events: none !important;
-  transition: none !important;
+.taskmap-canvas-preview[data-material="cutout"] {
+  border: 1px solid rgb(128 128 128 / 20%);
+  background: #101214;
+  box-shadow: none;
+}
+
+.taskmap-canvas-browser-card__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 27px;
+}
+
+.taskmap-canvas-browser-card__title {
+  overflow: hidden;
+  color: rgb(255 255 255 / 88%);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: calc(1.2em - 2px);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.taskmap-canvas-browser-card__subtitle {
+  color: rgb(255 255 255 / 58%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: normal;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.taskmap-canvas-browser-card__options {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  right: 11px;
+  display: grid;
+  width: auto;
+  height: auto;
+  padding: 3px 2px;
+  transform: translateY(-50%);
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  outline: 0;
+  color: rgb(255 255 255 / 78%);
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+.taskmap-canvas-browser-card__options:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.taskmap-canvas-browser-card__options:focus,
+.taskmap-canvas-browser-card__options:focus-visible,
+.taskmap-canvas-browser-card__options:active {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.taskmap-canvas-browser-card__options-dots {
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow:
+    0 -4.5px currentcolor,
+    0 4.5px currentcolor;
 }
 
 .taskmap-canvas-inline-editor__eyebrow {

@@ -14,10 +14,10 @@ export interface CanvasBrowserCardProps extends HTMLAttributes<HTMLDivElement> {
 
 export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardProps>(
   function CanvasBrowserCard(
-    { active = false, className, cycleHighlighted = false, embedded, mode, ...props },
+    { active = false, children, className, cycleHighlighted = false, embedded, mode, ...props },
     ref,
   ) {
-    const radius = mode === "minimal" ? 8 : 12;
+    const radius = mode === "minimal" ? 8 : undefined;
     return (
       <MaterialSurface
         {...props}
@@ -27,12 +27,17 @@ export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardPro
         data-canvas-card-mode={mode}
         data-active={active || undefined}
         data-cycle-highlighted={cycleHighlighted || undefined}
+        aria-current={active ? "true" : undefined}
         className={primitiveClassNames(
           "taskmap-canvas-browser-card",
           `taskmap-canvas-browser-card--${mode}`,
           className,
         )}
-      />
+      >
+        <div className="taskmap-canvas-browser-card__content-mask">
+          <div className="taskmap-canvas-browser-card__content">{children}</div>
+        </div>
+      </MaterialSurface>
     );
   },
 );
@@ -50,21 +55,8 @@ export const CanvasPreview = forwardRef<HTMLDivElement, CanvasPreviewProps>(func
       {...props}
       ref={ref}
       material="cutout"
-      radius={6}
+      radius={8}
       className={primitiveClassNames("taskmap-canvas-preview", className)}
     />
   );
 });
-
-/** Converts the DOM clone into a themed, fully opaque, unregistered drag representation. */
-export function prepareCanvasBrowserDragPreview(clone: HTMLElement): void {
-  clone.removeAttribute("data-material-surface-id");
-  clone.removeAttribute("data-material");
-  clone.setAttribute("data-material-strategy", "opaque");
-  clone.setAttribute("aria-hidden", "true");
-  clone.classList.add("taskmap-target-theme", "taskmap-canvas-browser-card--drag-preview");
-  clone.style.removeProperty("transform");
-  clone.style.removeProperty("transform-origin");
-  clone.style.removeProperty("will-change");
-  clone.style.setProperty("--taskmap-material-tint-opacity", "1");
-}

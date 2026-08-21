@@ -13,7 +13,7 @@ import { MinimapSurface, MinimapViewport } from "./MinimapSurface";
 afterEach(cleanup);
 
 describe("MinimapSurface", () => {
-  it("synchronizes DOM and compositor mask opacity on the shared scheduler", () => {
+  it("animates native glass DOM opacity on the shared scheduler without cached masks", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
     const registry = createMaterialSurfaceRegistry(null);
@@ -31,23 +31,23 @@ describe("MinimapSurface", () => {
     const surface = screen.getByLabelText("Minimap");
 
     expect(surface.style.opacity).toBe("0");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
     act(() => driver.fire());
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(Number(surface.style.opacity));
+    expect(Number(surface.style.opacity)).toBeGreaterThan(0);
     act(() => driver.flush());
     expect(surface.style.opacity).toBe("1");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(surface.style.willChange).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     rerender(renderSurface(false));
     expect(surface).toHaveAttribute("data-visible", "false");
     act(() => driver.fire());
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(Number(surface.style.opacity));
+    expect(Number(surface.style.opacity)).toBeLessThan(1);
     act(() => driver.flush());
     expect(surface.style.opacity).toBe("0");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     const revisionAtRest = registry.getSnapshot().planeRevisions.base;
@@ -58,7 +58,7 @@ describe("MinimapSurface", () => {
     registry.dispose();
   });
 
-  it("settles both opacity channels immediately under reduced motion", () => {
+  it("settles native DOM opacity immediately under reduced motion", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
     const registry = createMaterialSurfaceRegistry(null);
@@ -76,18 +76,18 @@ describe("MinimapSurface", () => {
     const { rerender } = render(renderSurface(true));
     const surface = screen.getByLabelText("Minimap");
     expect(surface.style.opacity).toBe("1");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot().subscriberCount).toBe(0);
 
     rerender(renderSurface(false));
     expect(surface.style.opacity).toBe("0");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     scheduler.dispose();
     registry.dispose();
   });
 
-  it("registers only the Acrylic Large shell and leaves the Cutout interior unregistered", () => {
+  it("uses native Large and non-registering Cutout without cached registrations", () => {
     const registry = createMaterialSurfaceRegistry(null);
     render(
       <MaterialSurfaceRegistrationProvider
@@ -108,7 +108,8 @@ describe("MinimapSurface", () => {
     expect(interior).toHaveAttribute("data-material", "cutout");
     expect(interior).not.toHaveAttribute("data-material-surface-id");
     expect(interior.style.getPropertyValue("--taskmap-material-radius")).toBe("6px");
-    expect(registry.getSnapshot().surfaces).toHaveLength(1);
+    expect(shell).toHaveAttribute("data-material-strategy", "native-glass");
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     registry.dispose();
   });
 });

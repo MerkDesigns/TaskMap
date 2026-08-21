@@ -5,13 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TaskCanvas } from "../types";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
 import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
-import { MotionProvider } from "../ui/motion/MotionProvider";
-import {
-  createMotionFrameScheduler,
-  type MotionFrameDriver,
-} from "../ui/motion/motionFrameScheduler";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
-import { prepareCanvasBrowserDragPreview } from "../ui/patterns/workspace";
+import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
 import { CanvasManager } from "./CanvasManager";
 
 const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
@@ -31,18 +26,18 @@ describe("C2D Canvas Browser cards", () => {
     const preview = card?.querySelector('[data-material="cutout"]');
 
     expect(card).toHaveAttribute("data-material", "acrylic-small");
+    expect(card).toHaveAttribute("data-material-strategy", "native-glass");
     expect(card).toHaveAttribute("data-canvas-card-mode", "full");
-    expect((card as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
+    expect((card as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
+      "13.5px",
+    );
     expect(preview).toHaveAttribute("data-material", "cutout");
     expect((preview as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
-      "6px",
+      "8px",
     );
-    expect(
-      registry
-        .getSnapshot()
-        .surfaces.map((surface) => surface.material)
-        .sort(),
-    ).toEqual(["acrylic-large", "acrylic-small"]);
+    expect(card).toHaveAttribute("aria-current", "true");
+    expect(card).not.toHaveClass("taskmap-material-surface--bright-selection");
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     registry.dispose();
   });
 
@@ -129,8 +124,9 @@ describe("C2D Canvas Browser cards", () => {
       '[data-canvas-preview-image="image-a"]',
     ) as HTMLElement;
 
-    expect(containerPreview.style.left).toBe("1.6px");
-    expect(containerPreview.style.top).toBe("1.6px");
+    const expectedOffset = CANVAS_BROWSER_LAYOUT.previewWidth / 60;
+    expect(Number.parseFloat(containerPreview.style.left)).toBeCloseTo(expectedOffset);
+    expect(Number.parseFloat(containerPreview.style.top)).toBeCloseTo(expectedOffset);
     expect(containerPreview.style.zIndex).toBe("23");
     expect(containerPreview.style.borderColor).toBe("rgb(18, 52, 86)");
     expect(textPreview.style.zIndex).toBe("25");
@@ -212,62 +208,117 @@ describe("C2D Canvas Browser cards", () => {
     expect(container.querySelector('[data-canvas-card-id="canvas-a"]')).toBeInTheDocument();
   });
 
-  it("hides and restores the registered drag-source mask and uses an opaque clone", async () => {
+  it("preserves real create, select, context-menu, and delete callbacks", async () => {
     const user = userEvent.setup();
+    const fixtures = [canvas("canvas-a"), canvas("canvas-b")];
+    const props = canvasManagerProps(fixtures);
+    render(<CanvasManager {...props} embedded />);
+
+    await user.click(screen.getByText("Canvas B"));
+    expect(props.onSelectCanvas).toHaveBeenCalledWith("canvas-b");
+
+    await user.click(screen.getByRole("button", { name: "Create canvas" }));
+    const name = screen.getByPlaceholderText("Canvas name");
+    await user.clear(name);
+    await user.type(name, "Production canvas");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+    expect(props.onCreateCanvas).toHaveBeenCalledWith({
+      name: "Production canvas",
+      width: 3000,
+      height: 3000,
+    });
+
+    fireEvent.click(document.querySelectorAll<HTMLButtonElement>("[data-canvas-menu-trigger]")[1]!);
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(props.onDeleteCanvas).toHaveBeenCalledWith("canvas-b");
+  });
+
+  it("consumes viewport and nested-card wheel input before it reaches the canvas route", () => {
+    const canvasWheel = vi.fn();
+    const fixtures = Array.from({ length: 8 }, (_, index) => canvas(`canvas-${index}`));
+    const { container } = render(
+      <div onWheel={canvasWheel}>
+        <CanvasManager {...canvasManagerProps(fixtures)} embedded />
+      </div>,
+    );
+    const viewport = container.querySelector("[data-canvas-browser-viewport]") as HTMLElement;
+
+    const event = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 100,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+    });
+    fireEvent(viewport, event);
+
+    const nestedTitle = container.querySelector(
+      '[data-canvas-card-id="canvas-1"] .taskmap-canvas-browser-card__title',
+    ) as HTMLElement;
+    const nestedEvent = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 100,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+    });
+    fireEvent(nestedTitle, nestedEvent);
+
+    expect(canvasWheel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    expect(nestedEvent.defaultPrevented).toBe(true);
+  });
+
+  it("reparents the same live Small card without a clone, duplicate, or placeholder", () => {
+    const interactionFrames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      interactionFrames.push(callback);
+      return interactionFrames.length;
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.dataset.canvasBrowserViewport !== undefined) return rect(74, 300, 288);
+      if (this.dataset.canvasCardId) return rect(74, 84, 264);
+      return rect(16, 370, 288);
+    });
     const registry = createMaterialSurfaceRegistry(null);
     const { container } = renderProduction([canvas("canvas-a")], registry);
     const card = container.querySelector('[data-canvas-card-id="canvas-a"]') as HTMLElement;
+    const originalCard = card;
+    const settledHost = card.parentElement;
+    const settledOwner = settledHost?.parentElement;
+    const cloneNode = vi.spyOn(Node.prototype, "cloneNode");
 
-    await user.pointer({ keys: "[MouseLeft>]", target: card, coords: { clientY: 10 } });
-    expect(card.style.opacity).toBe("0");
-    expect(
-      registry.getSnapshot().surfaces.find((surface) => surface.element === card)?.maskOpacity,
-    ).toBe(0);
-    const clone = document.body.querySelector(
-      ".taskmap-canvas-browser-card--drag-preview",
-    ) as HTMLElement;
-    expect(clone).toHaveClass("taskmap-target-theme");
-    expect(clone).not.toHaveAttribute("data-material");
-    expect(clone).toHaveAttribute("data-material-strategy", "opaque");
-    expect(clone).not.toHaveAttribute("data-material-surface-id");
-    expect(registry.getSnapshot().surfaces.some((surface) => surface.element === clone)).toBe(
-      false,
-    );
+    fireEvent(card, canvasPointerEvent("pointerdown", 7, 90));
+    fireEvent(document, canvasPointerEvent("pointermove", 7, 96));
+    act(() => {
+      interactionFrames.shift()?.(16);
+    });
 
-    await user.pointer({ keys: "[/MouseLeft]", target: card, coords: { clientY: 10 } });
     expect(card.style.opacity).toBe("");
-    expect(
-      registry.getSnapshot().surfaces.find((surface) => surface.element === card)?.maskOpacity,
-    ).toBe(1);
-    expect(document.body.querySelector(".taskmap-canvas-browser-card--drag-preview")).toBeNull();
+    expect(card).toBe(originalCard);
+    expect(card.parentElement).toBe(settledHost);
+    expect(settledHost?.parentElement).not.toBe(settledOwner);
+    expect(settledHost?.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
+    expect(card).toHaveAttribute("data-material", "acrylic-small");
+    expect(card).toHaveAttribute("data-material-sampling-boundary", "inherited");
+    expect(cloneNode).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
+    expect(document.querySelectorAll('[data-canvas-card-id="canvas-a"]')).toHaveLength(1);
+
+    fireEvent(document, canvasPointerEvent("pointerup", 7, 96));
+    act(() => interactionFrames.shift()?.(32));
+    act(() => interactionFrames.shift()?.(222));
+
+    expect(card).toBe(originalCard);
+    expect(card.parentElement).toBe(settledHost);
+    expect(settledHost?.parentElement).toBe(settledOwner);
+    expect(card).toHaveAttribute("data-material-sampling-boundary", "inherited");
+    expect(registry.getSnapshot().surfaces).toEqual([]);
+    expect(document.querySelector("[data-canvas-browser-drag-layer]")).toBeNull();
     registry.dispose();
   });
 
-  it("strips cloned FLIP presentation before positioning the body-owned drag preview", () => {
-    const clone = document.createElement("div");
-    clone.dataset.material = "acrylic-small";
-    clone.dataset.materialStrategy = "cached-acrylic";
-    clone.dataset.materialSurfaceId = "surface-id";
-    clone.style.transform = "translate3d(18px, -4px, 0) scale(0.98)";
-    clone.style.transformOrigin = "top left";
-    clone.style.willChange = "transform";
-
-    prepareCanvasBrowserDragPreview(clone);
-
-    expect(clone.style.transform).toBe("");
-    expect(clone.style.transformOrigin).toBe("");
-    expect(clone.style.willChange).toBe("");
-    expect(clone).toHaveClass("taskmap-target-theme");
-    expect(clone).not.toHaveAttribute("data-material");
-    expect(clone).toHaveAttribute("data-material-strategy", "opaque");
-    expect(clone).not.toHaveAttribute("data-material-surface-id");
-    expect(clone.style.getPropertyValue("--taskmap-material-tint-opacity")).toBe("1");
-  });
-
-  it("preserves drag reorder thresholds while shared FLIP motion performs cheap geometry work", async () => {
-    const user = userEvent.setup();
-    const frameDriver = new ControlledFrameDriver();
-    const scheduler = createMotionFrameScheduler(frameDriver);
+  it("keeps click selection below threshold and commits one order after the final snap", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const notifySurfaceGeometryChanged = vi.fn();
     const interactionFrames: FrameRequestCallback[] = [];
@@ -278,56 +329,59 @@ describe("C2D Canvas Browser cards", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
       this: HTMLElement,
     ) {
-      const cardId = this.dataset.canvasCardId;
-      if (cardId && this.parentElement) {
-        const cards = [...this.parentElement.querySelectorAll("[data-canvas-card-id]")];
-        const index = cards.indexOf(this);
-        return rect(index * 100, 84);
-      }
-      return rect(0, 500, 290);
+      if (this.dataset.canvasBrowserViewport !== undefined) return rect(74, 300, 288);
+      if (this.dataset.canvasCardId === "canvas-a") return rect(74, 84, 264);
+      if (this.dataset.canvasCardId === "canvas-b") return rect(168, 84, 264);
+      return rect(16, 370, 288);
     });
     const onReorderCanvases = vi.fn();
+    const onSelectCanvas = vi.fn();
 
     function ReorderHarness() {
       const [ordered, setOrdered] = useState([canvas("canvas-a"), canvas("canvas-b")]);
       return (
         <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
           <ReducedMotionProvider override={false}>
-            <MotionProvider scheduler={scheduler}>
-              <CanvasManager
-                {...canvasManagerProps(ordered)}
-                onReorderCanvases={(ids) => {
-                  onReorderCanvases(ids);
-                  setOrdered(ids.map((id) => ordered.find((item) => item.id === id)!));
-                }}
-              />
-            </MotionProvider>
+            <CanvasManager
+              {...canvasManagerProps(ordered)}
+              embedded
+              onSelectCanvas={onSelectCanvas}
+              onReorderCanvases={(ids) => {
+                onReorderCanvases(ids);
+                setOrdered(ids.map((id) => ordered.find((item) => item.id === id)!));
+              }}
+            />
           </ReducedMotionProvider>
         </MaterialSurfaceRegistrationProvider>
       );
     }
 
     const { container } = render(<ReorderHarness />);
-    act(() => frameDriver.flush());
     notifySurfaceGeometryChanged.mockClear();
     const first = container.querySelector('[data-canvas-card-id="canvas-a"]') as HTMLElement;
-    await user.pointer([
-      { keys: "[MouseLeft>]", target: first, coords: { clientY: 10 } },
-      { target: first, coords: { clientY: 160 } },
-    ]);
+
+    fireEvent(first, canvasPointerEvent("pointerdown", 8, 100));
+    fireEvent(document, canvasPointerEvent("pointermove", 8, 105));
     act(() => interactionFrames.shift()?.(16));
+    fireEvent(document, canvasPointerEvent("pointerup", 8, 105));
+    act(() => interactionFrames.shift()?.(32));
+    fireEvent.click(first);
+    expect(onSelectCanvas).toHaveBeenCalledWith("canvas-a");
+    expect(onReorderCanvases).not.toHaveBeenCalled();
 
+    fireEvent(first, canvasPointerEvent("pointerdown", 9, 100));
+    fireEvent(document, canvasPointerEvent("pointermove", 9, 300));
+    act(() => interactionFrames.shift()?.(48));
+    expect(onReorderCanvases).not.toHaveBeenCalled();
+    fireEvent(document, canvasPointerEvent("pointerup", 9, 300));
+    fireEvent.click(first);
+    expect(onSelectCanvas).toHaveBeenCalledTimes(1);
+    act(() => interactionFrames.shift()?.(64));
+    act(() => interactionFrames.shift()?.(254));
+
+    expect(onReorderCanvases).toHaveBeenCalledTimes(1);
     expect(onReorderCanvases).toHaveBeenCalledWith(["canvas-b", "canvas-a"]);
-    expect(scheduler.getSnapshot().subscriberCount).toBeGreaterThan(0);
     expect(notifySurfaceGeometryChanged).toHaveBeenCalled();
-    act(() => frameDriver.flush());
-    const callsAtSettlement = notifySurfaceGeometryChanged.mock.calls.length;
-    expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    expect(frameDriver.fire()).toBe(false);
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(callsAtSettlement);
-
-    await user.pointer({ keys: "[/MouseLeft]", target: first, coords: { clientY: 160 } });
-    scheduler.dispose();
     registry.dispose();
   });
 });
@@ -396,34 +450,12 @@ function rect(top: number, height: number, width = 260): DOMRect {
   };
 }
 
-class ControlledFrameDriver implements MotionFrameDriver {
-  private callbacks = new Map<number, (timestampMs: number) => void>();
-  private nextHandle = 1;
-  private timestampMs = 0;
-
-  request(callback: (timestampMs: number) => void): number {
-    const handle = this.nextHandle++;
-    this.callbacks.set(handle, callback);
-    return handle;
-  }
-
-  cancel(handle: number): void {
-    this.callbacks.delete(handle);
-  }
-
-  fire(): boolean {
-    const entry = this.callbacks.entries().next().value as
-      [number, (timestampMs: number) => void] | undefined;
-    if (!entry) return false;
-    this.callbacks.delete(entry[0]);
-    this.timestampMs += 1000 / 60;
-    entry[1](this.timestampMs);
-    return true;
-  }
-
-  flush(limit = 60): void {
-    for (let frame = 0; frame < limit && this.fire(); frame += 1) {
-      // Shared motion queues at most one next frame while work remains active.
-    }
-  }
+function canvasPointerEvent(type: string, pointerId: number, clientY: number) {
+  const event = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent;
+  Object.defineProperties(event, {
+    pointerId: { value: pointerId },
+    button: { value: 0 },
+    clientY: { value: clientY },
+  });
+  return event;
 }

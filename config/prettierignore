@@ -9,5 +9,6 @@
 # Local examples and binary assets
 ../examples/
 ../phase4.5-acrylic-reference.html
+../REFERENCE_NEW_CSS_GLASS.html
 ../**/*.png
 ../**/*.ico

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 export type MaterialId = "acrylic-large" | "acrylic-small" | "opaque" | "cutout";
-export type MaterialStrategy = "cached-acrylic" | "opaque" | "css";
+export type MaterialStrategy = "native-glass" | "opaque" | "css";
 export type MaterialPlane = "base" | "modal";
 export type MaterialElevation = "default" | "none";
 export type MaterialSurfaceEffect = "bright-selection";
@@ -43,16 +43,38 @@ interface MaterialDefinitionBase {
   readonly defaultRadiusPx: number | null;
 }
 
-export interface CachedAcrylicMaterialDefinition extends MaterialDefinitionBase {
-  readonly strategy: "cached-acrylic";
-  readonly cacheProfileId: "shared-acrylic";
+export interface NativeGlassRimDefinition {
+  readonly baseAlpha: number;
+  readonly widthPx: number;
+  readonly softnessPx: number;
+  readonly exposure: number;
+  readonly lightDirectionDegrees: number;
+  readonly primaryStrength: number;
+  readonly oppositeStrength: number;
+  readonly sharpness: number;
+  readonly specularOpacity: number;
+}
+
+export interface NativeGlassMaterialDefinition extends MaterialDefinitionBase {
+  readonly strategy: "native-glass";
+  readonly role: "large" | "small";
+  readonly blurPx: number;
+  readonly preblurPx: number | null;
+  readonly interactionPreblurPx: number | null;
+  readonly saturation: number;
+  readonly brightness: number;
+  readonly contrast: number;
+  readonly overscanRatio: number;
   readonly tint: {
     readonly rgb: MaterialRgb;
     readonly opacity: number;
   };
-  readonly highlight: MaterialHighlightDefinition;
-  readonly border: MaterialBorderDefinition;
-  readonly shadow: MaterialShadowDefinition;
+  readonly tone: {
+    readonly rgb: MaterialRgb;
+    readonly opacity: number;
+  };
+  readonly rim: NativeGlassRimDefinition;
+  readonly shadow: MaterialShadowDefinition & { readonly spreadPx: number };
 }
 
 export interface CssMaterialDefinition extends MaterialDefinitionBase {
@@ -78,7 +100,7 @@ export interface OpaqueMaterialDefinition extends MaterialDefinitionBase {
 }
 
 export type MaterialDefinition =
-  CachedAcrylicMaterialDefinition | OpaqueMaterialDefinition | CssMaterialDefinition;
+  NativeGlassMaterialDefinition | OpaqueMaterialDefinition | CssMaterialDefinition;
 
 export type MaterialSurfaceStyle = CSSProperties & {
   [name: `--taskmap-material-${string}`]: string | number;

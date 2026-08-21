@@ -11,8 +11,8 @@
     "trailingComma": "all"
   },
   "scripts": {
-    "dev": "vite --config config/vite.config.ts --host 127.0.0.1 --port 1420",
-    "dev:phase2": "vite --mode phase2 --config config/vite.config.ts --host 127.0.0.1 --port 1420",
+    "dev": "vite --config config/vite.config.ts --host 127.0.0.1 --port 6969",
+    "dev:phase2": "vite --mode phase2 --config config/vite.config.ts --host 127.0.0.1 --port 6969",
     "build": "tsc --noEmit -p config/tsconfig.json && vite build --config config/vite.config.ts",
     "build:phase2": "tsc --noEmit -p config/tsconfig.json && vite build --mode phase2 --config config/vite.config.ts",
     "typecheck": "tsc --noEmit -p config/tsconfig.json",

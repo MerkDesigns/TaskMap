@@ -25,6 +25,31 @@
   place-items: center;
 }
 
+.taskmap-floating-canvas-toolbar .taskmap-control {
+  border-radius: 50%;
+}
+
+.taskmap-floating-canvas-toolbar
+  .taskmap-floating-canvas-toolbar__icon-toggle[aria-pressed="true"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--taskmap-accent);
+  box-shadow: none;
+}
+
+.taskmap-floating-canvas-toolbar
+  .taskmap-floating-canvas-toolbar__icon-toggle[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--taskmap-state-hover);
+}
+
+.taskmap-floating-canvas-toolbar
+  .taskmap-floating-canvas-toolbar__icon-toggle[aria-pressed="true"]:active:not(:disabled) {
+  border-color: transparent;
+  background: var(--taskmap-state-pressed);
+  color: var(--taskmap-accent);
+  box-shadow: none;
+}
+
 .taskmap-floating-canvas-toolbar__optional-controls {
   display: flex;
   align-items: center;

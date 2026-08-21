@@ -1,7 +1,24 @@
 # ADR 003: Adaptive Cached Canvas2D Acrylic Compositor
 
-- Status: Accepted
+- Status: Superseded by the native CSS glass production decision
 - Date: 2026-08-08
+- Superseded: 2026-08-20
+
+## Supersession
+
+The cached Canvas2D acrylic compositor documented here was the previous production candidate. The
+accepted Large/Small path now uses live native CSS glass through the same feature-facing
+`MaterialSurface` abstraction. Large permanently composes a 6px pre-blur with a 38px main backdrop
+blur; Small uses its accepted 20px main backdrop blur. Tint, filtering, clipped blur-derived
+overscan, shadows, and the DPR-aware perimeter rim remain centralized in the material system.
+
+Nested Small surfaces inherit a logical Large sampling boundary, so their overscan cannot sample
+raw canvas outside the owning material even if later UI motion physically reparents them. Native
+surfaces do not register with, rebuild, or compose the cached Canvas2D backdrop. The old compositor,
+worker, scheduling, BackdropScene, and cache code is intentionally retained temporarily for rollback
+and reference until native-glass visual and release-performance acceptance is complete.
+
+The remainder of this ADR is preserved as the historical record of the superseded candidate.
 
 ## Context
 

@@ -87,7 +87,7 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     const boundary = `${motion}\n${pattern}\n${minimap}`;
 
     expect(motion).toContain("useMotionFrameScheduler");
-    expect(motion).toContain("useMaterialSurfaceMaskOpacity");
+    expect(motion).not.toContain("useMaterialSurfaceMaskOpacity");
     expect(motion).not.toContain("useMaterialSurfaceGeometryInvalidation");
     expect(boundary).not.toMatch(
       /requestAnimationFrame|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider/i,

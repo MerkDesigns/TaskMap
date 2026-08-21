@@ -1,8 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
-import {
-  useMaterialSurfaceGeometryInvalidation,
-  useMaterialSurfaceMaskOpacity,
-} from "../../materials/MaterialSurfaceRegistration";
+import { useMaterialSurfaceGeometryInvalidation } from "../../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../../motion/MotionProvider";
 import { interpolate, normalizedProgress } from "../../motion/motionMath";
 import { MOTION_DURATION_MS } from "../../motion/motionTokens";
@@ -25,7 +22,6 @@ export function useWorkspaceSidePanelMotion(
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
   const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
-  const setMaskOpacity = useMaterialSurfaceMaskOpacity(panelRef);
   const stateRef = useRef<WorkspaceSidePanelMotionState>(
     closing ? WORKSPACE_SIDE_PANEL_REST : WORKSPACE_SIDE_PANEL_ENTER_FROM,
   );
@@ -37,13 +33,15 @@ export function useWorkspaceSidePanelMotion(
       const panel = panelRef.current;
       if (panel) {
         panel.style.opacity = `${state.opacity}`;
-        panel.style.transform = `translate3d(${state.x}px, ${state.y}px, 0)`;
+        panel.style.transform =
+          active || state.x !== 0 || state.y !== 0
+            ? `translate3d(${state.x}px, ${state.y}px, 0)`
+            : "";
         panel.style.willChange = active ? "opacity, transform" : "";
       }
-      setMaskOpacity(state.opacity);
       invalidateGeometry();
     },
-    [invalidateGeometry, panelRef, setMaskOpacity],
+    [invalidateGeometry, panelRef],
   );
 
   useLayoutEffect(() => {

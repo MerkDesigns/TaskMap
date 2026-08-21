@@ -4,20 +4,30 @@ import {
   useCallback,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   type ForwardedRef,
   type HTMLAttributes,
+  type RefObject,
 } from "react";
 import "./MaterialSurface.css";
+import {
+  MaterialSamplingBoundaryProvider,
+  useInheritedMaterialSamplingBoundary,
+  viewportMaterialBoundary,
+  writeMaterialOverscan,
+} from "./materialSamplingBoundary";
 import { useMaterialPlane } from "./MaterialPlane";
 import { materialRegistry } from "./materialRegistry";
-import { useMaterialSurfaceRegistry } from "./MaterialSurfaceRegistration";
+import { useMaterialSurfaceGeometrySubscription } from "./MaterialSurfaceRegistration";
+import { createMaterialSurfaceStyle } from "./materialSurfaceStyle";
+import { drawNativeGlassRim } from "./nativeGlassRim";
 import type {
   MaterialElevation,
   MaterialId,
   MaterialPlane,
   MaterialSurfaceEffect,
-  MaterialSurfaceStyle,
+  NativeGlassMaterialDefinition,
 } from "./materialTypes";
 
 type MaterialSurfaceElement = "div" | "section" | "aside" | "nav";
@@ -35,6 +45,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
   function MaterialSurface(
     {
       as = "div",
+      children,
       className,
       elevation = "default",
       effect,
@@ -47,110 +58,135 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
     forwardedRef,
   ) {
     const definition = materialRegistry.require(material);
+    const nativeGlass = definition.strategy === "native-glass" ? definition : null;
     const plane = useMaterialPlane(planeOverride);
     const radius = requireMaterialRadius(material, radiusOverride ?? definition.defaultRadiusPx);
     const surfaceId = useId();
-    const registry = useMaterialSurfaceRegistry();
+    const inheritedBoundary = useInheritedMaterialSamplingBoundary();
     const elementRef = useRef<HTMLElement | null>(null);
-    const unregisterRef = useRef<(() => void) | null>(null);
+    const rimCanvasRef = useRef<HTMLCanvasElement>(null);
+    const providedBoundary = useMemo(() => ({ id: surfaceId, elementRef }), [surfaceId]);
 
-    const registrationRef = useRef({ material, plane, radius });
-    registrationRef.current = { material, plane, radius };
-    const synchronizeRegistration = useCallback(() => {
+    const refreshNativeGeometry = useCallback(() => {
       const element = elementRef.current;
-      if (!registry || !element || definition.strategy !== "cached-acrylic") {
-        unregisterRef.current?.();
-        unregisterRef.current = null;
-        return;
+      if (!element || !nativeGlass) return;
+      const samplingElement =
+        nativeGlass.role === "small" ? inheritedBoundary?.elementRef.current : null;
+      const samplingRectangle =
+        samplingElement?.getBoundingClientRect() ?? viewportMaterialBoundary();
+      const interactionPreblur =
+        element.dataset.materialMotion === "active" ? nativeGlass.interactionPreblurPx : null;
+      const requestedOverscan =
+        (nativeGlass.blurPx + (nativeGlass.preblurPx ?? interactionPreblur ?? 0)) *
+        nativeGlass.overscanRatio;
+      writeMaterialOverscan(element, samplingRectangle, requestedOverscan);
+
+      const rimCanvas = rimCanvasRef.current;
+      if (!rimCanvas) return;
+      const rectangle = element.getBoundingClientRect();
+      drawNativeGlassRim(rimCanvas, {
+        width: rectangle.width,
+        height: rectangle.height,
+        radiusPx: radius,
+        devicePixelRatio: typeof window === "undefined" ? 1 : window.devicePixelRatio,
+        rim: nativeGlass.rim,
+      });
+    }, [inheritedBoundary, nativeGlass, radius]);
+
+    useMaterialSurfaceGeometrySubscription(refreshNativeGeometry);
+    useLayoutEffect(() => {
+      if (!nativeGlass) return;
+      refreshNativeGeometry();
+      const observer =
+        typeof ResizeObserver === "undefined"
+          ? null
+          : new ResizeObserver(() => refreshNativeGeometry());
+      const element = elementRef.current;
+      const inheritedElement = inheritedBoundary?.elementRef.current;
+      if (element) observer?.observe(element);
+      if (nativeGlass.role === "small" && inheritedElement && inheritedElement !== element) {
+        observer?.observe(inheritedElement);
       }
-      const registration = {
-        id: surfaceId,
-        element,
-        material: registrationRef.current.material,
-        plane: registrationRef.current.plane,
-        radiusPx: registrationRef.current.radius,
+      window.addEventListener("resize", refreshNativeGeometry);
+      return () => {
+        observer?.disconnect();
+        window.removeEventListener("resize", refreshNativeGeometry);
       };
-      if (unregisterRef.current) registry.update(registration);
-      else unregisterRef.current = registry.register(registration);
-    }, [definition.strategy, registry, surfaceId]);
+    }, [inheritedBoundary, nativeGlass, refreshNativeGeometry]);
+
     const composedRef = useCallback(
       (element: HTMLElement | null) => {
-        if (elementRef.current !== element) {
-          unregisterRef.current?.();
-          unregisterRef.current = null;
-          elementRef.current = element;
-        }
+        elementRef.current = element;
         assignRef(forwardedRef, element);
-        synchronizeRegistration();
       },
-      [forwardedRef, synchronizeRegistration],
+      [forwardedRef],
     );
+    const materialStyle = createMaterialSurfaceStyle(definition, elevation, radius, style);
+    const content =
+      nativeGlass?.role === "large" ? (
+        <MaterialSamplingBoundaryProvider boundary={providedBoundary}>
+          {children}
+        </MaterialSamplingBoundaryProvider>
+      ) : (
+        children
+      );
 
-    useLayoutEffect(synchronizeRegistration, [material, plane, radius, synchronizeRegistration]);
-    useLayoutEffect(
-      () => () => {
-        unregisterRef.current?.();
-        unregisterRef.current = null;
+    return createElement(
+      as,
+      {
+        ...props,
+        ref: composedRef,
+        className: [
+          "taskmap-material-surface",
+          effect ? `taskmap-material-surface--${effect}` : null,
+          className,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        style: materialStyle,
+        "data-material": definition.id,
+        "data-material-strategy": definition.strategy,
+        "data-material-role": nativeGlass?.role,
+        "data-material-plane": plane,
+        "data-material-elevation": elevation,
+        "data-material-sampling-boundary": samplingBoundaryKind(nativeGlass, inheritedBoundary),
       },
-      [registry],
+      nativeGlass ? nativeGlassChrome(rimCanvasRef, nativeGlass) : null,
+      content,
     );
-
-    const materialStyle: MaterialSurfaceStyle = {
-      ...style,
-      "--taskmap-material-radius": `${radius}px`,
-    };
-
-    if (definition.strategy === "cached-acrylic" || definition.strategy === "opaque") {
-      const [highlightStart, highlightMiddle, highlightEnd] = definition.highlight.stops;
-      materialStyle["--taskmap-material-tint-rgb"] = definition.tint.rgb.join(" ");
-      materialStyle["--taskmap-material-tint-opacity"] = definition.tint.opacity;
-      materialStyle["--taskmap-material-highlight"] = definition.highlight.opacity;
-      materialStyle["--taskmap-material-highlight-radius"] = definition.highlight.radiusMultiplier;
-      materialStyle["--taskmap-material-highlight-start-offset"] =
-        `${highlightStart.offset * 100}%`;
-      materialStyle["--taskmap-material-highlight-start-multiplier"] =
-        highlightStart.opacityMultiplier;
-      materialStyle["--taskmap-material-highlight-middle-offset"] =
-        `${highlightMiddle.offset * 100}%`;
-      materialStyle["--taskmap-material-highlight-middle-multiplier"] =
-        highlightMiddle.opacityMultiplier;
-      materialStyle["--taskmap-material-highlight-end-offset"] = `${highlightEnd.offset * 100}%`;
-      materialStyle["--taskmap-material-highlight-end-multiplier"] = highlightEnd.opacityMultiplier;
-      materialStyle["--taskmap-material-border-width"] = `${definition.border.widthPx}px`;
-      materialStyle["--taskmap-material-border-top"] = definition.border.topWhiteAlpha;
-      materialStyle["--taskmap-material-border-bottom"] = definition.border.bottomWhiteAlpha;
-      materialStyle["--taskmap-material-shadow"] =
-        elevation === "none"
-          ? "none"
-          : `${definition.shadow.xPx}px ${definition.shadow.yPx}px ${definition.shadow.blurPx}px rgb(0 0 0 / ${definition.shadow.opacity})`;
-    } else {
-      materialStyle["--taskmap-material-fill-rgb"] = definition.fillRgb.join(" ");
-      materialStyle["--taskmap-material-border-width"] = `${definition.border.widthPx}px`;
-      materialStyle["--taskmap-material-border-rgb"] = definition.border.rgb.join(" ");
-      materialStyle["--taskmap-material-border-alpha"] = definition.border.alpha;
-      materialStyle["--taskmap-material-shadow"] =
-        `${definition.insetShadow.xPx}px ${definition.insetShadow.yPx}px ${definition.insetShadow.blurPx}px rgb(0 0 0 / ${definition.insetShadow.opacity}) inset`;
-    }
-
-    return createElement(as, {
-      ...props,
-      ref: composedRef,
-      className: [
-        "taskmap-material-surface",
-        effect ? `taskmap-material-surface--${effect}` : null,
-        className,
-      ]
-        .filter(Boolean)
-        .join(" "),
-      style: materialStyle,
-      "data-material": definition.id,
-      "data-material-strategy": definition.strategy,
-      "data-material-plane": plane,
-      "data-material-elevation": elevation,
-      "data-material-surface-id": definition.strategy === "cached-acrylic" ? surfaceId : undefined,
-    });
   },
 );
+
+function nativeGlassChrome(
+  rimCanvasRef: RefObject<HTMLCanvasElement>,
+  definition: NativeGlassMaterialDefinition,
+) {
+  return (
+    <>
+      <span className="taskmap-material-native-glass__clip" aria-hidden="true">
+        <span
+          className="taskmap-material-native-glass__preblur"
+          data-enabled={definition.preblurPx === null ? undefined : true}
+          data-interaction-enabled={definition.interactionPreblurPx === null ? undefined : true}
+        />
+        <span className="taskmap-material-native-glass__backdrop" />
+        <span className="taskmap-material-native-glass__highlight" />
+      </span>
+      <span className="taskmap-material-native-glass__rim" aria-hidden="true">
+        <canvas ref={rimCanvasRef} className="taskmap-material-native-glass__rim-canvas" />
+      </span>
+    </>
+  );
+}
+
+function samplingBoundaryKind(
+  definition: NativeGlassMaterialDefinition | null,
+  inheritedBoundary: ReturnType<typeof useInheritedMaterialSamplingBoundary>,
+): "self" | "inherited" | "viewport" | undefined {
+  if (!definition) return undefined;
+  if (definition.role === "large") return "self";
+  return inheritedBoundary ? "inherited" : "viewport";
+}
 
 function assignRef(ref: ForwardedRef<HTMLElement>, element: HTMLElement | null): void {
   if (typeof ref === "function") ref(element);

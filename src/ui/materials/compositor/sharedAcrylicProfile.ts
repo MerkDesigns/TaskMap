@@ -1,4 +1,4 @@
-import { SHARED_ACRYLIC_CACHE_PROFILE } from "../materialDefinitions";
+import { LEGACY_SHARED_ACRYLIC_CACHE_PROFILE } from "../legacyCachedAcrylicDefinitions";
 
 export const SHARED_ACRYLIC_PROFILE_REVISION = 1;
 
@@ -11,11 +11,11 @@ export interface SharedAcrylicRuntimeProfile {
 }
 
 export const SHARED_ACRYLIC_RUNTIME_PROFILE: SharedAcrylicRuntimeProfile = Object.freeze({
-  id: SHARED_ACRYLIC_CACHE_PROFILE.id,
+  id: LEGACY_SHARED_ACRYLIC_CACHE_PROFILE.id,
   revision: SHARED_ACRYLIC_PROFILE_REVISION,
-  blurRadiusCssPx: SHARED_ACRYLIC_CACHE_PROFILE.blurRadiusPx,
-  saturation: SHARED_ACRYLIC_CACHE_PROFILE.saturation,
-  brightness: SHARED_ACRYLIC_CACHE_PROFILE.brightness,
+  blurRadiusCssPx: LEGACY_SHARED_ACRYLIC_CACHE_PROFILE.blurRadiusPx,
+  saturation: LEGACY_SHARED_ACRYLIC_CACHE_PROFILE.saturation,
+  brightness: LEGACY_SHARED_ACRYLIC_CACHE_PROFILE.brightness,
 });
 
 export interface SharedAcrylicFilter {

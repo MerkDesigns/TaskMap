@@ -143,6 +143,7 @@ import {
   WorkspaceChromeLayer,
   WorkspaceRoot,
 } from "./ui/patterns/workspace";
+import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 
 const CanvasManager = lazy(() =>
   import("./components/CanvasManager").then(({ CanvasManager }) => ({ default: CanvasManager })),
@@ -778,6 +779,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
         isKeyboardFocusableControl(target) ||
         settingsOpen ||
         clearModalOpen ||
+        isModalPresenceBlocking() ||
         Boolean(pendingExtensionConflict)
       ) {
         return;
@@ -2457,7 +2459,11 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       const target = event.target as HTMLElement | null;
       const isEditingText = isEditableKeyboardTarget(target);
       const modalOpen =
-        settingsOpen || clearModalOpen || updateModalOpen || Boolean(pendingExtensionConflict);
+        settingsOpen ||
+        clearModalOpen ||
+        updateModalOpen ||
+        isModalPresenceBlocking() ||
+        Boolean(pendingExtensionConflict);
 
       if (modalOpen || target?.closest("[role='dialog'], [aria-modal='true']")) {
         return;
@@ -5696,7 +5702,11 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     const handleHistoryKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const modalOpen =
-        settingsOpen || clearModalOpen || updateModalOpen || Boolean(pendingExtensionConflict);
+        settingsOpen ||
+        clearModalOpen ||
+        updateModalOpen ||
+        isModalPresenceBlocking() ||
+        Boolean(pendingExtensionConflict);
 
       if (
         isInteractiveKeyboardTarget(target) ||
@@ -7373,14 +7383,14 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               />
             )}
 
-            {clearModalOpen && (
+            <ModalPresence open={clearModalOpen}>
               <Suspense fallback={null}>
                 <ClearCanvasModal
                   onCancel={() => setClearModalOpen(false)}
                   onConfirm={clearCanvas}
                 />
               </Suspense>
-            )}
+            </ModalPresence>
 
             {commandRunnerEditorCardId &&
               textCardsById.get(commandRunnerEditorCardId)?.extensions?.commandRunner && (
@@ -7437,7 +7447,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 />
               )}
 
-            {settingsOpen && (
+            <ModalPresence open={settingsOpen}>
               <Suspense fallback={null}>
                 <SettingsModal
                   canvasGridStyle={canvasGridStyle}
@@ -7478,17 +7488,19 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   onClose={() => setSettingsOpen(false)}
                 />
               </Suspense>
-            )}
+            </ModalPresence>
 
-            {updateModalOpen && availableUpdate && !settingsOpen && (
+            <ModalPresence open={updateModalOpen && Boolean(availableUpdate) && !settingsOpen}>
               <Suspense fallback={null}>
-                <UpdateAvailableModal
-                  update={availableUpdate}
-                  onInstall={installAppUpdate}
-                  onDismiss={dismissUpdateModal}
-                />
+                {availableUpdate ? (
+                  <UpdateAvailableModal
+                    update={availableUpdate}
+                    onInstall={installAppUpdate}
+                    onDismiss={dismissUpdateModal}
+                  />
+                ) : null}
               </Suspense>
-            )}
+            </ModalPresence>
 
             {storageError && (
               <div className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">

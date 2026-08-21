@@ -2,12 +2,10 @@ import {
   IconArrowsHorizontal,
   IconArrowsVertical,
   IconCheck,
-  IconDotsVertical,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconPencil,
   IconPlus,
-  IconStack2,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
@@ -16,9 +14,11 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type HTMLAttributes,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -28,26 +28,16 @@ import {
   MENU_ITEM_CLASS,
 } from "../constants";
 import { TaskCanvas } from "../types";
-import {
-  CanvasBrowserCard,
-  CanvasPreview,
-  prepareCanvasBrowserDragPreview,
-  WorkspacePanelHeader,
-  WorkspaceSidePanel,
-} from "../ui/patterns/workspace";
-import {
-  useMaterialSurfaceGeometryInvalidation,
-  useMaterialSurfaceMaskOpacity,
-} from "../ui/materials/MaterialSurfaceRegistration";
-import { applyLocalFlip } from "../ui/motion/layoutMotion";
-import { useMotionFrameScheduler } from "../ui/motion/MotionProvider";
+import { CanvasBrowserCard, CanvasPreview, WorkspaceSidePanel } from "../ui/patterns/workspace";
+import { useMaterialSurfaceGeometryInvalidation } from "../ui/materials/MaterialSurfaceRegistration";
 import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
+import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
+import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
 import { Button, IconButton, ToggleButton } from "../ui/primitives/Button";
 import { Field } from "../ui/primitives/Field";
 import { TextField } from "../ui/primitives/FormControls";
-import { ScrollArea } from "../ui/primitives/Layout";
-import { Counter } from "../ui/primitives/Status";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import "../ui/patterns/workspace/CanvasBrowser.css";
 
 type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
 
@@ -68,31 +58,9 @@ type CanvasManagerProps = {
   onReorderCanvases: (orderedIds: string[]) => void;
 };
 
-type DragLayoutRow = {
-  id: string;
-  top: number;
-  height: number;
-};
-
 type PreviewViewportSize = {
   width: number;
   height: number;
-};
-
-type CanvasDragState = {
-  id: string;
-  pointerId: number;
-  startY: number;
-  currentY: number;
-  lastAnchorY: number;
-  offsetY: number;
-  active: boolean;
-  orderIds: string[];
-  layout: DragLayoutRow[];
-  sourceNode: HTMLDivElement;
-  cloneNode: HTMLElement;
-  rafId: number | null;
-  cleanup: (() => void) | null;
 };
 
 const DEFAULT_DRAFT: CanvasDraft = {
@@ -126,25 +94,22 @@ export function CanvasManager({
   onReorderCanvases,
 }: CanvasManagerProps) {
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const reorderFirstRectsRef = useRef<Record<string, DOMRect> | null>(null);
-  const cardAnimationsRef = useRef<Record<string, () => void>>({});
+  const cardPortalHostsRef = useRef(new Map<string, HTMLDivElement>());
   const previewViewportSizesRef = useRef<Record<string, PreviewViewportSize>>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<CanvasDragState | null>(null);
-  const dragSourceSurfaceRef = useRef<HTMLElement | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const suppressClickRef = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const cardsLayerRef = useRef<HTMLDivElement | null>(null);
+  const browserRuntimeRef = useRef<CanvasBrowserRuntime<string> | null>(null);
+  const reorderCommitRef = useRef(onReorderCanvases);
   const [modalMode, setModalMode] = useState<"create" | null>(null);
   const [createMenuClosing, setCreateMenuClosing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
-  const motionScheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
   const invalidateSurfaceGeometry = useMaterialSurfaceGeometryInvalidation();
-  const setDragSourceMaskOpacity = useMaterialSurfaceMaskOpacity(dragSourceSurfaceRef);
   const menuPosition = useClampedFixedPosition(menuRef, {
     left: menu?.left ?? 0,
     top: menu?.top ?? 0,
@@ -175,7 +140,7 @@ export function CanvasManager({
     });
     setMenu(null);
     requestAnimationFrame(() => {
-      cardRefs.current[canvas.id]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      browserRuntimeRef.current?.scrollCardIntoView(canvas.id);
     });
   };
 
@@ -210,7 +175,7 @@ export function CanvasManager({
     }
 
     requestAnimationFrame(() => {
-      cardRefs.current[cycleHighlightCanvasId]?.scrollIntoView({ block: "nearest" });
+      browserRuntimeRef.current?.scrollCardIntoView(cycleHighlightCanvasId);
     });
   }, [cycleHighlightCanvasId]);
 
@@ -287,228 +252,59 @@ export function CanvasManager({
     }
   };
 
-  const orderedIds = canvases.map((canvas) => canvas.id);
-  const orderedIdsKey = orderedIds.join("|");
-
-  const captureCardRects = () => {
-    const rects: Record<string, DOMRect> = {};
-
-    orderedIds.forEach((id) => {
-      const node = cardRefs.current[id];
-      if (node) {
-        rects[id] = node.getBoundingClientRect();
-      }
-    });
-
-    return rects;
-  };
-
-  const cancelCardAnimations = useCallback(() => {
-    Object.values(cardAnimationsRef.current).forEach((cancel) => cancel());
-    cardAnimationsRef.current = {};
-  }, []);
-
-  useEffect(() => cancelCardAnimations, [cancelCardAnimations]);
+  const orderedIds = useMemo(() => canvases.map((canvas) => canvas.id), [canvases]);
 
   useLayoutEffect(() => {
-    const firstRects = reorderFirstRectsRef.current;
-    reorderFirstRectsRef.current = null;
+    const panel = panelRef.current;
+    const viewport = viewportRef.current;
+    const cardsLayer = cardsLayerRef.current;
+    if (!panel || !viewport || !cardsLayer) return;
 
-    if (!firstRects) {
-      rebuildDragLayout();
-      return;
-    }
-
-    Object.keys(firstRects).forEach((id) => {
-      const node = cardRefs.current[id];
-      if (!node) {
-        return;
-      }
-
-      const previousRect = firstRects[id];
-      const nextRect = node.getBoundingClientRect();
-
-      if (!previousRect || id === draggingId) {
-        return;
-      }
-
-      const deltaX = previousRect.left - nextRect.left;
-      const deltaY = previousRect.top - nextRect.top;
-
-      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
-        return;
-      }
-
-      cardAnimationsRef.current[id]?.();
-      const cancel = applyLocalFlip(
-        node,
-        previousRect,
-        nextRect,
-        motionScheduler,
-        reducedMotion,
-        invalidateSurfaceGeometry,
-        () => {
-          delete cardAnimationsRef.current[id];
-        },
-      );
-      if (!reducedMotion) cardAnimationsRef.current[id] = cancel;
+    const runtime = new CanvasBrowserRuntime<string>({
+      panel,
+      viewport,
+      cardsLayer,
+      commitOrder: (order) => reorderCommitRef.current([...order]),
+      invalidateMaterialGeometry: invalidateSurfaceGeometry,
+      reducedMotion,
     });
-
-    rebuildDragLayout();
-  }, [draggingId, invalidateSurfaceGeometry, motionScheduler, orderedIdsKey, reducedMotion]);
-
-  const rebuildDragLayout = () => {
-    const drag = dragRef.current;
-    if (!drag) {
-      return;
-    }
-
-    drag.layout = drag.orderIds
-      .map((id) => {
-        const node = cardRefs.current[id];
-        if (!node) {
-          return null;
-        }
-
-        const rect = node.getBoundingClientRect();
-        return {
-          id,
-          top: rect.top,
-          height: rect.height,
-        };
-      })
-      .filter((row): row is DragLayoutRow => Boolean(row));
-  };
-
-  const updateDragOrder = (anchorY: number) => {
-    const drag = dragRef.current;
-    if (!drag) {
-      return;
-    }
-
-    const deltaY = anchorY - drag.lastAnchorY;
-    drag.lastAnchorY = anchorY;
-
-    if (Math.abs(deltaY) < 0.5) {
-      return;
-    }
-
-    const currentIndex = drag.orderIds.indexOf(drag.id);
-    if (currentIndex === -1) {
-      return;
-    }
-
-    const movingDown = deltaY > 0;
-    const targetId = movingDown ? drag.orderIds[currentIndex + 1] : drag.orderIds[currentIndex - 1];
-    if (!targetId) {
-      return;
-    }
-
-    const target = drag.layout.find((row) => row.id === targetId);
-    if (!target) {
-      return;
-    }
-
-    const targetMidpoint = target.top + target.height / 2;
-    const crossedTrigger = movingDown ? anchorY > targetMidpoint : anchorY < targetMidpoint;
-    if (!crossedTrigger) {
-      return;
-    }
-
-    const nextIds = drag.orderIds.filter((id) => id !== drag.id);
-    const targetIndex = nextIds.indexOf(targetId);
-    if (targetIndex === -1) {
-      return;
-    }
-
-    nextIds.splice(movingDown ? targetIndex + 1 : targetIndex, 0, drag.id);
-
-    if (drag.orderIds.join("|") === nextIds.join("|")) {
-      return;
-    }
-
-    reorderFirstRectsRef.current = captureCardRects();
-    cancelCardAnimations();
-    drag.orderIds = nextIds;
-    onReorderCanvases(nextIds);
-    requestAnimationFrame(rebuildDragLayout);
-  };
+    browserRuntimeRef.current = runtime;
+    return () => {
+      runtime.destroy();
+      if (browserRuntimeRef.current === runtime) browserRuntimeRef.current = null;
+    };
+  }, [invalidateSurfaceGeometry, reducedMotion]);
 
   useLayoutEffect(() => {
-    rebuildDragLayout();
-  }, [orderedIdsKey]);
-
-  const finishDrag = () => {
-    const drag = dragRef.current;
-    if (!drag) {
-      return;
+    reorderCommitRef.current = onReorderCanvases;
+    const runtime = browserRuntimeRef.current;
+    if (!runtime) return;
+    runtime.setCommitOrder((order) => reorderCommitRef.current([...order]));
+    runtime.setReducedMotion(reducedMotion);
+    canvases.forEach((canvas) => {
+      const host = cardPortalHostsRef.current.get(canvas.id);
+      const card = cardRefs.current[canvas.id];
+      if (host && card) runtime.register(canvas.id, host, card);
+    });
+    runtime.reconcile(orderedIds);
+    for (const [id, host] of cardPortalHostsRef.current) {
+      if (!orderedIds.includes(id)) {
+        host.remove();
+        cardPortalHostsRef.current.delete(id);
+        delete cardRefs.current[id];
+      }
     }
+  }, [canvases, editingId, minimalView, onReorderCanvases, orderedIds, reducedMotion]);
 
-    if (drag.rafId !== null) {
-      cancelAnimationFrame(drag.rafId);
+  const getCardPortalHost = (id: string) => {
+    let host = cardPortalHostsRef.current.get(id);
+    if (!host) {
+      host = document.createElement("div");
+      host.className = "taskmap-canvas-browser-card-host";
+      host.dataset.canvasCardHostId = id;
+      cardPortalHostsRef.current.set(id, host);
     }
-
-    try {
-      drag.sourceNode.releasePointerCapture(drag.pointerId);
-    } catch {
-      // Pointer capture is best-effort; document listeners still clean up the drag.
-    }
-
-    drag.cleanup?.();
-    drag.cloneNode.remove();
-    drag.sourceNode.style.opacity = "";
-    setDragSourceMaskOpacity(1);
-    dragSourceSurfaceRef.current = null;
-    dragRef.current = null;
-    setDraggingId(null);
-  };
-
-  const runDragFrame = () => {
-    const drag = dragRef.current;
-    if (!drag) {
-      return;
-    }
-
-    drag.rafId = null;
-
-    const distanceY = Math.abs(drag.currentY - drag.startY);
-    if (!drag.active && distanceY <= 6) {
-      return;
-    }
-
-    if (!drag.active) {
-      drag.active = true;
-      suppressClickRef.current = true;
-      setDraggingId(drag.id);
-    }
-
-    const cloneTop = drag.currentY - drag.offsetY;
-    drag.cloneNode.style.top = `${cloneTop}px`;
-    updateDragOrder(drag.currentY);
-  };
-
-  const handleDragPointerMove = (event: PointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag || event.pointerId !== drag.pointerId) {
-      return;
-    }
-
-    event.preventDefault();
-    drag.currentY = event.clientY;
-
-    if (drag.rafId === null) {
-      drag.rafId = requestAnimationFrame(runDragFrame);
-    }
-  };
-
-  const handleDragPointerEnd = (event: PointerEvent) => {
-    const drag = dragRef.current;
-    if (!drag || event.pointerId !== drag.pointerId) {
-      return;
-    }
-
-    event.preventDefault();
-    finishDrag();
+    return host;
   };
 
   const startCanvasDrag = (event: ReactPointerEvent<HTMLDivElement>, canvas: TaskCanvas) => {
@@ -520,91 +316,14 @@ export function CanvasManager({
       return;
     }
 
-    event.preventDefault();
     setEditingId(null);
     setMenu(null);
-    suppressClickRef.current = false;
-
-    const sourceNode = event.currentTarget;
-    const rect = sourceNode.getBoundingClientRect();
-    const cloneNode = sourceNode.cloneNode(true) as HTMLElement;
-    cloneNode.removeAttribute("data-canvas-card-id");
-    cloneNode.removeAttribute("data-bar-id");
-    prepareCanvasBrowserDragPreview(cloneNode);
-    cloneNode.style.position = "fixed";
-    cloneNode.style.left = `${rect.left}px`;
-    cloneNode.style.top = `${rect.top}px`;
-    cloneNode.style.width = `${rect.width}px`;
-    cloneNode.style.height = `${rect.height}px`;
-    cloneNode.style.zIndex = "9999";
-    cloneNode.style.pointerEvents = "none";
-    cloneNode.style.transition = "none";
-    cloneNode.style.boxShadow = "0 18px 48px rgba(0, 0, 0, 0.52)";
-    cloneNode.style.opacity = "1";
-    document.body.appendChild(cloneNode);
-
-    const orderIds = canvases.map((currentCanvas) => currentCanvas.id);
-    const layout = orderIds
-      .map((id) => {
-        const node = cardRefs.current[id];
-        if (!node) {
-          return null;
-        }
-
-        const nodeRect = node.getBoundingClientRect();
-        return {
-          id,
-          top: nodeRect.top,
-          height: nodeRect.height,
-        };
-      })
-      .filter((row): row is DragLayoutRow => Boolean(row));
-
-    dragSourceSurfaceRef.current = sourceNode;
-    sourceNode.style.opacity = "0";
-    setDragSourceMaskOpacity(0);
-
-    try {
-      sourceNode.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is best-effort; document listeners handle the reliable path.
-    }
-
-    const cleanup = () => {
-      document.removeEventListener("pointermove", handleDragPointerMove);
-      document.removeEventListener("pointerup", handleDragPointerEnd);
-      document.removeEventListener("pointercancel", handleDragPointerEnd);
-      sourceNode.removeEventListener("pointermove", handleDragPointerMove);
-      sourceNode.removeEventListener("pointerup", handleDragPointerEnd);
-      sourceNode.removeEventListener("pointercancel", handleDragPointerEnd);
-    };
-
-    dragRef.current = {
-      id: canvas.id,
-      pointerId: event.pointerId,
-      startY: event.clientY,
-      currentY: event.clientY,
-      lastAnchorY: event.clientY,
-      offsetY: event.clientY - rect.top,
-      active: false,
-      orderIds,
-      layout,
-      sourceNode,
-      cloneNode,
-      rafId: null,
-      cleanup,
-    };
-
-    document.addEventListener("pointermove", handleDragPointerMove);
-    document.addEventListener("pointerup", handleDragPointerEnd);
-    document.addEventListener("pointercancel", handleDragPointerEnd);
-    sourceNode.addEventListener("pointermove", handleDragPointerMove);
-    sourceNode.addEventListener("pointerup", handleDragPointerEnd);
-    sourceNode.addEventListener("pointercancel", handleDragPointerEnd);
+    browserRuntimeRef.current?.beginDrag(canvas.id, event.nativeEvent, event.currentTarget);
   };
 
   return (
     <CanvasManagerShell
+      panelRef={panelRef}
       embedded={embedded}
       closing={closing}
       onPointerDownCapture={(event) => {
@@ -618,243 +337,206 @@ export function CanvasManager({
         }
       }}
     >
-      <WorkspacePanelHeader
-        icon={<IconStack2 size={17} stroke={2} />}
-        title="Canvases"
-        meta={<Counter aria-label={`${canvases.length} canvases`}>{canvases.length}</Counter>}
-        actions={
-          <>
-            <ToggleButton
-              variant="ghost"
-              size="compact"
-              className="taskmap-workspace-panel-header__icon-toggle"
-              pressed={minimalView}
-              onClick={() => onMinimalViewChange(!minimalView)}
-              title={minimalView ? "Show previews" : "Minimal view"}
-              aria-label={minimalView ? "Show previews" : "Minimal view"}
-            >
-              <span aria-hidden="true">
-                {minimalView ? (
-                  <IconLayoutSidebarLeftExpand size={19} stroke={2} />
-                ) : (
-                  <IconLayoutSidebarLeftCollapse size={19} stroke={2} />
-                )}
-              </span>
-            </ToggleButton>
-            <IconButton
-              data-new-canvas-trigger
-              variant="ghost"
-              size="compact"
-              onClick={openCreate}
-              title="Create canvas"
-              aria-label="Create canvas"
-              icon={<IconPlus size={19} stroke={2} />}
-            />
-          </>
-        }
-      />
+      <header className="taskmap-canvas-browser__header">
+        <div className="taskmap-canvas-browser__header-copy">
+          <h2>Canvas Browser</h2>
+          <span>{canvases.length} Canvas Cards</span>
+        </div>
+        <div className="taskmap-canvas-browser__header-end">
+          <ToggleButton
+            variant="ghost"
+            size="compact"
+            className="taskmap-workspace-panel-header__icon-toggle"
+            pressed={minimalView}
+            onClick={() => onMinimalViewChange(!minimalView)}
+            title={minimalView ? "Show previews" : "Minimal view"}
+            aria-label={minimalView ? "Show previews" : "Minimal view"}
+          >
+            <span aria-hidden="true">
+              {minimalView ? (
+                <IconLayoutSidebarLeftExpand size={19} stroke={2} />
+              ) : (
+                <IconLayoutSidebarLeftCollapse size={19} stroke={2} />
+              )}
+            </span>
+          </ToggleButton>
+          <IconButton
+            data-new-canvas-trigger
+            variant="ghost"
+            size="compact"
+            onClick={openCreate}
+            title="Create canvas"
+            aria-label="Create canvas"
+            icon={<IconPlus size={19} stroke={2} />}
+          />
+          <output
+            className="taskmap-canvas-browser__header-count"
+            aria-label={`${canvases.length} canvases`}
+          >
+            {canvases.length}
+          </output>
+        </div>
+      </header>
 
-      <ScrollArea ref={listRef} hiddenScrollbar className="min-h-0 flex-1 space-y-2.5 pr-0.5">
-        {canvases.map((canvas) => {
-          const active = canvas.id === activeCanvasId;
-          const cycleHighlighted = canvas.id === cycleHighlightCanvasId;
-          previewViewportSizesRef.current[canvas.id] ??= canvas.previewViewport ?? {
+      <div
+        ref={viewportRef}
+        className="taskmap-canvas-browser__viewport"
+        data-canvas-browser-viewport
+      >
+        <div ref={cardsLayerRef} className="taskmap-canvas-browser__cards-layer" />
+      </div>
+
+      {canvases.map((canvas) => {
+        const cardHost = getCardPortalHost(canvas.id);
+        const active = canvas.id === activeCanvasId;
+        const cycleHighlighted = canvas.id === cycleHighlightCanvasId;
+        previewViewportSizesRef.current[canvas.id] ??= canvas.previewViewport ?? {
+          width: viewportWidth,
+          height: viewportHeight,
+        };
+
+        if (active) {
+          previewViewportSizesRef.current[canvas.id] = {
             width: viewportWidth,
             height: viewportHeight,
           };
+        }
 
-          if (active) {
-            previewViewportSizesRef.current[canvas.id] = {
-              width: viewportWidth,
-              height: viewportHeight,
-            };
-          }
+        const previewViewport = previewViewportSizesRef.current[canvas.id];
+        const previewWidth = CANVAS_BROWSER_LAYOUT.previewWidth;
+        const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
+        const visibleWidth = previewViewport.width / safeZoom;
+        const visibleLeft = -canvas.pan.x / safeZoom;
+        const visibleTop = -canvas.pan.y / safeZoom;
+        const previewScale = previewWidth / visibleWidth;
 
-          const previewViewport = previewViewportSizesRef.current[canvas.id];
-          const previewWidth = 96;
-          const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
-          const visibleWidth = previewViewport.width / safeZoom;
-          const visibleLeft = -canvas.pan.x / safeZoom;
-          const visibleTop = -canvas.pan.y / safeZoom;
-          const previewScale = previewWidth / visibleWidth;
+        if (editingId === canvas.id) {
+          return createPortal(
+            <CanvasBrowserCard
+              embedded={embedded}
+              mode="editor"
+              active={active}
+              cycleHighlighted={cycleHighlighted}
+              data-canvas-card-id={canvas.id}
+              ref={(node) => {
+                cardRefs.current[canvas.id] = node;
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="taskmap-canvas-inline-editor__eyebrow">
+                <IconPencil size={14} stroke={2} />
+                <span>Edit canvas</span>
+              </div>
 
-          if (editingId === canvas.id) {
-            return (
-              <CanvasBrowserCard
-                key={canvas.id}
-                embedded={embedded}
-                mode="editor"
-                active={active}
-                cycleHighlighted={cycleHighlighted}
-                data-canvas-card-id={canvas.id}
-                ref={(node) => {
-                  cardRefs.current[canvas.id] = node;
-                }}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="taskmap-canvas-inline-editor__eyebrow">
-                  <IconPencil size={14} stroke={2} />
-                  <span>Edit canvas</span>
-                </div>
+              <Field label="Name">
+                <TextField
+                  ref={nameInputRef}
+                  value={draft.name}
+                  spellCheck={false}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, name: event.target.value }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      saveInlineEdit();
+                    }
 
-                <Field label="Name">
+                    if (event.key === "Escape") {
+                      cancelInlineEdit();
+                    }
+                  }}
+                />
+              </Field>
+
+              <div className="taskmap-canvas-inline-editor__dimensions">
+                <Field
+                  label={
+                    <span className="flex items-center gap-1">
+                      <IconArrowsHorizontal size={13} stroke={2} />
+                      Width
+                    </span>
+                  }
+                >
                   <TextField
-                    ref={nameInputRef}
-                    value={draft.name}
+                    className="taskmap-canvas-inline-editor__number"
+                    type="number"
+                    min={600}
+                    max={10000}
+                    step={100}
+                    value={draft.width}
                     spellCheck={false}
                     onChange={(event) =>
-                      setDraft((current) => ({ ...current, name: event.target.value }))
+                      setDraft((current) => ({ ...current, width: Number(event.target.value) }))
                     }
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         saveInlineEdit();
                       }
-
-                      if (event.key === "Escape") {
-                        cancelInlineEdit();
-                      }
                     }}
+                    title="Canvas width"
                   />
                 </Field>
-
-                <div className="taskmap-canvas-inline-editor__dimensions">
-                  <Field
-                    label={
-                      <span className="flex items-center gap-1">
-                        <IconArrowsHorizontal size={13} stroke={2} />
-                        Width
-                      </span>
-                    }
-                  >
-                    <TextField
-                      className="taskmap-canvas-inline-editor__number"
-                      type="number"
-                      min={600}
-                      max={10000}
-                      step={100}
-                      value={draft.width}
-                      spellCheck={false}
-                      onChange={(event) =>
-                        setDraft((current) => ({ ...current, width: Number(event.target.value) }))
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          saveInlineEdit();
-                        }
-                      }}
-                      title="Canvas width"
-                    />
-                  </Field>
-                  <Field
-                    label={
-                      <span className="flex items-center gap-1">
-                        <IconArrowsVertical size={13} stroke={2} />
-                        Height
-                      </span>
-                    }
-                  >
-                    <TextField
-                      className="taskmap-canvas-inline-editor__number"
-                      type="number"
-                      min={600}
-                      max={10000}
-                      step={100}
-                      value={draft.height}
-                      spellCheck={false}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          height: Number(event.target.value),
-                        }))
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          saveInlineEdit();
-                        }
-                      }}
-                      title="Canvas height"
-                    />
-                  </Field>
-                </div>
-
-                <div className="taskmap-canvas-inline-editor__actions">
-                  <Button
-                    variant="ghost"
-                    size="compact"
-                    leadingIcon={<IconX size={15} stroke={2} />}
-                    onClick={cancelInlineEdit}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="compact"
-                    leadingIcon={<IconCheck size={15} stroke={2} />}
-                    onClick={saveInlineEdit}
-                  >
-                    Save
-                  </Button>
-                </div>
-              </CanvasBrowserCard>
-            );
-          }
-
-          if (minimalView) {
-            return (
-              <CanvasBrowserCard
-                key={`${canvas.id}-minimal`}
-                embedded={embedded}
-                mode="minimal"
-                active={active}
-                cycleHighlighted={cycleHighlighted}
-                data-bar-id={canvas.id}
-                data-canvas-card-id={canvas.id}
-                ref={(node) => {
-                  cardRefs.current[canvas.id] = node;
-                }}
-                onPointerDown={(event) => startCanvasDrag(event, canvas)}
-                onClick={() => {
-                  if (suppressClickRef.current) {
-                    suppressClickRef.current = false;
-                    return;
+                <Field
+                  label={
+                    <span className="flex items-center gap-1">
+                      <IconArrowsVertical size={13} stroke={2} />
+                      Height
+                    </span>
                   }
-
-                  if (!editingId) {
-                    onSelectCanvas(canvas.id);
-                  }
-                }}
-              >
-                <span className="taskmap-canvas-browser-card__active-indicator" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
-                </div>
-                <div className="relative shrink-0">
-                  <IconButton
-                    data-canvas-menu-trigger
-                    variant="ghost"
-                    size="compact"
-                    aria-label="Canvas menu"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setMenu((current) =>
-                        current?.id === canvas.id
-                          ? null
-                          : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
-                      );
+                >
+                  <TextField
+                    className="taskmap-canvas-inline-editor__number"
+                    type="number"
+                    min={600}
+                    max={10000}
+                    step={100}
+                    value={draft.height}
+                    spellCheck={false}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        height: Number(event.target.value),
+                      }))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        saveInlineEdit();
+                      }
                     }}
-                    title="Canvas menu"
-                    icon={<IconDotsVertical size={16} stroke={2} />}
+                    title="Canvas height"
                   />
-                </div>
-              </CanvasBrowserCard>
-            );
-          }
+                </Field>
+              </div>
 
-          return (
+              <div className="taskmap-canvas-inline-editor__actions">
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  leadingIcon={<IconX size={15} stroke={2} />}
+                  onClick={cancelInlineEdit}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  leadingIcon={<IconCheck size={15} stroke={2} />}
+                  onClick={saveInlineEdit}
+                >
+                  Save
+                </Button>
+              </div>
+            </CanvasBrowserCard>,
+            cardHost,
+            canvas.id,
+          );
+        }
+
+        if (minimalView) {
+          return createPortal(
             <CanvasBrowserCard
-              key={`${canvas.id}-full`}
               embedded={embedded}
-              mode="full"
+              mode="minimal"
               active={active}
               cycleHighlighted={cycleHighlighted}
               data-bar-id={canvas.id}
@@ -864,10 +546,7 @@ export function CanvasManager({
               }}
               onPointerDown={(event) => startCanvasDrag(event, canvas)}
               onClick={() => {
-                if (suppressClickRef.current) {
-                  suppressClickRef.current = false;
-                  return;
-                }
+                if (browserRuntimeRef.current?.consumeSuppressedClick(canvas.id)) return;
 
                 if (!editingId) {
                   onSelectCanvas(canvas.id);
@@ -875,106 +554,148 @@ export function CanvasManager({
               }}
             >
               <span className="taskmap-canvas-browser-card__active-indicator" />
-              <div className="shrink-0">
-                <CanvasPreview>
-                  {canvas.containers.map((container) => (
-                    <div
-                      key={container.id}
-                      data-canvas-preview-container={container.id}
-                      className="absolute overflow-hidden rounded-[1px] border"
-                      style={{
-                        left: (container.x - visibleLeft) * previewScale,
-                        top: (container.y - visibleTop) * previewScale,
-                        width: Math.max(container.width * previewScale, 3),
-                        height: Math.max(container.height * previewScale, 3),
-                        zIndex: 20 + (container.layer ?? 0),
-                        borderColor: container.accent,
-                        backgroundColor: "#1b1b1e",
-                      }}
-                    >
-                      <div
-                        className="absolute inset-x-0 top-0"
-                        style={{
-                          height: Math.max(2, 48 * previewScale),
-                          backgroundColor: container.accent,
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {canvas.textBlocks.map((element) => (
-                    <div
-                      key={element.id}
-                      data-canvas-preview-text-block={element.id}
-                      className="absolute overflow-hidden rounded-[1px] border"
-                      style={{
-                        left: (element.x - visibleLeft) * previewScale,
-                        top: (element.y - visibleTop) * previewScale,
-                        width: Math.max(element.width * previewScale, 3),
-                        height: Math.max(element.height * previewScale, 3),
-                        zIndex: 20 + (element.layer ?? 0),
-                        borderColor: element.accent,
-                        backgroundColor: "#1b1b1e",
-                      }}
-                    >
-                      <div
-                        className="absolute inset-x-0 top-0"
-                        style={{
-                          height: Math.max(2, 40 * previewScale),
-                          backgroundColor: element.accent,
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {(canvas.images ?? []).map((image) => (
-                    <div
-                      key={image.id}
-                      data-canvas-preview-image={image.id}
-                      className="absolute overflow-hidden rounded-[1px] border"
-                      style={{
-                        left: (image.x - visibleLeft) * previewScale,
-                        top: (image.y - visibleTop) * previewScale,
-                        width: Math.max(image.width * previewScale, 3),
-                        height: Math.max(image.height * previewScale, 3),
-                        zIndex: 20 + (image.layer ?? 0),
-                        borderColor: image.accent,
-                        backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
-                      }}
-                    />
-                  ))}
-                </CanvasPreview>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
               </div>
-
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 py-0.5">
-                <div className="min-w-0">
-                  <div className="line-clamp-2 break-words text-base font-semibold leading-snug text-white">
-                    {canvas.name}
-                  </div>
-                  <div className="mt-1 text-[11px] tabular-nums text-white/40">
-                    {canvas.width} × {canvas.height}
-                  </div>
-                </div>
-                <IconButton
-                  data-canvas-menu-trigger
-                  variant="ghost"
-                  size="compact"
-                  className="shrink-0"
-                  aria-label="Canvas menu"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setMenu((current) =>
-                      current?.id === canvas.id
-                        ? null
-                        : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
-                    );
-                  }}
-                  title="Canvas menu"
-                  icon={<IconDotsVertical size={16} stroke={2} />}
-                />
-              </div>
-            </CanvasBrowserCard>
+              <button
+                type="button"
+                data-canvas-menu-trigger
+                className="taskmap-canvas-browser-card__options"
+                aria-label="Canvas menu"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenu((current) =>
+                    current?.id === canvas.id
+                      ? null
+                      : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
+                  );
+                }}
+                title="Canvas menu"
+              >
+                <span className="taskmap-canvas-browser-card__options-dots" aria-hidden="true" />
+              </button>
+            </CanvasBrowserCard>,
+            cardHost,
+            canvas.id,
           );
-        })}
-      </ScrollArea>
+        }
+
+        return createPortal(
+          <CanvasBrowserCard
+            embedded={embedded}
+            mode="full"
+            active={active}
+            cycleHighlighted={cycleHighlighted}
+            data-bar-id={canvas.id}
+            data-canvas-card-id={canvas.id}
+            ref={(node) => {
+              cardRefs.current[canvas.id] = node;
+            }}
+            onPointerDown={(event) => startCanvasDrag(event, canvas)}
+            onClick={() => {
+              if (browserRuntimeRef.current?.consumeSuppressedClick(canvas.id)) return;
+
+              if (!editingId) {
+                onSelectCanvas(canvas.id);
+              }
+            }}
+          >
+            <span className="taskmap-canvas-browser-card__active-indicator" />
+            <CanvasPreview>
+              {canvas.containers.map((container) => (
+                <div
+                  key={container.id}
+                  data-canvas-preview-container={container.id}
+                  className="absolute overflow-hidden rounded-[1px] border"
+                  style={{
+                    left: (container.x - visibleLeft) * previewScale,
+                    top: (container.y - visibleTop) * previewScale,
+                    width: Math.max(container.width * previewScale, 3),
+                    height: Math.max(container.height * previewScale, 3),
+                    zIndex: 20 + (container.layer ?? 0),
+                    borderColor: container.accent,
+                    backgroundColor: "#1b1b1e",
+                  }}
+                >
+                  <div
+                    className="absolute inset-x-0 top-0"
+                    style={{
+                      height: Math.max(2, 48 * previewScale),
+                      backgroundColor: container.accent,
+                    }}
+                  />
+                </div>
+              ))}
+              {canvas.textBlocks.map((element) => (
+                <div
+                  key={element.id}
+                  data-canvas-preview-text-block={element.id}
+                  className="absolute overflow-hidden rounded-[1px] border"
+                  style={{
+                    left: (element.x - visibleLeft) * previewScale,
+                    top: (element.y - visibleTop) * previewScale,
+                    width: Math.max(element.width * previewScale, 3),
+                    height: Math.max(element.height * previewScale, 3),
+                    zIndex: 20 + (element.layer ?? 0),
+                    borderColor: element.accent,
+                    backgroundColor: "#1b1b1e",
+                  }}
+                >
+                  <div
+                    className="absolute inset-x-0 top-0"
+                    style={{
+                      height: Math.max(2, 40 * previewScale),
+                      backgroundColor: element.accent,
+                    }}
+                  />
+                </div>
+              ))}
+              {(canvas.images ?? []).map((image) => (
+                <div
+                  key={image.id}
+                  data-canvas-preview-image={image.id}
+                  className="absolute overflow-hidden rounded-[1px] border"
+                  style={{
+                    left: (image.x - visibleLeft) * previewScale,
+                    top: (image.y - visibleTop) * previewScale,
+                    width: Math.max(image.width * previewScale, 3),
+                    height: Math.max(image.height * previewScale, 3),
+                    zIndex: 20 + (image.layer ?? 0),
+                    borderColor: image.accent,
+                    backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
+                  }}
+                />
+              ))}
+            </CanvasPreview>
+
+            <div className="taskmap-canvas-browser-card__copy">
+              <strong className="taskmap-canvas-browser-card__title">{canvas.name}</strong>
+              <span className="taskmap-canvas-browser-card__subtitle">
+                {canvas.width} × {canvas.height}
+              </span>
+            </div>
+            <button
+              type="button"
+              data-canvas-menu-trigger
+              className="taskmap-canvas-browser-card__options"
+              aria-label="Canvas menu"
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenu((current) =>
+                  current?.id === canvas.id
+                    ? null
+                    : { id: canvas.id, left: event.clientX + 8, top: event.clientY + 8 },
+                );
+              }}
+              title="Canvas menu"
+            >
+              <span className="taskmap-canvas-browser-card__options-dots" aria-hidden="true" />
+            </button>
+          </CanvasBrowserCard>,
+          cardHost,
+          canvas.id,
+        );
+      })}
 
       {menu &&
         createPortal(
@@ -1107,12 +828,33 @@ export function CanvasManager({
 interface CanvasManagerShellProps extends HTMLAttributes<HTMLDivElement> {
   readonly closing: boolean;
   readonly embedded: boolean;
+  readonly panelRef: RefObject<HTMLDivElement>;
 }
 
-function CanvasManagerShell({ closing, embedded, ...props }: CanvasManagerShellProps) {
+function CanvasManagerShell({
+  className,
+  closing,
+  embedded,
+  panelRef,
+  ...props
+}: CanvasManagerShellProps) {
+  const shellClassName = [
+    "taskmap-canvas-browser",
+    embedded ? "taskmap-canvas-browser--embedded" : "taskmap-canvas-browser--floating",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return embedded ? (
-    <div {...props} className="flex h-full min-h-0 flex-col" />
+    <div {...props} ref={panelRef} data-canvas-browser className={shellClassName} />
   ) : (
-    <WorkspaceSidePanel {...props} closing={closing} label="Canvases panel" />
+    <WorkspaceSidePanel
+      {...props}
+      ref={panelRef}
+      closing={closing}
+      label="Canvases panel"
+      data-canvas-browser
+      className={shellClassName}
+    />
   );
 }

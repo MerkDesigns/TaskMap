@@ -187,6 +187,58 @@ describe("production material compositor coordination", () => {
     harness.dispose();
   });
 
+  it("turns grouped modal opacity into one mask revision with zero cache builds", () => {
+    const harness = createHarness("worker-offscreen");
+    harness.coordinator.updatePresentation(harness.present(1));
+    const first = harness.register("modal-first", "modal");
+    const second = harness.register("modal-second", "modal");
+    const unrelated = harness.register("base-unrelated", "base");
+    harness.executor.succeed(0);
+    harness.frames.flush();
+    const initialBuilds = harness.executor.starts.length;
+    const initialMasks = harness.outputs.rebuildMask.mock.calls.length;
+
+    harness.registry.updateMaskOpacityBatch([first, second], 0.35);
+    harness.frames.flush();
+    expect(harness.outputs.rebuildMask).toHaveBeenCalledTimes(initialMasks + 1);
+    expect(last(harness.outputs.rebuildMask.mock.calls)?.[0]).toBe("modal");
+    expect(
+      harness.registry.getSnapshot().surfaces.find(({ element }) => element === unrelated),
+    ).toMatchObject({ maskOpacity: 1, plane: "base" });
+    expect(harness.executor.starts).toHaveLength(initialBuilds);
+    harness.dispose();
+  });
+
+  it("composes distinct root and nested mask opacity as cheap coalesced plane work", () => {
+    const harness = createHarness("worker-offscreen");
+    harness.coordinator.updatePresentation(harness.present(1));
+    const root = harness.register("modal-root", "modal");
+    const nested = harness.register("modal-nested", "modal");
+    const unrelated = harness.register("base-unrelated", "base");
+    harness.executor.succeed(0);
+    harness.frames.flush();
+    const initialBuilds = harness.executor.starts.length;
+    const initialMasks = harness.outputs.rebuildMask.mock.calls.length;
+
+    harness.registry.updateMaskOpacitiesBatch([
+      { element: root, maskOpacity: 0.5 },
+      { element: nested, maskOpacity: 0.2 },
+    ]);
+    harness.coordinator.notifySurfaceGeometryChanged();
+    harness.frames.flush();
+
+    expect(harness.outputs.rebuildMask).toHaveBeenCalledTimes(initialMasks + 1);
+    expect(last(harness.outputs.rebuildMask.mock.calls)?.[0]).toBe("modal");
+    expect(
+      last(harness.outputs.rebuildMask.mock.calls)?.[1].map(({ maskOpacity }) => maskOpacity),
+    ).toEqual([0.5, 0.2]);
+    expect(
+      harness.registry.getSnapshot().surfaces.find(({ element }) => element === unrelated),
+    ).toMatchObject({ maskOpacity: 1, plane: "base" });
+    expect(harness.executor.starts).toHaveLength(initialBuilds);
+    harness.dispose();
+  });
+
   it("coalesces 120 explicit geometry invalidations and consumes the latest rect", () => {
     const harness = createHarness("worker-offscreen");
     harness.coordinator.updatePresentation(harness.present(1));

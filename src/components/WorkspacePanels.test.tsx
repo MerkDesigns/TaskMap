@@ -28,15 +28,12 @@ describe("C2C workspace panels", () => {
       const panel = screen.getByLabelText(label);
       expect(panel).toHaveAttribute("data-material", "acrylic-large");
       expect(panel).toHaveAttribute("data-material-elevation", "default");
-      expect(panel.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
+      expect(panel.style.getPropertyValue("--taskmap-material-radius")).toBe("23px");
     }
-    expect(
-      registry.getSnapshot().surfaces.filter((surface) => surface.material === "acrylic-large"),
-    ).toHaveLength(2);
-    expect(
-      registry.getSnapshot().surfaces.filter((surface) => surface.material === "acrylic-small"),
-    ).toHaveLength(14);
-    expect(document.querySelectorAll(".taskmap-scroll-area--hidden-scrollbar")).toHaveLength(2);
+    expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(16);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
+    expect(document.querySelectorAll(".taskmap-scroll-area--hidden-scrollbar")).toHaveLength(1);
+    expect(document.querySelectorAll("[data-canvas-browser-viewport]")).toHaveLength(1);
     registry.dispose();
   });
 
@@ -53,7 +50,7 @@ describe("C2C workspace panels", () => {
 
     expect(registry.getSnapshot().surfaces).toHaveLength(0);
     expect(container.querySelector('[data-material="acrylic-large"]')).toBeNull();
-    expect(screen.getByRole("heading", { name: "Canvases" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Canvas Browser" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Extensions" })).toBeInTheDocument();
     registry.dispose();
   });

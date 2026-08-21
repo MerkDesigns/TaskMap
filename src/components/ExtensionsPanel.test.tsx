@@ -54,8 +54,9 @@ describe("C2E Extensions panel", () => {
       expect(icon).not.toHaveAttribute("data-material-surface-id");
     }
     expect(
-      registry.getSnapshot().surfaces.filter((surface) => surface.material === "acrylic-small"),
-    ).toHaveLength(EXTENSIONS.length);
+      cards.every((card) => card.getAttribute("data-material-strategy") === "native-glass"),
+    ).toBe(true);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     registry.dispose();
   });
 

@@ -43,6 +43,25 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(toolbarSource).not.toMatch(/<button\b|buttonClass|frosted-glass-toolbar/);
   });
 
+  it("uses circular hover feedback while pressed buttons retain their resting icon tint", async () => {
+    const patternCss = await readFile(patternCssPath, "utf8");
+    const pressedRule = patternCss.slice(
+      patternCss.indexOf('[aria-pressed="true"]'),
+      patternCss.indexOf(".taskmap-floating-canvas-toolbar__optional-controls"),
+    );
+
+    expect(pressedRule).toContain("border-color: transparent");
+    expect(pressedRule).toContain("background: transparent");
+    expect(pressedRule).toContain("background: var(--taskmap-state-hover)");
+    expect(pressedRule).toContain("background: var(--taskmap-state-pressed)");
+    expect(pressedRule).toContain("color: var(--taskmap-accent)");
+    expect(pressedRule).toContain("box-shadow: none");
+    expect(pressedRule).not.toMatch(/gradient|filter|outline/);
+    expect(patternCss).toMatch(
+      /\.taskmap-floating-canvas-toolbar\s+\.taskmap-control\s*\{[^}]*border-radius:\s*50%;/s,
+    );
+  });
+
   it("has no local compositor layer, blur, cache, provider, or independent animation loop", async () => {
     const [appShellSource, patternCss, patternSource, toolbarSource] = await Promise.all([
       readFile(appShellPath, "utf8"),

@@ -18,6 +18,31 @@
   pointer-events: auto;
 }
 
+.taskmap-modal-presence-group {
+  transform-origin: center;
+}
+
+.taskmap-nested-modal-layer,
+.taskmap-nested-modal-scrim,
+.taskmap-nested-modal-content {
+  position: absolute;
+  inset: 0;
+}
+
+.taskmap-nested-modal-layer {
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.taskmap-nested-modal-scrim {
+  background: rgb(0 0 0 / 0.36);
+}
+
+.taskmap-nested-modal-content {
+  display: grid;
+  place-items: center;
+}
+
 /* Placement-only adapter for deferred body-owned overlays opened by modal content. */
 .taskmap-modal-portal-layer {
   z-index: var(--taskmap-layer-modal-overlay);

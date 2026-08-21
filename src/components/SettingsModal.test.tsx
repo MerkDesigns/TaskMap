@@ -1,17 +1,24 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { ComponentProps } from "react";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
 import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
+import { MotionProvider } from "../ui/motion/MotionProvider";
+import {
+  createMotionFrameScheduler,
+  type MotionFrameDriver,
+} from "../ui/motion/motionFrameScheduler";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
+import { ModalPresence } from "../ui/patterns/overlays";
 import { SettingsModal } from "./Modals";
 
 afterEach(cleanup);
 
 describe("Phase 4.5C3A primary Settings", () => {
-  it("uses one modal Acrylic Large shell and only modal-plane Acrylic Small surfaces", () => {
+  it("uses one modal native Large shell and only modal-plane native Small surfaces", () => {
     const registry = createMaterialSurfaceRegistry(null);
     renderSettings(settingsProps(), registry);
 
@@ -23,10 +30,14 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(document.querySelector(".taskmap-modal-scrim")).toBeInTheDocument();
     expect(document.querySelectorAll(".taskmap-settings-island")).toHaveLength(4);
 
-    const surfaces = registry.getSnapshot().surfaces;
-    expect(surfaces.filter((surface) => surface.material === "acrylic-large")).toHaveLength(1);
-    expect(surfaces.filter((surface) => surface.material === "acrylic-small")).toHaveLength(7);
-    expect(surfaces.every((surface) => surface.plane === "modal")).toBe(true);
+    expect(document.querySelectorAll("[data-material='acrylic-large']")).toHaveLength(1);
+    expect(document.querySelectorAll("[data-material='acrylic-small']")).toHaveLength(7);
+    expect(
+      [...document.querySelectorAll("[data-material-strategy='native-glass']")].every(
+        (surface) => surface.getAttribute("data-material-plane") === "modal",
+      ),
+    ).toBe(true);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(document.querySelectorAll("[data-material-plane='base']")).toHaveLength(0);
     registry.dispose();
   });
@@ -177,6 +188,82 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(props.onTemporaryPanelsVisibleChange).toHaveBeenCalledWith(true);
     registry.dispose();
   });
+
+  it("animates the full native Settings group and leaves unrelated surfaces untouched", () => {
+    const driver = new ControlledFrameDriver();
+    const scheduler = createMotionFrameScheduler(driver);
+    const registry = createMaterialSurfaceRegistry(null);
+    const notifySurfaceGeometryChanged = vi.fn();
+    const view = (open: boolean) => (
+      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+        <ReducedMotionProvider override={false}>
+          <MotionProvider scheduler={scheduler}>
+            <MaterialSurface material="acrylic-small" data-testid="unrelated">
+              Unrelated
+            </MaterialSurface>
+            <ModalPresence open={open}>
+              <SettingsModal {...settingsProps()} />
+            </ModalPresence>
+          </MotionProvider>
+        </ReducedMotionProvider>
+      </MaterialSurfaceRegistrationProvider>
+    );
+    const { rerender } = render(view(true));
+    const group = document.querySelector(".taskmap-modal-presence-group") as HTMLDivElement;
+    const groupSurfaces = () =>
+      [...group.querySelectorAll("[data-material-strategy='native-glass']")] as HTMLElement[];
+
+    expect(groupSurfaces()).toHaveLength(8);
+    expect(groupSurfaces().every((surface) => surface.dataset.materialPlane === "modal")).toBe(
+      true,
+    );
+    expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
+    expect(registry.getSnapshot().surfaces).toEqual([]);
+    act(() => driver.fire());
+    expect(Number(group.style.opacity)).toBeGreaterThan(0);
+    expect(Number(group.style.opacity)).toBeLessThan(1);
+    expect(screen.getByTestId("unrelated")).not.toHaveStyle({ opacity: group.style.opacity });
+    act(() => driver.flush());
+    expect(group.style.opacity).toBe("1");
+
+    rerender(view(false));
+    act(() => driver.fire());
+    expect(Number(group.style.opacity)).toBeLessThan(1);
+    act(() => driver.flush());
+    expect(screen.queryByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
+    expect(registry.getSnapshot().surfaces).toEqual([]);
+    scheduler.dispose();
+    registry.dispose();
+  });
+
+  it("closes only the topmost nested Settings dialog on Escape", async () => {
+    const user = userEvent.setup();
+    const update = { version: "1.2.3", currentVersion: "1.0.0" };
+    const props = settingsProps({
+      availableUpdate: update,
+      onCheckForUpdate: vi.fn(async () => update),
+    });
+    const registry = createMaterialSurfaceRegistry(null);
+    renderSettings(props, registry);
+
+    await user.click(screen.getByRole("tab", { name: "data" }));
+    await user.click(screen.getByRole("button", { name: "Export data" }));
+    expect(screen.getByRole("dialog", { name: "Export data" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Export data" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("tab", { name: "misc" }));
+    await user.click(screen.getByRole("button", { name: "Check for updates" }));
+    expect(await screen.findByRole("dialog", { name: "Update available" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Update available" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
+    registry.dispose();
+  });
 });
 
 function renderSettings(
@@ -188,10 +275,44 @@ function renderSettings(
       value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
     >
       <ReducedMotionProvider override>
-        <SettingsModal {...props} />
+        <ModalPresence open>
+          <SettingsModal {...props} />
+        </ModalPresence>
       </ReducedMotionProvider>
     </MaterialSurfaceRegistrationProvider>,
   );
+}
+
+class ControlledFrameDriver implements MotionFrameDriver {
+  private callbacks = new Map<number, (timestampMs: number) => void>();
+  private nextHandle = 1;
+  private timestampMs = 0;
+
+  request(callback: (timestampMs: number) => void): number {
+    const handle = this.nextHandle++;
+    this.callbacks.set(handle, callback);
+    return handle;
+  }
+
+  cancel(handle: number): void {
+    this.callbacks.delete(handle);
+  }
+
+  fire(): boolean {
+    const entry = this.callbacks.entries().next().value as
+      [number, (timestampMs: number) => void] | undefined;
+    if (!entry) return false;
+    this.callbacks.delete(entry[0]);
+    this.timestampMs += 1000 / 60;
+    entry[1](this.timestampMs);
+    return true;
+  }
+
+  flush(limit = 60): void {
+    for (let frame = 0; frame < limit && this.fire(); frame += 1) {
+      // One pending shared frame advances all active UI motion subscribers.
+    }
+  }
 }
 
 function settingsProps(

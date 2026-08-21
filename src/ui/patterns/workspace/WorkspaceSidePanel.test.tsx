@@ -35,18 +35,18 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel).toHaveAttribute("data-material", "acrylic-large");
     expect(panel.style.transform).toBe("translate3d(-10px, 2px, 0)");
     expect(panel.style.opacity).toBe("0");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
 
     const invalidationsAtStart = notifySurfaceGeometryChanged.mock.calls.length;
     act(() => expect(driver.fire()).toBe(true));
     expect(notifySurfaceGeometryChanged.mock.calls.length).toBeGreaterThan(invalidationsAtStart);
     expect(panel.style.transform).not.toBe("translate3d(-10px, 2px, 0)");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(Number(panel.style.opacity));
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     act(() => driver.flush());
-    expect(panel.style.transform).toBe("translate3d(0px, 0px, 0)");
+    expect(panel.style.transform).toBe("");
     expect(panel.style.opacity).toBe("1");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(panel.style.willChange).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     const invalidationsAtRest = notifySurfaceGeometryChanged.mock.calls.length;
@@ -59,11 +59,11 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel).toHaveAttribute("data-closing", "true");
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
     act(() => expect(driver.fire()).toBe(true));
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(Number(panel.style.opacity));
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     act(() => driver.flush());
     expect(panel.style.transform).toBe("translate3d(-8px, 1px, 0)");
     expect(panel.style.opacity).toBe("0");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     scheduler.dispose();
@@ -87,15 +87,15 @@ describe("WorkspaceSidePanel motion", () => {
     const { rerender } = render(renderPanel(false));
     const panel = screen.getByLabelText("Reduced panel");
 
-    expect(panel.style.transform).toBe("translate3d(0px, 0px, 0)");
+    expect(panel.style.transform).toBe("");
     expect(panel.style.opacity).toBe("1");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     rerender(renderPanel(true));
     expect(panel.style.transform).toBe("translate3d(-8px, 1px, 0)");
     expect(panel.style.opacity).toBe("0");
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(2);
 

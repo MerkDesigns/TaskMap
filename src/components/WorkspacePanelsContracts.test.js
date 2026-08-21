@@ -16,6 +16,12 @@ const panelMotionPath = new URL(
   "../ui/patterns/workspace/useWorkspaceSidePanelMotion.ts",
   import.meta.url,
 );
+const toolbarPath = new URL("./FloatingToolbar.tsx", import.meta.url);
+const toolbarCssPath = new URL(
+  "../ui/patterns/workspace/FloatingCanvasToolbar.css",
+  import.meta.url,
+);
+const canvasBrowserCssPath = new URL("../ui/patterns/workspace/CanvasBrowser.css", import.meta.url);
 
 describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
   it("keeps one chrome layer containing workspace chrome without overlays", async () => {
@@ -34,6 +40,21 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     for (const component of ["QuickExtensionsMenu", "SettingsModal", "ToastStack"]) {
       expect(appSource.indexOf(`<${component}`, layerEnd)).toBeGreaterThan(layerEnd);
     }
+  });
+
+  it("keeps the panel selector mounted and structurally clear of an open side panel", async () => {
+    const [toolbar, toolbarCss, canvasBrowserCss] = await Promise.all([
+      readFile(toolbarPath, "utf8"),
+      readFile(toolbarCssPath, "utf8"),
+      readFile(canvasBrowserCssPath, "utf8"),
+    ]);
+
+    expect(toolbar).not.toContain("data-side-panel-open");
+    expect(toolbarCss).not.toContain("data-side-panel-open");
+    expect(toolbarCss).toContain("left: var(--taskmap-chrome-inset)");
+    expect(canvasBrowserCss).toContain("var(--taskmap-toolbar-height)");
+    expect(canvasBrowserCss).toContain("var(--taskmap-chrome-gap)");
+    expect(toolbarCss).not.toContain("z-index");
   });
 
   it("keeps open/closing lifecycle and timers in App", async () => {

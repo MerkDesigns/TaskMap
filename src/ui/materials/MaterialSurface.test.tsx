@@ -1,33 +1,103 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef, StrictMode } from "react";
-import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { createRef } from "react";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { MaterialPlaneProvider } from "./MaterialPlane";
 import { MaterialSurface, type MaterialSurfaceProps } from "./MaterialSurface";
 import {
   MaterialSurfaceRegistrationProvider,
   useMaterialSurfaceGeometryInvalidation,
-  useMaterialSurfaceMaskOpacity,
 } from "./MaterialSurfaceRegistration";
 import {
   createMaterialSurfaceRegistry,
   type MaterialSurfaceRegistry,
 } from "./materialSurfaceRegistry";
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("MaterialSurface", () => {
-  it("selects the registered definition and forwards ordinary DOM props", () => {
-    const { container } = render(
-      <MaterialSurface material="acrylic-large" aria-label="Tools" className="feature-tools">
-        Tools
+  it("keeps the public element, ref, children, and ordinary DOM prop contract", () => {
+    const ref = createRef<HTMLElement>();
+    render(
+      <MaterialSurface
+        ref={ref}
+        as="aside"
+        material="acrylic-large"
+        aria-label="Tools"
+        className="feature-tools"
+      >
+        <button>Action</button>
       </MaterialSurface>,
     );
 
-    const surface = container.firstElementChild;
-    expect(screen.getByLabelText("Tools")).toHaveTextContent("Tools");
+    const surface = screen.getByLabelText("Tools");
+    expect(surface).toBe(ref.current);
+    expect(surface.tagName).toBe("ASIDE");
     expect(surface).toHaveClass("taskmap-material-surface", "feature-tools");
-    expect(surface).toHaveAttribute("data-material", "acrylic-large");
-    expect(surface).toHaveAttribute("data-material-strategy", "cached-acrylic");
+    expect(screen.getByRole("button", { name: "Action" }).parentElement).toBe(surface);
+  });
+
+  it("renders Acrylic Large through the permanent two-pass native path", () => {
+    render(<MaterialSurface material="acrylic-large">Large</MaterialSurface>);
+    const surface = screen.getByText("Large");
+
+    expect(surface).toHaveAttribute("data-material-strategy", "native-glass");
+    expect(surface).toHaveAttribute("data-material-role", "large");
+    expect(surface.style.getPropertyValue("--taskmap-material-preblur")).toBe("6px");
+    expect(surface.style.getPropertyValue("--taskmap-material-interaction-preblur")).toBe("0px");
+    expect(surface.style.getPropertyValue("--taskmap-material-content-clip-inset")).toBe("2px");
+    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("38px");
+    expect(surface.style.getPropertyValue("--taskmap-material-brightness")).toBe("0.82");
+    expect(surface.querySelector(".taskmap-material-native-glass__preblur")).toHaveAttribute(
+      "data-enabled",
+      "true",
+    );
+    expect(surface.querySelector(".taskmap-material-native-glass__backdrop")).toBeInTheDocument();
+    expect(surface.querySelector(".taskmap-material-native-glass__rim-canvas")).toBeInTheDocument();
+    const clip = surface.querySelector<HTMLElement>(".taskmap-material-native-glass__clip");
+    const rim = surface.querySelector<HTMLElement>(".taskmap-material-native-glass__rim");
+    expect(rim?.parentElement).toBe(surface);
+    expect(clip).not.toContainElement(rim);
+  });
+
+  it("renders Acrylic Small one-pass at rest with its moving pre-blur ready", () => {
+    render(<MaterialSurface material="acrylic-small">Small</MaterialSurface>);
+    const surface = screen.getByText("Small");
+
+    expect(surface).toHaveAttribute("data-material-strategy", "native-glass");
+    expect(surface).toHaveAttribute("data-material-role", "small");
+    expect(surface.style.getPropertyValue("--taskmap-material-radius")).toBe("13.5px");
+    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("20px");
+    expect(surface.style.getPropertyValue("--taskmap-material-interaction-preblur")).toBe("5px");
+    expect(surface.style.getPropertyValue("--taskmap-material-content-clip-inset")).toBe("2px");
+    expect(surface.style.getPropertyValue("--taskmap-material-brightness")).toBe("0.9");
+    expect(surface.querySelector(".taskmap-material-native-glass__preblur")).not.toHaveAttribute(
+      "data-enabled",
+    );
+    expect(surface.querySelector(".taskmap-material-native-glass__preblur")).toHaveAttribute(
+      "data-interaction-enabled",
+      "true",
+    );
+  });
+
+  it("does not register Large or Small with the parked cached Canvas2D compositor", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    render(
+      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
+        <MaterialSurface material="acrylic-large">Large</MaterialSurface>
+        <MaterialSurface material="acrylic-small">Small</MaterialSurface>
+      </MaterialSurfaceRegistrationProvider>,
+    );
+
+    expect(registry.getSnapshot().surfaces).toEqual([]);
+    expect(screen.getByText("Large")).not.toHaveAttribute("data-material-surface-id");
+    expect(screen.getByText("Small")).not.toHaveAttribute("data-material-surface-id");
   });
 
   it("defaults to base, inherits modal, and permits an explicit plane override", () => {
@@ -48,140 +118,96 @@ describe("MaterialSurface", () => {
     expect(screen.getByText("Override")).toHaveAttribute("data-material-plane", "base");
   });
 
-  it("applies default and overridden geometry and elevation contracts", () => {
+  it("preserves radius overrides, elevation, Opaque, and Cutout", () => {
     render(
       <>
-        <MaterialSurface material="acrylic-small">Default geometry</MaterialSurface>
         <MaterialSurface material="acrylic-large" radius={8} elevation="none">
-          Flat geometry
+          Flat
         </MaterialSurface>
+        <MaterialSurface material="opaque">Opaque</MaterialSurface>
         <MaterialSurface material="cutout" radius={6}>
-          Recessed geometry
-        </MaterialSurface>
-        <MaterialSurface material="opaque" radius={8}>
-          Opaque geometry
+          Cutout
         </MaterialSurface>
       </>,
     );
 
-    const defaultSurface = screen.getByText("Default geometry");
-    const flatSurface = screen.getByText("Flat geometry");
-    const cutout = screen.getByText("Recessed geometry");
-    const opaque = screen.getByText("Opaque geometry");
-
-    expect(defaultSurface.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
-    expect(defaultSurface.style.getPropertyValue("--taskmap-material-shadow")).toContain(
-      "5px 12px",
+    expect(screen.getByText("Flat").style.getPropertyValue("--taskmap-material-radius")).toBe(
+      "8px",
     );
-    expect(flatSurface.style.getPropertyValue("--taskmap-material-radius")).toBe("8px");
-    expect(flatSurface.style.getPropertyValue("--taskmap-material-shadow")).toBe("none");
-    expect(flatSurface).toHaveAttribute("data-material-elevation", "none");
-    expect(cutout.style.getPropertyValue("--taskmap-material-radius")).toBe("6px");
-    expect(cutout.style.getPropertyValue("--taskmap-material-shadow")).toContain("inset");
-    expect(opaque).toHaveAttribute("data-material-strategy", "opaque");
-    expect(opaque.style.getPropertyValue("--taskmap-material-tint-opacity")).toBe("1");
-    expect(opaque.style.getPropertyValue("--taskmap-material-highlight")).toBe("0.026");
-    expect(opaque.style.getPropertyValue("--taskmap-material-shadow")).toContain("5px 12px");
+    expect(screen.getByText("Flat").style.getPropertyValue("--taskmap-material-shadow")).toBe(
+      "none",
+    );
+    expect(screen.getByText("Opaque")).toHaveAttribute("data-material-strategy", "opaque");
+    expect(
+      screen.getByText("Opaque").style.getPropertyValue("--taskmap-material-content-clip-inset"),
+    ).toBe("1px");
+    expect(screen.getByText("Cutout")).toHaveAttribute("data-material-strategy", "css");
+    expect(
+      screen.getByText("Cutout").style.getPropertyValue("--taskmap-material-content-clip-inset"),
+    ).toBe("1.5px");
   });
 
-  it("projects all three registered highlight stops into presentation variables", () => {
-    render(<MaterialSurface material="acrylic-large">Highlight</MaterialSurface>);
-
-    const surface = screen.getByText("Highlight");
-    expect(surface.style.getPropertyValue("--taskmap-material-highlight-start-offset")).toBe("0%");
-    expect(surface.style.getPropertyValue("--taskmap-material-highlight-start-multiplier")).toBe(
-      "1",
-    );
-    expect(surface.style.getPropertyValue("--taskmap-material-highlight-middle-offset")).toBe(
-      "38%",
-    );
-    expect(surface.style.getPropertyValue("--taskmap-material-highlight-middle-multiplier")).toBe(
-      "0.4",
-    );
-    expect(surface.style.getPropertyValue("--taskmap-material-highlight-end-offset")).toBe("72%");
-    expect(surface.style.getPropertyValue("--taskmap-material-highlight-end-multiplier")).toBe("0");
-  });
-
-  it("supports a bounded semantic element and forwards its ref", () => {
-    const ref = createRef<HTMLElement>();
-    render(
-      <MaterialSurface ref={ref} as="aside" material="acrylic-large">
-        Side panel
-      </MaterialSurface>,
-    );
-
-    expect(ref.current).toBeInstanceOf(HTMLElement);
-    expect(ref.current?.tagName).toBe("ASIDE");
-  });
-
-  it("does not expose compositor tuning props", () => {
+  it("does not expose backend tuning props", () => {
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("blur");
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("cacheScale");
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("worker");
     expectTypeOf<MaterialSurfaceProps>().not.toHaveProperty("tint");
   });
 
-  it("applies a reusable bright-selection effect without changing the material strategy", () => {
+  it("keeps the reusable bright-selection effect on native Small", () => {
     render(
       <MaterialSurface material="acrylic-small" effect="bright-selection">
         Selection
       </MaterialSurface>,
     );
-    const selection = screen.getByText("Selection");
-    expect(selection).toHaveClass("taskmap-material-surface--bright-selection");
-    expect(selection).toHaveAttribute("data-material", "acrylic-small");
-    expect(selection).toHaveAttribute("data-material-strategy", "cached-acrylic");
+    expect(screen.getByText("Selection")).toHaveClass("taskmap-material-surface--bright-selection");
+    expect(screen.getByText("Selection")).toHaveAttribute("data-material-strategy", "native-glass");
   });
 
-  it("registers only cached acrylic and updates explicit plane and radius", () => {
+  it("bounds nested Small overscan to its logical Large owner across transient classes", () => {
     const registry = createMaterialSurfaceRegistry(null);
-    const closest = vi.spyOn(HTMLElement.prototype, "closest");
-    const { rerender } = render(
-      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-        <MaterialSurface material="acrylic-large">Registered</MaterialSurface>
-      </MaterialSurfaceRegistrationProvider>,
-    );
-    expect(registry.getSnapshot().surfaces).toHaveLength(1);
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(1);
-    rerender(
-      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-        <MaterialSurface material="acrylic-small" plane="modal" radius={8}>
-          Registered
+    const listeners = new Set<() => void>();
+    const registrationBoundary = {
+      registry,
+      notifySurfaceGeometryChanged: () => listeners.forEach((listener) => listener()),
+      subscribeSurfaceGeometryChanged: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const view = (motionClass: string) => (
+      <MaterialSurfaceRegistrationProvider value={registrationBoundary}>
+        <MaterialSurface material="acrylic-large" data-testid="large-boundary">
+          <MaterialSurface
+            material="acrylic-small"
+            className={motionClass}
+            data-testid="small-surface"
+          >
+            Card
+          </MaterialSurface>
         </MaterialSurface>
-      </MaterialSurfaceRegistrationProvider>,
+      </MaterialSurfaceRegistrationProvider>
     );
-    expect(registry.getSnapshot().surfaces[0]).toMatchObject({
-      material: "acrylic-small",
-      plane: "modal",
-      radiusPx: 8,
-    });
-    rerender(
-      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-        <MaterialSurface material="opaque" radius={8}>
-          Registered
-        </MaterialSurface>
-      </MaterialSurfaceRegistrationProvider>,
-    );
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
-    expect(closest).not.toHaveBeenCalled();
-    closest.mockRestore();
+    const { rerender } = render(view("settled"));
+    const large = screen.getByTestId("large-boundary");
+    const small = screen.getByTestId("small-surface");
+    vi.spyOn(large, "getBoundingClientRect").mockReturnValue(rectangle(100, 100, 300, 300));
+    vi.spyOn(small, "getBoundingClientRect").mockReturnValue(rectangle(105, 120, 100, 100));
+
+    registrationBoundary.notifySurfaceGeometryChanged();
+    expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
+    expect(overscan(small)).toEqual(["5.00px", "20.00px", "23.00px", "23.00px"]);
+
+    rerender(view("is-dragging is-snapping"));
+    registrationBoundary.notifySurfaceGeometryChanged();
+    expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
+    expect(overscan(small)).toEqual(["5.00px", "20.00px", "23.00px", "23.00px"]);
+    expect(registry.getSnapshot().surfaces).toEqual([]);
   });
 
-  it("keeps one live registration through the StrictMode effect probe", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const { unmount } = render(
-      <StrictMode>
-        <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-          <MaterialSurface material="acrylic-large">Strict surface</MaterialSurface>
-        </MaterialSurfaceRegistrationProvider>
-      </StrictMode>,
-    );
-    expect(registry.getSnapshot().surfaces).toHaveLength(1);
-    unmount();
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
-  });
-
-  it("exposes the cheap geometry invalidation seam through the material boundary", () => {
+  it("routes the existing geometry invalidation seam to native surfaces", () => {
     const notify = vi.fn();
     const registry = createMaterialSurfaceRegistry(null);
     function MotionProbe() {
@@ -195,46 +221,30 @@ describe("MaterialSurface", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Move surface" }));
-
     expect(notify).toHaveBeenCalledOnce();
-  });
-
-  it("exposes an imperative mask-opacity seam only to registered acrylic surfaces", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    function MaskOpacityProbe() {
-      const acrylicRef = createRef<HTMLElement>();
-      const opaqueRef = createRef<HTMLElement>();
-      const setAcrylicOpacity = useMaterialSurfaceMaskOpacity(acrylicRef);
-      const setOpaqueOpacity = useMaterialSurfaceMaskOpacity(opaqueRef);
-      return (
-        <>
-          <MaterialSurface ref={acrylicRef} material="acrylic-large">
-            Acrylic
-          </MaterialSurface>
-          <MaterialSurface ref={opaqueRef} material="opaque">
-            Opaque
-          </MaterialSurface>
-          <button onClick={() => setAcrylicOpacity(0.4)}>Fade acrylic</button>
-          <button onClick={() => setOpaqueOpacity(0.4)}>Fade opaque</button>
-        </>
-      );
-    }
-    render(
-      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-        <MaskOpacityProbe />
-      </MaterialSurfaceRegistrationProvider>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Fade acrylic" }));
-    expect(registry.getSnapshot().surfaces).toHaveLength(1);
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0.4);
-
-    fireEvent.click(screen.getByRole("button", { name: "Fade opaque" }));
-    expect(registry.getSnapshot().surfaces).toHaveLength(1);
-    expect(registry.getSnapshot().surfaces[0].maskOpacity).toBe(0.4);
   });
 });
 
 function boundary(registry: MaterialSurfaceRegistry, notifySurfaceGeometryChanged = vi.fn()) {
   return { registry, notifySurfaceGeometryChanged };
+}
+
+function rectangle(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function overscan(element: HTMLElement): string[] {
+  return ["left", "top", "right", "bottom"].map((side) =>
+    element.style.getPropertyValue(`--taskmap-material-overscan-${side}`),
+  );
 }
