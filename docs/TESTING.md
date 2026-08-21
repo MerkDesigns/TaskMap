@@ -476,15 +476,21 @@ geometry frames.
 
 ### Phase 4.5C2C side-panel-shell coverage
 
-Three focused C2C suites contain ten deterministic cases. They require both non-embedded panels to
-use the same default-elevation Acrylic Large `WorkspaceSidePanel`, while embedded variants register
-zero acrylic surfaces. Canvas header/count/toggle/create/selection callbacks and the Extensions
-filter portal remain characterized. Motion tests drive the shared scheduler deterministically,
-require cheap geometry invalidation on active transform frames, exact enter/exit settlement, no
-post-settlement work, and immediate reduced-motion settlement. Static contracts retain the App-owned
-closing flags and timers, exactly one workspace-chrome layer, portal/drag ownership, existing card
-and search/filter internals, and one compositor provider while rejecting panel-local z-index,
-backdrop filters, caches, compositor runtimes, and independent animation frames in the new pattern.
+Focused C2C suites require production to compose one default-elevation Acrylic Large
+`WorkspaceSidePanel` with shared-panel Canvas and Extensions views, which add no second Large surface
+while retaining Acrylic Small cards. They lock top-chrome paint order above the side panel,
+active/inert view semantics, measured height changes, Canvas callbacks, and the Extensions filter
+portal. Motion tests drive the shared scheduler deterministically and require the complete panel to
+travel between its resting position and a fully offscreen left position over `240ms`, using ease-in
+for show and ease-out for hide. They reject all panel-presence opacity, filter, backdrop-filter, and
+reveal-cover changes, require cheap material geometry invalidation during transform frames, and cover
+clean reversal without replacing the mounted surface. Content switching uses synchronized `180ms`
+fade/slide transitions and a `200ms` measured-height transition without remounting the material
+shell. Reduced motion skips both presence and switch motion. Static contracts retain the App-owned
+closing flags and cancellable final-unmount timer, exactly one workspace-chrome layer, portal/drag
+ownership, existing card and search/filter internals, and one compositor provider while rejecting
+panel-local compositor layers, backdrop filters, caches, compositor runtimes, and independent
+animation frames in the new pattern.
 
 The final compositor-fidelity coverage extends the shared registry, `MaterialSurface`, output-plane,
 coordinator, and panel-motion suites. It locks default mask opacity at `1`, finite `0..1` clamping,

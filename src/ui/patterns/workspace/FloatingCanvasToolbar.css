@@ -1,7 +1,7 @@
 .taskmap-floating-canvas-toolbar {
   position: absolute;
-  top: var(--taskmap-chrome-inset);
-  left: var(--taskmap-chrome-inset);
+  top: var(--taskmap-chrome-inset-top);
+  left: var(--taskmap-chrome-inset-inline);
   display: flex;
   align-items: center;
   gap: var(--taskmap-chrome-gap);
@@ -26,7 +26,10 @@
 }
 
 .taskmap-floating-canvas-toolbar .taskmap-control {
-  border-radius: 50%;
+  border-radius: min(
+    50%,
+    max(0px, calc(var(--taskmap-material-radius) - var(--taskmap-toolbar-group-padding-inline)))
+  );
 }
 
 .taskmap-floating-canvas-toolbar

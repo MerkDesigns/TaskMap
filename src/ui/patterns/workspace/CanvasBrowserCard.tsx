@@ -10,14 +10,24 @@ export interface CanvasBrowserCardProps extends HTMLAttributes<HTMLDivElement> {
   readonly cycleHighlighted?: boolean;
   readonly embedded: boolean;
   readonly mode: CanvasBrowserCardMode;
+  readonly radius?: number;
 }
 
 export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardProps>(
   function CanvasBrowserCard(
-    { active = false, children, className, cycleHighlighted = false, embedded, mode, ...props },
+    {
+      active = false,
+      children,
+      className,
+      cycleHighlighted = false,
+      embedded,
+      mode,
+      radius: radiusOverride,
+      ...props
+    },
     ref,
   ) {
-    const radius = mode === "minimal" ? 8 : undefined;
+    const radius = radiusOverride ?? (mode === "minimal" ? 8 : undefined);
     return (
       <MaterialSurface
         {...props}

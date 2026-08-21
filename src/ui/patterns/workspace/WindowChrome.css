@@ -1,0 +1,43 @@
+.taskmap-window-drag-region {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: calc(var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height));
+  cursor: default;
+  touch-action: none;
+}
+
+.taskmap-workspace-chrome-layer > .taskmap-floating-canvas-toolbar,
+.taskmap-window-controls {
+  z-index: 1;
+}
+
+.taskmap-window-controls {
+  position: absolute;
+  top: var(--taskmap-chrome-inset-top);
+  right: var(--taskmap-chrome-inset-inline);
+  display: flex;
+  align-items: center;
+  height: var(--taskmap-toolbar-height);
+  gap: var(--taskmap-space-1);
+  padding: 0 var(--taskmap-toolbar-group-padding-inline);
+}
+
+.taskmap-window-controls .taskmap-control {
+  border-radius: min(
+    50%,
+    max(0px, calc(var(--taskmap-material-radius) - var(--taskmap-toolbar-group-padding-inline)))
+  );
+}
+
+.taskmap-window-controls__close:hover:not(:disabled) {
+  background-color: #c42b1c;
+  color: white;
+}
+
+.taskmap-window-controls__close:active:not(:disabled) {
+  background-color: #a92318;
+  color: white;
+}

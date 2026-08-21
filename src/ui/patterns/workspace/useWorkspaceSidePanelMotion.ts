@@ -1,19 +1,14 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
 import { useMaterialSurfaceGeometryInvalidation } from "../../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../../motion/MotionProvider";
+import type { MotionFrameScheduler } from "../../motion/motionFrameScheduler";
 import { interpolate, normalizedProgress } from "../../motion/motionMath";
-import { MOTION_DURATION_MS } from "../../motion/motionTokens";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
 
-interface WorkspaceSidePanelMotionState {
-  readonly x: number;
-  readonly y: number;
-  readonly opacity: number;
-}
+export const WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 240;
+export const WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32;
 
-export const WORKSPACE_SIDE_PANEL_ENTER_FROM = Object.freeze({ x: -10, y: 2, opacity: 0 });
-export const WORKSPACE_SIDE_PANEL_REST = Object.freeze({ x: 0, y: 0, opacity: 1 });
-export const WORKSPACE_SIDE_PANEL_EXIT_TO = Object.freeze({ x: -8, y: 1, opacity: 0 });
+type SlidePhase = "active" | "hidden" | "rest";
 
 export function useWorkspaceSidePanelMotion(
   panelRef: RefObject<HTMLElement | null>,
@@ -21,23 +16,24 @@ export function useWorkspaceSidePanelMotion(
 ): void {
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
-  const stateRef = useRef<WorkspaceSidePanelMotionState>(
-    closing ? WORKSPACE_SIDE_PANEL_REST : WORKSPACE_SIDE_PANEL_ENTER_FROM,
-  );
+  const translateXRef = useRef(0);
   const initializedRef = useRef(false);
+  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
 
-  const write = useCallback(
-    (state: WorkspaceSidePanelMotionState, active: boolean) => {
-      stateRef.current = state;
+  const writePanel = useCallback(
+    (translateX: number, phase: SlidePhase) => {
+      translateXRef.current = translateX;
       const panel = panelRef.current;
-      if (panel) {
-        panel.style.opacity = `${state.opacity}`;
-        panel.style.transform =
-          active || state.x !== 0 || state.y !== 0
-            ? `translate3d(${state.x}px, ${state.y}px, 0)`
-            : "";
-        panel.style.willChange = active ? "opacity, transform" : "";
+      if (!panel) return;
+
+      if (phase === "rest") {
+        delete panel.dataset.panelMotion;
+        panel.style.transform = "";
+        panel.style.willChange = "";
+      } else {
+        panel.dataset.panelMotion = phase;
+        panel.style.transform = `translate3d(${translateX}px, 0, 0)`;
+        panel.style.willChange = phase === "active" ? "transform" : "";
       }
       invalidateGeometry();
     },
@@ -45,38 +41,55 @@ export function useWorkspaceSidePanelMotion(
   );
 
   useLayoutEffect(() => {
-    const target = closing ? WORKSPACE_SIDE_PANEL_EXIT_TO : WORKSPACE_SIDE_PANEL_REST;
-    if (reducedMotion) {
-      initializedRef.current = true;
-      write(target, false);
+    const opening = !closing;
+    const offscreenX = getOffscreenTranslateX(panelRef.current);
+    const from = initializedRef.current ? translateXRef.current : opening ? offscreenX : 0;
+    const target = opening ? 0 : offscreenX;
+    initializedRef.current = true;
+
+    if (reducedMotion || from === target) {
+      writePanel(target, opening ? "rest" : "hidden");
       return;
     }
 
-    const from = initializedRef.current
-      ? stateRef.current
-      : closing
-        ? WORKSPACE_SIDE_PANEL_REST
-        : WORKSPACE_SIDE_PANEL_ENTER_FROM;
-    initializedRef.current = true;
-    write(from, true);
-    let elapsedMs = 0;
-    const durationMs = closing ? MOTION_DURATION_MS.fast : MOTION_DURATION_MS.normal;
-    const unsubscribe = scheduler.subscribe(({ deltaMs }) => {
-      elapsedMs += deltaMs;
-      const progress = normalizedProgress(elapsedMs, 0, durationMs);
-      const easedProgress = closing ? progress * progress : 1 - Math.pow(1 - progress, 3);
-      const next = Object.freeze({
-        x: interpolate(from.x, target.x, easedProgress),
-        y: interpolate(from.y, target.y, easedProgress),
-        opacity: interpolate(from.opacity, target.opacity, easedProgress),
-      });
-      if (progress < 1) {
-        write(next, true);
-        return true;
-      }
-      write(target, false);
-      return false;
-    });
-    return unsubscribe;
-  }, [closing, reducedMotion, scheduler, write]);
+    return subscribeSlideAnimation(scheduler, writePanel, from, target, opening);
+  }, [closing, panelRef, reducedMotion, scheduler, writePanel]);
+}
+
+function subscribeSlideAnimation(
+  scheduler: MotionFrameScheduler,
+  writePanel: (translateX: number, phase: SlidePhase) => void,
+  from: number,
+  target: number,
+  opening: boolean,
+): () => void {
+  let elapsedMs = 0;
+  writePanel(from, "active");
+  return scheduler.subscribe(({ deltaMs }) => {
+    elapsedMs += deltaMs;
+    const progress = normalizedProgress(elapsedMs, 0, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS);
+    const easedProgress = opening ? easeInCubic(progress) : easeOutCubic(progress);
+    writePanel(interpolate(from, target, easedProgress), "active");
+    if (progress < 1) return true;
+    writePanel(target, opening ? "rest" : "hidden");
+    return false;
+  });
+}
+
+function getOffscreenTranslateX(panel: HTMLElement | null): number {
+  if (!panel) return 0;
+  const width = panel.getBoundingClientRect().width || panel.offsetWidth || 288;
+  const inlineInset = Number.parseFloat(
+    window.getComputedStyle(panel).getPropertyValue("--taskmap-chrome-inset-inline"),
+  );
+  const left = Number.isFinite(inlineInset) ? inlineInset : 16;
+  return -(width + left + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
+}
+
+function easeInCubic(progress: number): number {
+  return progress * progress * progress;
+}
+
+function easeOutCubic(progress: number): number {
+  return 1 - Math.pow(1 - progress, 3);
 }

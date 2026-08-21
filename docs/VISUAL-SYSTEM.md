@@ -236,35 +236,59 @@ the two representations.
 
 ### Toolbar
 
-- Position: `16px` from top and `16px` from left
+- Position: `16px` from top and `16px` from the nearest horizontal edge by default
 - Group gap: `8px`
 - Group: `40px` height, `6px` horizontal padding, `12px` radius
-- Buttons: `28px` square with a circular interaction highlight
+- Buttons: `28px` square; the interaction highlight remains circular at the default radius and
+  contracts with the containing island radius when that radius is reduced
 - Toolbar material external shadow: suppressed
 
-Production top-bar icon controls use a circular hover/press highlight. Pressed toggles retain their
-accent icon at rest and still show the same hover and pressed feedback as inactive controls.
+Production top-bar icon controls use a container-aware hover/press highlight. Pressed toggles retain
+their accent icon at rest and still show the same hover and pressed feedback as inactive controls.
+
+The production window is frameless and keeps canvas content visible to the physical top edge. The
+existing toolbar remains the left chrome island. A transparent, background-free region behind the
+top chrome spans from the physical top edge through the islands and provides native window dragging
+and double-click maximize/restore wherever an island does not intercept input. The
+right controls form a separate Acrylic Large island with three `28px` radius-aware controls; only
+the close hover uses the conventional red treatment. Native window edge and corner resizing
+remains enabled.
+
+Horizontal and top chrome insets are independent semantic values and both default to `16px`; the
+bottom inset remains `16px`. The development-only Visual Tuner exposes temporary controls for those
+two insets plus Canvas Browser, full Canvas Card, and shared left/right top-bar radii. These values
+remain transient and are not persisted.
 
 ### Side panels
 
 - Position: `16px` from left and `64px` from top
-- Width: `290px`
+- Width: `288px` for the shared Canvas/Extensions shell
 - Maximum height: viewport height minus `80px` (`64px` top plus `16px` bottom inset)
-- Padding: `12px`
-- Radius: `12px`
+- Padding: view-owned (`0px` for Canvas Browser; `12px` for Extensions)
+- Radius: the shared Canvas Browser radius (`22.5px` by default)
 - Material/elevation: Acrylic Large with its default elevation
 
-Phase 4.5C2C mounts the non-embedded Canvas Manager and Extensions panel beside the toolbar in the
-single layer-41 `WorkspaceChromeLayer`. `WorkspaceSidePanel` owns only this shared geometry and
-material presentation. Embedded variants remain plain unregistered layout containers. Menus,
-filter popovers, tooltips, and creation UI retain their existing portals; Canvas Browser drag uses
-the stable-host behavior defined below.
+Production mounts one `WorkspaceSidePanel` beside the toolbar in the layer-41
+`WorkspaceChromeLayer`. Canvas Manager and Extensions remain mounted as plain shared-panel content
+roots inside that one Acrylic Large shell; their cards retain Acrylic Small. Switching toolbar modes crossfades both views
+over `180ms` from a `4px` horizontal offset while the active view's measured height drives a `200ms`
+shell-height transition. The inactive view is inert and interaction-free. Menus, filter popovers,
+tooltips, and drag UI retain their existing portals.
 
-Panel entry runs for the shared normal `180ms` duration from `translate(-10px, 2px)` and zero
-opacity; exit runs for the shared fast `120ms` duration toward `translate(-8px, 1px)` and zero
-opacity. The shared UI frame scheduler drives both. Each active transform frame calls the cheap
-surface-geometry invalidation seam, then stops invalidating after exact settlement. Reduced motion
-settles immediately. App-owned closing flags and `120ms` unmount/switch timers remain authoritative.
+The shared side panel is explicitly layer `0`; the left and right top-chrome islands are layer `1`
+and are composed after the side panel. Their glass, controls, and hover/press highlights therefore
+paint in front of the side panel and are excluded from its backdrop-filter/overscan sampling.
+
+The Acrylic Large surface never changes opacity, blur, filter, or backdrop-filter values during
+panel presence motion. The complete panel mounts beyond the left window edge and translates into
+place over `240ms` with a cubic ease-in; closing translates the same mounted panel fully beyond the
+left edge with a cubic ease-out before unmounting. There is no reveal cover or panel-presence fade.
+Transform frames use the shared UI scheduler and the material registry's cheap geometry
+invalidation seam so compositor masks follow the moving surface. Reduced motion settles directly at
+the open or offscreen position without scheduling animation frames.
+App-owned closing flags and the `240ms` final unmount timer remain authoritative. Content switches
+do not unmount the shell, and reversing a close cancels its pending unmount so the mounted glass
+surface is reused.
 
 ### Canvas Browser
 

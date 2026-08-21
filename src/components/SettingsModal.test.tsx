@@ -183,7 +183,7 @@ describe("Phase 4.5C3A primary Settings", () => {
 
     await user.click(screen.getByRole("tab", { name: "dev" }));
     await user.click(screen.getByRole("switch", { name: "FPS counter" }));
-    await user.click(screen.getByText("Show frosted glass tuning overlays."));
+    await user.click(screen.getByText("Show temporary glass and workspace geometry controls."));
     expect(props.onFpsCounterVisibleChange).toHaveBeenCalledWith(true);
     expect(props.onTemporaryPanelsVisibleChange).toHaveBeenCalledWith(true);
     registry.dispose();

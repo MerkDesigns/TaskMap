@@ -362,7 +362,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/settings/recent_databases.rs`                           |   193 | Rust backend module                                                                     |
 | `src-tauri/src/storage.rs`                                             |   722 | Rust backend module                                                                     |
 | `src-tauri/src/window_state.rs`                                        |   105 | Clamp the saved geometry so the window can never restore off-screen or                  |
-| `src/App.tsx`                                                          |  7539 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
+| `src/App.tsx`                                                          |  7562 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
 | `src/app/appData.test.ts`                                              |   355 | Tests for the adjacent module                                                           |
 | `src/app/appData.ts`                                                   |   299 | TypeScript application module                                                           |
 | `src/app/appDataSchema.ts`                                             |   274 | TypeScript application module                                                           |
@@ -408,6 +408,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/selectors/workspaceSelectors.test.ts`                         |    68 | @vitest-environment node                                                                |
 | `src/app/selectors/workspaceSelectors.ts`                              |    35 | TypeScript application module                                                           |
 | `src/app/store.ts`                                                     |    67 | TypeScript application module                                                           |
+| `src/app/windowChrome.ts`                                              |     9 | TypeScript application module                                                           |
 | `src/app/windowCloseCoordinator.ts`                                    |    15 | TypeScript application module                                                           |
 | `src/app/workspace/workspaceCommandsHistory.test.ts`                   |   199 | @vitest-environment node                                                                |
 | `src/app/workspace/workspaceInitialization.test.ts`                    |   100 | @vitest-environment node                                                                |
@@ -422,8 +423,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/canvas/virtualization/viewportCulling.ts`                         |    49 | TypeScript application module                                                           |
 | `src/canvasMath.test.ts`                                               |   159 | Tests for the adjacent module                                                           |
 | `src/canvasMath.ts`                                                    |   128 | TypeScript application module                                                           |
-| `src/components/CanvasManager.tsx`                                     |   861 | React component or typed UI module                                                      |
-| `src/components/CanvasManagerCards.test.tsx`                           |   462 | Tests for the adjacent module                                                           |
+| `src/components/CanvasManager.tsx`                                     |   871 | React component or typed UI module                                                      |
+| `src/components/CanvasManagerCards.test.tsx`                           |   478 | Tests for the adjacent module                                                           |
 | `src/components/ColorPickerMenu.tsx`                                   |   340 | React component or typed UI module                                                      |
 | `src/components/CommandRunnerModals.test.tsx`                          |   141 | Tests for the adjacent module                                                           |
 | `src/components/CommandRunnerModals.tsx`                               |   612 | React component or typed UI module                                                      |
@@ -436,9 +437,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ExtensionsPanel.test.tsx`                              |   301 | Tests for the adjacent module                                                           |
 | `src/components/ExtensionsPanel.tsx`                                   |   576 | React component or typed UI module                                                      |
 | `src/components/FloatingToolbar.test.tsx`                              |   164 | Tests for the adjacent module                                                           |
-| `src/components/FloatingToolbar.tsx`                                   |   195 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
+| `src/components/FloatingToolbar.tsx`                                   |   197 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
 | `src/components/FpsCounter.tsx`                                        |    17 | React component or typed UI module                                                      |
-| `src/components/FrostedGlassTuner.tsx`                                 |   179 | React component or typed UI module                                                      |
+| `src/components/FrostedGlassTuner.test.tsx`                            |    56 | Tests for the adjacent module                                                           |
+| `src/components/FrostedGlassTuner.tsx`                                 |   242 | React component or typed UI module                                                      |
 | `src/components/ImageNode.tsx`                                         |   142 | Background extension off: only show the image, no frame/border/shell, so a              |
 | `src/components/MarkdownContent.tsx`                                   |    92 | React component or typed UI module                                                      |
 | `src/components/MindmapConnections.test.tsx`                           |    44 | Tests for the adjacent module                                                           |
@@ -456,6 +458,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/TextCardNode.test.tsx`                                 |   246 | Tests for the adjacent module                                                           |
 | `src/components/TextCardNode.tsx`                                      |   482 | React component or typed UI module                                                      |
 | `src/components/ToastStack.tsx`                                        |    53 | React component or typed UI module                                                      |
+| `src/components/WindowChrome.test.tsx`                                 |    87 | Tests for the adjacent module                                                           |
+| `src/components/WindowChrome.tsx`                                      |   111 | React component or typed UI module                                                      |
 | `src/components/WorkspacePanels.test.tsx`                              |   125 | Tests for the adjacent module                                                           |
 | `src/constants.ts`                                                     |    58 | TypeScript application module                                                           |
 | `src/domain/commands/commandExecution.stress.test.ts`                  |    44 | @vitest-environment node                                                                |
@@ -577,6 +581,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/settings/settingsTypes.ts`                               |    14 | TypeScript application module                                                           |
 | `src/platform/settings/tauriSettingsClient.ts`                         |    16 | TypeScript application module                                                           |
 | `src/platform/tauriInvoke.ts`                                          |    72 | TypeScript application module                                                           |
+| `src/platform/window/tauriWindowChromeClient.ts`                       |    26 | TypeScript application module                                                           |
 | `src/platform/workflow/workflowClient.ts`                              |    10 | TypeScript application module                                                           |
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                           |
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                           |
@@ -689,7 +694,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/patterns/overlays/useDialogFocus.ts`                           |    59 | TypeScript application module                                                           |
 | `src/ui/patterns/settings/index.ts`                                    |     2 | TypeScript application module                                                           |
 | `src/ui/patterns/settings/SettingsPatterns.tsx`                        |   121 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    63 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    73 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/canvasBrowserDom.ts`                        |   114 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserInteraction.test.ts`           |    62 | @vitest-environment node                                                                |
 | `src/ui/patterns/workspace/canvasBrowserInteraction.ts`                |   115 | TypeScript application module                                                           |
@@ -705,16 +710,16 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/patterns/workspace/canvasCardPointerSession.ts`                |    59 | Document listeners remain authoritative when pointer capture is unavailable.            |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                            |    15 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/ExtensionBrowserCard.tsx`                   |    37 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                  |    37 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                  |    39 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/index.ts`                                   |     9 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/MinimapSurface.test.tsx`                    |   148 | One pending shared frame advances all active subscribers.                               |
 | `src/ui/patterns/workspace/MinimapSurface.tsx`                         |    56 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/useMinimapVisibilityMotion.ts`              |    57 | TypeScript application module                                                           |
-| `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    83 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    82 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                |   139 | The shared scheduler queues at most one next frame while subscribers remain active.     |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                     |    75 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                |   155 | The shared scheduler queues at most one next frame while subscribers remain active.     |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                     |    77 | React component or typed UI module                                                      |
 | `src/ui/primitives/AcrylicConfirmButton.tsx`                           |   103 | React component or typed UI module                                                      |
 | `src/ui/primitives/AcrylicToggleButton.test.tsx`                       |   114 | Tests for the adjacent module                                                           |
 | `src/ui/primitives/AcrylicToggleButton.tsx`                            |   103 | React component or typed UI module                                                      |

@@ -43,7 +43,7 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(toolbarSource).not.toMatch(/<button\b|buttonClass|frosted-glass-toolbar/);
   });
 
-  it("uses circular hover feedback while pressed buttons retain their resting icon tint", async () => {
+  it("fits hover radius to its island while pressed buttons retain their resting tint", async () => {
     const patternCss = await readFile(patternCssPath, "utf8");
     const pressedRule = patternCss.slice(
       patternCss.indexOf('[aria-pressed="true"]'),
@@ -57,9 +57,9 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(pressedRule).toContain("color: var(--taskmap-accent)");
     expect(pressedRule).toContain("box-shadow: none");
     expect(pressedRule).not.toMatch(/gradient|filter|outline/);
-    expect(patternCss).toMatch(
-      /\.taskmap-floating-canvas-toolbar\s+\.taskmap-control\s*\{[^}]*border-radius:\s*50%;/s,
-    );
+    expect(patternCss).toMatch(/border-radius:\s*min\(/);
+    expect(patternCss).toContain("var(--taskmap-material-radius)");
+    expect(patternCss).toContain("var(--taskmap-toolbar-group-padding-inline)");
   });
 
   it("has no local compositor layer, blur, cache, provider, or independent animation loop", async () => {

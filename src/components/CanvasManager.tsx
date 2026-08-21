@@ -42,12 +42,16 @@ import "../ui/patterns/workspace/CanvasBrowser.css";
 type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
 
 type CanvasManagerProps = {
+  active?: boolean;
   canvases: TaskCanvas[];
   activeCanvasId: string;
   cycleHighlightCanvasId?: string | null;
+  cardRadius?: number;
   closing: boolean;
   embedded?: boolean;
+  sharedPanel?: boolean;
   minimalView: boolean;
+  panelRadius?: number;
   viewportWidth: number;
   viewportHeight: number;
   onMinimalViewChange: (minimalView: boolean) => void;
@@ -78,12 +82,16 @@ function clampDraftSize(value: number) {
 }
 
 export function CanvasManager({
+  active = true,
   canvases,
   activeCanvasId,
   cycleHighlightCanvasId = null,
+  cardRadius,
   closing,
   embedded = false,
+  sharedPanel = false,
   minimalView,
+  panelRadius,
   viewportWidth,
   viewportHeight,
   onMinimalViewChange,
@@ -110,6 +118,14 @@ export function CanvasManager({
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
   const reducedMotion = useReducedMotion();
   const invalidateSurfaceGeometry = useMaterialSurfaceGeometryInvalidation();
+
+  useLayoutEffect(() => {
+    if (active) return;
+    setMenu(null);
+    setModalMode(null);
+    setCreateMenuClosing(false);
+    setEditingId(null);
+  }, [active]);
   const menuPosition = useClampedFixedPosition(menuRef, {
     left: menu?.left ?? 0,
     top: menu?.top ?? 0,
@@ -325,7 +341,9 @@ export function CanvasManager({
     <CanvasManagerShell
       panelRef={panelRef}
       embedded={embedded}
+      sharedPanel={sharedPanel}
       closing={closing}
+      panelRadius={panelRadius}
       onPointerDownCapture={(event) => {
         if (
           menu &&
@@ -415,6 +433,7 @@ export function CanvasManager({
             <CanvasBrowserCard
               embedded={embedded}
               mode="editor"
+              radius={cardRadius}
               active={active}
               cycleHighlighted={cycleHighlighted}
               data-canvas-card-id={canvas.id}
@@ -584,6 +603,7 @@ export function CanvasManager({
           <CanvasBrowserCard
             embedded={embedded}
             mode="full"
+            radius={cardRadius}
             active={active}
             cycleHighlighted={cycleHighlighted}
             data-bar-id={canvas.id}
@@ -828,24 +848,32 @@ export function CanvasManager({
 interface CanvasManagerShellProps extends HTMLAttributes<HTMLDivElement> {
   readonly closing: boolean;
   readonly embedded: boolean;
+  readonly panelRadius?: number;
   readonly panelRef: RefObject<HTMLDivElement>;
+  readonly sharedPanel: boolean;
 }
 
 function CanvasManagerShell({
   className,
   closing,
   embedded,
+  panelRadius,
   panelRef,
+  sharedPanel,
   ...props
 }: CanvasManagerShellProps) {
   const shellClassName = [
     "taskmap-canvas-browser",
-    embedded ? "taskmap-canvas-browser--embedded" : "taskmap-canvas-browser--floating",
+    embedded
+      ? "taskmap-canvas-browser--embedded"
+      : sharedPanel
+        ? "taskmap-canvas-browser--shared-panel"
+        : "taskmap-canvas-browser--floating",
     className,
   ]
     .filter(Boolean)
     .join(" ");
-  return embedded ? (
+  return embedded || sharedPanel ? (
     <div {...props} ref={panelRef} data-canvas-browser className={shellClassName} />
   ) : (
     <WorkspaceSidePanel
@@ -853,6 +881,7 @@ function CanvasManagerShell({
       ref={panelRef}
       closing={closing}
       label="Canvases panel"
+      radius={panelRadius}
       data-canvas-browser
       className={shellClassName}
     />

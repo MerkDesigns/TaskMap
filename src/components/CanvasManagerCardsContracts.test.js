@@ -9,6 +9,7 @@ const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const patternPath = new URL("../ui/patterns/workspace/CanvasBrowserCard.tsx", import.meta.url);
 const patternCssPath = new URL("../ui/patterns/workspace/CanvasBrowserCard.css", import.meta.url);
 const browserCssPath = new URL("../ui/patterns/workspace/CanvasBrowser.css", import.meta.url);
+const panelCssPath = new URL("../ui/patterns/workspace/WorkspaceSidePanel.css", import.meta.url);
 const runtimePath = new URL("../ui/patterns/workspace/CanvasBrowserRuntime.ts", import.meta.url);
 const interactionPath = new URL(
   "../ui/patterns/workspace/canvasBrowserInteraction.ts",
@@ -17,10 +18,11 @@ const interactionPath = new URL(
 
 describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
   it("owns accepted card/preview geometry and token-based application states in one pattern", async () => {
-    const [pattern, css, browserCss] = await Promise.all([
+    const [pattern, css, browserCss, panelCss] = await Promise.all([
       readFile(patternPath, "utf8"),
       readFile(patternCssPath, "utf8"),
       readFile(browserCssPath, "utf8"),
+      readFile(panelCssPath, "utf8"),
     ]);
 
     expect(pattern).toContain('material={embedded ? "opaque" : "acrylic-small"}');
@@ -54,7 +56,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(css).toContain("right: 11px");
     expect(browserCss).toContain("var(--taskmap-toolbar-height)");
     expect(browserCss).toContain("var(--taskmap-chrome-gap)");
-    expect(browserCss).toContain("left: var(--taskmap-chrome-inset)");
+    expect(panelCss).toContain("left: var(--taskmap-chrome-inset-inline)");
     expect(browserCss).toContain("width: 288px");
     expect(browserCss).toContain("flex: 0 0 58px");
     expect(browserCss).toContain("left: 12px");

@@ -19,6 +19,20 @@ afterEach(() => {
 });
 
 describe("C2D Canvas Browser cards", () => {
+  it("accepts temporary browser and full-card radius overrides", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const { container } = renderProduction([canvas("canvas-a")], registry, {
+      panelRadius: 29,
+      cardRadius: 17,
+    });
+    const panel = container.querySelector<HTMLElement>("[data-canvas-browser]");
+    const card = container.querySelector<HTMLElement>('[data-canvas-card-id="canvas-a"]');
+
+    expect(panel?.style.getPropertyValue("--taskmap-material-radius")).toBe("29px");
+    expect(card?.style.getPropertyValue("--taskmap-material-radius")).toBe("17px");
+    registry.dispose();
+  });
+
   it("maps full production cards to Acrylic Small and previews to unregistered Cutout", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const { container } = renderProduction([canvas("canvas-a")], registry);
@@ -423,8 +437,10 @@ function canvasManagerProps(canvases: TaskCanvas[]) {
   return {
     canvases,
     activeCanvasId: canvases[0]?.id ?? "",
+    cardRadius: undefined as number | undefined,
     closing: false,
     minimalView: false,
+    panelRadius: undefined as number | undefined,
     viewportWidth: 1200,
     viewportHeight: 800,
     onMinimalViewChange: vi.fn(),

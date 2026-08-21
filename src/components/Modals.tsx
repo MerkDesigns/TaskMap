@@ -502,8 +502,8 @@ export function SettingsModal({
                     onCheckedChange={onFpsCounterVisibleChange}
                   />
                   <SettingsToggleRow
-                    label="Temporary panels"
-                    description="Show frosted glass tuning overlays."
+                    label="Visual tuner"
+                    description="Show temporary glass and workspace geometry controls."
                     checked={temporaryPanelsVisible}
                     onCheckedChange={onTemporaryPanelsVisibleChange}
                   />

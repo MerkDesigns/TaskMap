@@ -5,6 +5,7 @@ import type { TaskCanvas } from "../types";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
 import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
+import { WorkspaceSidePanel } from "../ui/patterns/workspace";
 import { CanvasManager } from "./CanvasManager";
 import { ExtensionsPanel } from "./ExtensionsPanel";
 
@@ -52,6 +53,33 @@ describe("C2C workspace panels", () => {
     expect(container.querySelector('[data-material="acrylic-large"]')).toBeNull();
     expect(screen.getByRole("heading", { name: "Canvas Browser" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Extensions" })).toBeInTheDocument();
+    registry.dispose();
+  });
+
+  it("uses one Large shell while shared-panel cards retain Acrylic Small", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const { container } = render(
+      <MaterialSurfaceRegistrationProvider
+        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
+      >
+        <ReducedMotionProvider override>
+          <WorkspaceSidePanel closing={false} label="Shared panel">
+            <CanvasManager {...canvasManagerProps()} sharedPanel />
+            <ExtensionsPanel closing={false} sharedPanel onDropExtension={vi.fn()} />
+          </WorkspaceSidePanel>
+        </ReducedMotionProvider>
+      </MaterialSurfaceRegistrationProvider>,
+    );
+
+    expect(container.querySelectorAll('[data-material="acrylic-large"]')).toHaveLength(1);
+    expect(container.querySelector('[data-canvas-card-id="canvas-a"]')).toHaveAttribute(
+      "data-material",
+      "acrylic-small",
+    );
+    expect(container.querySelector('[data-extension-card-id="privacy"]')).toHaveAttribute(
+      "data-material",
+      "acrylic-small",
+    );
     registry.dispose();
   });
 

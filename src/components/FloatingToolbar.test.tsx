@@ -107,7 +107,7 @@ describe("FloatingToolbar", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const { container } = render(
       <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
-        <FloatingToolbar {...toolbarProps()} />
+        <FloatingToolbar {...toolbarProps({ toolbarRadius: 18 })} />
       </MaterialSurfaceRegistrationProvider>,
     );
 
@@ -117,7 +117,7 @@ describe("FloatingToolbar", () => {
       expect(group).toHaveAttribute("data-material-strategy", "native-glass");
       expect(group).toHaveAttribute("data-material-elevation", "none");
       expect((group as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
-        "23px",
+        "18px",
       );
     });
     expect(registry.getSnapshot().surfaces).toEqual([]);

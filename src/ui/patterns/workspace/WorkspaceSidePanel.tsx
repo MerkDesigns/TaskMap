@@ -1,27 +1,38 @@
 import {
   forwardRef,
   useCallback,
+  useLayoutEffect,
   useRef,
+  useState,
   type ForwardedRef,
   type HTMLAttributes,
   type ReactNode,
 } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
-import { useWorkspaceSidePanelMotion } from "./useWorkspaceSidePanelMotion";
+import {
+  useWorkspaceSidePanelMotion,
+  WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
+} from "./useWorkspaceSidePanelMotion";
 import "./WorkspaceSidePanel.css";
+
+export { WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS };
 
 export interface WorkspaceSidePanelProps extends HTMLAttributes<HTMLElement> {
   readonly closing: boolean;
   readonly label: string;
+  readonly radius?: number;
 }
 
 export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelProps>(
-  function WorkspaceSidePanel({ className, closing, label, ...props }, forwardedRef) {
-    const panelRef = useRef<HTMLElement | null>(null);
-    useWorkspaceSidePanelMotion(panelRef, closing);
-    const composedRef = useCallback(
+  function WorkspaceSidePanel(
+    { children, className, closing, label, radius, ...props },
+    forwardedRef,
+  ) {
+    const motionRef = useRef<HTMLElement | null>(null);
+    useWorkspaceSidePanelMotion(motionRef, closing);
+    const panelRef = useCallback(
       (element: HTMLElement | null) => {
-        panelRef.current = element;
+        motionRef.current = element;
         assignRef(forwardedRef, element as HTMLDivElement | null);
       },
       [forwardedRef],
@@ -30,12 +41,15 @@ export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelP
     return (
       <MaterialSurface
         {...props}
-        ref={composedRef}
+        ref={panelRef}
         material="acrylic-large"
+        radius={radius}
         aria-label={label}
         data-closing={closing || undefined}
         className={["taskmap-workspace-side-panel", className].filter(Boolean).join(" ")}
-      />
+      >
+        {children}
+      </MaterialSurface>
     );
   },
 );
@@ -45,6 +59,84 @@ export interface WorkspacePanelHeaderProps extends HTMLAttributes<HTMLDivElement
   readonly icon: ReactNode;
   readonly meta?: ReactNode;
   readonly title: string;
+}
+
+export interface WorkspaceSidePanelContentSwitcherProps extends Omit<
+  HTMLAttributes<HTMLDivElement>,
+  "children"
+> {
+  readonly activeIndex: 0 | 1;
+  readonly views: readonly [ReactNode, ReactNode];
+}
+
+export function WorkspaceSidePanelContentSwitcher({
+  activeIndex,
+  className,
+  style,
+  views,
+  ...props
+}: WorkspaceSidePanelContentSwitcherProps) {
+  const viewRefs = useRef<Array<HTMLDivElement | null>>([null, null]);
+  const [height, setHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const activeView = viewRefs.current[activeIndex];
+    if (!activeView) return;
+    const measure = () => {
+      const contentHeight = Math.max(
+        activeView.scrollHeight,
+        activeView.firstElementChild?.scrollHeight ?? 0,
+      );
+      const panel = activeView.closest<HTMLElement>(".taskmap-workspace-side-panel");
+      const panelStyle = panel ? window.getComputedStyle(panel) : null;
+      const bottomInset = Number.parseFloat(
+        panelStyle?.getPropertyValue("--taskmap-chrome-inset-bottom") ?? "",
+      );
+      const availableHeight = panel
+        ? window.innerHeight -
+          panel.getBoundingClientRect().top -
+          (Number.isFinite(bottomInset) ? bottomInset : 16)
+        : contentHeight;
+      const nextHeight = Math.ceil(Math.min(contentHeight, Math.max(0, availableHeight)));
+      setHeight((current) => (current === nextHeight ? current : nextHeight));
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(activeView);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [activeIndex]);
+
+  return (
+    <div
+      {...props}
+      className={["taskmap-workspace-side-panel-switcher", className].filter(Boolean).join(" ")}
+      data-height-ready={height === null ? undefined : true}
+      style={{ ...style, height: height === null ? undefined : `${height}px` }}
+    >
+      {views.map((view, index) => {
+        const active = index === activeIndex;
+        return (
+          <div
+            key={index}
+            ref={(element) => {
+              viewRefs.current[index] = element;
+              element?.toggleAttribute("inert", !active);
+            }}
+            className="taskmap-workspace-side-panel-switcher__view"
+            data-active={active || undefined}
+            data-view-index={index}
+            aria-hidden={!active}
+          >
+            {view}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export const WorkspacePanelHeader = forwardRef<HTMLDivElement, WorkspacePanelHeaderProps>(

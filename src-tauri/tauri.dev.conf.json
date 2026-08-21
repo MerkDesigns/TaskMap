@@ -12,7 +12,9 @@
     },
     "windows": [
       {
-        "title": "taskmap"
+        "title": "taskmap",
+        "decorations": false,
+        "resizable": true
       }
     ]
   },

@@ -53,8 +53,8 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     expect(css).toContain("box-sizing: border-box");
     expect(shellWidth).toBe(192);
     expect(shellWidth).toBeGreaterThanOrEqual(MINIMAP_MAX_SIZE + horizontalPadding * 2);
-    expect(css).toContain("right: var(--taskmap-chrome-inset)");
-    expect(css).toContain("bottom: var(--taskmap-chrome-inset)");
+    expect(css).toContain("right: var(--taskmap-chrome-inset-inline)");
+    expect(css).toContain("bottom: var(--taskmap-chrome-inset-bottom)");
     expect(css).toContain("padding: var(--taskmap-space-2)");
     expect(boundary).not.toMatch(
       /frosted-glass|backdrop-blur|backdrop-filter|z-index:\s*(?:20|40|41|9999)/i,

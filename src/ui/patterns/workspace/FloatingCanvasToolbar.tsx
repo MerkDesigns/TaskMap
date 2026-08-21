@@ -16,10 +16,11 @@ export const FloatingCanvasToolbar = forwardRef<HTMLDivElement, HTMLAttributes<H
 
 export interface ToolbarGroupProps extends HTMLAttributes<HTMLElement> {
   readonly label: string;
+  readonly radius?: number;
 }
 
 export const ToolbarGroup = forwardRef<HTMLElement, ToolbarGroupProps>(function ToolbarGroup(
-  { className, label, ...props },
+  { className, label, radius, ...props },
   ref,
 ) {
   return (
@@ -28,6 +29,7 @@ export const ToolbarGroup = forwardRef<HTMLElement, ToolbarGroupProps>(function 
       ref={ref}
       material="acrylic-large"
       elevation="none"
+      radius={radius}
       role="group"
       aria-label={label}
       className={["taskmap-floating-canvas-toolbar__group", className].filter(Boolean).join(" ")}

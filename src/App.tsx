@@ -29,7 +29,12 @@ import {
 import { ContainerNode } from "./components/ContainerNode";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
 import { FloatingToolbar } from "./components/FloatingToolbar";
-import type { FrostedGlassValues, LeftPanelCardValues } from "./components/FrostedGlassTuner";
+import { WindowChrome } from "./components/WindowChrome";
+import type {
+  FrostedGlassValues,
+  LeftPanelCardValues,
+  WorkspaceGeometryValues,
+} from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
 import { Minimap } from "./components/Minimap";
@@ -142,6 +147,9 @@ import {
   WorkspaceBackdropLayer,
   WorkspaceChromeLayer,
   WorkspaceRoot,
+  WorkspaceSidePanel,
+  WorkspaceSidePanelContentSwitcher,
+  WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
 } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 
@@ -262,7 +270,7 @@ const createStorageError = (prefix: string, error: unknown): StorageErrorState =
 
 const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const CANVAS_MANAGER_ANIMATION_MS = 120;
+const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 const CLEAR_HISTORY_TRANSACTION = "clear-canvas";
 const DELETE_HISTORY_TRANSACTION = "delete-selection";
@@ -310,6 +318,13 @@ const DEFAULT_FROSTED_GLASS_VALUES: FrostedGlassValues = {
 const DEFAULT_LEFT_PANEL_CARD_VALUES: LeftPanelCardValues = {
   bgOpacity: 1,
   outlineOpacity: 0.13,
+};
+const DEFAULT_WORKSPACE_GEOMETRY_VALUES: WorkspaceGeometryValues = {
+  canvasBrowserRadius: 22.5,
+  canvasCardRadius: 13.5,
+  topBarRadius: 16,
+  sideInset: 16,
+  topInset: 16,
 };
 
 const getWindowPreviewViewport = () => ({
@@ -410,6 +425,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const panelSwitchTimeoutRef = useRef<number | null>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
   const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
   const minimapUnmountTimeoutRef = useRef<number | null>(null);
@@ -662,6 +678,9 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   } | null>(null);
   const [frostedGlassValues, setFrostedGlassValues] = useState(DEFAULT_FROSTED_GLASS_VALUES);
   const [leftPanelCardValues, setLeftPanelCardValues] = useState(DEFAULT_LEFT_PANEL_CARD_VALUES);
+  const [workspaceGeometryValues, setWorkspaceGeometryValues] = useState(
+    DEFAULT_WORKSPACE_GEOMETRY_VALUES,
+  );
   const [storageError, setStorageError] = useState<StorageErrorState | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
@@ -2352,10 +2371,14 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       return;
     }
 
+    if (panelSwitchTimeoutRef.current !== null) {
+      window.clearTimeout(panelSwitchTimeoutRef.current);
+    }
     setCanvasManagerClosing(true);
-    window.setTimeout(() => {
+    panelSwitchTimeoutRef.current = window.setTimeout(() => {
       setCanvasManagerOpen(false);
       setCanvasManagerClosing(false);
+      panelSwitchTimeoutRef.current = null;
     }, CANVAS_MANAGER_ANIMATION_MS);
   }, [canvasManagerClosing, canvasManagerOpen]);
 
@@ -2364,59 +2387,35 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       return;
     }
 
+    if (panelSwitchTimeoutRef.current !== null) {
+      window.clearTimeout(panelSwitchTimeoutRef.current);
+    }
     setExtensionsClosing(true);
-    window.setTimeout(() => {
+    panelSwitchTimeoutRef.current = window.setTimeout(() => {
       setExtensionsOpen(false);
       setExtensionsClosing(false);
+      panelSwitchTimeoutRef.current = null;
     }, CANVAS_MANAGER_ANIMATION_MS);
   }, [extensionsClosing, extensionsOpen]);
 
-  const switchLeftPanel = useCallback(
-    (target: "canvases" | "extensions") => {
-      if (canvasManagerClosing || extensionsClosing) {
-        return;
-      }
+  const switchLeftPanel = useCallback((target: "canvases" | "extensions") => {
+    if (panelSwitchTimeoutRef.current !== null) {
+      window.clearTimeout(panelSwitchTimeoutRef.current);
+      panelSwitchTimeoutRef.current = null;
+    }
 
-      if (panelSwitchTimeoutRef.current !== null) {
-        window.clearTimeout(panelSwitchTimeoutRef.current);
-      }
-
-      const openTarget = () => {
-        if (target === "canvases") {
-          setCanvasManagerOpen(true);
-          setCanvasManagerClosing(false);
-        } else {
-          setExtensionsOpen(true);
-          setExtensionsClosing(false);
-        }
-      };
-
-      if (target === "canvases" && extensionsOpen) {
-        setExtensionsClosing(true);
-        panelSwitchTimeoutRef.current = window.setTimeout(() => {
-          setExtensionsOpen(false);
-          setExtensionsClosing(false);
-          openTarget();
-          panelSwitchTimeoutRef.current = null;
-        }, CANVAS_MANAGER_ANIMATION_MS);
-        return;
-      }
-
-      if (target === "extensions" && canvasManagerOpen) {
-        setCanvasManagerClosing(true);
-        panelSwitchTimeoutRef.current = window.setTimeout(() => {
-          setCanvasManagerOpen(false);
-          setCanvasManagerClosing(false);
-          openTarget();
-          panelSwitchTimeoutRef.current = null;
-        }, CANVAS_MANAGER_ANIMATION_MS);
-        return;
-      }
-
-      openTarget();
-    },
-    [canvasManagerClosing, canvasManagerOpen, extensionsClosing, extensionsOpen],
-  );
+    if (target === "canvases") {
+      setExtensionsOpen(false);
+      setExtensionsClosing(false);
+      setCanvasManagerOpen(true);
+      setCanvasManagerClosing(false);
+    } else {
+      setCanvasManagerOpen(false);
+      setCanvasManagerClosing(false);
+      setExtensionsOpen(true);
+      setExtensionsClosing(false);
+    }
+  }, []);
 
   useEffect(
     () => () => {
@@ -2523,8 +2522,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
 
         closeExtensionsPanel();
         setQuickExtensionsMenu(null);
-        setCanvasManagerOpen(true);
-        setCanvasManagerClosing(false);
+        switchLeftPanel("canvases");
         return;
       }
 
@@ -6427,7 +6425,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     draggedShadowIds.has(shadow.id),
   );
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
-  const frostedGlassStyle = {
+  const workspaceStyle = {
     "--frosted-bg-opacity": frostedGlassValues.bgOpacity,
     "--frosted-bg-brightness": frostedGlassValues.bgBrightness,
     "--frosted-border-opacity": frostedGlassValues.borderOpacity,
@@ -6437,12 +6435,17 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     "--frosted-shadow-blur": `${frostedGlassValues.shadowBlur}px`,
     "--left-panel-card-bg-opacity": leftPanelCardValues.bgOpacity,
     "--left-panel-card-outline-opacity": leftPanelCardValues.outlineOpacity,
+    "--taskmap-chrome-inset-inline": `${workspaceGeometryValues.sideInset}px`,
+    "--taskmap-chrome-inset-top": `${workspaceGeometryValues.topInset}px`,
   } as CSSProperties;
+  const leftPanelOpen = canvasManagerOpen || extensionsOpen;
+  const leftPanelClosing = canvasManagerClosing || extensionsClosing;
+  const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
   return (
     <TransientInteractionProvider service={interactionController}>
       <WorkspaceRoot
         spellCheck={false}
-        style={frostedGlassStyle}
+        style={workspaceStyle}
         onContextMenu={suppressContextMenu}
         onPointerDownCapture={handleMainPointerDownCapture}
       >
@@ -6453,8 +6456,10 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 <DevelopmentFrostedGlassTuner
                   frostedValues={frostedGlassValues}
                   cardValues={leftPanelCardValues}
+                  geometryValues={workspaceGeometryValues}
                   onFrostedChange={setFrostedGlassValues}
                   onCardChange={setLeftPanelCardValues}
+                  onGeometryChange={setWorkspaceGeometryValues}
                 />
                 <div className="frosted-glass pointer-events-none fixed left-1/2 top-6 z-30 w-[640px] -translate-x-1/2 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-8 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm">
                   <div className="text-2xl font-semibold tracking-tight text-white/88">
@@ -6467,48 +6472,48 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               </Suspense>
             )}
             <WorkspaceChromeLayer>
-              <FloatingToolbar
-                canRedo={historyState.canRedo}
-                canUndo={historyState.canUndo}
-                canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
-                extensionsOpen={extensionsOpen && !extensionsClosing}
-                minimapEnabled={minimapEnabled}
-                privacyModeEnabled={privacyModeEnabled}
-                toolbarButtonsVisible={toolbarButtonsVisible}
-                onMinimapEnabledChange={setMinimapEnabled}
-                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-                onRedo={redo}
-                onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
-                onToggleExtensions={toggleExtensionsPanel}
-                onToggleCanvases={toggleCanvasManager}
-                onUndo={undo}
-                onOpenSettings={() => setSettingsOpen(true)}
-              />
-              {canvasManagerOpen && (
+              {leftPanelOpen && (
                 <Suspense fallback={null}>
-                  <CanvasManager
-                    canvases={getPersistedCanvases()}
-                    activeCanvasId={activeCanvas.id}
-                    cycleHighlightCanvasId={canvasCycleHighlightId}
-                    closing={canvasManagerClosing}
-                    minimalView={canvasManagerMinimalView}
-                    viewportWidth={stageWidth}
-                    viewportHeight={stageHeight}
-                    onMinimalViewChange={setCanvasManagerMinimalView}
-                    onCreateCanvas={createCanvas}
-                    onSelectCanvas={selectCanvas}
-                    onUpdateCanvas={updateCanvas}
-                    onDeleteCanvas={deleteCanvas}
-                    onReorderCanvases={reorderCanvases}
-                  />
-                </Suspense>
-              )}
-              {extensionsOpen && (
-                <Suspense fallback={null}>
-                  <ExtensionsPanel
-                    closing={extensionsClosing}
-                    onDropExtension={dropExtensionOnCanvas}
-                  />
+                  <WorkspaceSidePanel
+                    ref={leftPanelRef}
+                    closing={leftPanelClosing}
+                    label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
+                    radius={workspaceGeometryValues.canvasBrowserRadius}
+                    className="taskmap-workspace-side-panel--switching"
+                  >
+                    <WorkspaceSidePanelContentSwitcher
+                      activeIndex={leftPanelActiveIndex}
+                      views={[
+                        <CanvasManager
+                          key="canvases"
+                          active={leftPanelActiveIndex === 0}
+                          canvases={getPersistedCanvases()}
+                          activeCanvasId={activeCanvas.id}
+                          cycleHighlightCanvasId={canvasCycleHighlightId}
+                          closing={leftPanelClosing}
+                          cardRadius={workspaceGeometryValues.canvasCardRadius}
+                          minimalView={canvasManagerMinimalView}
+                          sharedPanel
+                          viewportWidth={stageWidth}
+                          viewportHeight={stageHeight}
+                          onMinimalViewChange={setCanvasManagerMinimalView}
+                          onCreateCanvas={createCanvas}
+                          onSelectCanvas={selectCanvas}
+                          onUpdateCanvas={updateCanvas}
+                          onDeleteCanvas={deleteCanvas}
+                          onReorderCanvases={reorderCanvases}
+                        />,
+                        <ExtensionsPanel
+                          key="extensions"
+                          active={leftPanelActiveIndex === 1}
+                          closing={leftPanelClosing}
+                          panelRef={leftPanelRef}
+                          sharedPanel
+                          onDropExtension={dropExtensionOnCanvas}
+                        />,
+                      ]}
+                    />
+                  </WorkspaceSidePanel>
                 </Suspense>
               )}
               {minimapEnabled && minimapMounted && (
@@ -6526,6 +6531,25 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   onResetZoom={resetZoom}
                 />
               )}
+              <WindowChrome radius={workspaceGeometryValues.topBarRadius} />
+              <FloatingToolbar
+                canRedo={historyState.canRedo}
+                canUndo={historyState.canUndo}
+                canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
+                extensionsOpen={extensionsOpen && !extensionsClosing}
+                minimapEnabled={minimapEnabled}
+                privacyModeEnabled={privacyModeEnabled}
+                toolbarRadius={workspaceGeometryValues.topBarRadius}
+                toolbarButtonsVisible={toolbarButtonsVisible}
+                onMinimapEnabledChange={setMinimapEnabled}
+                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
+                onRedo={redo}
+                onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
+                onToggleExtensions={toggleExtensionsPanel}
+                onToggleCanvases={toggleCanvasManager}
+                onUndo={undo}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
             </WorkspaceChromeLayer>
             {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
               <Suspense fallback={null}>

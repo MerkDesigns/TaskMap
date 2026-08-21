@@ -15,21 +15,33 @@ export type LeftPanelCardValues = {
   outlineOpacity: number;
 };
 
+export type WorkspaceGeometryValues = {
+  canvasBrowserRadius: number;
+  canvasCardRadius: number;
+  topBarRadius: number;
+  sideInset: number;
+  topInset: number;
+};
+
 type FrostedGlassTunerProps = {
   frostedValues: FrostedGlassValues;
   cardValues: LeftPanelCardValues;
+  geometryValues: WorkspaceGeometryValues;
   onFrostedChange: (values: FrostedGlassValues) => void;
   onCardChange: (values: LeftPanelCardValues) => void;
+  onGeometryChange: (values: WorkspaceGeometryValues) => void;
 };
 
-const GLASS_CONTROLS: Array<{
-  key: keyof FrostedGlassValues;
+type RangeControl<Key> = {
+  key: Key;
   label: string;
   min: number;
   max: number;
   step: number;
   suffix?: string;
-}> = [
+};
+
+const GLASS_CONTROLS: Array<RangeControl<keyof FrostedGlassValues>> = [
   { key: "bgOpacity", label: "Background", min: 0, max: 1, step: 0.01 },
   { key: "bgBrightness", label: "Brightness", min: 0, max: 1, step: 0.01 },
   { key: "borderOpacity", label: "Border", min: 0, max: 1, step: 0.01 },
@@ -39,25 +51,30 @@ const GLASS_CONTROLS: Array<{
   { key: "shadowBlur", label: "Shadow blur", min: 0, max: 80, step: 1, suffix: "px" },
 ];
 
-const CARD_CONTROLS: Array<{
-  key: keyof LeftPanelCardValues;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-}> = [
+const CARD_CONTROLS: Array<RangeControl<keyof LeftPanelCardValues>> = [
   { key: "bgOpacity", label: "Card background", min: 0, max: 1, step: 0.01 },
   { key: "outlineOpacity", label: "Outline brightness", min: 0, max: 1, step: 0.01 },
+];
+
+const GEOMETRY_CONTROLS: Array<RangeControl<keyof WorkspaceGeometryValues>> = [
+  { key: "canvasBrowserRadius", label: "Canvas Browser radius", min: 0, max: 40, step: 0.5 },
+  { key: "canvasCardRadius", label: "Canvas card radius", min: 0, max: 24, step: 0.5 },
+  { key: "topBarRadius", label: "Top bars radius", min: 0, max: 32, step: 0.5 },
+  { key: "sideInset", label: "Side edge gap", min: 0, max: 48, step: 1 },
+  { key: "topInset", label: "Top edge gap", min: 0, max: 48, step: 1 },
 ];
 
 export function FrostedGlassTuner({
   frostedValues,
   cardValues,
+  geometryValues,
   onFrostedChange,
   onCardChange,
+  onGeometryChange,
 }: FrostedGlassTunerProps) {
-  const [tab, setTab] = useState<"glass" | "cards">("glass");
-  const activeValues = tab === "glass" ? frostedValues : cardValues;
+  const [tab, setTab] = useState<"glass" | "cards" | "geometry">("geometry");
+  const activeValues =
+    tab === "glass" ? frostedValues : tab === "cards" ? cardValues : geometryValues;
   const serializedValues = useMemo(() => JSON.stringify(activeValues, null, 2), [activeValues]);
   const [draft, setDraft] = useState(serializedValues);
 
@@ -66,7 +83,7 @@ export function FrostedGlassTuner({
   }, [serializedValues]);
 
   return (
-    <div className="frosted-glass fixed right-4 top-4 z-[80] w-[280px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm">
+    <div className="frosted-glass fixed bottom-4 right-4 z-[80] w-[280px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm">
       <div className="mb-2 flex rounded-lg border border-white/[0.10] bg-[#111216] p-0.5">
         <button
           className={`h-7 flex-1 rounded-md text-xs font-semibold transition-colors ${
@@ -83,6 +100,14 @@ export function FrostedGlassTuner({
           onClick={() => setTab("cards")}
         >
           Cards
+        </button>
+        <button
+          className={`h-7 flex-1 rounded-md text-xs font-semibold transition-colors ${
+            tab === "geometry" ? "bg-white/[0.12] text-white" : "text-white/48 hover:text-white/72"
+          }`}
+          onClick={() => setTab("geometry")}
+        >
+          Geometry
         </button>
       </div>
 
@@ -111,7 +136,7 @@ export function FrostedGlassTuner({
             </label>
           ))}
         </div>
-      ) : (
+      ) : tab === "cards" ? (
         <div className="space-y-2">
           {CARD_CONTROLS.map((control) => (
             <label key={control.key} className="block">
@@ -128,6 +153,31 @@ export function FrostedGlassTuner({
                 value={cardValues[control.key]}
                 onChange={(event) =>
                   onCardChange({ ...cardValues, [control.key]: Number(event.target.value) })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {GEOMETRY_CONTROLS.map((control) => (
+            <label key={control.key} className="block">
+              <div className="mb-1 flex items-center justify-between text-xs text-white/58">
+                <span>{control.label}</span>
+                <span className="font-mono text-white/72">{geometryValues[control.key]}px</span>
+              </div>
+              <input
+                className="taskmap-range [--taskmap-range-accent:#8aa0ff]"
+                type="range"
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                value={geometryValues[control.key]}
+                onChange={(event) =>
+                  onGeometryChange({
+                    ...geometryValues,
+                    [control.key]: Number(event.target.value),
+                  })
                 }
               />
             </label>
@@ -158,11 +208,24 @@ export function FrostedGlassTuner({
                   shadowY: Number(parsed.shadowY ?? frostedValues.shadowY),
                   shadowBlur: Number(parsed.shadowBlur ?? frostedValues.shadowBlur),
                 });
-              } else {
+              } else if (tab === "cards") {
                 const parsed = JSON.parse(draft) as Partial<LeftPanelCardValues>;
                 onCardChange({
                   bgOpacity: Number(parsed.bgOpacity ?? cardValues.bgOpacity),
                   outlineOpacity: Number(parsed.outlineOpacity ?? cardValues.outlineOpacity),
+                });
+              } else {
+                const parsed = JSON.parse(draft) as Partial<WorkspaceGeometryValues>;
+                onGeometryChange({
+                  canvasBrowserRadius: Number(
+                    parsed.canvasBrowserRadius ?? geometryValues.canvasBrowserRadius,
+                  ),
+                  canvasCardRadius: Number(
+                    parsed.canvasCardRadius ?? geometryValues.canvasCardRadius,
+                  ),
+                  topBarRadius: Number(parsed.topBarRadius ?? geometryValues.topBarRadius),
+                  sideInset: Number(parsed.sideInset ?? geometryValues.sideInset),
+                  topInset: Number(parsed.topInset ?? geometryValues.topInset),
                 });
               }
             } catch {

@@ -1,7 +1,7 @@
 .taskmap-minimap-surface {
   position: absolute;
-  right: var(--taskmap-chrome-inset);
-  bottom: var(--taskmap-chrome-inset);
+  right: var(--taskmap-chrome-inset-inline);
+  bottom: var(--taskmap-chrome-inset-bottom);
   box-sizing: border-box;
   width: 192px;
   padding: var(--taskmap-space-2);

@@ -12,7 +12,7 @@ import {
   IconStar,
   IconTextSize,
 } from "@tabler/icons-react";
-import { RefObject, useEffect, useRef, useState } from "react";
+import { RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   EXTENSIONS,
@@ -36,11 +36,13 @@ import { useClampedFixedPosition } from "../useClampedFixedPosition";
 export type { ExtensionId } from "../extensions/registry";
 
 type ExtensionsPanelProps = {
+  active?: boolean;
   closing: boolean;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
   embedded?: boolean;
   panelRef?: RefObject<HTMLDivElement>;
+  sharedPanel?: boolean;
 };
 
 const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof IconBox }> = {
@@ -307,11 +309,13 @@ export function QuickExtensionsMenu({
 }
 
 export function ExtensionsPanel({
+  active = true,
   closing,
   onDropExtension,
   onDragExtension,
   embedded = false,
   panelRef,
+  sharedPanel = false,
 }: ExtensionsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -330,6 +334,10 @@ export function ExtensionsPanel({
     onDropExtension,
     onDragExtension,
   });
+
+  useLayoutEffect(() => {
+    if (!active) setFilterOpen(false);
+  }, [active]);
 
   useEffect(() => {
     window.localStorage.setItem(EXTENSION_FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
@@ -554,10 +562,16 @@ export function ExtensionsPanel({
     </div>
   );
 
-  if (embedded) {
+  if (embedded || sharedPanel) {
     return (
       <>
-        <div className="flex h-full min-h-0 flex-col">{panelContent}</div>
+        <div
+          ref={panelRef ? undefined : localPanelRef}
+          className="flex h-full min-h-0 flex-col"
+          data-extension-browser-shared-panel={sharedPanel || undefined}
+        >
+          {panelContent}
+        </div>
         {dragPreview && createPortal(dragPreview, document.body)}
       </>
     );

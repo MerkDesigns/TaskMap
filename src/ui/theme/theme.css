@@ -70,6 +70,9 @@
   --taskmap-radius-canvas: 24px;
   --taskmap-radius-pill: 999px;
   --taskmap-chrome-inset: 16px;
+  --taskmap-chrome-inset-inline: 16px;
+  --taskmap-chrome-inset-top: 16px;
+  --taskmap-chrome-inset-bottom: 16px;
   --taskmap-chrome-gap: 8px;
   --taskmap-panel-width: 290px;
   --taskmap-toolbar-height: 40px;

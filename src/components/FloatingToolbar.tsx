@@ -26,6 +26,7 @@ export type FloatingToolbarProps = {
   extensionsOpen: boolean;
   minimapEnabled: boolean;
   privacyModeEnabled: boolean;
+  toolbarRadius?: number;
   toolbarButtonsVisible: boolean;
   onMinimapEnabledChange: (enabled: boolean) => void;
   onPrivacyModeEnabledChange: (enabled: boolean) => void;
@@ -44,6 +45,7 @@ export function FloatingToolbar({
   extensionsOpen,
   minimapEnabled,
   privacyModeEnabled,
+  toolbarRadius,
   toolbarButtonsVisible,
   onMinimapEnabledChange,
   onPrivacyModeEnabledChange,
@@ -69,7 +71,7 @@ export function FloatingToolbar({
 
   return (
     <FloatingCanvasToolbar aria-label="Canvas toolbar">
-      <ToolbarGroup label="Workspace controls">
+      <ToolbarGroup label="Workspace controls" radius={toolbarRadius}>
         <ToolbarToggleButton
           pressed={canvasesOpen}
           onClick={onToggleCanvases}
@@ -138,7 +140,7 @@ export function FloatingToolbar({
           />
         </div>
       </ToolbarGroup>
-      <ToolbarGroup label="History controls">
+      <ToolbarGroup label="History controls" radius={toolbarRadius}>
         <IconButton
           variant="ghost"
           size="compact"
