@@ -68,7 +68,17 @@
   backdrop-filter: blur(var(--taskmap-material-blur)) saturate(var(--taskmap-material-saturation))
     brightness(var(--taskmap-material-brightness)) contrast(var(--taskmap-material-contrast));
   transform: translateZ(0);
-  will-change: backdrop-filter;
+}
+
+.taskmap-material-surface[data-material-backdrop-source="shared"]:not(
+    [data-material-motion="active"]
+  )
+  .taskmap-material-native-glass__preblur,
+.taskmap-material-surface[data-material-backdrop-source="shared"]:not(
+    [data-material-motion="active"]
+  )
+  .taskmap-material-native-glass__backdrop {
+  display: none;
 }
 
 .taskmap-material-surface[data-material-strategy="native-glass"]

@@ -214,10 +214,11 @@ CI must fail when:
   acrylic Canvas2D implementation grows beyond the exact Phase 4.5A frozen legacy allowlist
 
 The Phase 4.5A material rule freezes path-specific occurrence counts rather than exempting broad
-directories. Removing a legacy occurrence is allowed; adding one in the same or another file fails.
+directories. Removing a legacy occurrence is allowed; additions fail unless the exact declaration
+is an explicitly reviewed material-boundary implementation such as the bounded shared Small plane.
 Phase 4.5D removes this transitional allowlist entirely. Acrylic Canvas2D implementation is owned
-specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains valid
-elsewhere.
+specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains
+valid elsewhere.
 
 ### Phase 1 skeleton coverage
 
@@ -231,6 +232,9 @@ input protection. Controller tests cover subscriptions, pointer identity, pan li
 canvas replacement, selection/additive/partial-intersection/tiny-box semantics, single and atomic
 multi-move, zoom-correct deltas, locked/mixed groups, resize constraints/aspect ratio, snapping,
 layer completion, cancellation, no-op completion, and the corrected `pointercancel` discard path.
+Pan-specific coverage injects a deterministic frame scheduler, delivers multiple raw pointer
+samples, and requires one latest-coordinate publication per frame plus a synchronous exact
+pointer-up flush.
 
 Legacy-boundary integration tests drive many transient samples through the generic controller and
 prove that persistent `TaskCanvas` state, history stand-ins, and autosave spies are untouched until
@@ -253,6 +257,9 @@ geometry. All forbidden boundaries remain at zero and only one preview geometry 
 separate 10,000-element culling fixture proves the visible candidate set remains below 40 for the
 chosen viewport while pinned off-screen elements remain present. These are architectural CI gates,
 not a machine-dependent `<16.67 ms` assertion and not a claim of measured release-mode FPS.
+The culling guard additionally proves that active pan frames reuse the existing candidate set until
+camera displacement reaches half of the 480-screen-pixel overscan, while zoom, resize, and settled
+camera changes refresh immediately.
 
 The minimap projection tests cover landscape/portrait sizing, element minimum pixels, and viewport
 projection. Production minimap interaction remains reset-only; click/drag navigation is intentionally
@@ -511,7 +518,12 @@ normalization, `45ms` smooth-scroll convergence, extended edge auto-scroll, `190
 commit. Integration tests prove the same card DOM remains live while its stable portal host moves
 to the drag layer, no clone/duplicate/placeholder exists, and logical Large sampling ownership is
 `inherited` before, during, and after drag. Static contracts reject clone-based drag and new
-backdrop/compositor ownership. These tests do not claim pixel-level or manual visual acceptance.
+feature-owned backdrop/compositor implementation. Shared-plane tests require settled Canvas Browser
+cards to suppress their private backdrop spans, synchronize rounded clips through scroll/slot
+motion, remove the live dragged card from the plane, and restore its private Small blur only while
+it is outside. A ten-card fixture locks the regional reduction from eleven active backdrop surfaces
+(Large + ten Small) to two (Large + one bounded shared Small). These tests do not claim pixel-level
+or manual visual acceptance.
 
 ### Phase 4.5C2E primary Extensions Browser coverage
 

@@ -8,10 +8,10 @@ import {
 } from "../../canvas/geometry/viewportMath";
 import type {
   CanvasInteractionControllerOptions,
+  CanvasInteractionController,
   CanvasInteractionSnapshot,
   GeometryPreview,
   InteractionElement,
-  LayerDirection,
   MoveGestureInput,
   PointerSample,
   ResizeGestureInput,
@@ -30,16 +30,21 @@ import {
   snapResizedGeometry,
   type PreparedSnapTargets,
 } from "./snappingEngine";
-import type {
-  TransientInteractionListener,
-  TransientInteractionService,
-} from "./transientInteractionService";
+import type { TransientInteractionListener } from "./transientInteractionService";
+import {
+  createPanGestureFrameQueue,
+  projectPanViewport,
+  type PanGestureFrameState,
+  updatePanViewport,
+} from "./panGestureFrameQueue";
+import { idleCanvasInteractionSnapshot } from "./canvasInteractionSnapshot";
 
-type PanGesture = {
+export type { CanvasInteractionController } from "./canvasInteractionTypes";
+
+type PanGesture = PanGestureFrameState & {
   readonly kind: "pan";
   readonly pointerId: number;
-  readonly startingViewport: CanvasViewport;
-  lastScreen: { x: number; y: number };
+  readonly cancelViewport: CanvasViewport;
 };
 
 type SelectionGesture = {
@@ -71,33 +76,15 @@ type ResizeGesture = {
 
 type PrimaryGesture = PanGesture | SelectionGesture | MoveGesture | ResizeGesture;
 
-export interface CanvasInteractionController extends TransientInteractionService {
-  readonly getSnapshot: () => CanvasInteractionSnapshot;
-  readonly select: (id: string, additive: boolean) => void;
-  readonly setSelection: (ids: readonly string[]) => void;
-  readonly clearSelection: () => void;
-  readonly beginPan: (pointerId: number, screen: { x: number; y: number }) => boolean;
-  readonly beginSelection: (input: SelectionGestureInput) => boolean;
-  readonly beginMove: (input: MoveGestureInput) => boolean;
-  readonly beginResize: (input: ResizeGestureInput) => boolean;
-  readonly updatePointer: (sample: PointerSample) => void;
-  readonly setMoveSnapping: (pointerId: number, enabled: boolean) => void;
-  readonly completePointer: (sample: PointerSample) => void;
-  readonly cancelPointer: (pointerId: number) => void;
-  readonly wheelZoom: (screen: { x: number; y: number }, deltaY: number) => void;
-  readonly resetZoom: () => void;
-  readonly resizeViewport: (screen: { width: number; height: number }) => void;
-  readonly replaceCanvas: (canvasKey: string, viewport: CanvasViewport) => void;
-  readonly reorder: (ids: readonly string[], direction: LayerDirection) => void;
-  readonly dispose: () => void;
-}
-
 export function createCanvasInteractionController(
   options: CanvasInteractionControllerOptions,
 ): CanvasInteractionController {
   let disposed = false;
   let gesture: PrimaryGesture | null = null;
-  let snapshot: CanvasInteractionSnapshot = idle(options.canvasKey, options.viewport);
+  let snapshot: CanvasInteractionSnapshot = idleCanvasInteractionSnapshot(
+    options.canvasKey,
+    options.viewport,
+  );
   const listeners = new Set<TransientInteractionListener>();
 
   const publish = (patch: Partial<CanvasInteractionSnapshot>) => {
@@ -118,6 +105,12 @@ export function createCanvasInteractionController(
     });
   };
 
+  const panFrames = createPanGestureFrameQueue<PanGesture>(options.panFrameScheduler, (pan) => {
+    if (!disposed && gesture === pan) {
+      publish({ viewport: projectPanViewport(pan, snapshot.viewport.screen) });
+    }
+  });
+
   const start = (next: PrimaryGesture, active: CanvasInteractionSnapshot["activeInteraction"]) => {
     if (disposed || gesture) return false;
     gesture = next;
@@ -134,16 +127,8 @@ export function createCanvasInteractionController(
   const updatePointer = (sample: PointerSample) => {
     if (disposed || !gesture || gesture.pointerId !== sample.pointerId) return;
     if (gesture.kind === "pan") {
-      const dx = sample.screen.x - gesture.lastScreen.x;
-      const dy = sample.screen.y - gesture.lastScreen.y;
-      gesture.lastScreen = sample.screen;
-      publish({
-        viewport: createViewport(
-          { x: snapshot.viewport.pan.x + dx, y: snapshot.viewport.pan.y + dy },
-          snapshot.viewport.zoom,
-          snapshot.viewport.screen,
-        ),
-      });
+      gesture.latestScreen = sample.screen;
+      panFrames.queue(gesture);
       return;
     }
     const pointerWorld = screenToWorld(sample.screen, snapshot.viewport);
@@ -233,7 +218,14 @@ export function createCanvasInteractionController(
     },
     beginPan: (pointerId, screen) =>
       start(
-        { kind: "pan", pointerId, startingViewport: snapshot.viewport, lastScreen: screen },
+        {
+          kind: "pan",
+          pointerId,
+          cancelViewport: snapshot.viewport,
+          startingViewport: snapshot.viewport,
+          startScreen: screen,
+          latestScreen: screen,
+        },
         { kind: "pan", pointerId },
       ),
     beginSelection: (input) => {
@@ -289,12 +281,14 @@ export function createCanvasInteractionController(
     completePointer: (sample) => {
       if (disposed || !gesture || gesture.pointerId !== sample.pointerId) return;
       const current = gesture;
-      updatePointer(sample);
       if (current.kind === "pan") {
-        finishGesture();
+        current.latestScreen = sample.screen;
+        panFrames.cancel();
+        finishGesture({ viewport: projectPanViewport(current, snapshot.viewport.screen) });
         options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
         return;
       }
+      updatePointer(sample);
       if (current.kind === "selection-box") {
         const rectangle =
           snapshot.selectionRectangle ?? selectionRectangle(current.startWorld, current.startWorld);
@@ -341,26 +335,46 @@ export function createCanvasInteractionController(
     },
     cancelPointer: (pointerId) => {
       if (disposed || gesture?.pointerId !== pointerId) return;
-      finishGesture(gesture.kind === "pan" ? { viewport: gesture.startingViewport } : undefined);
+      if (gesture.kind === "pan") panFrames.cancel();
+      finishGesture(gesture.kind === "pan" ? { viewport: gesture.cancelViewport } : undefined);
     },
     wheelZoom: (screen, deltaY) => {
       if (disposed) return;
-      publish({ viewport: wheelZoomViewport(snapshot.viewport, screen, deltaY) });
+      const activePan = gesture?.kind === "pan" ? gesture : null;
+      if (activePan) panFrames.cancel();
+      const viewport = activePan
+        ? updatePanViewport(activePan, snapshot.viewport.screen, (current) =>
+            wheelZoomViewport(current, screen, deltaY),
+          )
+        : wheelZoomViewport(snapshot.viewport, screen, deltaY);
+      publish({ viewport });
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     resetZoom: () => {
       if (disposed) return;
-      publish({ viewport: resetViewportZoom(snapshot.viewport) });
+      const activePan = gesture?.kind === "pan" ? gesture : null;
+      if (activePan) panFrames.cancel();
+      const viewport = activePan
+        ? updatePanViewport(activePan, snapshot.viewport.screen, resetViewportZoom)
+        : resetViewportZoom(snapshot.viewport);
+      publish({ viewport });
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     resizeViewport: (screen) => {
       if (disposed) return;
-      publish({ viewport: createViewport(snapshot.viewport.pan, snapshot.viewport.zoom, screen) });
+      const activePan = gesture?.kind === "pan" ? gesture : null;
+      if (activePan) panFrames.cancel();
+      const resize = (current: CanvasViewport) => createViewport(current.pan, current.zoom, screen);
+      const viewport = activePan
+        ? updatePanViewport(activePan, snapshot.viewport.screen, resize)
+        : resize(snapshot.viewport);
+      publish({ viewport });
     },
     replaceCanvas: (canvasKey, viewport) => {
       if (disposed) return;
+      panFrames.cancel();
       gesture = null;
-      snapshot = idle(canvasKey, viewport);
+      snapshot = idleCanvasInteractionSnapshot(canvasKey, viewport);
       listeners.forEach((listener) => listener());
     },
     reorder: (ids, direction) => {
@@ -371,21 +385,9 @@ export function createCanvasInteractionController(
     },
     dispose: () => {
       disposed = true;
+      panFrames.cancel();
       gesture = null;
       listeners.clear();
     },
-  };
-}
-
-function idle(canvasKey: string, viewport: CanvasViewport): CanvasInteractionSnapshot {
-  return {
-    canvasKey,
-    viewport,
-    activeInteraction: null,
-    selectedIds: [],
-    selectionPreviewIds: [],
-    selectionRectangle: null,
-    geometryPreviews: [],
-    snapGuides: [],
   };
 }

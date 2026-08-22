@@ -40,7 +40,7 @@ describe("transitional material architecture rules", () => {
     ]);
   });
 
-  it("rejects growth even inside a frozen legacy file", () => {
+  it("rejects reintroducing backdrop blur on the development FPS counter", () => {
     expect(
       findMaterialArchitectureViolations([
         {
@@ -49,7 +49,7 @@ describe("transitional material architecture rules", () => {
         },
       ]),
     ).toEqual([
-      "src/components/FpsCounter.tsx: Tailwind backdrop-blur utility has 2 occurrence(s); frozen legacy allowance is 1",
+      "src/components/FpsCounter.tsx: Tailwind backdrop-blur utility has 2 occurrence(s); frozen legacy allowance is 0",
     ]);
   });
 

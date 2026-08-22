@@ -33,6 +33,7 @@ export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardPro
         {...props}
         ref={ref}
         material={embedded ? "opaque" : "acrylic-small"}
+        backdropSource={embedded ? undefined : "shared"}
         radius={radius}
         data-canvas-card-mode={mode}
         data-active={active || undefined}

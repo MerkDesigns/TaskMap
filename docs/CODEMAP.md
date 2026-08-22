@@ -103,10 +103,13 @@ migration debt until Phase 4.5C/4.5D.
   rectangle geometry.
 - `src/app/interactions/canvasInteractionController.ts` — single-primary-gesture arbitration and
   transient pan/selection/move/resize ownership behind `CanvasInteractionCommitPort`.
+- `src/app/interactions/panGestureFrameQueue.ts` — injected requestAnimationFrame-compatible
+  latest-pan coalescing and exact viewport projection; raw samples never schedule more than one
+  pending frame.
 - `src/app/interactions/selectionEngine.ts` and `snappingEngine.ts` — pure box-selection and retained
   eight-world-unit alignment behavior.
 - `src/canvas/virtualization/viewportCulling.ts` — pure 480-screen-pixel overscan and pinned-element
-  candidate selection.
+  candidate selection plus the half-overscan active-pan refresh guard.
 - `src/features/minimap/minimapProjection.ts` — pure canvas/element/world-viewport minimap data.
 - `src/legacy/interactions/` — temporary production-only TaskCanvas geometry mapping, render preview,
   and semantic commit adapter. New feature/domain modules must not import it; Phase 5 deletes it as
@@ -131,7 +134,8 @@ migration debt until Phase 4.5C/4.5D.
 - `src/ui/patterns/workspace/CanvasBrowserRuntime.ts` and adjacent `canvasBrowser*` modules —
   generic `Id extends string` Renderer V2-derived layout, wheel/scroll, actual-card portal drag,
   reorder, slot/snap, and auto-scroll runtime. It owns transient DOM motion only; Canvas Manager
-  retains production callbacks and commits final order once.
+  retains production callbacks and commits final order once. `canvasBrowserSharedGlass.ts` maps its
+  visible/clipped card geometry to the bounded Small material plane without React frame updates.
 - `src/ui/patterns/overlays/ModalLayer.tsx`, `ModalPresence.tsx`, and `ModalDialog.tsx` — C3A/C3B
   semantic root/nested modal stacking, shared-scheduler retained presence, DOM-group opacity,
   and Acrylic Large dialog presentation over the existing modal plane; feature state remains in its
@@ -149,6 +153,8 @@ migration debt until Phase 4.5C/4.5D.
 - `src/ui/materials/MaterialSurface.tsx`, `MaterialSurface.css`, and `MaterialPlane.tsx` —
   feature-facing material, live native backdrop layers, geometry/elevation, semantic element, ref,
   and base/modal inheritance boundary.
+- `src/ui/materials/SharedSmallGlassPlane.tsx` — bounded native Acrylic Small blur source, rounded
+  SVG clip writer, and DEV native-backdrop diagnostics used only by Canvas Browser cards.
 - `src/ui/materials/materialSamplingBoundary.tsx`, `materialSurfaceStyle.ts`, and
   `nativeGlassRim.ts` — logical Large-to-Small backdrop ownership, centralized accepted optics, and
   geometry/DPR-driven rounded-perimeter rim drawing without a permanent animation loop.
@@ -362,7 +368,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/settings/recent_databases.rs`                           |   193 | Rust backend module                                                                     |
 | `src-tauri/src/storage.rs`                                             |   722 | Rust backend module                                                                     |
 | `src-tauri/src/window_state.rs`                                        |   105 | Clamp the saved geometry so the window can never restore off-screen or                  |
-| `src/App.tsx`                                                          |  7562 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
+| `src/App.tsx`                                                          |  7607 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
 | `src/app/appData.test.ts`                                              |   355 | Tests for the adjacent module                                                           |
 | `src/app/appData.ts`                                                   |   299 | TypeScript application module                                                           |
 | `src/app/appDataSchema.ts`                                             |   274 | TypeScript application module                                                           |
@@ -385,9 +391,11 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/history.ts`                                                   |    88 | TypeScript application module                                                           |
 | `src/app/hooks.ts`                                                     |     6 | TypeScript application module                                                           |
 | `src/app/interactions/canvasInteractionController.geometry.test.ts`    |   283 | @vitest-environment node                                                                |
-| `src/app/interactions/canvasInteractionController.ts`                  |   392 | TypeScript application module                                                           |
-| `src/app/interactions/canvasInteractionController.viewport.test.ts`    |   201 | @vitest-environment node                                                                |
-| `src/app/interactions/canvasInteractionTypes.ts`                       |   128 | TypeScript application module                                                           |
+| `src/app/interactions/canvasInteractionController.ts`                  |   394 | TypeScript application module                                                           |
+| `src/app/interactions/canvasInteractionController.viewport.test.ts`    |   263 | @vitest-environment node                                                                |
+| `src/app/interactions/canvasInteractionSnapshot.ts`                    |    19 | TypeScript application module                                                           |
+| `src/app/interactions/canvasInteractionTypes.ts`                       |   152 | TypeScript application module                                                           |
+| `src/app/interactions/panGestureFrameQueue.ts`                         |    70 | TypeScript application module                                                           |
 | `src/app/interactions/resizeGeometry.test.ts`                          |    36 | @vitest-environment node                                                                |
 | `src/app/interactions/resizeGeometry.ts`                               |    37 | TypeScript application module                                                           |
 | `src/app/interactions/selectionEngine.ts`                              |    39 | TypeScript application module                                                           |
@@ -419,11 +427,11 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/canvas/geometry/canvasGeometry.ts`                                |    41 | TypeScript application module                                                           |
 | `src/canvas/geometry/viewportMath.test.ts`                             |    78 | @vitest-environment node                                                                |
 | `src/canvas/geometry/viewportMath.ts`                                  |   108 | TypeScript application module                                                           |
-| `src/canvas/virtualization/viewportCulling.test.ts`                    |    58 | @vitest-environment node                                                                |
-| `src/canvas/virtualization/viewportCulling.ts`                         |    49 | TypeScript application module                                                           |
+| `src/canvas/virtualization/viewportCulling.test.ts`                    |    85 | @vitest-environment node                                                                |
+| `src/canvas/virtualization/viewportCulling.ts`                         |    69 | TypeScript application module                                                           |
 | `src/canvasMath.test.ts`                                               |   159 | Tests for the adjacent module                                                           |
 | `src/canvasMath.ts`                                                    |   128 | TypeScript application module                                                           |
-| `src/components/CanvasManager.tsx`                                     |   871 | React component or typed UI module                                                      |
+| `src/components/CanvasManager.tsx`                                     |   894 | React component or typed UI module                                                      |
 | `src/components/CanvasManagerCards.test.tsx`                           |   478 | Tests for the adjacent module                                                           |
 | `src/components/ColorPickerMenu.tsx`                                   |   340 | React component or typed UI module                                                      |
 | `src/components/CommandRunnerModals.test.tsx`                          |   141 | Tests for the adjacent module                                                           |
@@ -435,10 +443,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ContextMenus.tsx`                                      |  1144 | React component or typed UI module                                                      |
 | `src/components/ExtensionDropEffect.tsx`                               |   203 | React component or typed UI module                                                      |
 | `src/components/ExtensionsPanel.test.tsx`                              |   301 | Tests for the adjacent module                                                           |
-| `src/components/ExtensionsPanel.tsx`                                   |   576 | React component or typed UI module                                                      |
+| `src/components/ExtensionsPanel.tsx`                                   |   590 | React component or typed UI module                                                      |
 | `src/components/FloatingToolbar.test.tsx`                              |   164 | Tests for the adjacent module                                                           |
 | `src/components/FloatingToolbar.tsx`                                   |   197 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
-| `src/components/FpsCounter.tsx`                                        |    17 | React component or typed UI module                                                      |
+| `src/components/FpsCounter.tsx`                                        |    27 | React component or typed UI module                                                      |
 | `src/components/FrostedGlassTuner.test.tsx`                            |    56 | Tests for the adjacent module                                                           |
 | `src/components/FrostedGlassTuner.tsx`                                 |   242 | React component or typed UI module                                                      |
 | `src/components/ImageNode.tsx`                                         |   142 | Background extension off: only show the image, no frame/border/shell, so a              |
@@ -460,7 +468,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ToastStack.tsx`                                        |    53 | React component or typed UI module                                                      |
 | `src/components/WindowChrome.test.tsx`                                 |    87 | Tests for the adjacent module                                                           |
 | `src/components/WindowChrome.tsx`                                      |   111 | React component or typed UI module                                                      |
-| `src/components/WorkspacePanels.test.tsx`                              |   125 | Tests for the adjacent module                                                           |
+| `src/components/WorkspacePanels.test.tsx`                              |   182 | Tests for the adjacent module                                                           |
 | `src/constants.ts`                                                     |    58 | TypeScript application module                                                           |
 | `src/domain/commands/commandExecution.stress.test.ts`                  |    44 | @vitest-environment node                                                                |
 | `src/domain/commands/commandExecution.test.ts`                         |   204 | @vitest-environment node                                                                |
@@ -661,14 +669,16 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialSamplingBoundary.test.ts`                    |    27 | @vitest-environment node                                                                |
 | `src/ui/materials/materialSamplingBoundary.tsx`                        |    89 | TypeScript application module                                                           |
 | `src/ui/materials/MaterialSurface.test.tsx`                            |   251 | Tests for the adjacent module                                                           |
-| `src/ui/materials/MaterialSurface.tsx`                                 |   202 | React component or typed UI module                                                      |
+| `src/ui/materials/MaterialSurface.tsx`                                 |   209 | React component or typed UI module                                                      |
 | `src/ui/materials/MaterialSurfaceRegistration.tsx`                     |   138 | React component or typed UI module                                                      |
 | `src/ui/materials/materialSurfaceRegistry.test.ts`                     |   151 | @vitest-environment node                                                                |
 | `src/ui/materials/materialSurfaceRegistry.ts`                          |   260 | TypeScript application module                                                           |
 | `src/ui/materials/materialSurfaceStyle.ts`                             |    83 | TypeScript application module                                                           |
-| `src/ui/materials/materialTypes.ts`                                    |   108 | TypeScript application module                                                           |
+| `src/ui/materials/materialTypes.ts`                                    |   109 | TypeScript application module                                                           |
 | `src/ui/materials/nativeGlassRim.test.ts`                              |    41 | @vitest-environment node                                                                |
 | `src/ui/materials/nativeGlassRim.ts`                                   |   162 | TypeScript application module                                                           |
+| `src/ui/materials/SharedSmallGlassPlane.test.tsx`                      |    68 | Tests for the adjacent module                                                           |
+| `src/ui/materials/SharedSmallGlassPlane.tsx`                           |   114 | React component or typed UI module                                                      |
 | `src/ui/motion/layoutMotion.test.ts`                                   |   104 | One shared frame remains pending only while motion subscribers are active.              |
 | `src/ui/motion/layoutMotion.ts`                                        |    89 | TypeScript application module                                                           |
 | `src/ui/motion/liquidIndicatorMotion.test.ts`                          |   144 | Tests for the adjacent module                                                           |
@@ -694,16 +704,17 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/patterns/overlays/useDialogFocus.ts`                           |    59 | TypeScript application module                                                           |
 | `src/ui/patterns/settings/index.ts`                                    |     2 | TypeScript application module                                                           |
 | `src/ui/patterns/settings/SettingsPatterns.tsx`                        |   121 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    73 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/canvasBrowserDom.ts`                        |   114 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                      |    74 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/canvasBrowserDom.ts`                        |   126 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserInteraction.test.ts`           |    62 | @vitest-environment node                                                                |
 | `src/ui/patterns/workspace/canvasBrowserInteraction.ts`                |   115 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserLayout.ts`                     |    35 | TypeScript application module                                                           |
-| `src/ui/patterns/workspace/CanvasBrowserRuntime.test.ts`               |   321 | The production runtime owns one pending frame at a time.                                |
-| `src/ui/patterns/workspace/CanvasBrowserRuntime.ts`                    |   390 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/canvasBrowserRuntimeTypes.ts`               |    43 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/CanvasBrowserRuntime.test.ts`               |   333 | The production runtime owns one pending frame at a time.                                |
+| `src/ui/patterns/workspace/CanvasBrowserRuntime.ts`                    |   399 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/canvasBrowserRuntimeTypes.ts`               |    44 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserScrollState.test.ts`           |    41 | @vitest-environment node                                                                |
 | `src/ui/patterns/workspace/canvasBrowserScrollState.ts`                |    89 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/canvasBrowserSharedGlass.ts`                |    58 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserSlotGeometry.ts`               |    99 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserViewport.ts`                   |    56 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/canvasBrowserWheelDelta.ts`                 |    11 | TypeScript application module                                                           |
@@ -715,11 +726,11 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/patterns/workspace/MinimapSurface.test.tsx`                    |   148 | One pending shared frame advances all active subscribers.                               |
 | `src/ui/patterns/workspace/MinimapSurface.tsx`                         |    56 | React component or typed UI module                                                      |
 | `src/ui/patterns/workspace/useMinimapVisibilityMotion.ts`              |    57 | TypeScript application module                                                           |
-| `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    82 | TypeScript application module                                                           |
+| `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`             |    96 | TypeScript application module                                                           |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`               |   105 | Tests for the adjacent module                                                           |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                          |    42 | React component or typed UI module                                                      |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                |   155 | The shared scheduler queues at most one next frame while subscribers remain active.     |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                     |    77 | React component or typed UI module                                                      |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                |   215 | The shared scheduler queues at most one next frame while subscribers remain active.     |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                     |   167 | React component or typed UI module                                                      |
 | `src/ui/primitives/AcrylicConfirmButton.tsx`                           |   103 | React component or typed UI module                                                      |
 | `src/ui/primitives/AcrylicToggleButton.test.tsx`                       |   114 | Tests for the adjacent module                                                           |
 | `src/ui/primitives/AcrylicToggleButton.tsx`                            |   103 | React component or typed UI module                                                      |

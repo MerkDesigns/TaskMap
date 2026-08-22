@@ -30,6 +30,7 @@ export interface CanvasBrowserRuntimeOptions<Id extends string> {
   readonly panel: HTMLElement;
   readonly viewport: HTMLElement;
   readonly cardsLayer: HTMLElement;
+  readonly sharedSmallGlassPlane?: HTMLElement | null;
   readonly commitOrder: (order: readonly Id[]) => void;
   readonly invalidateMaterialGeometry: () => void;
   readonly frameDriver?: CanvasBrowserFrameDriver;

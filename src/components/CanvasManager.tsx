@@ -30,6 +30,7 @@ import {
 import { TaskCanvas } from "../types";
 import { CanvasBrowserCard, CanvasPreview, WorkspaceSidePanel } from "../ui/patterns/workspace";
 import { useMaterialSurfaceGeometryInvalidation } from "../ui/materials/MaterialSurfaceRegistration";
+import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
 import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
@@ -109,6 +110,7 @@ export function CanvasManager({
   const panelRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const cardsLayerRef = useRef<HTMLDivElement | null>(null);
+  const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
   const browserRuntimeRef = useRef<CanvasBrowserRuntime<string> | null>(null);
   const reorderCommitRef = useRef(onReorderCanvases);
   const [modalMode, setModalMode] = useState<"create" | null>(null);
@@ -280,6 +282,7 @@ export function CanvasManager({
       panel,
       viewport,
       cardsLayer,
+      sharedSmallGlassPlane: sharedSmallGlassPlaneRef.current,
       commitOrder: (order) => reorderCommitRef.current([...order]),
       invalidateMaterialGeometry: invalidateSurfaceGeometry,
       reducedMotion,
@@ -401,6 +404,7 @@ export function CanvasManager({
         className="taskmap-canvas-browser__viewport"
         data-canvas-browser-viewport
       >
+        {!embedded && <SharedSmallGlassPlane ref={sharedSmallGlassPlaneRef} />}
         <div ref={cardsLayerRef} className="taskmap-canvas-browser__cards-layer" />
       </div>
 

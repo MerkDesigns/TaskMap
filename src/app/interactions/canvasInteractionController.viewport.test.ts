@@ -75,6 +75,45 @@ describe("canvas viewport controller", () => {
     expect(commits.commitResize).not.toHaveBeenCalled();
   });
 
+  it("coalesces raw pan samples to one publication per animation frame and flushes pointer-up", () => {
+    const frames = controlledPanFrames();
+    const settled = vi.fn();
+    const controller = createCanvasInteractionController({
+      canvasKey: "a",
+      viewport,
+      commitPort: commitPort(),
+      panFrameScheduler: frames.scheduler,
+      onViewportSettled: settled,
+    });
+    const listener = vi.fn();
+    controller.subscribe(listener);
+
+    controller.beginPan(7, { x: 10, y: 20 });
+    listener.mockClear();
+    for (let sample = 1; sample <= 120; sample += 1) {
+      controller.updatePointer({
+        pointerId: 7,
+        screen: { x: 10 + sample, y: 20 - sample },
+        snapping: false,
+      });
+    }
+
+    expect(frames.pending()).toBe(1);
+    expect(listener).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().viewport.pan).toEqual({ x: 100, y: 50 });
+
+    frames.flush();
+    expect(listener).toHaveBeenCalledOnce();
+    expect(controller.getSnapshot().viewport.pan).toEqual({ x: 220, y: -70 });
+
+    controller.updatePointer({ pointerId: 7, screen: { x: 132, y: -102 }, snapping: false });
+    controller.completePointer({ pointerId: 7, screen: { x: 135, y: -105 }, snapping: false });
+    expect(frames.pending()).toBe(0);
+    expect(controller.getSnapshot().viewport.pan).toEqual({ x: 225, y: -75 });
+    expect(controller.getSnapshot().activeInteraction).toBeNull();
+    expect(settled).toHaveBeenCalledWith(controller.getSnapshot().viewport, "a");
+  });
+
   it("cancels without settling and isolates replacement canvases", () => {
     const settled = vi.fn();
     const commits = commitPort();
@@ -130,6 +169,29 @@ describe("canvas viewport controller", () => {
     expect(settled).toHaveBeenCalledTimes(2);
   });
 });
+
+function controlledPanFrames() {
+  const callbacks = new Map<number, () => void>();
+  let nextHandle = 1;
+  return {
+    scheduler: {
+      schedule(callback: () => void) {
+        const handle = nextHandle++;
+        callbacks.set(handle, callback);
+        return handle;
+      },
+      cancel(handle: number) {
+        callbacks.delete(handle);
+      },
+    },
+    pending: () => callbacks.size,
+    flush() {
+      const pending = [...callbacks.values()];
+      callbacks.clear();
+      pending.forEach((callback) => callback());
+    },
+  };
+}
 
 describe("selection controller", () => {
   it("selects, shift-adds rather than toggles, and clears", () => {

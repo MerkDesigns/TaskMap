@@ -5,6 +5,8 @@ import type {
   ElementGeometry,
 } from "../../canvas/geometry/canvasGeometry";
 import type { CanvasViewport } from "../../canvas/geometry/viewportMath";
+import type { PanGestureFrameScheduler } from "./panGestureFrameQueue";
+import type { TransientInteractionService } from "./transientInteractionService";
 
 export type ResizeHandle = "bottom-right";
 
@@ -123,5 +125,27 @@ export interface CanvasInteractionControllerOptions {
   readonly canvasKey: string;
   readonly viewport: CanvasViewport;
   readonly commitPort: CanvasInteractionCommitPort;
+  readonly panFrameScheduler?: PanGestureFrameScheduler;
   readonly onViewportSettled?: (viewport: CanvasViewport, canvasKey: string) => void;
+}
+
+export interface CanvasInteractionController extends TransientInteractionService {
+  readonly getSnapshot: () => CanvasInteractionSnapshot;
+  readonly select: (id: string, additive: boolean) => void;
+  readonly setSelection: (ids: readonly string[]) => void;
+  readonly clearSelection: () => void;
+  readonly beginPan: (pointerId: number, screen: CanvasPoint) => boolean;
+  readonly beginSelection: (input: SelectionGestureInput) => boolean;
+  readonly beginMove: (input: MoveGestureInput) => boolean;
+  readonly beginResize: (input: ResizeGestureInput) => boolean;
+  readonly updatePointer: (sample: PointerSample) => void;
+  readonly setMoveSnapping: (pointerId: number, enabled: boolean) => void;
+  readonly completePointer: (sample: PointerSample) => void;
+  readonly cancelPointer: (pointerId: number) => void;
+  readonly wheelZoom: (screen: CanvasPoint, deltaY: number) => void;
+  readonly resetZoom: () => void;
+  readonly resizeViewport: (screen: CanvasSize) => void;
+  readonly replaceCanvas: (canvasKey: string, viewport: CanvasViewport) => void;
+  readonly reorder: (ids: readonly string[], direction: LayerDirection) => void;
+  readonly dispose: () => void;
 }

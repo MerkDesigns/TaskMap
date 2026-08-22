@@ -18,6 +18,12 @@ surfaces do not register with, rebuild, or compose the cached Canvas2D backdrop.
 worker, scheduling, BackdropScene, and cache code is intentionally retained temporarily for rollback
 and reference until native-glass visual and release-performance acceptance is complete.
 
+The Canvas Browser now runs a deliberately narrow native optimization experiment: settled Acrylic
+Small cards share one 20px backdrop-filter element bounded to the card viewport and clipped into
+rounded card shapes. MaterialSurface still owns each card's overlays and temporarily restores the
+actual dragged card's private Small filter outside that plane. This does not generalize shared
+native planes to Large or other Small surfaces and does not reactivate the cached Canvas2D path.
+
 The remainder of this ADR is preserved as the historical record of the superseded candidate.
 
 ## Context

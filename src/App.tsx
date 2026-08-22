@@ -5,6 +5,7 @@ import {
   Suspense,
   WheelEvent,
   lazy,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -119,7 +120,10 @@ import {
   type CanvasRectangle,
   type ElementGeometry,
 } from "./canvas/geometry/canvasGeometry";
-import { getVisibleElementIds } from "./canvas/virtualization/viewportCulling";
+import {
+  getVisibleElementIds,
+  shouldRefreshCullingViewport,
+} from "./canvas/virtualization/viewportCulling";
 import { createLegacyCanvasInteractionCommitAdapter } from "./legacy/interactions/legacyCanvasInteractionCommitAdapter";
 import {
   filterLegacyResizeSnapTargets,
@@ -154,7 +158,24 @@ import {
 import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 
 const CanvasManager = lazy(() =>
-  import("./components/CanvasManager").then(({ CanvasManager }) => ({ default: CanvasManager })),
+  import("./components/CanvasManager").then(({ CanvasManager }) => ({
+    default: memo(
+      CanvasManager,
+      (previous, next) =>
+        previous.active === next.active &&
+        previous.canvases === next.canvases &&
+        previous.activeCanvasId === next.activeCanvasId &&
+        previous.cycleHighlightCanvasId === next.cycleHighlightCanvasId &&
+        previous.cardRadius === next.cardRadius &&
+        previous.closing === next.closing &&
+        previous.embedded === next.embedded &&
+        previous.sharedPanel === next.sharedPanel &&
+        previous.minimalView === next.minimalView &&
+        previous.panelRadius === next.panelRadius &&
+        previous.viewportWidth === next.viewportWidth &&
+        previous.viewportHeight === next.viewportHeight,
+    ),
+  })),
 );
 const ExtensionsPanel = lazy(() =>
   import("./components/ExtensionsPanel").then(({ ExtensionsPanel }) => ({
@@ -541,6 +562,10 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       canvasKey: activeCanvas.id,
       viewport: createViewport(legacyPan, legacyZoom, stageSize),
       commitPort,
+      panFrameScheduler: {
+        schedule: (callback) => window.requestAnimationFrame(callback),
+        cancel: (handle) => window.cancelAnimationFrame(handle),
+      },
       onViewportSettled: (viewport, canvasId) =>
         cameraSynchronization.queueControllerCamera(canvasId, viewport),
     });
@@ -567,6 +592,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     interactionController.resizeViewport(stageSize);
   }, [interactionController, stageSize]);
   const latestCameraRef = useRef({ pan: DEFAULT_PAN, zoom: 1 });
+  const canvasManagerCanvasesRef = useRef<TaskCanvas[] | null>(null);
   const [minimapVisible, setMinimapVisible] = useState(false);
   const [minimapMounted, setMinimapMounted] = useState(false);
   const selectedIds = interactionSnapshot.selectedIds as string[];
@@ -6241,10 +6267,21 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     dragPinnedIds.forEach((id) => ids.add(id));
     return ids;
   }, [dragPinnedIds, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
+  const cullingViewportRef = useRef(interactionSnapshot.viewport);
+  if (
+    shouldRefreshCullingViewport(
+      cullingViewportRef.current,
+      interactionSnapshot.viewport,
+      interactionSnapshot.activeInteraction?.kind === "pan",
+    )
+  ) {
+    cullingViewportRef.current = interactionSnapshot.viewport;
+  }
+  const cullingViewport = cullingViewportRef.current;
   const visibleRenderIds = useMemo(
     () =>
       getVisibleElementIds({
-        viewport: interactionSnapshot.viewport,
+        viewport: cullingViewport,
         pinnedIds: pinnedRenderIds,
         elements: [
           ...layeredElements.map((element) => ({ id: element.id, geometry: element })),
@@ -6262,7 +6299,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
         ],
       }),
     [
-      interactionSnapshot.viewport,
+      cullingViewport,
       layeredElements,
       layeredLooseImages,
       layeredLooseTextCards,
@@ -6441,6 +6478,13 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   const leftPanelOpen = canvasManagerOpen || extensionsOpen;
   const leftPanelClosing = canvasManagerClosing || extensionsClosing;
   const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
+  if (
+    canvasManagerCanvasesRef.current === null ||
+    interactionSnapshot.activeInteraction?.kind !== "pan"
+  ) {
+    canvasManagerCanvasesRef.current = getPersistedCanvases();
+  }
+  const canvasManagerCanvases = canvasManagerCanvasesRef.current;
   return (
     <TransientInteractionProvider service={interactionController}>
       <WorkspaceRoot
@@ -6487,7 +6531,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                         <CanvasManager
                           key="canvases"
                           active={leftPanelActiveIndex === 0}
-                          canvases={getPersistedCanvases()}
+                          canvases={canvasManagerCanvases}
                           activeCanvasId={activeCanvas.id}
                           cycleHighlightCanvasId={canvasCycleHighlightId}
                           closing={leftPanelClosing}

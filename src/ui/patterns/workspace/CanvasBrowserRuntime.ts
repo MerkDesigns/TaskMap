@@ -8,13 +8,14 @@ import {
   haveSameCanvasCardIds,
   reorderCanvasCardToIndex,
 } from "./canvasBrowserInteraction";
-import { CANVAS_BROWSER_LAYOUT, canvasBrowserPanelHeight } from "./canvasBrowserLayout";
+import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { CanvasBrowserFrameClock, CanvasBrowserScrollState } from "./canvasBrowserScrollState";
 import {
   createCanvasBrowserDragLayer,
   measureCanvasBrowserCard,
   reorderCanvasBrowserHosts,
   restoreSettledCardHost,
+  writeCanvasBrowserContentHeight,
   writeDraggingCardHost,
   writeDraggingCardTop,
 } from "./canvasBrowserDom";
@@ -32,6 +33,7 @@ import type {
 } from "./canvasBrowserRuntimeTypes";
 import { browserAnimationFrameDriver } from "./canvasBrowserRuntimeTypes";
 import { convertCanvasBrowserWheelDelta } from "./canvasBrowserWheelDelta";
+import { CanvasBrowserSharedGlass } from "./canvasBrowserSharedGlass";
 import { CanvasBrowserViewportController } from "./canvasBrowserViewport";
 
 export class CanvasBrowserRuntime<Id extends string> {
@@ -41,6 +43,7 @@ export class CanvasBrowserRuntime<Id extends string> {
   private readonly frameClock = new CanvasBrowserFrameClock();
   private readonly geometry = new CanvasBrowserSlotGeometry<Id>();
   private readonly viewport: CanvasBrowserViewportController<Id>;
+  private readonly sharedGlass: CanvasBrowserSharedGlass<Id>;
   private readonly frameDriver: CanvasBrowserFrameDriver;
   private readonly resizeObserver: ResizeObserver | null;
   private readonly detachWheelRouter: () => void;
@@ -61,6 +64,7 @@ export class CanvasBrowserRuntime<Id extends string> {
       this.records,
       this.scroll,
     );
+    this.sharedGlass = new CanvasBrowserSharedGlass(options.sharedSmallGlassPlane, this.records);
     this.resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.resize());
     this.resizeObserver?.observe(options.viewport);
@@ -113,6 +117,7 @@ export class CanvasBrowserRuntime<Id extends string> {
       reorderCanvasBrowserHosts(this.displayOrder, this.records, this.options.cardsLayer);
     }
     this.applyScroll();
+    this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
     this.options.invalidateMaterialGeometry();
   }
 
@@ -120,6 +125,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.records.forEach(measureCanvasBrowserCard);
     this.updateScrollRange();
     this.applyScroll();
+    this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
     this.options.invalidateMaterialGeometry();
   };
 
@@ -184,6 +190,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.resizeObserver?.disconnect();
     window.removeEventListener("resize", this.resize);
     this.detachWheelRouter();
+    this.sharedGlass.clear();
   }
 
   private updatePointer(event: PointerEvent) {
@@ -220,7 +227,10 @@ export class CanvasBrowserRuntime<Id extends string> {
       changed = true;
     }
     changed = this.tickDrag(now) || changed;
-    if (changed) this.options.invalidateMaterialGeometry();
+    if (changed) {
+      this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
+      this.options.invalidateMaterialGeometry();
+    }
     if (this.needsFrame()) this.requestFrame();
   };
 
@@ -245,6 +255,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.dragLayer.append(record.host);
     writeDraggingCardHost(record, rectangle, panelRectangle);
     this.viewport.sync(drag.id);
+    this.sharedGlass.sync(this.scroll.currentScrollY, drag.id);
     drag.active = true;
     drag.snapFromY = rectangle.top;
     this.scroll.synchronizeTarget();
@@ -337,6 +348,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.pointerSession.release(drag.pointerId);
     this.updateScrollRange();
     this.viewport.sync();
+    this.sharedGlass.sync(this.scroll.currentScrollY, null);
     if (shouldCommit) this.commitOrder(finalOrder);
   }
 
@@ -356,6 +368,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.scroll.synchronizeTarget();
     this.pointerSession.release(drag.pointerId);
     this.viewport.sync();
+    this.sharedGlass.sync(this.scroll.currentScrollY, null);
   }
 
   private dragAutoScroll() {
@@ -375,11 +388,7 @@ export class CanvasBrowserRuntime<Id extends string> {
 
   private updateScrollRange() {
     const contentHeight = canvasCardContentHeight(this.displayOrder, this.records);
-    this.options.cardsLayer.style.height = `${contentHeight}px`;
-    this.options.panel.style.setProperty(
-      "--taskmap-canvas-browser-content-height",
-      `${canvasBrowserPanelHeight(contentHeight)}px`,
-    );
+    writeCanvasBrowserContentHeight(this.options.panel, this.options.cardsLayer, contentHeight);
     this.scroll.setRange(this.viewport.height(), contentHeight);
   }
 

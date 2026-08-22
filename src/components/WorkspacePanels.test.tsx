@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TaskCanvas } from "../types";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
 import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
+import { readNativeGlassDiagnostics } from "../ui/materials/SharedSmallGlassPlane";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { WorkspaceSidePanel } from "../ui/patterns/workspace";
 import { CanvasManager } from "./CanvasManager";
@@ -76,11 +77,39 @@ describe("C2C workspace panels", () => {
       "data-material",
       "acrylic-small",
     );
+    expect(container.querySelector('[data-canvas-card-id="canvas-a"]')).toHaveAttribute(
+      "data-material-backdrop-source",
+      "shared",
+    );
+    expect(container.querySelector('[data-shared-small-glass-plane="active"]')).not.toBeNull();
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      sharedSmallPlaneActive: true,
+    });
     expect(container.querySelector('[data-extension-card-id="privacy"]')).toHaveAttribute(
       "data-material",
       "acrylic-small",
     );
     registry.dispose();
+  });
+
+  it("reduces ten Canvas Browser card backdrops to one bounded shared plane", () => {
+    const props = canvasManagerProps();
+    props.canvases = Array.from({ length: 10 }, (_, index) => canvas(`canvas-${index}`));
+    props.activeCanvasId = "canvas-0";
+    const { container } = render(
+      <ReducedMotionProvider override>
+        <CanvasManager {...props} />
+      </ReducedMotionProvider>,
+    );
+
+    expect(container.querySelectorAll("[data-canvas-card-id]")).toHaveLength(10);
+    expect(container.querySelectorAll('[data-material-backdrop-source="shared"]')).toHaveLength(10);
+    expect(container.querySelectorAll('[data-shared-small-glass-plane="active"]')).toHaveLength(1);
+    expect(readNativeGlassDiagnostics(container)).toEqual({
+      nativeBackdropSurfaceCount: 2,
+      nativeBackdropFilterLayerCount: 3,
+      sharedSmallPlaneActive: true,
+    });
   });
 
   it("preserves CanvasManager header, selection, and create callbacks", async () => {
@@ -135,9 +164,9 @@ function canvasManagerProps() {
   };
 }
 
-function canvas(): TaskCanvas {
+function canvas(id = "canvas-a"): TaskCanvas {
   return {
-    id: "canvas-a",
+    id,
     name: "Canvas A",
     width: 3000,
     height: 3000,

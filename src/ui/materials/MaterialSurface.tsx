@@ -25,6 +25,7 @@ import { drawNativeGlassRim } from "./nativeGlassRim";
 import type {
   MaterialElevation,
   MaterialId,
+  MaterialBackdropSource,
   MaterialPlane,
   MaterialSurfaceEffect,
   NativeGlassMaterialDefinition,
@@ -34,6 +35,7 @@ type MaterialSurfaceElement = "div" | "section" | "aside" | "nav";
 
 export interface MaterialSurfaceProps extends HTMLAttributes<HTMLElement> {
   readonly material: MaterialId;
+  readonly backdropSource?: MaterialBackdropSource;
   readonly plane?: MaterialPlane;
   readonly radius?: number;
   readonly elevation?: MaterialElevation;
@@ -45,6 +47,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
   function MaterialSurface(
     {
       as = "div",
+      backdropSource: backdropSourceOverride = "self",
       children,
       className,
       elevation = "default",
@@ -59,6 +62,9 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
   ) {
     const definition = materialRegistry.require(material);
     const nativeGlass = definition.strategy === "native-glass" ? definition : null;
+    if (backdropSourceOverride === "shared" && nativeGlass?.role !== "small") {
+      throw new RangeError("Only Acrylic Small surfaces may use a shared backdrop source");
+    }
     const plane = useMaterialPlane(planeOverride);
     const radius = requireMaterialRadius(material, radiusOverride ?? definition.defaultRadiusPx);
     const surfaceId = useId();
@@ -149,6 +155,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
         "data-material-role": nativeGlass?.role,
         "data-material-plane": plane,
         "data-material-elevation": elevation,
+        "data-material-backdrop-source": nativeGlass ? backdropSourceOverride : undefined,
         "data-material-sampling-boundary": samplingBoundaryKind(nativeGlass, inheritedBoundary),
       },
       nativeGlass ? nativeGlassChrome(rimCanvasRef, nativeGlass) : null,

@@ -112,6 +112,7 @@
 
 .taskmap-canvas-browser__cards-layer {
   position: relative;
+  z-index: 1;
   width: 100%;
   pointer-events: none;
   transform: translate3d(0, 0, 0);

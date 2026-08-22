@@ -2,9 +2,11 @@
 import { describe, expect, it } from "vitest";
 import { createViewport } from "../geometry/viewportMath";
 import {
+  CANVAS_CULLING_REFRESH_SCREEN_PX,
   CANVAS_RENDER_OVERSCAN_SCREEN_PX,
   getVisibleElementIds,
   overscannedWorldRectangle,
+  shouldRefreshCullingViewport,
 } from "./viewportCulling";
 
 describe("viewport culling", () => {
@@ -53,5 +55,30 @@ describe("viewport culling", () => {
       overscanScreen: 0,
     });
     expect([...visible]).toEqual(["inside"]);
+  });
+
+  it("reuses the overscanned culling viewport during short pan frames", () => {
+    const previous = createViewport({ x: 0, y: 0 }, 1, { width: 1000, height: 600 });
+    const withinGuard = createViewport(
+      { x: CANVAS_CULLING_REFRESH_SCREEN_PX - 1, y: -120 },
+      1,
+      previous.screen,
+    );
+    const acrossGuard = createViewport(
+      { x: CANVAS_CULLING_REFRESH_SCREEN_PX, y: -120 },
+      1,
+      previous.screen,
+    );
+
+    expect(shouldRefreshCullingViewport(previous, withinGuard, true)).toBe(false);
+    expect(shouldRefreshCullingViewport(previous, acrossGuard, true)).toBe(true);
+    expect(shouldRefreshCullingViewport(previous, withinGuard, false)).toBe(true);
+    expect(
+      shouldRefreshCullingViewport(
+        previous,
+        createViewport(previous.pan, 1.25, previous.screen),
+        true,
+      ),
+    ).toBe(true);
   });
 });

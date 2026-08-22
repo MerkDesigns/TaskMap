@@ -1,0 +1,26 @@
+.taskmap-shared-small-glass-plane {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  inset: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.taskmap-shared-small-glass-plane__definitions {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.taskmap-shared-small-glass-plane__backdrop {
+  position: absolute;
+  background: rgb(0 0 0 / 0.001);
+  inset: calc(0px - var(--taskmap-shared-small-overscan));
+  -webkit-backdrop-filter: blur(var(--taskmap-material-blur))
+    saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
+    contrast(var(--taskmap-material-contrast));
+  backdrop-filter: blur(var(--taskmap-material-blur)) saturate(var(--taskmap-material-saturation))
+    brightness(var(--taskmap-material-brightness)) contrast(var(--taskmap-material-contrast));
+  pointer-events: none;
+}

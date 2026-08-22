@@ -6,6 +6,7 @@ import {
 import { viewportWorldRectangle, type CanvasViewport } from "../geometry/viewportMath";
 
 export const CANVAS_RENDER_OVERSCAN_SCREEN_PX = 480;
+export const CANVAS_CULLING_REFRESH_SCREEN_PX = CANVAS_RENDER_OVERSCAN_SCREEN_PX / 2;
 
 export interface CullableElement {
   readonly id: string;
@@ -31,6 +32,25 @@ export function overscannedWorldRectangle(
     width: visible.width + overscanWorld * 2,
     height: visible.height + overscanWorld * 2,
   };
+}
+
+export function shouldRefreshCullingViewport(
+  previous: CanvasViewport,
+  next: CanvasViewport,
+  panActive: boolean,
+): boolean {
+  if (!panActive) return previous !== next;
+  if (
+    previous.zoom !== next.zoom ||
+    previous.screen.width !== next.screen.width ||
+    previous.screen.height !== next.screen.height
+  ) {
+    return true;
+  }
+  return (
+    Math.max(Math.abs(next.pan.x - previous.pan.x), Math.abs(next.pan.y - previous.pan.y)) >=
+    CANVAS_CULLING_REFRESH_SCREEN_PX
+  );
 }
 
 export function getVisibleElementIds({

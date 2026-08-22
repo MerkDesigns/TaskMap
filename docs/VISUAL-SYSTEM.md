@@ -181,6 +181,15 @@ surface inherits the nearest logical Large sampling boundary through React conte
 backdrop overscan is clamped per side to that boundary, including while UI classes or physical DOM
 placement change. Standalone Small and Large surfaces clamp to the application viewport.
 
+Canvas Browser Small cards are the bounded shared-plane experiment. Settled cards disable only
+their private pre-blur/backdrop spans and reuse one 20px Small filter clipped by live rounded SVG
+rectangles inside the card viewport. Every card retains the same Small tint, tone, rim, shadow,
+radius, and content mask. The plane is bounded to the Canvas Browser card viewport rather than the
+application viewport. When the actual dragged card leaves that viewport, its existing
+`data-material-motion="active"` state restores its private 5px + 20px Small passes and removes its
+shape from the shared plane until reattachment. Large and non-Canvas-Browser Small surfaces are
+unchanged. Native backdrop layers do not use permanent `will-change: backdrop-filter` promotion.
+
 Both roles use the accepted DPR-aware rounded-perimeter canvas rim. It is redrawn only for geometry,
 DPR, or material changes; there is no permanent rim animation loop. The native backdrop layers may
 overscan beneath their rounded clip while content remains ordinary DOM. The rim is a separately
@@ -309,6 +318,12 @@ acrylic surfaces. The preview shell uses Cutout; its miniature containers, text 
 remain cheap projected geometry and retain user-selected colors and the existing projection math.
 Active/cycle application state uses the scoped target accent tokens.
 
+All visible non-embedded cards reuse the one bounded Small backdrop plane described above. With
+`N` settled cards, Canvas Browser backdrop ownership changes from `N` card filters to one shared
+filter; the owning Large panel remains separate. Ten cards therefore use two active native backdrop
+surfaces in this region (one Large plus one shared Small) instead of eleven. During a live drag the
+temporary dragged-card filter raises that regional count to three until it rejoins the plane.
+
 The Renderer V2-derived Canvas Browser runtime owns one on-demand frame loop for authoritative
 `45ms`-constant wheel smoothing, slot interpolation, pointer following, release snap, and drag
 auto-scroll. Wheel input is normalized by `0.45`; drag activates at `6px`; slot and release motion
@@ -320,6 +335,10 @@ temporary unclipped layer owned by the Large Canvas Browser; there is no clone, 
 or placeholder. React material context therefore keeps the same logical Large sampling boundary
 through activation, drag, snap, and reattachment. Active frames use only DOM transforms and the
 cheap material-geometry invalidation seam. Reduced motion settles immediately.
+
+The development FPS counter is fully opaque and has no backdrop filter. It reports the current
+active native backdrop-surface count and whether the shared Small plane has at least one clip, so
+benchmarking the counter does not add another blur surface.
 
 ### Extensions
 

@@ -26,6 +26,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     ]);
 
     expect(pattern).toContain('material={embedded ? "opaque" : "acrylic-small"}');
+    expect(pattern).toContain('backdropSource={embedded ? undefined : "shared"}');
     expect(pattern).toContain('material="cutout"');
     expect(pattern).toContain('mode === "minimal" ? 8 : undefined');
     expect(css).toContain("min-height: 84px");
@@ -90,6 +91,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(manager).toContain("<IconButton");
     expect(manager).toContain("new CanvasBrowserRuntime<string>");
     expect(manager).toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(manager).toContain("<SharedSmallGlassPlane");
     expect(manager).not.toContain("useMaterialSurfaceMaskOpacity");
     expect(runtime).toContain("private readonly tick");
     expect(runtime).toContain("if (this.needsFrame()) this.requestFrame()");

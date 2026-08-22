@@ -137,6 +137,7 @@ describe("production Canvas Browser runtime", () => {
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
     expect(record.card).toHaveAttribute("data-material-motion", "active");
+    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(4);
     expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
     expect(fixture.runtime.getSnapshot().order).toEqual(["b", "c", "d", "e", "a"]);
     expect(fixture.commitOrder).not.toHaveBeenCalled();
@@ -154,6 +155,7 @@ describe("production Canvas Browser runtime", () => {
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
+    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(5);
     expect(fixture.commitOrder).toHaveBeenCalledTimes(1);
     expect(fixture.commitOrder).toHaveBeenCalledWith(["b", "c", "d", "e", "a"]);
     fixture.destroy();
@@ -197,9 +199,15 @@ describe("production Canvas Browser runtime", () => {
 function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
   const panel = document.createElement("aside");
   const viewport = document.createElement("div");
+  const sharedGlassPlane = document.createElement("div");
+  const definitions = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const clip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+  clip.dataset.sharedSmallGlassClip = "true";
+  definitions.append(clip);
+  sharedGlassPlane.append(definitions);
   const cardsLayer = document.createElement("div");
   panel.append(viewport);
-  viewport.append(cardsLayer);
+  viewport.append(sharedGlassPlane, cardsLayer);
   document.body.append(panel);
   Object.defineProperty(viewport, "clientHeight", { configurable: true, value: viewportHeight });
   viewport.getBoundingClientRect = () => rectangle(74, viewportHeight, 288, 16);
@@ -209,6 +217,7 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
     panel,
     viewport,
     cardsLayer,
+    sharedSmallGlassPlane: sharedGlassPlane,
     commitOrder,
     invalidateMaterialGeometry: vi.fn(),
     frameDriver: frames,
@@ -218,6 +227,8 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
     const host = document.createElement("div");
     const card = document.createElement("article");
     card.dataset.canvasCardId = id;
+    card.dataset.materialBackdropSource = "shared";
+    card.style.setProperty("--taskmap-material-radius", "13.5px");
     Object.assign(card, {
       setPointerCapture: vi.fn(),
       hasPointerCapture: vi.fn(() => true),
@@ -241,6 +252,7 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
     commitOrder,
     cards,
     cardsLayer,
+    sharedGlassPlane,
     viewport,
     begin(id: string, clientY: number) {
       const card = cards.get(id)!.card;

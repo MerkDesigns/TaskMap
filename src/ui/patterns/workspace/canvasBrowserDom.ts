@@ -1,4 +1,4 @@
-import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
+import { CANVAS_BROWSER_LAYOUT, canvasBrowserPanelHeight } from "./canvasBrowserLayout";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 
 export function createCanvasBrowserDragLayer(owner: HTMLElement) {
@@ -7,6 +7,18 @@ export function createCanvasBrowserDragLayer(owner: HTMLElement) {
   layer.dataset.canvasBrowserDragLayer = "true";
   owner.append(layer);
   return layer;
+}
+
+export function writeCanvasBrowserContentHeight(
+  panel: HTMLElement,
+  cardsLayer: HTMLElement,
+  contentHeight: number,
+) {
+  cardsLayer.style.height = `${contentHeight}px`;
+  panel.style.setProperty(
+    "--taskmap-canvas-browser-content-height",
+    `${canvasBrowserPanelHeight(contentHeight)}px`,
+  );
 }
 
 export function measureCanvasBrowserCard<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
