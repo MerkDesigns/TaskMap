@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { MaterialCompositorPresentationSource } from "./materialCompositorPresentation";
 import { createMaterialSurfaceRegistry } from "./materialSurfaceRegistry";
 import { MaterialSurfaceRegistrationProvider } from "./MaterialSurfaceRegistration";
@@ -10,33 +10,25 @@ export interface MaterialCompositorProviderProps {
 
 /**
  * Retains the application-composition boundary while the legacy cached compositor is parked.
- * Native glass surfaces subscribe only to cheap geometry invalidations from existing UI motion.
+ * Native surfaces own their ResizeObserver geometry. The parked registry seam no longer fans
+ * motion notifications out to every surface.
  */
 export function MaterialCompositorProvider({ children }: MaterialCompositorProviderProps) {
   const [registry] = useState(() => createMaterialSurfaceRegistry());
-  const geometryListenersRef = useRef(new Set<() => void>());
   const notifySurfaceGeometryChanged = useCallback(() => {
-    for (const listener of geometryListenersRef.current) listener();
-  }, []);
-  const subscribeSurfaceGeometryChanged = useCallback((listener: () => void) => {
-    geometryListenersRef.current.add(listener);
-    return () => {
-      geometryListenersRef.current.delete(listener);
-    };
-  }, []);
+    registry.refreshMeasurements();
+  }, [registry]);
   const registrationBoundary = useMemo(
     () =>
       Object.freeze({
         registry,
         notifySurfaceGeometryChanged,
-        subscribeSurfaceGeometryChanged,
       }),
-    [notifySurfaceGeometryChanged, registry, subscribeSurfaceGeometryChanged],
+    [notifySurfaceGeometryChanged, registry],
   );
 
   useEffect(
     () => () => {
-      geometryListenersRef.current.clear();
       registry.dispose();
     },
     [registry],

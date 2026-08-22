@@ -17,9 +17,16 @@ export function FpsCounter() {
       <div>p95 {frameStats.p95Ms.toFixed(2)} ms</div>
       <div>max {frameStats.maxMs.toFixed(2)} ms</div>
       <div className="text-[12px] leading-5">
-        glass {glass.nativeBackdropSurfaceCount} · filters {glass.nativeBackdropFilterLayerCount}
-        {" · shared Small "}
-        {glass.sharedSmallPlaneActive ? "on" : "off"}
+        depth {glass.activeDepthCount} · batches {glass.activeGlassBatchCount} · filters{" "}
+        {glass.nativeBackdropFilterLayerCount}
+      </div>
+      <div className="text-[12px] leading-5">
+        Small {glass.sharedSmallBatchCount} · drag {glass.temporaryDragBatchActive ? "on" : "off"}
+        {" · local "}
+        {glass.localMaterialBackdropFilterCount}
+      </div>
+      <div className="text-[12px] leading-5">
+        geometry {glass.materialGeometryRefreshesPerSecond}/s
       </div>
     </div>
   );

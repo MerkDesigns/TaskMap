@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useLayoutEffect,
   useMemo,
   type ReactNode,
   type RefObject,
@@ -12,7 +11,6 @@ import type { MaterialSurfaceElement, MaterialSurfaceRegistry } from "./material
 export interface MaterialSurfaceRegistrationBoundary {
   readonly registry: MaterialSurfaceRegistry;
   readonly notifySurfaceGeometryChanged: () => void;
-  readonly subscribeSurfaceGeometryChanged?: (listener: () => void) => () => void;
 }
 
 const MaterialSurfaceRegistrationContext =
@@ -87,11 +85,6 @@ export function clearMaterialSurfaceMaskOpacityGroup(element: MaterialSurfaceEle
 /** Explicit cheap invalidation seam for transform-driven material motion. */
 export function useMaterialSurfaceGeometryInvalidation(): () => void {
   return useContext(MaterialSurfaceRegistrationContext)?.notifySurfaceGeometryChanged ?? noOp;
-}
-
-export function useMaterialSurfaceGeometrySubscription(listener: () => void): void {
-  const subscribe = useContext(MaterialSurfaceRegistrationContext)?.subscribeSurfaceGeometryChanged;
-  useLayoutEffect(() => subscribe?.(listener), [listener, subscribe]);
 }
 
 /** Imperative cheap mask-only presentation seam for compositor-backed surface fades. */

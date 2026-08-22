@@ -395,7 +395,7 @@ describe("C2D Canvas Browser cards", () => {
 
     expect(onReorderCanvases).toHaveBeenCalledTimes(1);
     expect(onReorderCanvases).toHaveBeenCalledWith(["canvas-b", "canvas-a"]);
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalled();
+    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     registry.dispose();
   });
 });

@@ -111,7 +111,8 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
       expect(patternCss).toContain(`var(${token})`);
     }
     expect(motion).toContain("useMotionFrameScheduler");
-    expect(motion).toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(motion).not.toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(motion).toContain("invalidateChromeGlassBatch(LEFT_CHROME_GLASS_BATCH)");
     expect(pattern).not.toContain("data-side-panel-reveal-cover");
     expect(pattern).toContain("WorkspaceSidePanelContentSwitcher");
     expect(patternCss).toContain("z-index: 0");

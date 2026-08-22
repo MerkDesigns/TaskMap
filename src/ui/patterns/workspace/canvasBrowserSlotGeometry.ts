@@ -32,8 +32,10 @@ export class CanvasBrowserSlotGeometry<Id extends string> {
       const target = canvasCardSlotTop(order, index, records);
       if (animate && record.y !== target) {
         this.animations.set(id, { from: record.y, to: target, startedAt: now });
+        record.host.dataset.slotMotion = "true";
       } else {
         this.animations.delete(id);
+        delete record.host.dataset.slotMotion;
         this.write(record, target);
       }
     });
@@ -52,7 +54,10 @@ export class CanvasBrowserSlotGeometry<Id extends string> {
         : Math.min(1, (now - animation.startedAt) / CANVAS_CARD_SLOT_TRANSITION_MS);
       this.write(record, animation.from + (animation.to - animation.from) * easeOutQuart(progress));
       changed = true;
-      if (progress === 1) this.animations.delete(id);
+      if (progress === 1) {
+        this.animations.delete(id);
+        delete record.host.dataset.slotMotion;
+      }
     }
     return changed;
   }
@@ -61,7 +66,10 @@ export class CanvasBrowserSlotGeometry<Id extends string> {
     this.animations.clear();
     order.forEach((id, index) => {
       const record = records.get(id);
-      if (record) this.write(record, canvasCardSlotTop(order, index, records));
+      if (record) {
+        delete record.host.dataset.slotMotion;
+        this.write(record, canvasCardSlotTop(order, index, records));
+      }
     });
   }
 

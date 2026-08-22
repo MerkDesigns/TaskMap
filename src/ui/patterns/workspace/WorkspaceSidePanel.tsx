@@ -2,6 +2,7 @@ import {
   forwardRef,
   useCallback,
   useLayoutEffect,
+  useEffect,
   useRef,
   useState,
   type ForwardedRef,
@@ -9,11 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
+import { useReducedMotion } from "../../motion/reducedMotionPreference";
 import {
   useWorkspaceSidePanelMotion,
   WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
 } from "./useWorkspaceSidePanelMotion";
 import "./WorkspaceSidePanel.css";
+import { LEFT_CHROME_GLASS_BATCH } from "./WorkspaceChromeGlassBatches";
 
 export { WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS };
 
@@ -43,9 +46,11 @@ export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelP
         {...props}
         ref={panelRef}
         material="acrylic-large"
+        backdropSource="shared"
         radius={radius}
         aria-label={label}
         data-closing={closing || undefined}
+        data-glass-batch-target={LEFT_CHROME_GLASS_BATCH}
         className={["taskmap-workspace-side-panel", className].filter(Boolean).join(" ")}
       >
         {children}
@@ -77,38 +82,47 @@ export function WorkspaceSidePanelContentSwitcher({
   ...props
 }: WorkspaceSidePanelContentSwitcherProps) {
   const viewRefs = useRef<Array<HTMLDivElement | null>>([null, null]);
+  const reducedMotion = useReducedMotion();
   const [height, setHeight] = useState<number | null>(null);
+  const [outgoingIndex, setOutgoingIndex] = useState<0 | 1 | null>(null);
+  const previousIndexRef = useRef(activeIndex);
+  const heightInitializedRef = useRef(false);
 
   useLayoutEffect(() => {
     const activeView = viewRefs.current[activeIndex];
     if (!activeView) return;
-    const measure = () => {
-      const contentHeight = Math.max(
-        activeView.scrollHeight,
-        activeView.firstElementChild?.scrollHeight ?? 0,
-      );
-      const panel = activeView.closest<HTMLElement>(".taskmap-workspace-side-panel");
-      const panelStyle = panel ? window.getComputedStyle(panel) : null;
-      const bottomInset = Number.parseFloat(
-        panelStyle?.getPropertyValue("--taskmap-chrome-inset-bottom") ?? "",
-      );
-      const availableHeight = panel
-        ? window.innerHeight -
-          panel.getBoundingClientRect().top -
-          (Number.isFinite(bottomInset) ? bottomInset : 16)
-        : contentHeight;
-      const nextHeight = Math.ceil(Math.min(contentHeight, Math.max(0, availableHeight)));
-      setHeight((current) => (current === nextHeight ? current : nextHeight));
-    };
-    measure();
+    const previousIndex = previousIndexRef.current;
+    previousIndexRef.current = activeIndex;
+    if (previousIndex !== activeIndex) setOutgoingIndex(reducedMotion ? null : previousIndex);
+    const nextHeight = measurePanelViewHeight(activeView);
+    if (!heightInitializedRef.current) {
+      heightInitializedRef.current = true;
+      setHeight(nextHeight);
+      return;
+    }
+    setHeight(nextHeight);
+  }, [activeIndex, reducedMotion]);
+
+  useLayoutEffect(() => {
+    if (outgoingIndex !== null) return;
+    const activeView = viewRefs.current[activeIndex];
+    const observed = activeView?.firstElementChild;
+    if (!activeView || !observed) return;
+    const measure = () => setHeight(measurePanelViewHeight(activeView));
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    observer?.observe(activeView);
+    observer?.observe(observed);
     window.addEventListener("resize", measure);
     return () => {
       observer?.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [activeIndex]);
+  }, [activeIndex, outgoingIndex]);
+
+  useEffect(() => {
+    if (outgoingIndex === null) return;
+    const timeout = window.setTimeout(() => setOutgoingIndex(null), 220);
+    return () => window.clearTimeout(timeout);
+  }, [outgoingIndex]);
 
   return (
     <div
@@ -119,6 +133,7 @@ export function WorkspaceSidePanelContentSwitcher({
     >
       {views.map((view, index) => {
         const active = index === activeIndex;
+        const state = active ? "active" : outgoingIndex === index ? "outgoing" : "inactive";
         return (
           <div
             key={index}
@@ -128,8 +143,18 @@ export function WorkspaceSidePanelContentSwitcher({
             }}
             className="taskmap-workspace-side-panel-switcher__view"
             data-active={active || undefined}
+            data-view-state={state}
             data-view-index={index}
             aria-hidden={!active}
+            onTransitionEnd={(event) => {
+              if (
+                state === "outgoing" &&
+                event.target === event.currentTarget &&
+                event.propertyName === "opacity"
+              ) {
+                setOutgoingIndex(null);
+              }
+            }}
           >
             {view}
           </div>
@@ -137,6 +162,20 @@ export function WorkspaceSidePanelContentSwitcher({
       })}
     </div>
   );
+}
+
+function measurePanelViewHeight(view: HTMLElement): number {
+  const contentHeight = Math.max(view.scrollHeight, view.firstElementChild?.scrollHeight ?? 0);
+  const panel = view.closest<HTMLElement>(".taskmap-workspace-side-panel");
+  if (!panel) return Math.ceil(contentHeight);
+  const bottomInset = Number.parseFloat(
+    window.getComputedStyle(panel).getPropertyValue("--taskmap-chrome-inset-bottom"),
+  );
+  const availableHeight =
+    window.innerHeight -
+    panel.getBoundingClientRect().top -
+    (Number.isFinite(bottomInset) ? bottomInset : 16);
+  return Math.ceil(Math.min(contentHeight, Math.max(0, availableHeight)));
 }
 
 export const WorkspacePanelHeader = forwardRef<HTMLDivElement, WorkspacePanelHeaderProps>(

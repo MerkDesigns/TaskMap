@@ -90,11 +90,12 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(manager).toContain("<TextField");
     expect(manager).toContain("<IconButton");
     expect(manager).toContain("new CanvasBrowserRuntime<string>");
-    expect(manager).toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(manager).not.toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(manager).toContain("useSettledPanelWork");
     expect(manager).toContain("<SharedSmallGlassPlane");
     expect(manager).not.toContain("useMaterialSurfaceMaskOpacity");
     expect(runtime).toContain("private readonly tick");
-    expect(runtime).toContain("if (this.needsFrame()) this.requestFrame()");
+    expect(runtime).toContain("canvasBrowserRuntimeNeedsFrame");
     expect(interaction).toContain("CANVAS_CARD_SLOT_TRANSITION_MS = 190");
     expect(manager).not.toContain("applyLocalFlip(");
     expect(manager).toContain("createPortal(");

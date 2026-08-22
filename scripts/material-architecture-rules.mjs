@@ -3,7 +3,7 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
     "src/index.css": 4,
     "src/ui/materials/FrostedSurface.css": 2,
     "src/ui/materials/MaterialSurface.css": 4,
-    "src/ui/materials/SharedSmallGlassPlane.css": 2,
+    "src/ui/materials/NativeGlassBatch.css": 4,
   }),
   tailwindBackdropBlur: Object.freeze({
     "src/App.tsx": 1,

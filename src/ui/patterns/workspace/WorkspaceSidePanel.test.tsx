@@ -61,7 +61,7 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     const invalidationsAtRest = notifySurfaceGeometryChanged.mock.calls.length;
-    expect(invalidationsAtRest).toBeGreaterThan(1);
+    expect(invalidationsAtRest).toBe(0);
     expect(driver.fire()).toBe(false);
     expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(invalidationsAtRest);
 
@@ -122,7 +122,7 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel.style.willChange).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalled();
+    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
 
     scheduler.dispose();
     registry.dispose();

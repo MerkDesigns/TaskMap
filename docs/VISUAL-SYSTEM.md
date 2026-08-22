@@ -181,14 +181,26 @@ surface inherits the nearest logical Large sampling boundary through React conte
 backdrop overscan is clamped per side to that boundary, including while UI classes or physical DOM
 placement change. Standalone Small and Large surfaces clamp to the application viewport.
 
-Canvas Browser Small cards are the bounded shared-plane experiment. Settled cards disable only
-their private pre-blur/backdrop spans and reuse one 20px Small filter clipped by live rounded SVG
-rectangles inside the card viewport. Every card retains the same Small tint, tone, rim, shadow,
-radius, and content mask. The plane is bounded to the Canvas Browser card viewport rather than the
-application viewport. When the actual dragged card leaves that viewport, its existing
-`data-material-motion="active"` state restores its private 5px + 20px Small passes and removes its
-shape from the shared plane until reattachment. Large and non-Canvas-Browser Small surfaces are
-unchanged. Native backdrop layers do not use permanent `will-change: backdrop-filter` promotion.
+Canvas Browser and primary Extensions Browser cards use bounded shared Small batches. Their private
+pre-blur/backdrop spans remain disabled in every geometry and motion state. One 20px Small filter is
+clipped by live rounded SVG rectangles while every card retains the same Small tint, tone, rim,
+shadow, radius, and content mask. Canvas drag adds a temporary moving clip to the same physical
+Small source, rather than switching the card to a private or optically different filter. Thus
+`data-material-motion` never changes shared-card optics. Native backdrop layers do not use permanent
+`will-change: backdrop-filter` promotion.
+
+### Semantic native glass depths
+
+Native glass batches have explicit visual depth. Depth 1 is base workspace chrome and samples only
+Depth 0 canvas/application content. The nearby toolbar groups and open shared side-panel shell reuse
+one bounded two-pass Large batch. The distant window controls use a separate bounded two-pass Large
+batch, avoiding a viewport-sized 38px texture. Per-surface Depth-1 tints, rims, shadows, radii, and
+content paint after those batch filters, so same-depth chrome does not feed another Depth-1 blur.
+
+Depth 2 is Small card glass inside a Large owner. It samples the completed Depth 0 + Depth 1 result.
+Each active card browser owns one bounded Small batch regardless of card count. Same-depth card
+shapes are clips of one native filter source and therefore cannot recursively blur one another. The
+legacy cached Canvas2D compositor remains parked and is not involved in either depth.
 
 Both roles use the accepted DPR-aware rounded-perimeter canvas rim. It is redrawn only for geometry,
 DPR, or material changes; there is no permanent rim animation loop. The native backdrop layers may
@@ -284,16 +296,19 @@ over `180ms` from a `4px` horizontal offset while the active view's measured hei
 shell-height transition. The inactive view is inert and interaction-free. Menus, filter popovers,
 tooltips, and drag UI retain their existing portals.
 
-The shared side panel is explicitly layer `0`; the left and right top-chrome islands are layer `1`
-and are composed after the side panel. Their glass, controls, and hover/press highlights therefore
-paint in front of the side panel and are excluded from its backdrop-filter/overscan sampling.
+The shared side panel and left toolbar islands are shapes in the same bounded Depth-1 Large batch.
+Their filters therefore share one pre-Depth-1 source even when their sampling overscan overlaps.
+Individual tint/rim/content layers remain above that batch. The top-right window controls use the
+separate bounded right batch because combining both sides would create an unnecessarily wide blur
+texture.
 
 The Acrylic Large surface never changes opacity, blur, filter, or backdrop-filter values during
 panel presence motion. The complete panel mounts beyond the left window edge and translates into
 place over `240ms` with a cubic ease-in; closing translates the same mounted panel fully beyond the
 left edge with a cubic ease-out before unmounting. There is no reveal cover or panel-presence fade.
-Transform frames use the shared UI scheduler and the material registry's cheap geometry
-invalidation seam so compositor masks follow the moving surface. Reduced motion settles directly at
+Transform frames use the shared UI scheduler and invalidate only the left chrome batch geometry so
+its panel clip follows the moving surface. They do not broadcast geometry work to other
+`MaterialSurface` instances. Reduced motion settles directly at
 the open or offscreen position without scheduling animation frames.
 App-owned closing flags and the `240ms` final unmount timer remain authoritative. Content switches
 do not unmount the shell, and reversing a close cancels its pending unmount so the mounted glass
@@ -318,11 +333,12 @@ acrylic surfaces. The preview shell uses Cutout; its miniature containers, text 
 remain cheap projected geometry and retain user-selected colors and the existing projection math.
 Active/cycle application state uses the scoped target accent tokens.
 
-All visible non-embedded cards reuse the one bounded Small backdrop plane described above. With
+All visible non-embedded cards reuse the one bounded Small backdrop batch described above. With
 `N` settled cards, Canvas Browser backdrop ownership changes from `N` card filters to one shared
-filter; the owning Large panel remains separate. Ten cards therefore use two active native backdrop
-surfaces in this region (one Large plus one shared Small) instead of eleven. During a live drag the
-temporary dragged-card filter raises that regional count to three until it rejoins the plane.
+filter. The owning panel shares the left Large batch with the toolbar. Drag, slot motion,
+autoscroll, and snap update only rounded mask geometry; they never activate a card-local filter or
+interaction preblur. The moving card's temporary drag region stays in the same physical Small
+source, so the native filter count is constant before, during, and after drag.
 
 The Renderer V2-derived Canvas Browser runtime owns one on-demand frame loop for authoritative
 `45ms`-constant wheel smoothing, slot interpolation, pointer following, release snap, and drag
@@ -333,12 +349,15 @@ pointer frame.
 Cards render once into stable React portal hosts. Active drag reparents the same host into a
 temporary unclipped layer owned by the Large Canvas Browser; there is no clone, hidden duplicate,
 or placeholder. React material context therefore keeps the same logical Large sampling boundary
-through activation, drag, snap, and reattachment. Active frames use only DOM transforms and the
-cheap material-geometry invalidation seam. Reduced motion settles immediately.
+through activation, drag, snap, and reattachment. Active frames use only DOM transforms and local
+shared-mask writes; they do not invoke global material geometry. Fully offscreen preview contents
+use browser visibility containment. A settled inactive Canvas view destroys its runtime, wheel
+router, shared batch, mask observer, card rim observers, and preview contents. Reduced motion
+settles immediately.
 
-The development FPS counter is fully opaque and has no backdrop filter. It reports the current
-active native backdrop-surface count and whether the shared Small plane has at least one clip, so
-benchmarking the counter does not add another blur surface.
+The development FPS counter is fully opaque and has no backdrop filter. It reports FPS/frame time,
+active depths and batches, native filter layers, shared Small batches, temporary drag-region state,
+local per-surface filters, and recent material/batch geometry refreshes.
 
 ### Extensions
 
@@ -352,6 +371,11 @@ section headings, and empty presentation do not create additional material surfa
 the C1 SearchField and the filter/favorite triggers use existing button primitives. Active filter
 application state consumes the scoped target accent; the purpose-specific amber favorite state is
 retained.
+
+Non-embedded Extension cards share one bounded Small batch clipped to the visible scroll viewport.
+Scroll events coalesce one local mask update per frame and never invalidate toolbar or window glass.
+After the Canvas/Extensions crossfade settles, the inactive view has no active Small batch, scroll
+listener, batch `ResizeObserver`, card rim observer, or painted card subtree.
 
 The shared info tooltip, coordinate-positioned filter portal shell, Quick Extensions menu, and
 body-owned drag preview remain on their existing overlay/presentation paths. The filter portal gets

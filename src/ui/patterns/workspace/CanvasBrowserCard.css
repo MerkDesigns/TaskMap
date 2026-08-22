@@ -99,6 +99,9 @@
   flex: 0 0 auto;
   overflow: hidden;
   background: #101214;
+  contain: layout paint style;
+  content-visibility: auto;
+  contain-intrinsic-size: 114.4px 66px;
 }
 
 .taskmap-canvas-preview[data-material="cutout"] {

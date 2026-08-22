@@ -110,6 +110,10 @@
   overscroll-behavior: contain;
 }
 
+.taskmap-canvas-browser__small-glass-batch {
+  inset: 0;
+}
+
 .taskmap-canvas-browser__cards-layer {
   position: relative;
   z-index: 1;
@@ -127,6 +131,9 @@
   width: 264px;
   height: 84px;
   pointer-events: none;
+}
+
+.taskmap-canvas-browser-card-host[data-slot-motion="true"] {
   will-change: transform;
 }
 

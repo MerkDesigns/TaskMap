@@ -150,6 +150,7 @@ import {
   MINIMAP_VISIBILITY_DURATION_MS,
   WorkspaceBackdropLayer,
   WorkspaceChromeLayer,
+  WorkspaceChromeGlassBatches,
   WorkspaceRoot,
   WorkspaceSidePanel,
   WorkspaceSidePanelContentSwitcher,
@@ -6516,6 +6517,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               </Suspense>
             )}
             <WorkspaceChromeLayer>
+              <WorkspaceChromeGlassBatches />
               {leftPanelOpen && (
                 <Suspense fallback={null}>
                   <WorkspaceSidePanel

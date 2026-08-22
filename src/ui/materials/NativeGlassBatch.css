@@ -1,26 +1,40 @@
-.taskmap-shared-small-glass-plane {
+.taskmap-native-glass-batch {
   position: absolute;
   z-index: 0;
   overflow: hidden;
-  inset: 0;
   pointer-events: none;
-  transform: translateZ(0);
 }
 
-.taskmap-shared-small-glass-plane__definitions {
+.taskmap-native-glass-batch[data-glass-batch-state="inactive"] {
+  display: none;
+}
+
+.taskmap-native-glass-batch__definitions {
   position: absolute;
   width: 0;
   height: 0;
+  pointer-events: none;
 }
 
-.taskmap-shared-small-glass-plane__backdrop {
+.taskmap-native-glass-batch__preblur,
+.taskmap-native-glass-batch__backdrop {
   position: absolute;
   background: rgb(0 0 0 / 0.001);
-  inset: calc(0px - var(--taskmap-shared-small-overscan));
+  inset: calc(0px - var(--taskmap-native-glass-batch-overscan));
+  pointer-events: none;
+}
+
+.taskmap-native-glass-batch__preblur {
+  z-index: 0;
+  -webkit-backdrop-filter: blur(var(--taskmap-material-preblur));
+  backdrop-filter: blur(var(--taskmap-material-preblur));
+}
+
+.taskmap-native-glass-batch__backdrop {
+  z-index: 1;
   -webkit-backdrop-filter: blur(var(--taskmap-material-blur))
     saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
     contrast(var(--taskmap-material-contrast));
   backdrop-filter: blur(var(--taskmap-material-blur)) saturate(var(--taskmap-material-saturation))
     brightness(var(--taskmap-material-brightness)) contrast(var(--taskmap-material-contrast));
-  pointer-events: none;
 }

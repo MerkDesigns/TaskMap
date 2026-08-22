@@ -32,6 +32,9 @@ import { IconButton } from "../ui/primitives/Button";
 import { SearchField } from "../ui/primitives/FormControls";
 import { ScrollArea } from "../ui/primitives/Layout";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
+import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
+import { useSharedSmallGlassList } from "../ui/patterns/workspace/useSharedSmallGlassList";
 
 export type { ExtensionId } from "../extensions/registry";
 
@@ -327,8 +330,17 @@ export function ExtensionsPanel({
   const localPanelRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
   const [filterPosition, setFilterPosition] = useState({ left: 0, top: 0 });
   const activePanelRef = panelRef ?? localPanelRef;
+  const workActive = useSettledPanelWork(active);
+  useSharedSmallGlassList({
+    active: workActive && !embedded,
+    cardSelector: "[data-extension-card-id]",
+    planeRef: sharedSmallGlassPlaneRef,
+    viewportRef: scrollAreaRef,
+  });
   const { drag, startExtensionDrag } = useExtensionDrag({
     sourceRef: activePanelRef,
     onDropExtension,
@@ -414,6 +426,7 @@ export function ExtensionsPanel({
       <ExtensionBrowserCard
         key={extension.id}
         embedded={embedded}
+        geometryActive={workActive}
         data-extension-card-id={extension.id}
         onPointerDown={(event) => startExtensionDrag(event, extension.id)}
       >
@@ -528,27 +541,40 @@ export function ExtensionsPanel({
           document.body,
         )}
 
-      <ScrollArea hiddenScrollbar className="min-h-0 flex-1 space-y-2">
-        {favoriteExtensions.length > 0 && (
-          <div className="taskmap-extension-browser-section">
-            <div className="taskmap-extension-browser-section__heading">Favorites</div>
-            {favoriteExtensions.map(renderExtensionCard)}
-          </div>
+      <div className="taskmap-extension-browser-scroll-frame min-h-0 flex-1">
+        {!embedded && (
+          <SharedSmallGlassPlane
+            ref={sharedSmallGlassPlaneRef}
+            batchId="extension-browser-small"
+            kind="small-extension"
+          />
         )}
-        {otherExtensions.length > 0 && (
-          <div className="taskmap-extension-browser-section">
-            {favoriteExtensions.length > 0 && (
-              <div className="taskmap-extension-browser-section__heading taskmap-extension-browser-section__heading--continuation">
-                Extensions
-              </div>
-            )}
-            {otherExtensions.map(renderExtensionCard)}
-          </div>
-        )}
-        {filteredExtensions.length === 0 && (
-          <div className="taskmap-extension-browser-empty">No extensions found</div>
-        )}
-      </ScrollArea>
+        <ScrollArea
+          ref={scrollAreaRef}
+          hiddenScrollbar
+          className="taskmap-extension-browser-scroll-area space-y-2"
+        >
+          {favoriteExtensions.length > 0 && (
+            <div className="taskmap-extension-browser-section">
+              <div className="taskmap-extension-browser-section__heading">Favorites</div>
+              {favoriteExtensions.map(renderExtensionCard)}
+            </div>
+          )}
+          {otherExtensions.length > 0 && (
+            <div className="taskmap-extension-browser-section">
+              {favoriteExtensions.length > 0 && (
+                <div className="taskmap-extension-browser-section__heading taskmap-extension-browser-section__heading--continuation">
+                  Extensions
+                </div>
+              )}
+              {otherExtensions.map(renderExtensionCard)}
+            </div>
+          )}
+          {filteredExtensions.length === 0 && (
+            <div className="taskmap-extension-browser-empty">No extensions found</div>
+          )}
+        </ScrollArea>
+      </div>
     </>
   );
 

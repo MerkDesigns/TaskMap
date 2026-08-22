@@ -50,6 +50,15 @@
     transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.taskmap-workspace-side-panel-switcher__view[data-view-state="inactive"] {
+  display: none;
+  content-visibility: hidden;
+}
+
+.taskmap-workspace-side-panel-switcher__view[data-view-state="outgoing"] {
+  visibility: visible;
+}
+
 .taskmap-workspace-side-panel-switcher[data-height-ready="true"]
   .taskmap-workspace-side-panel-switcher__view {
   height: 100%;

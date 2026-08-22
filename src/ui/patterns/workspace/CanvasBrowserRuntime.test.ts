@@ -137,7 +137,8 @@ describe("production Canvas Browser runtime", () => {
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
     expect(record.card).toHaveAttribute("data-material-motion", "active");
-    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(4);
+    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(5);
+    expect(fixture.sharedGlassPlane).toHaveAttribute("data-glass-drag-region-active", "true");
     expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
     expect(fixture.runtime.getSnapshot().order).toEqual(["b", "c", "d", "e", "a"]);
     expect(fixture.commitOrder).not.toHaveBeenCalled();
@@ -156,6 +157,7 @@ describe("production Canvas Browser runtime", () => {
     expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
     expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(5);
+    expect(fixture.sharedGlassPlane).not.toHaveAttribute("data-glass-drag-region-active");
     expect(fixture.commitOrder).toHaveBeenCalledTimes(1);
     expect(fixture.commitOrder).toHaveBeenCalledWith(["b", "c", "d", "e", "a"]);
     fixture.destroy();
@@ -202,7 +204,7 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
   const sharedGlassPlane = document.createElement("div");
   const definitions = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   const clip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
-  clip.dataset.sharedSmallGlassClip = "true";
+  clip.dataset.nativeGlassBatchClip = "true";
   definitions.append(clip);
   sharedGlassPlane.append(definitions);
   const cardsLayer = document.createElement("div");
@@ -219,7 +221,6 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
     cardsLayer,
     sharedSmallGlassPlane: sharedGlassPlane,
     commitOrder,
-    invalidateMaterialGeometry: vi.fn(),
     frameDriver: frames,
   });
   const cards = new Map<string, { host: HTMLDivElement; card: HTMLElement }>();

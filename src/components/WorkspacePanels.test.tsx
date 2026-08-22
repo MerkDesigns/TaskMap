@@ -96,19 +96,50 @@ describe("C2C workspace panels", () => {
     const props = canvasManagerProps();
     props.canvases = Array.from({ length: 10 }, (_, index) => canvas(`canvas-${index}`));
     props.activeCanvasId = "canvas-0";
-    const { container } = render(
+    const view = () => (
       <ReducedMotionProvider override>
         <CanvasManager {...props} />
-      </ReducedMotionProvider>,
+      </ReducedMotionProvider>
     );
+    const { container, rerender } = render(view());
 
     expect(container.querySelectorAll("[data-canvas-card-id]")).toHaveLength(10);
-    expect(container.querySelectorAll('[data-material-backdrop-source="shared"]')).toHaveLength(10);
+    expect(
+      container.querySelectorAll('[data-canvas-card-id][data-material-backdrop-source="shared"]'),
+    ).toHaveLength(10);
     expect(container.querySelectorAll('[data-shared-small-glass-plane="active"]')).toHaveLength(1);
-    expect(readNativeGlassDiagnostics(container)).toEqual({
-      nativeBackdropSurfaceCount: 2,
-      nativeBackdropFilterLayerCount: 3,
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      localMaterialBackdropFilterCount: 0,
+      nativeBackdropSurfaceCount: 1,
+      nativeBackdropFilterLayerCount: 1,
+      sharedSmallBatchCount: 1,
       sharedSmallPlaneActive: true,
+    });
+
+    props.canvases = Array.from({ length: 100 }, (_, index) => canvas(`canvas-${index}`));
+    rerender(view());
+    expect(container.querySelectorAll("[data-canvas-card-id]")).toHaveLength(100);
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      localMaterialBackdropFilterCount: 0,
+      nativeBackdropFilterLayerCount: 1,
+      sharedSmallBatchCount: 1,
+    });
+  });
+
+  it("keeps the retained inactive Canvas view free of filters and wheel routing", () => {
+    const { container } = render(
+      <ReducedMotionProvider override>
+        <CanvasManager {...canvasManagerProps()} active={false} sharedPanel />
+      </ReducedMotionProvider>,
+    );
+    const viewport = container.querySelector<HTMLElement>("[data-canvas-browser-viewport]")!;
+    const wheel = new WheelEvent("wheel", { cancelable: true, deltaY: 100 });
+    viewport.dispatchEvent(wheel);
+
+    expect(wheel.defaultPrevented).toBe(false);
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      nativeBackdropFilterLayerCount: 0,
+      sharedSmallBatchCount: 0,
     });
   });
 

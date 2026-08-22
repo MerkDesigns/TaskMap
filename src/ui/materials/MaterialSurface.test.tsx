@@ -166,16 +166,9 @@ describe("MaterialSurface", () => {
 
   it("bounds nested Small overscan to its logical Large owner across transient classes", () => {
     const registry = createMaterialSurfaceRegistry(null);
-    const listeners = new Set<() => void>();
     const registrationBoundary = {
       registry,
-      notifySurfaceGeometryChanged: () => listeners.forEach((listener) => listener()),
-      subscribeSurfaceGeometryChanged: (listener: () => void) => {
-        listeners.add(listener);
-        return () => {
-          listeners.delete(listener);
-        };
-      },
+      notifySurfaceGeometryChanged: vi.fn(),
     };
     const view = (motionClass: string) => (
       <MaterialSurfaceRegistrationProvider value={registrationBoundary}>
@@ -196,12 +189,12 @@ describe("MaterialSurface", () => {
     vi.spyOn(large, "getBoundingClientRect").mockReturnValue(rectangle(100, 100, 300, 300));
     vi.spyOn(small, "getBoundingClientRect").mockReturnValue(rectangle(105, 120, 100, 100));
 
-    registrationBoundary.notifySurfaceGeometryChanged();
+    fireEvent(window, new Event("resize"));
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
     expect(overscan(small)).toEqual(["5.00px", "20.00px", "23.00px", "23.00px"]);
 
     rerender(view("is-dragging is-snapping"));
-    registrationBoundary.notifySurfaceGeometryChanged();
+    fireEvent(window, new Event("resize"));
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
     expect(overscan(small)).toEqual(["5.00px", "20.00px", "23.00px", "23.00px"]);
     expect(registry.getSnapshot().surfaces).toEqual([]);

@@ -1,5 +1,6 @@
 import { forwardRef, type HTMLAttributes } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
+import { LEFT_CHROME_GLASS_BATCH } from "./WorkspaceChromeGlassBatches";
 import "./FloatingCanvasToolbar.css";
 
 export const FloatingCanvasToolbar = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
@@ -28,10 +29,12 @@ export const ToolbarGroup = forwardRef<HTMLElement, ToolbarGroupProps>(function 
       {...props}
       ref={ref}
       material="acrylic-large"
+      backdropSource="shared"
       elevation="none"
       radius={radius}
       role="group"
       aria-label={label}
+      data-glass-batch-target={LEFT_CHROME_GLASS_BATCH}
       className={["taskmap-floating-canvas-toolbar__group", className].filter(Boolean).join(" ")}
     />
   );

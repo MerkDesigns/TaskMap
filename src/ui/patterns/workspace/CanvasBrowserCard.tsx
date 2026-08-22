@@ -9,6 +9,7 @@ export interface CanvasBrowserCardProps extends HTMLAttributes<HTMLDivElement> {
   readonly active?: boolean;
   readonly cycleHighlighted?: boolean;
   readonly embedded: boolean;
+  readonly geometryActive?: boolean;
   readonly mode: CanvasBrowserCardMode;
   readonly radius?: number;
 }
@@ -21,6 +22,7 @@ export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardPro
       className,
       cycleHighlighted = false,
       embedded,
+      geometryActive = true,
       mode,
       radius: radiusOverride,
       ...props
@@ -34,6 +36,7 @@ export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardPro
         ref={ref}
         material={embedded ? "opaque" : "acrylic-small"}
         backdropSource={embedded ? undefined : "shared"}
+        geometryActive={geometryActive}
         radius={radius}
         data-canvas-card-mode={mode}
         data-active={active || undefined}

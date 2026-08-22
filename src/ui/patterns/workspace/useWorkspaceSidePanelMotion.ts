@@ -1,9 +1,9 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
-import { useMaterialSurfaceGeometryInvalidation } from "../../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../../motion/MotionProvider";
 import type { MotionFrameScheduler } from "../../motion/motionFrameScheduler";
 import { interpolate, normalizedProgress } from "../../motion/motionMath";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
+import { invalidateChromeGlassBatch, LEFT_CHROME_GLASS_BATCH } from "./WorkspaceChromeGlassBatches";
 
 export const WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 240;
 export const WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32;
@@ -18,7 +18,6 @@ export function useWorkspaceSidePanelMotion(
   const reducedMotion = useReducedMotion();
   const translateXRef = useRef(0);
   const initializedRef = useRef(false);
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
 
   const writePanel = useCallback(
     (translateX: number, phase: SlidePhase) => {
@@ -35,9 +34,9 @@ export function useWorkspaceSidePanelMotion(
         panel.style.transform = `translate3d(${translateX}px, 0, 0)`;
         panel.style.willChange = phase === "active" ? "transform" : "";
       }
-      invalidateGeometry();
+      invalidateChromeGlassBatch(LEFT_CHROME_GLASS_BATCH);
     },
-    [invalidateGeometry, panelRef],
+    [panelRef],
   );
 
   useLayoutEffect(() => {
@@ -54,6 +53,8 @@ export function useWorkspaceSidePanelMotion(
 
     return subscribeSlideAnimation(scheduler, writePanel, from, target, opening);
   }, [closing, panelRef, reducedMotion, scheduler, writePanel]);
+
+  useLayoutEffect(() => () => invalidateChromeGlassBatch(LEFT_CHROME_GLASS_BATCH), []);
 }
 
 function subscribeSlideAnimation(

@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EXTENSIONS } from "../extensions/registry";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
+import { readNativeGlassDiagnostics } from "../ui/materials/SharedSmallGlassPlane";
 import {
   createMaterialSurfaceRegistry,
   type MaterialSurfaceRegistry,
@@ -36,6 +37,54 @@ describe("Quick extensions menu", () => {
 });
 
 describe("C2E Extensions panel", () => {
+  it("uses one bounded Small batch and suspends it when the retained view settles inactive", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains("taskmap-extension-browser-scroll-area")) {
+        return rect(16, 120, 264, 190);
+      }
+      if (this.dataset.extensionCardId) {
+        const index = EXTENSIONS.findIndex(
+          (extension) => extension.id === this.dataset.extensionCardId,
+        );
+        return rect(16, 120 + index * 66, 264, 58);
+      }
+      return rect(0, 0, 0, 0);
+    });
+    const registry = createMaterialSurfaceRegistry(null);
+    const view = (active: boolean) => (
+      <MaterialSurfaceRegistrationProvider
+        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
+      >
+        <ReducedMotionProvider override>
+          <ExtensionsPanel active={active} closing={false} sharedPanel onDropExtension={vi.fn()} />
+        </ReducedMotionProvider>
+      </MaterialSurfaceRegistrationProvider>
+    );
+    const { container, rerender } = render(view(true));
+
+    expect(
+      container.querySelectorAll(
+        '[data-extension-card-id][data-material-backdrop-source="shared"]',
+      ),
+    ).toHaveLength(EXTENSIONS.length);
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      localMaterialBackdropFilterCount: 0,
+      nativeBackdropFilterLayerCount: 1,
+      sharedSmallBatchCount: 1,
+    });
+
+    rerender(view(false));
+    await waitFor(() =>
+      expect(readNativeGlassDiagnostics(container)).toMatchObject({
+        nativeBackdropFilterLayerCount: 0,
+        sharedSmallBatchCount: 0,
+      }),
+    );
+    registry.dispose();
+  });
+
   it("maps production cards to Acrylic Small and icon boxes to unregistered Cutout", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const { container } = renderProduction(registry);

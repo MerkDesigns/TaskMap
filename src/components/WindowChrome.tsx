@@ -4,6 +4,7 @@ import { windowChromeActions, type WindowChromeActions } from "../app/windowChro
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { IconButton } from "../ui/primitives/Button";
 import "../ui/patterns/workspace/WindowChrome.css";
+import { RIGHT_CHROME_GLASS_BATCH } from "../ui/patterns/workspace/WorkspaceChromeGlassBatches";
 
 interface WindowChromeProps {
   readonly actions?: WindowChromeActions;
@@ -69,10 +70,12 @@ export function WindowChrome({ actions = windowChromeActions, radius }: WindowCh
       />
       <MaterialSurface
         material="acrylic-large"
+        backdropSource="shared"
         elevation="none"
         radius={radius}
         role="group"
         aria-label="Window controls"
+        data-glass-batch-target={RIGHT_CHROME_GLASS_BATCH}
         className="taskmap-window-controls"
         onDoubleClick={(event) => event.stopPropagation()}
         onPointerDown={stopChromePointerPropagation}

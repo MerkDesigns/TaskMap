@@ -15,16 +15,11 @@ import {
   measureCanvasBrowserCard,
   reorderCanvasBrowserHosts,
   restoreSettledCardHost,
-  writeCanvasBrowserContentHeight,
   writeDraggingCardHost,
   writeDraggingCardTop,
 } from "./canvasBrowserDom";
 import { CanvasCardPointerSession } from "./canvasCardPointerSession";
-import {
-  canvasCardContentHeight,
-  canvasCardSlotTop,
-  CanvasBrowserSlotGeometry,
-} from "./canvasBrowserSlotGeometry";
+import { canvasCardSlotTop, CanvasBrowserSlotGeometry } from "./canvasBrowserSlotGeometry";
 import type {
   CanvasBrowserCardRecord,
   CanvasBrowserFrameDriver,
@@ -34,6 +29,11 @@ import type {
 import { browserAnimationFrameDriver } from "./canvasBrowserRuntimeTypes";
 import { convertCanvasBrowserWheelDelta } from "./canvasBrowserWheelDelta";
 import { CanvasBrowserSharedGlass } from "./canvasBrowserSharedGlass";
+import {
+  canvasBrowserRuntimeNeedsFrame,
+  canvasBrowserRuntimeSnapshot,
+  updateCanvasBrowserScrollRange,
+} from "./canvasBrowserRuntimeState";
 import { CanvasBrowserViewportController } from "./canvasBrowserViewport";
 
 export class CanvasBrowserRuntime<Id extends string> {
@@ -64,7 +64,11 @@ export class CanvasBrowserRuntime<Id extends string> {
       this.records,
       this.scroll,
     );
-    this.sharedGlass = new CanvasBrowserSharedGlass(options.sharedSmallGlassPlane, this.records);
+    this.sharedGlass = new CanvasBrowserSharedGlass(
+      options.sharedSmallGlassPlane,
+      this.records,
+      options.viewport,
+    );
     this.resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.resize());
     this.resizeObserver?.observe(options.viewport);
@@ -74,13 +78,10 @@ export class CanvasBrowserRuntime<Id extends string> {
     );
   }
 
-  setCommitOrder(commitOrder: (order: readonly Id[]) => void) {
-    this.commitOrder = commitOrder;
-  }
+  setCommitOrder = (commitOrder: (order: readonly Id[]) => void) =>
+    (this.commitOrder = commitOrder);
 
-  setReducedMotion(reducedMotion: boolean) {
-    this.reducedMotion = reducedMotion;
-  }
+  setReducedMotion = (reducedMotion: boolean) => (this.reducedMotion = reducedMotion);
 
   register(id: Id, host: HTMLDivElement, card: HTMLElement) {
     if (host.parentElement !== this.options.cardsLayer && this.drag?.id !== id) {
@@ -116,17 +117,15 @@ export class CanvasBrowserRuntime<Id extends string> {
     if (!this.drag?.active) {
       reorderCanvasBrowserHosts(this.displayOrder, this.records, this.options.cardsLayer);
     }
-    this.applyScroll();
-    this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
-    this.options.invalidateMaterialGeometry();
+    this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
+    this.sharedGlass.sync(this.scroll.currentScrollY);
   }
 
   resize = () => {
     this.records.forEach(measureCanvasBrowserCard);
     this.updateScrollRange();
-    this.applyScroll();
-    this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
-    this.options.invalidateMaterialGeometry();
+    this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
+    this.sharedGlass.sync(this.scroll.currentScrollY);
   };
 
   scrollByWheel(deltaY: number, deltaMode: number) {
@@ -176,11 +175,7 @@ export class CanvasBrowserRuntime<Id extends string> {
   }
 
   getSnapshot() {
-    return {
-      order: [...this.displayOrder],
-      dragActive: this.drag?.active ?? false,
-      scroll: this.scroll.snapshot(),
-    };
+    return canvasBrowserRuntimeSnapshot(this.displayOrder, this.drag, this.scroll);
   }
 
   destroy() {
@@ -221,17 +216,22 @@ export class CanvasBrowserRuntime<Id extends string> {
     const autoScroll = this.dragAutoScroll();
     const scrollFrame = this.scroll.tick(deltaTime, autoScroll);
     let changed = scrollFrame.changed;
-    if (scrollFrame.changed) this.applyScroll();
+    if (scrollFrame.changed) {
+      this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
+    }
     if (this.geometry.tick(now, this.records, this.reducedMotion)) {
       this.viewport.sync();
       changed = true;
     }
     changed = this.tickDrag(now) || changed;
     if (changed) {
-      this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
-      this.options.invalidateMaterialGeometry();
+      this.sharedGlass.sync(this.scroll.currentScrollY);
     }
-    if (this.needsFrame()) this.requestFrame();
+    if (
+      canvasBrowserRuntimeNeedsFrame(this.scroll, this.drag !== null, this.geometry.isAnimating())
+    ) {
+      this.requestFrame();
+    }
   };
 
   private prepareDrag() {
@@ -250,12 +250,14 @@ export class CanvasBrowserRuntime<Id extends string> {
     if (!drag || !record || drag.active) return;
     const rectangle = record.card.getBoundingClientRect();
     this.geometry.cancel(drag.id);
+    delete record.host.dataset.slotMotion;
     const panelRectangle = this.options.panel.getBoundingClientRect();
     this.dragLayer = createCanvasBrowserDragLayer(this.options.panel);
     this.dragLayer.append(record.host);
     writeDraggingCardHost(record, rectangle, panelRectangle);
+    this.sharedGlass.beginDrag(drag.id, record, rectangle, panelRectangle);
     this.viewport.sync(drag.id);
-    this.sharedGlass.sync(this.scroll.currentScrollY, drag.id);
+    this.sharedGlass.sync(this.scroll.currentScrollY);
     drag.active = true;
     drag.snapFromY = rectangle.top;
     this.scroll.synchronizeTarget();
@@ -271,6 +273,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     const top =
       drag.pointerY - drag.pointerOffsetY - this.options.panel.getBoundingClientRect().top;
     writeDraggingCardTop(record, top);
+    this.sharedGlass.moveDrag(top);
     if (drag.finish) {
       if (drag.finish === "cancel") {
         drag.order = drag.initialOrder;
@@ -326,6 +329,7 @@ export class CanvasBrowserRuntime<Id extends string> {
       record,
       drag.snapFromY + (target - drag.snapFromY) * easeOutQuart(progress),
     );
+    this.sharedGlass.moveDrag(drag.snapFromY + (target - drag.snapFromY) * easeOutQuart(progress));
     if (progress < 1) return true;
     this.completeDrag(drag, record);
     return true;
@@ -344,11 +348,12 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.dragLayer = null;
     this.scroll.synchronizeTarget();
     this.drag = null;
+    this.sharedGlass.endDrag();
     this.suppressedClickId = null;
     this.pointerSession.release(drag.pointerId);
     this.updateScrollRange();
     this.viewport.sync();
-    this.sharedGlass.sync(this.scroll.currentScrollY, null);
+    this.sharedGlass.sync(this.scroll.currentScrollY);
     if (shouldCommit) this.commitOrder(finalOrder);
   }
 
@@ -364,11 +369,12 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.dragLayer?.remove();
     this.dragLayer = null;
     this.drag = null;
+    this.sharedGlass.endDrag();
     this.suppressedClickId = null;
     this.scroll.synchronizeTarget();
     this.pointerSession.release(drag.pointerId);
     this.viewport.sync();
-    this.sharedGlass.sync(this.scroll.currentScrollY, null);
+    this.sharedGlass.sync(this.scroll.currentScrollY);
   }
 
   private dragAutoScroll() {
@@ -378,21 +384,14 @@ export class CanvasBrowserRuntime<Id extends string> {
     return calculateCanvasCardAutoScroll(this.drag.pointerY, top, bottom);
   }
 
-  private needsFrame() {
-    return (
-      this.scroll.currentScrollY !== this.scroll.targetScrollY ||
-      this.drag !== null ||
-      this.geometry.isAnimating()
-    );
-  }
-
   private updateScrollRange() {
-    const contentHeight = canvasCardContentHeight(this.displayOrder, this.records);
-    writeCanvasBrowserContentHeight(this.options.panel, this.options.cardsLayer, contentHeight);
-    this.scroll.setRange(this.viewport.height(), contentHeight);
-  }
-
-  private applyScroll() {
-    this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
+    updateCanvasBrowserScrollRange(
+      this.options.panel,
+      this.options.cardsLayer,
+      this.viewport,
+      this.scroll,
+      this.displayOrder,
+      this.records,
+    );
   }
 }

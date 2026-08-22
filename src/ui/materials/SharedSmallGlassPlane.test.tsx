@@ -33,14 +33,19 @@ describe("SharedSmallGlassPlane", () => {
     expect(clips[0]).toHaveAttribute("rx", "13.5");
     expect(clips[1]).toHaveAttribute("height", "6");
     expect(clips[1]).toHaveAttribute("rx", "3");
-    expect(readNativeGlassDiagnostics(container)).toEqual({
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      activeDepthCount: 1,
+      activeGlassBatchCount: 1,
+      localMaterialBackdropFilterCount: 1,
       nativeBackdropSurfaceCount: 2,
       nativeBackdropFilterLayerCount: 3,
+      sharedSmallBatchCount: 1,
       sharedSmallPlaneActive: true,
+      temporaryDragBatchActive: false,
     });
   });
 
-  it("counts a shared card's private backdrop only while it is the live dragged surface", () => {
+  it("never reactivates a shared card's private backdrop because it is moving", () => {
     const { container } = render(
       <div>
         <SharedSmallGlassPlane />
@@ -57,11 +62,11 @@ describe("SharedSmallGlassPlane", () => {
 
     expect(readNativeGlassDiagnostics(container).nativeBackdropSurfaceCount).toBe(1);
     card.dataset.materialMotion = "active";
-    writeSharedSmallGlassShapes(plane, []);
-    expect(readNativeGlassDiagnostics(container)).toEqual({
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
       nativeBackdropSurfaceCount: 1,
-      nativeBackdropFilterLayerCount: 2,
-      sharedSmallPlaneActive: false,
+      nativeBackdropFilterLayerCount: 1,
+      localMaterialBackdropFilterCount: 0,
+      sharedSmallPlaneActive: true,
     });
   });
 });

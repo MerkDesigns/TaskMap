@@ -5,15 +5,18 @@ import "./ExtensionBrowserCard.css";
 
 export interface ExtensionBrowserCardProps extends HTMLAttributes<HTMLDivElement> {
   readonly embedded: boolean;
+  readonly geometryActive?: boolean;
 }
 
 export const ExtensionBrowserCard = forwardRef<HTMLDivElement, ExtensionBrowserCardProps>(
-  function ExtensionBrowserCard({ className, embedded, ...props }, ref) {
+  function ExtensionBrowserCard({ className, embedded, geometryActive = true, ...props }, ref) {
     return (
       <MaterialSurface
         {...props}
         ref={ref}
         material={embedded ? "opaque" : "acrylic-small"}
+        backdropSource={embedded ? undefined : "shared"}
+        geometryActive={geometryActive}
         radius={8}
         className={primitiveClassNames("taskmap-extension-browser-card", className)}
       />

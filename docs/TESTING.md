@@ -215,7 +215,7 @@ CI must fail when:
 
 The Phase 4.5A material rule freezes path-specific occurrence counts rather than exempting broad
 directories. Removing a legacy occurrence is allowed; additions fail unless the exact declaration
-is an explicitly reviewed material-boundary implementation such as the bounded shared Small plane.
+is an explicitly reviewed material-boundary implementation such as `NativeGlassBatch`.
 Phase 4.5D removes this transitional allowlist entirely. Acrylic Canvas2D implementation is owned
 specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains
 valid elsewhere.
@@ -473,13 +473,13 @@ panel, card, Settings, minimap, overlay, or canvas-element migration or visual a
 Two focused C2B suites contain eight deterministic cases. Component tests invoke every retained
 callback, lock Canvases/Extensions/Privacy/Minimap pressed semantics, preserve native Undo/Redo
 disabled behavior, and verify collapsed controls remain `aria-hidden` and outside the tab order.
-They also require exactly two base-plane Acrylic Large registrations with no material elevation and
-exercise the cheap geometry invalidation seam at expansion boundaries. Static contracts keep
+They also require exactly two base-plane Acrylic Large semantic surfaces with no material elevation
+and exercise size-observer geometry at expansion boundaries. Static contracts keep
 `FloatingToolbar` inside `WorkspaceChromeLayer`, reject toolbar-local z-index, backdrop filters,
 cache/provider/runtime creation, and independent animation frames, and preserve Settings behind its
 existing callback boundary. C2C extends that same layer with only the two side-panel shells. The
-shared material-registry ResizeObserver remains responsible for intermediate expandable-group
-geometry frames.
+bounded left Large batch's ResizeObserver follows actual expandable-group size changes; no global
+material fan-out is used.
 
 ### Phase 4.5C2C side-panel-shell coverage
 
@@ -490,10 +490,11 @@ active/inert view semantics, measured height changes, Canvas callbacks, and the 
 portal. Motion tests drive the shared scheduler deterministically and require the complete panel to
 travel between its resting position and a fully offscreen left position over `240ms`, using ease-in
 for show and ease-out for hide. They reject all panel-presence opacity, filter, backdrop-filter, and
-reveal-cover changes, require cheap material geometry invalidation during transform frames, and cover
+reveal-cover changes, require left-batch-only geometry invalidation during transform frames, and cover
 clean reversal without replacing the mounted surface. Content switching uses synchronized `180ms`
-fade/slide transitions and a `200ms` measured-height transition without remounting the material
-shell. Reduced motion skips both presence and switch motion. Static contracts retain the App-owned
+fade/slide transitions and a `200ms` measured-height transition between once-measured endpoints
+without remounting the material shell. A settled inactive view is content-hidden and contributes no
+shared filter or browser runtime. Reduced motion skips both presence and switch motion. Static contracts retain the App-owned
 closing flags and cancellable final-unmount timer, exactly one workspace-chrome layer, portal/drag
 ownership, existing card and search/filter internals, and one compositor provider while rejecting
 panel-local compositor layers, backdrop filters, caches, compositor runtimes, and independent
@@ -518,16 +519,17 @@ normalization, `45ms` smooth-scroll convergence, extended edge auto-scroll, `190
 commit. Integration tests prove the same card DOM remains live while its stable portal host moves
 to the drag layer, no clone/duplicate/placeholder exists, and logical Large sampling ownership is
 `inherited` before, during, and after drag. Static contracts reject clone-based drag and new
-feature-owned backdrop/compositor implementation. Shared-plane tests require settled Canvas Browser
-cards to suppress their private backdrop spans, synchronize rounded clips through scroll/slot
-motion, remove the live dragged card from the plane, and restore its private Small blur only while
-it is outside. A ten-card fixture locks the regional reduction from eleven active backdrop surfaces
-(Large + ten Small) to two (Large + one bounded shared Small). These tests do not claim pixel-level
-or manual visual acceptance.
+feature-owned backdrop/compositor implementation. Shared-batch tests require Canvas Browser cards
+to suppress private backdrop spans in every motion state and synchronize rounded clips through
+scroll, slot, drag, snap, and autoscroll motion. The live card becomes a temporary moving region of
+the same Small filter source; its tint, rim, shadow, and `data-material-motion` never change filter
+ownership. Ten or one hundred cards therefore retain one Small filter layer, and drag does not
+increase that count. Canvas runtime tests also reject global material invalidation calls. These
+tests do not claim pixel-level manual acceptance.
 
 ### Phase 4.5C2E primary Extensions Browser coverage
 
-Fourteen focused cases across the Extensions panel component and architecture-contract suites lock
+Focused Extensions panel and architecture-contract suites lock
 the production Acrylic Small card/8px radius, Cutout 32px icon/6px radius, and embedded Opaque
 zero-acrylic mappings. Behavior coverage preserves search matching and attributes, target filtering,
 Favorites/Extensions registry ordering, localStorage toggling, the five-favorite limit, filled-star
@@ -540,6 +542,12 @@ unmigrated Quick Extensions menu/search/rows/drag preview. They also reject new 
 provider, mask-update, or animation-frame ownership and migration leakage into Minimap, Settings,
 general overlays, or later extension-module work. These tests characterize DOM/material structure
 and behavior, not rendered acrylic pixels or manual visual acceptance.
+
+Shared-batch coverage additionally requires one Small filter regardless of extension-card count,
+zero private card filters, locally coalesced scroll masks, and zero Small filters after the retained
+Extensions view settles inactive. Workspace chrome coverage locks one two-pass left Large batch for
+both toolbar groups plus side panel, and one spatially separate two-pass right batch for window
+controls.
 
 ### Phase 4.5C2F production Minimap coverage
 

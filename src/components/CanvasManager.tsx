@@ -29,7 +29,6 @@ import {
 } from "../constants";
 import { TaskCanvas } from "../types";
 import { CanvasBrowserCard, CanvasPreview, WorkspaceSidePanel } from "../ui/patterns/workspace";
-import { useMaterialSurfaceGeometryInvalidation } from "../ui/materials/MaterialSurfaceRegistration";
 import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
 import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
@@ -39,6 +38,7 @@ import { Field } from "../ui/primitives/Field";
 import { TextField } from "../ui/primitives/FormControls";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import "../ui/patterns/workspace/CanvasBrowser.css";
+import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
 
 type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
 
@@ -119,7 +119,7 @@ export function CanvasManager({
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
   const reducedMotion = useReducedMotion();
-  const invalidateSurfaceGeometry = useMaterialSurfaceGeometryInvalidation();
+  const workActive = useSettledPanelWork(active);
 
   useLayoutEffect(() => {
     if (active) return;
@@ -276,7 +276,7 @@ export function CanvasManager({
     const panel = panelRef.current;
     const viewport = viewportRef.current;
     const cardsLayer = cardsLayerRef.current;
-    if (!panel || !viewport || !cardsLayer) return;
+    if (!workActive || !panel || !viewport || !cardsLayer) return;
 
     const runtime = new CanvasBrowserRuntime<string>({
       panel,
@@ -284,7 +284,6 @@ export function CanvasManager({
       cardsLayer,
       sharedSmallGlassPlane: sharedSmallGlassPlaneRef.current,
       commitOrder: (order) => reorderCommitRef.current([...order]),
-      invalidateMaterialGeometry: invalidateSurfaceGeometry,
       reducedMotion,
     });
     browserRuntimeRef.current = runtime;
@@ -292,12 +291,12 @@ export function CanvasManager({
       runtime.destroy();
       if (browserRuntimeRef.current === runtime) browserRuntimeRef.current = null;
     };
-  }, [invalidateSurfaceGeometry, reducedMotion]);
+  }, [reducedMotion, workActive]);
 
   useLayoutEffect(() => {
     reorderCommitRef.current = onReorderCanvases;
     const runtime = browserRuntimeRef.current;
-    if (!runtime) return;
+    if (!runtime || !workActive) return;
     runtime.setCommitOrder((order) => reorderCommitRef.current([...order]));
     runtime.setReducedMotion(reducedMotion);
     canvases.forEach((canvas) => {
@@ -313,7 +312,7 @@ export function CanvasManager({
         delete cardRefs.current[id];
       }
     }
-  }, [canvases, editingId, minimalView, onReorderCanvases, orderedIds, reducedMotion]);
+  }, [canvases, editingId, minimalView, onReorderCanvases, orderedIds, reducedMotion, workActive]);
 
   const getCardPortalHost = (id: string) => {
     let host = cardPortalHostsRef.current.get(id);
@@ -358,6 +357,13 @@ export function CanvasManager({
         }
       }}
     >
+      {!embedded && (
+        <SharedSmallGlassPlane
+          ref={sharedSmallGlassPlaneRef}
+          batchId="canvas-browser-small"
+          className="taskmap-canvas-browser__small-glass-batch"
+        />
+      )}
       <header className="taskmap-canvas-browser__header">
         <div className="taskmap-canvas-browser__header-copy">
           <h2>Canvas Browser</h2>
@@ -404,7 +410,6 @@ export function CanvasManager({
         className="taskmap-canvas-browser__viewport"
         data-canvas-browser-viewport
       >
-        {!embedded && <SharedSmallGlassPlane ref={sharedSmallGlassPlaneRef} />}
         <div ref={cardsLayerRef} className="taskmap-canvas-browser__cards-layer" />
       </div>
 
@@ -436,6 +441,7 @@ export function CanvasManager({
           return createPortal(
             <CanvasBrowserCard
               embedded={embedded}
+              geometryActive={workActive}
               mode="editor"
               radius={cardRadius}
               active={active}
@@ -559,6 +565,7 @@ export function CanvasManager({
           return createPortal(
             <CanvasBrowserCard
               embedded={embedded}
+              geometryActive={workActive}
               mode="minimal"
               active={active}
               cycleHighlighted={cycleHighlighted}
@@ -606,6 +613,7 @@ export function CanvasManager({
         return createPortal(
           <CanvasBrowserCard
             embedded={embedded}
+            geometryActive={workActive}
             mode="full"
             radius={cardRadius}
             active={active}
@@ -626,70 +634,73 @@ export function CanvasManager({
           >
             <span className="taskmap-canvas-browser-card__active-indicator" />
             <CanvasPreview>
-              {canvas.containers.map((container) => (
-                <div
-                  key={container.id}
-                  data-canvas-preview-container={container.id}
-                  className="absolute overflow-hidden rounded-[1px] border"
-                  style={{
-                    left: (container.x - visibleLeft) * previewScale,
-                    top: (container.y - visibleTop) * previewScale,
-                    width: Math.max(container.width * previewScale, 3),
-                    height: Math.max(container.height * previewScale, 3),
-                    zIndex: 20 + (container.layer ?? 0),
-                    borderColor: container.accent,
-                    backgroundColor: "#1b1b1e",
-                  }}
-                >
+              {workActive &&
+                canvas.containers.map((container) => (
                   <div
-                    className="absolute inset-x-0 top-0"
+                    key={container.id}
+                    data-canvas-preview-container={container.id}
+                    className="absolute overflow-hidden rounded-[1px] border"
                     style={{
-                      height: Math.max(2, 48 * previewScale),
-                      backgroundColor: container.accent,
+                      left: (container.x - visibleLeft) * previewScale,
+                      top: (container.y - visibleTop) * previewScale,
+                      width: Math.max(container.width * previewScale, 3),
+                      height: Math.max(container.height * previewScale, 3),
+                      zIndex: 20 + (container.layer ?? 0),
+                      borderColor: container.accent,
+                      backgroundColor: "#1b1b1e",
+                    }}
+                  >
+                    <div
+                      className="absolute inset-x-0 top-0"
+                      style={{
+                        height: Math.max(2, 48 * previewScale),
+                        backgroundColor: container.accent,
+                      }}
+                    />
+                  </div>
+                ))}
+              {workActive &&
+                canvas.textBlocks.map((element) => (
+                  <div
+                    key={element.id}
+                    data-canvas-preview-text-block={element.id}
+                    className="absolute overflow-hidden rounded-[1px] border"
+                    style={{
+                      left: (element.x - visibleLeft) * previewScale,
+                      top: (element.y - visibleTop) * previewScale,
+                      width: Math.max(element.width * previewScale, 3),
+                      height: Math.max(element.height * previewScale, 3),
+                      zIndex: 20 + (element.layer ?? 0),
+                      borderColor: element.accent,
+                      backgroundColor: "#1b1b1e",
+                    }}
+                  >
+                    <div
+                      className="absolute inset-x-0 top-0"
+                      style={{
+                        height: Math.max(2, 40 * previewScale),
+                        backgroundColor: element.accent,
+                      }}
+                    />
+                  </div>
+                ))}
+              {workActive &&
+                (canvas.images ?? []).map((image) => (
+                  <div
+                    key={image.id}
+                    data-canvas-preview-image={image.id}
+                    className="absolute overflow-hidden rounded-[1px] border"
+                    style={{
+                      left: (image.x - visibleLeft) * previewScale,
+                      top: (image.y - visibleTop) * previewScale,
+                      width: Math.max(image.width * previewScale, 3),
+                      height: Math.max(image.height * previewScale, 3),
+                      zIndex: 20 + (image.layer ?? 0),
+                      borderColor: image.accent,
+                      backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
                     }}
                   />
-                </div>
-              ))}
-              {canvas.textBlocks.map((element) => (
-                <div
-                  key={element.id}
-                  data-canvas-preview-text-block={element.id}
-                  className="absolute overflow-hidden rounded-[1px] border"
-                  style={{
-                    left: (element.x - visibleLeft) * previewScale,
-                    top: (element.y - visibleTop) * previewScale,
-                    width: Math.max(element.width * previewScale, 3),
-                    height: Math.max(element.height * previewScale, 3),
-                    zIndex: 20 + (element.layer ?? 0),
-                    borderColor: element.accent,
-                    backgroundColor: "#1b1b1e",
-                  }}
-                >
-                  <div
-                    className="absolute inset-x-0 top-0"
-                    style={{
-                      height: Math.max(2, 40 * previewScale),
-                      backgroundColor: element.accent,
-                    }}
-                  />
-                </div>
-              ))}
-              {(canvas.images ?? []).map((image) => (
-                <div
-                  key={image.id}
-                  data-canvas-preview-image={image.id}
-                  className="absolute overflow-hidden rounded-[1px] border"
-                  style={{
-                    left: (image.x - visibleLeft) * previewScale,
-                    top: (image.y - visibleTop) * previewScale,
-                    width: Math.max(image.width * previewScale, 3),
-                    height: Math.max(image.height * previewScale, 3),
-                    zIndex: 20 + (image.layer ?? 0),
-                    borderColor: image.accent,
-                    backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
-                  }}
-                />
-              ))}
+                ))}
             </CanvasPreview>
 
             <div className="taskmap-canvas-browser-card__copy">

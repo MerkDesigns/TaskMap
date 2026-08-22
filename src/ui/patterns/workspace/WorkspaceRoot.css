@@ -24,6 +24,21 @@
   inset: 0;
 }
 
-.taskmap-workspace-chrome-layer > * {
+.taskmap-workspace-chrome-glass-batches {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  inset: 0;
+}
+
+.taskmap-workspace-chrome-glass-batches > .taskmap-native-glass-batch {
+  position: fixed;
+}
+
+.taskmap-workspace-chrome-layer > :not(.taskmap-workspace-chrome-glass-batches) {
+  z-index: 1;
+}
+
+.taskmap-workspace-chrome-layer > :not(.taskmap-workspace-chrome-glass-batches) {
   pointer-events: auto;
 }
