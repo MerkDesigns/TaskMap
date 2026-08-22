@@ -215,7 +215,7 @@ CI must fail when:
 
 The Phase 4.5A material rule freezes path-specific occurrence counts rather than exempting broad
 directories. Removing a legacy occurrence is allowed; additions fail unless the exact declaration
-is an explicitly reviewed material-boundary implementation such as `NativeGlassBatch`.
+is an explicitly reviewed material-boundary implementation such as `SharedSmallGlassPlane`.
 Phase 4.5D removes this transitional allowlist entirely. Acrylic Canvas2D implementation is owned
 specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains
 valid elsewhere.
@@ -477,9 +477,9 @@ They also require exactly two base-plane Acrylic Large semantic surfaces with no
 and exercise size-observer geometry at expansion boundaries. Static contracts keep
 `FloatingToolbar` inside `WorkspaceChromeLayer`, reject toolbar-local z-index, backdrop filters,
 cache/provider/runtime creation, and independent animation frames, and preserve Settings behind its
-existing callback boundary. C2C extends that same layer with only the two side-panel shells. The
-bounded left Large batch's ResizeObserver follows actual expandable-group size changes; no global
-material fan-out is used.
+existing callback boundary. C2C extends that same layer with only the two side-panel shells. Each
+toolbar group retains its reference-proven local two-pass Large surface; its own ResizeObserver
+follows actual expandable-group size changes with no global material fan-out.
 
 ### Phase 4.5C2C side-panel-shell coverage
 
@@ -509,9 +509,10 @@ and no post-settlement geometry or mask work.
 ### Phase 4.5C2D Canvas Browser coverage
 
 Focused Canvas Manager, runtime, pure-math, scroll, and architecture-contract suites lock the
-production `288px` browser geometry, full/minimal Acrylic Small radii, Cutout preview geometry,
-embedded zero-acrylic behavior, target-token active/cycle states, unchanged preview projection and
-user colors, editor behavior, feature callbacks, and wheel-route ownership.
+production `288px` browser geometry, full/minimal Acrylic Small radii, tunable Cutout preview
+geometry, embedded zero-acrylic behavior, target-token active/cycle states, live active-canvas
+camera/element projection and user colors, editor behavior, feature callbacks, local card-count
+panel resizing, and wheel-route ownership.
 
 Interaction coverage proves the `6px` threshold, multi-slot and scrolled insertion, `0.45` wheel
 normalization, `45ms` smooth-scroll convergence, extended edge auto-scroll, `190ms`
@@ -519,13 +520,12 @@ normalization, `45ms` smooth-scroll convergence, extended edge auto-scroll, `190
 commit. Integration tests prove the same card DOM remains live while its stable portal host moves
 to the drag layer, no clone/duplicate/placeholder exists, and logical Large sampling ownership is
 `inherited` before, during, and after drag. Static contracts reject clone-based drag and new
-feature-owned backdrop/compositor implementation. Shared-batch tests require Canvas Browser cards
-to suppress private backdrop spans in every motion state and synchronize rounded clips through
-scroll, slot, drag, snap, and autoscroll motion. The live card becomes a temporary moving region of
-the same Small filter source; its tint, rim, shadow, and `data-material-motion` never change filter
-ownership. Ten or one hundred cards therefore retain one Small filter layer, and drag does not
-increase that count. Canvas runtime tests also reject global material invalidation calls. These
-tests do not claim pixel-level manual acceptance.
+feature-owned backdrop/compositor implementation. Shared-batch tests require settled and slot-moving
+Canvas Browser cards to stay on one shared 5px + 23.5px two-pass stack. The actual dragged/snapping card is excluded
+from that mask and activates exactly one bounded shared-style 5px + 23.5px drag batch so it can sample settled
+card content beneath it. Ten or one hundred settled cards therefore retain two Small filter layers;
+drag adds exactly two more layers and never scales with slot-moving cards. Canvas runtime tests also
+reject global material invalidation calls. These tests do not claim pixel-level manual acceptance.
 
 ### Phase 4.5C2E primary Extensions Browser coverage
 
@@ -543,11 +543,10 @@ provider, mask-update, or animation-frame ownership and migration leakage into M
 general overlays, or later extension-module work. These tests characterize DOM/material structure
 and behavior, not rendered acrylic pixels or manual visual acceptance.
 
-Shared-batch coverage additionally requires one Small filter regardless of extension-card count,
+Shared-batch coverage additionally requires one two-layer Small stack regardless of extension-card count,
 zero private card filters, locally coalesced scroll masks, and zero Small filters after the retained
-Extensions view settles inactive. Workspace chrome coverage locks one two-pass left Large batch for
-both toolbar groups plus side panel, and one spatially separate two-pass right batch for window
-controls.
+Extensions view settles inactive. Workspace chrome coverage locks the local 6px + 60px two-pass
+recipe on both toolbar groups, the side panel, and the spatially separate window controls.
 
 ### Phase 4.5C2F production Minimap coverage
 

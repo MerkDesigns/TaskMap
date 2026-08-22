@@ -2,14 +2,15 @@
   position: absolute;
   z-index: 0;
   top: calc(
-    var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height) + var(--taskmap-chrome-gap)
+    var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height) +
+      var(--taskmap-side-panel-gap, var(--taskmap-chrome-gap))
   );
   left: var(--taskmap-chrome-inset-inline);
   display: flex;
   width: var(--taskmap-panel-width);
   max-height: calc(
     100vh - var(--taskmap-chrome-inset-top) - var(--taskmap-chrome-inset-bottom) -
-      var(--taskmap-toolbar-height) - var(--taskmap-chrome-gap)
+      var(--taskmap-toolbar-height) - var(--taskmap-side-panel-gap, var(--taskmap-chrome-gap))
   );
   min-height: 0;
   flex-direction: column;
@@ -20,6 +21,12 @@
 
 .taskmap-workspace-side-panel[data-closing="true"] {
   pointer-events: none;
+}
+
+.taskmap-workspace-side-panel
+  > .taskmap-material-native-glass__clip
+  > .taskmap-material-native-glass__backdrop {
+  will-change: backdrop-filter;
 }
 
 .taskmap-workspace-side-panel--switching {

@@ -88,7 +88,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(appSource.match(/sharedPanel/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("uses one Acrylic Large pattern with shared scheduled motion and no local compositor layer", async () => {
+  it("keeps the Acrylic Large shell on its proven local two-pass path", async () => {
     const [appShell, pattern, patternCss, motion] = await Promise.all([
       readFile(appShellPath, "utf8"),
       readFile(panelPatternPath, "utf8"),
@@ -112,7 +112,8 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     }
     expect(motion).toContain("useMotionFrameScheduler");
     expect(motion).not.toContain("useMaterialSurfaceGeometryInvalidation");
-    expect(motion).toContain("invalidateChromeGlassBatch(LEFT_CHROME_GLASS_BATCH)");
+    expect(pattern).not.toContain('backdropSource="shared"');
+    expect(pattern).not.toContain("data-glass-batch-target");
     expect(pattern).not.toContain("data-side-panel-reveal-cover");
     expect(pattern).toContain("WorkspaceSidePanelContentSwitcher");
     expect(patternCss).toContain("z-index: 0");
@@ -125,7 +126,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(motion).toMatch(/panel\.style\.(?:transform|willChange)/);
     expect(motion).not.toMatch(/panel\.style\.(?:opacity|filter|backdropFilter)/);
     expect(boundary).not.toMatch(
-      /backdrop-filter|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
+      /(?:-webkit-)?backdrop-filter\s*:|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
     );
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });

@@ -19,6 +19,10 @@ import {
 } from "./materialSamplingBoundary";
 import { useMaterialPlane } from "./MaterialPlane";
 import { materialRegistry } from "./materialRegistry";
+import {
+  subscribeMaterialSurfaceGeometryInvalidation,
+  subscribeMaterialTuningChanged,
+} from "./materialGeometryInvalidation";
 import { createMaterialSurfaceStyle } from "./materialSurfaceStyle";
 import { recordMaterialGeometryRefresh } from "./materialPerformanceDiagnostics";
 import { drawNativeGlassRim } from "./nativeGlassRim";
@@ -64,6 +68,9 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
   ) {
     const definition = materialRegistry.require(material);
     const nativeGlass = definition.strategy === "native-glass" ? definition : null;
+    if (backdropSourceOverride === "shared" && nativeGlass?.role !== "small") {
+      throw new RangeError("Only Acrylic Small surfaces may use a shared backdrop source");
+    }
     const plane = useMaterialPlane(planeOverride);
     const radius = requireMaterialRadius(material, radiusOverride ?? definition.defaultRadiusPx);
     const surfaceId = useId();
@@ -84,8 +91,12 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
           samplingElement?.getBoundingClientRect() ?? viewportMaterialBoundary();
         const interactionPreblur =
           element.dataset.materialMotion === "active" ? nativeGlass.interactionPreblurPx : null;
+        const computedBlur = Number.parseFloat(
+          getComputedStyle(element).getPropertyValue("--taskmap-material-effective-blur"),
+        );
+        const effectiveBlur = Number.isFinite(computedBlur) ? computedBlur : nativeGlass.blurPx;
         const requestedOverscan =
-          (nativeGlass.blurPx + (nativeGlass.preblurPx ?? interactionPreblur ?? 0)) *
+          (effectiveBlur + (nativeGlass.preblurPx ?? interactionPreblur ?? 0)) *
           nativeGlass.overscanRatio;
         writeMaterialOverscan(element, samplingRectangle, requestedOverscan);
       }
@@ -94,7 +105,15 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       if (!rimCanvas) return;
       const rectangle = element.getBoundingClientRect();
       const devicePixelRatio = typeof window === "undefined" ? 1 : window.devicePixelRatio;
-      const rimGeometry = `${rectangle.width}:${rectangle.height}:${radius}:${devicePixelRatio}`;
+      const computedBorderBrightness = Number.parseFloat(
+        getComputedStyle(element).getPropertyValue(
+          "--taskmap-material-effective-border-brightness",
+        ),
+      );
+      const borderBrightness = Number.isFinite(computedBorderBrightness)
+        ? Math.max(0, computedBorderBrightness)
+        : 1;
+      const rimGeometry = `${rectangle.width}:${rectangle.height}:${radius}:${devicePixelRatio}:${borderBrightness}`;
       if (rimGeometryRef.current === rimGeometry) return;
       rimGeometryRef.current = rimGeometry;
       drawNativeGlassRim(rimCanvas, {
@@ -102,7 +121,10 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
         height: rectangle.height,
         radiusPx: radius,
         devicePixelRatio,
-        rim: nativeGlass.rim,
+        rim: {
+          ...nativeGlass.rim,
+          exposure: nativeGlass.rim.exposure * borderBrightness,
+        },
       });
     }, [backdropSourceOverride, inheritedBoundary, nativeGlass, radius]);
 
@@ -124,9 +146,17 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       ) {
         observer?.observe(inheritedElement);
       }
+      const unsubscribeInvalidation = element
+        ? subscribeMaterialSurfaceGeometryInvalidation(element, refreshNativeGeometry)
+        : null;
+      const unsubscribeTuning = import.meta.env.DEV
+        ? subscribeMaterialTuningChanged(refreshNativeGeometry)
+        : null;
       window.addEventListener("resize", refreshNativeGeometry);
       return () => {
         observer?.disconnect();
+        unsubscribeInvalidation?.();
+        unsubscribeTuning?.();
         window.removeEventListener("resize", refreshNativeGeometry);
       };
     }, [

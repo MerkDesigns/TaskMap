@@ -46,7 +46,7 @@
 .taskmap-canvas-browser-card--full .taskmap-canvas-browser-card__content {
   align-items: center;
   gap: 10px;
-  padding: 9px;
+  padding: var(--taskmap-canvas-preview-gap, 9px);
   text-align: left;
 }
 
@@ -94,19 +94,32 @@
 .taskmap-canvas-preview {
   position: relative;
   box-sizing: border-box;
-  width: 114.4px;
-  height: 66px;
+  width: auto;
+  height: calc(
+    var(--taskmap-canvas-card-full-height, 84px) - var(--taskmap-canvas-preview-gap, 9px) -
+      var(--taskmap-canvas-preview-gap, 9px)
+  );
+  aspect-ratio: 1.7333333333;
   flex: 0 0 auto;
   overflow: hidden;
-  background: #101214;
+  outline: 0;
+  background: rgb(
+    var(--taskmap-canvas-preview-tint-rgb, 0 0 0) / var(--taskmap-canvas-preview-tint-opacity, 0)
+  );
   contain: layout paint style;
   content-visibility: auto;
   contain-intrinsic-size: 114.4px 66px;
 }
 
 .taskmap-canvas-preview[data-material="cutout"] {
-  border: 1px solid rgb(128 128 128 / 20%);
-  background: #101214;
+  border: var(--taskmap-canvas-preview-border-width, 1px) solid
+    rgb(
+      var(--taskmap-canvas-preview-border-rgb, 128 128 128) /
+        var(--taskmap-canvas-preview-border-opacity, 0.2)
+    );
+  background: rgb(
+    var(--taskmap-canvas-preview-tint-rgb, 0 0 0) / var(--taskmap-canvas-preview-tint-opacity, 0)
+  );
   box-shadow: none;
 }
 

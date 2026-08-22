@@ -71,7 +71,7 @@ describe("C2E Extensions panel", () => {
     ).toHaveLength(EXTENSIONS.length);
     expect(readNativeGlassDiagnostics(container)).toMatchObject({
       localMaterialBackdropFilterCount: 0,
-      nativeBackdropFilterLayerCount: 1,
+      nativeBackdropFilterLayerCount: 2,
       sharedSmallBatchCount: 1,
     });
 

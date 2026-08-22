@@ -16,12 +16,12 @@
     var(--taskmap-canvas-browser-content-height),
     calc(
       100vh - var(--taskmap-chrome-inset-top) - var(--taskmap-chrome-inset-bottom) -
-        var(--taskmap-toolbar-height) - var(--taskmap-chrome-gap)
+        var(--taskmap-toolbar-height) - var(--taskmap-side-panel-gap, var(--taskmap-chrome-gap))
     )
   );
   max-height: calc(
     100vh - var(--taskmap-chrome-inset-top) - var(--taskmap-chrome-inset-bottom) -
-      var(--taskmap-toolbar-height) - var(--taskmap-chrome-gap)
+      var(--taskmap-toolbar-height) - var(--taskmap-side-panel-gap, var(--taskmap-chrome-gap))
   );
 }
 
@@ -110,10 +110,6 @@
   overscroll-behavior: contain;
 }
 
-.taskmap-canvas-browser__small-glass-batch {
-  inset: 0;
-}
-
 .taskmap-canvas-browser__cards-layer {
   position: relative;
   z-index: 1;
@@ -161,4 +157,8 @@
   inset: 0;
   overflow: visible;
   pointer-events: none;
+}
+
+.taskmap-shared-small-glass-plane--canvas-drag {
+  z-index: calc(var(--taskmap-layer-workspace-chrome) + 19);
 }

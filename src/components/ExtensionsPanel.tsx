@@ -46,6 +46,7 @@ type ExtensionsPanelProps = {
   embedded?: boolean;
   panelRef?: RefObject<HTMLDivElement>;
   sharedPanel?: boolean;
+  smallGlassBlur?: number;
 };
 
 const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof IconBox }> = {
@@ -319,6 +320,7 @@ export function ExtensionsPanel({
   embedded = false,
   panelRef,
   sharedPanel = false,
+  smallGlassBlur,
 }: ExtensionsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -546,6 +548,7 @@ export function ExtensionsPanel({
           <SharedSmallGlassPlane
             ref={sharedSmallGlassPlaneRef}
             batchId="extension-browser-small"
+            blurPx={smallGlassBlur}
             kind="small-extension"
           />
         )}

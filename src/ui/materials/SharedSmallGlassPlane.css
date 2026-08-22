@@ -1,0 +1,47 @@
+.taskmap-shared-small-glass-plane {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  inset: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.taskmap-shared-small-glass-plane[data-glass-batch-state="inactive"] {
+  display: none;
+}
+
+.taskmap-shared-small-glass-plane__definitions {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.taskmap-shared-small-glass-plane__preblur,
+.taskmap-shared-small-glass-plane__backdrop {
+  position: absolute;
+  background: rgb(0 0 0 / 0.001);
+  inset: calc(0px - var(--taskmap-shared-small-overscan, 32.775px));
+  pointer-events: none;
+}
+
+.taskmap-shared-small-glass-plane__preblur {
+  z-index: 0;
+  -webkit-backdrop-filter: blur(var(--taskmap-material-preblur));
+  backdrop-filter: blur(var(--taskmap-material-preblur));
+}
+
+.taskmap-shared-small-glass-plane__backdrop {
+  z-index: 1;
+  -webkit-backdrop-filter: blur(
+      var(--taskmap-material-small-blur-override, var(--taskmap-material-blur))
+    )
+    saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
+    contrast(var(--taskmap-material-contrast));
+  backdrop-filter: blur(var(--taskmap-material-small-blur-override, var(--taskmap-material-blur)))
+    saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
+    contrast(var(--taskmap-material-contrast));
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}

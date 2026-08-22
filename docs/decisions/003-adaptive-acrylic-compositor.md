@@ -8,8 +8,8 @@
 
 The cached Canvas2D acrylic compositor documented here was the previous production candidate. The
 accepted Large/Small path now uses live native CSS glass through the same feature-facing
-`MaterialSurface` abstraction. Large permanently composes a 6px pre-blur with a 38px main backdrop
-blur; Small uses its accepted 20px main backdrop blur. Tint, filtering, clipped blur-derived
+`MaterialSurface` abstraction. Large permanently composes a 6px pre-blur with a 60px main backdrop
+blur; Small permanently uses its accepted 5px pre-blur and 23.5px main backdrop blur. Tint, filtering, clipped blur-derived
 overscan, shadows, and the DPR-aware perimeter rim remain centralized in the material system.
 
 Nested Small surfaces inherit a logical Large sampling boundary, so their overscan cannot sample
@@ -18,17 +18,18 @@ surfaces do not register with, rebuild, or compose the cached Canvas2D backdrop.
 worker, scheduling, BackdropScene, and cache code is intentionally retained temporarily for rollback
 and reference until native-glass visual and release-performance acceptance is complete.
 
-The production native path now uses semantic bounded batches. Depth-1 left chrome shares one exact
-6px + 38px Large source across the toolbar and side-panel shapes; distant window controls use a
-separate bounded Large batch. Depth-2 Canvas and Extensions cards each use one exact 20px Small
-source clipped into visible rounded shapes. Individual `MaterialSurface` instances retain tint,
-rim, shadow, radius, content, and logical sampling ownership but do not own a native filter while
-participating in a batch.
+The production native path keeps the local 6px + 60px stack on every bounded Large
+`MaterialSurface`. A shared SVG-clipped Large batch was tested and rejected because WebView2 did not
+produce pixel-equivalent blur strength. Depth-2 Canvas and Extensions cards use one exact shared
+5px + 23.5px Small stack clipped into visible rounded shapes while settled.
 
-Canvas drag adds a moving clip region to the same physical Small source. Motion never reactivates a
-private filter or the 5px interaction preblur, which keeps the optical recipe identical across
-settled, drag, reorder, autoscroll, snap, and drop states. This remains live browser/WebView2
-rendering and does not reactivate the cached Canvas2D path.
+Canvas drag excludes the actual moving card from the settled mask and activates a bounded shared-style
+drag batch with the same 5px preblur followed by the same 23.5px pass. The card's private backdrop
+remains disabled in every motion state. Because the settled and moving stacks use identical topology
+and values, grabbing a card changes only batch ownership and geometry, not optics. This keeps the
+ability to blur settled card content beneath the drag layer while adding exactly two filter layers,
+not one filter per slot-moving card. This remains live browser/WebView2 rendering and does not
+reactivate the cached Canvas2D path.
 
 The remainder of this ADR is preserved as the historical record of the superseded candidate.
 

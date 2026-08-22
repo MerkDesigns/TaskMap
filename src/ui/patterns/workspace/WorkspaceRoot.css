@@ -15,8 +15,8 @@
   inset: 0;
 }
 
-/* The compositor owns the bitmap at layer 40. Only workspace chrome belongs in
-   this intentional stacking context; the root and canvas remain outside it. */
+/* Only workspace chrome belongs in this intentional stacking context; the
+   root and canvas remain outside it. */
 .taskmap-workspace-chrome-layer {
   position: fixed;
   z-index: var(--taskmap-layer-workspace-chrome);
@@ -24,21 +24,6 @@
   inset: 0;
 }
 
-.taskmap-workspace-chrome-glass-batches {
-  position: absolute;
-  z-index: 0;
-  pointer-events: none;
-  inset: 0;
-}
-
-.taskmap-workspace-chrome-glass-batches > .taskmap-native-glass-batch {
-  position: fixed;
-}
-
-.taskmap-workspace-chrome-layer > :not(.taskmap-workspace-chrome-glass-batches) {
-  z-index: 1;
-}
-
-.taskmap-workspace-chrome-layer > :not(.taskmap-workspace-chrome-glass-batches) {
+.taskmap-workspace-chrome-layer > * {
   pointer-events: auto;
 }

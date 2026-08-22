@@ -4,7 +4,7 @@
   top: 0;
   right: 0;
   left: 0;
-  height: calc(var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height));
+  height: 35px;
   cursor: default;
   touch-action: none;
 }

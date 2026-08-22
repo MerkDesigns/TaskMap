@@ -31,6 +31,7 @@ export interface CanvasBrowserRuntimeOptions<Id extends string> {
   readonly viewport: HTMLElement;
   readonly cardsLayer: HTMLElement;
   readonly sharedSmallGlassPlane?: HTMLElement | null;
+  readonly dragSmallGlassPlane?: HTMLElement | null;
   readonly commitOrder: (order: readonly Id[]) => void;
   readonly frameDriver?: CanvasBrowserFrameDriver;
   readonly reducedMotion?: boolean;

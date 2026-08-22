@@ -31,10 +31,10 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(pattern).toContain('mode === "minimal" ? 8 : undefined');
     expect(css).toContain("min-height: 84px");
     expect(css).toContain("height: 40px");
-    expect(css).toContain("width: 114.4px");
-    expect(css).toContain("height: 66px");
+    expect(css).toContain("var(--taskmap-canvas-preview-gap, 9px)");
+    expect(css).toContain("aspect-ratio: 1.7333333333");
     expect(css).toContain('font-family: "Segoe UI", system-ui, sans-serif');
-    expect(css).toContain("padding: 9px");
+    expect(css).toContain("padding: var(--taskmap-canvas-preview-gap, 9px)");
     expect(css).not.toContain("overflow-clip-margin");
     expect(pattern).toContain('className="taskmap-canvas-browser-card__content-mask"');
     expect(css).toMatch(
@@ -90,6 +90,8 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(manager).toContain("<TextField");
     expect(manager).toContain("<IconButton");
     expect(manager).toContain("new CanvasBrowserRuntime<string>");
+    expect(manager).toContain("const canvasesRef = useRef(canvases)");
+    expect(manager).not.toContain("[canvases, editingId");
     expect(manager).not.toContain("useMaterialSurfaceGeometryInvalidation");
     expect(manager).toContain("useSettledPanelWork");
     expect(manager).toContain("<SharedSmallGlassPlane");

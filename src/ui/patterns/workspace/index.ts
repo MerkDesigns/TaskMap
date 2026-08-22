@@ -6,4 +6,3 @@ export * from "./MinimapSurface";
 export * from "./useMinimapVisibilityMotion";
 export * from "./WorkspaceSidePanel";
 export * from "./WorkspaceRoot";
-export * from "./WorkspaceChromeGlassBatches";

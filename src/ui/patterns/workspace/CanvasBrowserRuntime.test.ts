@@ -57,6 +57,21 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 
+  it("publishes a local panel-size change when the card count changes", () => {
+    const fixture = runtimeFixture(["a", "b", "c"]);
+    const changed = vi.fn();
+    fixture.panel.addEventListener("taskmap:workspace-panel-content-size", changed);
+
+    fixture.runtime.reconcile(["a", "b"]);
+
+    expect(fixture.panel.style.getPropertyValue("--taskmap-canvas-browser-content-height")).toBe(
+      "248px",
+    );
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect((changed.mock.calls[0][0] as CustomEvent<number>).detail).toBe(248);
+    fixture.destroy();
+  });
+
   it("shortens top and bottom card shells continuously while preserving full content geometry", () => {
     const fixture = runtimeFixture(["a", "b", "c"], 100);
     const firstHost = fixture.cards.get("a")!.host;
@@ -136,9 +151,9 @@ describe("production Canvas Browser runtime", () => {
 
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
-    expect(record.card).toHaveAttribute("data-material-motion", "active");
-    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(5);
-    expect(fixture.sharedGlassPlane).toHaveAttribute("data-glass-drag-region-active", "true");
+    expect(record.card).not.toHaveAttribute("data-material-motion");
+    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(4);
+    expect(fixture.dragGlassPlane.querySelectorAll("rect")).toHaveLength(1);
     expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
     expect(fixture.runtime.getSnapshot().order).toEqual(["b", "c", "d", "e", "a"]);
     expect(fixture.commitOrder).not.toHaveBeenCalled();
@@ -157,7 +172,7 @@ describe("production Canvas Browser runtime", () => {
     expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
     expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(5);
-    expect(fixture.sharedGlassPlane).not.toHaveAttribute("data-glass-drag-region-active");
+    expect(fixture.dragGlassPlane.querySelectorAll("rect")).toHaveLength(0);
     expect(fixture.commitOrder).toHaveBeenCalledTimes(1);
     expect(fixture.commitOrder).toHaveBeenCalledWith(["b", "c", "d", "e", "a"]);
     fixture.destroy();
@@ -202,13 +217,16 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
   const panel = document.createElement("aside");
   const viewport = document.createElement("div");
   const sharedGlassPlane = document.createElement("div");
+  const dragGlassPlane = document.createElement("div");
   const definitions = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   const clip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
-  clip.dataset.nativeGlassBatchClip = "true";
+  clip.dataset.sharedSmallGlassClip = "true";
   definitions.append(clip);
   sharedGlassPlane.append(definitions);
+  const dragDefinitions = definitions.cloneNode(true) as SVGSVGElement;
+  dragGlassPlane.append(dragDefinitions);
   const cardsLayer = document.createElement("div");
-  panel.append(viewport);
+  panel.append(viewport, dragGlassPlane);
   viewport.append(sharedGlassPlane, cardsLayer);
   document.body.append(panel);
   Object.defineProperty(viewport, "clientHeight", { configurable: true, value: viewportHeight });
@@ -220,6 +238,7 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
     viewport,
     cardsLayer,
     sharedSmallGlassPlane: sharedGlassPlane,
+    dragSmallGlassPlane: dragGlassPlane,
     commitOrder,
     frameDriver: frames,
   });
@@ -254,6 +273,8 @@ function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
     cards,
     cardsLayer,
     sharedGlassPlane,
+    dragGlassPlane,
+    panel,
     viewport,
     begin(id: string, clientY: number) {
       const card = cards.get(id)!.card;

@@ -14,9 +14,9 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type HTMLAttributes,
   type RefObject,
 } from "react";
@@ -53,6 +53,8 @@ type CanvasManagerProps = {
   sharedPanel?: boolean;
   minimalView: boolean;
   panelRadius?: number;
+  previewGap?: number;
+  smallGlassBlur?: number;
   viewportWidth: number;
   viewportHeight: number;
   onMinimalViewChange: (minimalView: boolean) => void;
@@ -93,6 +95,8 @@ export function CanvasManager({
   sharedPanel = false,
   minimalView,
   panelRadius,
+  previewGap = CANVAS_BROWSER_LAYOUT.previewInset,
+  smallGlassBlur,
   viewportWidth,
   viewportHeight,
   onMinimalViewChange,
@@ -111,7 +115,10 @@ export function CanvasManager({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const cardsLayerRef = useRef<HTMLDivElement | null>(null);
   const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
+  const dragSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
   const browserRuntimeRef = useRef<CanvasBrowserRuntime<string> | null>(null);
+  const canvasesRef = useRef(canvases);
+  canvasesRef.current = canvases;
   const reorderCommitRef = useRef(onReorderCanvases);
   const [modalMode, setModalMode] = useState<"create" | null>(null);
   const [createMenuClosing, setCreateMenuClosing] = useState(false);
@@ -270,7 +277,7 @@ export function CanvasManager({
     }
   };
 
-  const orderedIds = useMemo(() => canvases.map((canvas) => canvas.id), [canvases]);
+  const orderedIds = useStableCanvasOrder(canvases);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -283,6 +290,7 @@ export function CanvasManager({
       viewport,
       cardsLayer,
       sharedSmallGlassPlane: sharedSmallGlassPlaneRef.current,
+      dragSmallGlassPlane: dragSmallGlassPlaneRef.current,
       commitOrder: (order) => reorderCommitRef.current([...order]),
       reducedMotion,
     });
@@ -295,11 +303,14 @@ export function CanvasManager({
 
   useLayoutEffect(() => {
     reorderCommitRef.current = onReorderCanvases;
+  }, [onReorderCanvases]);
+
+  useLayoutEffect(() => {
     const runtime = browserRuntimeRef.current;
     if (!runtime || !workActive) return;
     runtime.setCommitOrder((order) => reorderCommitRef.current([...order]));
     runtime.setReducedMotion(reducedMotion);
-    canvases.forEach((canvas) => {
+    canvasesRef.current.forEach((canvas) => {
       const host = cardPortalHostsRef.current.get(canvas.id);
       const card = cardRefs.current[canvas.id];
       if (host && card) runtime.register(canvas.id, host, card);
@@ -312,7 +323,7 @@ export function CanvasManager({
         delete cardRefs.current[id];
       }
     }
-  }, [canvases, editingId, minimalView, onReorderCanvases, orderedIds, reducedMotion, workActive]);
+  }, [editingId, minimalView, orderedIds, reducedMotion, workActive]);
 
   const getCardPortalHost = (id: string) => {
     let host = cardPortalHostsRef.current.get(id);
@@ -346,6 +357,7 @@ export function CanvasManager({
       sharedPanel={sharedPanel}
       closing={closing}
       panelRadius={panelRadius}
+      style={{ "--taskmap-canvas-preview-gap": `${previewGap}px` } as CSSProperties}
       onPointerDownCapture={(event) => {
         if (
           menu &&
@@ -359,9 +371,11 @@ export function CanvasManager({
     >
       {!embedded && (
         <SharedSmallGlassPlane
-          ref={sharedSmallGlassPlaneRef}
-          batchId="canvas-browser-small"
-          className="taskmap-canvas-browser__small-glass-batch"
+          ref={dragSmallGlassPlaneRef}
+          batchId="canvas-browser-small-drag"
+          blurPx={smallGlassBlur}
+          kind="small-drag"
+          className="taskmap-shared-small-glass-plane--canvas-drag"
         />
       )}
       <header className="taskmap-canvas-browser__header">
@@ -410,6 +424,13 @@ export function CanvasManager({
         className="taskmap-canvas-browser__viewport"
         data-canvas-browser-viewport
       >
+        {!embedded && (
+          <SharedSmallGlassPlane
+            ref={sharedSmallGlassPlaneRef}
+            batchId="canvas-browser-small"
+            blurPx={smallGlassBlur}
+          />
+        )}
         <div ref={cardsLayerRef} className="taskmap-canvas-browser__cards-layer" />
       </div>
 
@@ -430,7 +451,9 @@ export function CanvasManager({
         }
 
         const previewViewport = previewViewportSizesRef.current[canvas.id];
-        const previewWidth = CANVAS_BROWSER_LAYOUT.previewWidth;
+        const previewWidth =
+          (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
+          CANVAS_BROWSER_LAYOUT.previewAspectRatio;
         const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
         const visibleWidth = previewViewport.width / safeZoom;
         const visibleLeft = -canvas.pan.x / safeZoom;
@@ -901,4 +924,16 @@ function CanvasManagerShell({
       className={shellClassName}
     />
   );
+}
+
+function useStableCanvasOrder(canvases: readonly TaskCanvas[]): readonly string[] {
+  const orderRef = useRef<readonly string[]>([]);
+  const next = canvases.map((canvas) => canvas.id);
+  if (
+    next.length !== orderRef.current.length ||
+    next.some((id, index) => id !== orderRef.current[index])
+  ) {
+    orderRef.current = next;
+  }
+  return orderRef.current;
 }

@@ -1,0 +1,14 @@
+.taskmap-visual-tuner {
+  position: fixed;
+  z-index: 80;
+  top: calc(var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height) + 50px);
+  right: var(--taskmap-chrome-inset-inline);
+  width: 304px;
+  color: white;
+}
+
+.taskmap-visual-tuner__content {
+  position: relative;
+  z-index: 4;
+  padding: 12px;
+}

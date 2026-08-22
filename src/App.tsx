@@ -32,8 +32,8 @@ import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindo
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { WindowChrome } from "./components/WindowChrome";
 import type {
-  FrostedGlassValues,
-  LeftPanelCardValues,
+  GlassMaterialValues,
+  PreviewTuningValues,
   WorkspaceGeometryValues,
 } from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
@@ -145,12 +145,12 @@ import {
   type LegacyBackdropSceneRevisionState,
 } from "./legacy/materials/legacyBackdropSceneRevision";
 import type { MaterialCompositorPresentationPublisher } from "./ui/materials/materialCompositorPresentation";
+import { notifyMaterialTuningChanged } from "./ui/materials/materialGeometryInvalidation";
 import {
   CanvasFrame,
   MINIMAP_VISIBILITY_DURATION_MS,
   WorkspaceBackdropLayer,
   WorkspaceChromeLayer,
-  WorkspaceChromeGlassBatches,
   WorkspaceRoot,
   WorkspaceSidePanel,
   WorkspaceSidePanelContentSwitcher,
@@ -328,26 +328,33 @@ type CanvasElementShadow = Rectangle & {
   strength: "shell" | "card";
 };
 
-const DEFAULT_FROSTED_GLASS_VALUES: FrostedGlassValues = {
-  bgOpacity: 0,
-  bgBrightness: 0,
-  borderOpacity: 0.16,
-  blur: 4,
-  shadowOpacity: 0.55,
-  shadowY: 10,
-  shadowBlur: 32,
-};
-const DEFAULT_LEFT_PANEL_CARD_VALUES: LeftPanelCardValues = {
-  bgOpacity: 1,
-  outlineOpacity: 0.13,
+const DEFAULT_GLASS_MATERIAL_VALUES: GlassMaterialValues = {
+  large: { tintColor: "#babec4", tintOpacity: 0.075, blur: 60, borderBrightness: 0.98 },
+  small: { tintColor: "#b6b7c3", tintOpacity: 0, blur: 23.5, borderBrightness: 1.15 },
 };
 const DEFAULT_WORKSPACE_GEOMETRY_VALUES: WorkspaceGeometryValues = {
-  canvasBrowserRadius: 22.5,
-  canvasCardRadius: 13.5,
-  topBarRadius: 16,
+  canvasBrowserRadius: 19,
+  canvasCardRadius: 13,
+  topBarRadius: 14,
   sideInset: 16,
   topInset: 16,
+  panelGap: 15,
 };
+const DEFAULT_PREVIEW_TUNING_VALUES: PreviewTuningValues = {
+  tintColor: "#0c0c0d",
+  tintOpacity: 0.665,
+  borderThickness: 1,
+  borderOpacity: 0.29,
+  borderColor: "#736f7b",
+  gap: 9,
+};
+
+function hexColorToRgbChannels(color: string): string {
+  const normalized = /^#[0-9a-f]{6}$/i.test(color) ? color.slice(1) : "000000";
+  return [0, 2, 4]
+    .map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16))
+    .join(" ");
+}
 
 const getWindowPreviewViewport = () => ({
   width: window.innerWidth,
@@ -593,7 +600,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     interactionController.resizeViewport(stageSize);
   }, [interactionController, stageSize]);
   const latestCameraRef = useRef({ pan: DEFAULT_PAN, zoom: 1 });
-  const canvasManagerCanvasesRef = useRef<TaskCanvas[] | null>(null);
   const [minimapVisible, setMinimapVisible] = useState(false);
   const [minimapMounted, setMinimapMounted] = useState(false);
   const selectedIds = interactionSnapshot.selectedIds as string[];
@@ -703,11 +709,14 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     left: number;
     top: number;
   } | null>(null);
-  const [frostedGlassValues, setFrostedGlassValues] = useState(DEFAULT_FROSTED_GLASS_VALUES);
-  const [leftPanelCardValues, setLeftPanelCardValues] = useState(DEFAULT_LEFT_PANEL_CARD_VALUES);
+  const [glassMaterialValues, setGlassMaterialValues] = useState(DEFAULT_GLASS_MATERIAL_VALUES);
   const [workspaceGeometryValues, setWorkspaceGeometryValues] = useState(
     DEFAULT_WORKSPACE_GEOMETRY_VALUES,
   );
+  const [previewTuningValues, setPreviewTuningValues] = useState(DEFAULT_PREVIEW_TUNING_VALUES);
+  useLayoutEffect(() => {
+    if (import.meta.env.DEV) notifyMaterialTuningChanged();
+  }, [glassMaterialValues]);
   const [storageError, setStorageError] = useState<StorageErrorState | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
@@ -1113,10 +1122,10 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   const getActiveCanvasSnapshot = (): TaskCanvas =>
     applyPendingCanvasDeletions({
       ...activeCanvas,
-      containers: elements,
-      textCards,
-      textBlocks,
-      images,
+      containers: projectLegacyGeometry(elements, interactionSnapshot.geometryPreviews),
+      textCards: projectLegacyGeometry(textCards, interactionSnapshot.geometryPreviews),
+      textBlocks: projectLegacyGeometry(textBlocks, interactionSnapshot.geometryPreviews),
+      images: projectLegacyGeometry(images, interactionSnapshot.geometryPreviews),
       mindmapConnections,
       pan,
       zoom,
@@ -6464,28 +6473,43 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   );
   const dotGridOpacityScale = clamp((zoom - 0.55) / 0.45, 0, 1);
   const workspaceStyle = {
-    "--frosted-bg-opacity": frostedGlassValues.bgOpacity,
-    "--frosted-bg-brightness": frostedGlassValues.bgBrightness,
-    "--frosted-border-opacity": frostedGlassValues.borderOpacity,
-    "--frosted-blur": `${frostedGlassValues.blur}px`,
-    "--frosted-shadow-opacity": frostedGlassValues.shadowOpacity,
-    "--frosted-shadow-y": `${frostedGlassValues.shadowY}px`,
-    "--frosted-shadow-blur": `${frostedGlassValues.shadowBlur}px`,
-    "--left-panel-card-bg-opacity": leftPanelCardValues.bgOpacity,
-    "--left-panel-card-outline-opacity": leftPanelCardValues.outlineOpacity,
+    "--frosted-bg-opacity": 0,
+    "--frosted-bg-brightness": 0,
+    "--frosted-border-opacity": 0.16,
+    "--frosted-blur": "4px",
+    "--frosted-shadow-opacity": 0.55,
+    "--frosted-shadow-y": "10px",
+    "--frosted-shadow-blur": "32px",
+    "--left-panel-card-bg-opacity": 1,
+    "--left-panel-card-outline-opacity": 0.13,
+    "--taskmap-material-large-blur-override": `${glassMaterialValues.large.blur}px`,
+    "--taskmap-material-large-tint-rgb-override": hexColorToRgbChannels(
+      glassMaterialValues.large.tintColor,
+    ),
+    "--taskmap-material-large-tint-opacity-override": glassMaterialValues.large.tintOpacity,
+    "--taskmap-material-large-border-brightness-override":
+      glassMaterialValues.large.borderBrightness,
+    "--taskmap-material-small-blur-override": `${glassMaterialValues.small.blur}px`,
+    "--taskmap-material-small-tint-rgb-override": hexColorToRgbChannels(
+      glassMaterialValues.small.tintColor,
+    ),
+    "--taskmap-material-small-tint-opacity-override": glassMaterialValues.small.tintOpacity,
+    "--taskmap-material-small-border-brightness-override":
+      glassMaterialValues.small.borderBrightness,
     "--taskmap-chrome-inset-inline": `${workspaceGeometryValues.sideInset}px`,
     "--taskmap-chrome-inset-top": `${workspaceGeometryValues.topInset}px`,
+    "--taskmap-side-panel-gap": `${workspaceGeometryValues.panelGap}px`,
+    "--taskmap-canvas-preview-tint-rgb": hexColorToRgbChannels(previewTuningValues.tintColor),
+    "--taskmap-canvas-preview-tint-opacity": previewTuningValues.tintOpacity,
+    "--taskmap-canvas-preview-border-width": `${previewTuningValues.borderThickness}px`,
+    "--taskmap-canvas-preview-border-rgb": hexColorToRgbChannels(previewTuningValues.borderColor),
+    "--taskmap-canvas-preview-border-opacity": previewTuningValues.borderOpacity,
+    "--taskmap-canvas-preview-gap": `${previewTuningValues.gap}px`,
   } as CSSProperties;
   const leftPanelOpen = canvasManagerOpen || extensionsOpen;
   const leftPanelClosing = canvasManagerClosing || extensionsClosing;
   const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
-  if (
-    canvasManagerCanvasesRef.current === null ||
-    interactionSnapshot.activeInteraction?.kind !== "pan"
-  ) {
-    canvasManagerCanvasesRef.current = getPersistedCanvases();
-  }
-  const canvasManagerCanvases = canvasManagerCanvasesRef.current;
+  const canvasManagerCanvases = getPersistedCanvases();
   return (
     <TransientInteractionProvider service={interactionController}>
       <WorkspaceRoot
@@ -6499,29 +6523,21 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
             {import.meta.env.DEV && temporaryPanelsVisible && DevelopmentFrostedGlassTuner && (
               <Suspense fallback={null}>
                 <DevelopmentFrostedGlassTuner
-                  frostedValues={frostedGlassValues}
-                  cardValues={leftPanelCardValues}
+                  materialValues={glassMaterialValues}
+                  previewValues={previewTuningValues}
                   geometryValues={workspaceGeometryValues}
-                  onFrostedChange={setFrostedGlassValues}
-                  onCardChange={setLeftPanelCardValues}
+                  onMaterialChange={setGlassMaterialValues}
+                  onPreviewChange={setPreviewTuningValues}
                   onGeometryChange={setWorkspaceGeometryValues}
                 />
-                <div className="frosted-glass pointer-events-none fixed left-1/2 top-6 z-30 w-[640px] -translate-x-1/2 rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-8 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm">
-                  <div className="text-2xl font-semibold tracking-tight text-white/88">
-                    Frosted glass preview
-                  </div>
-                  <div className="mt-3 text-base leading-6 text-white/58">
-                    Temporary example panel using the current slider values.
-                  </div>
-                </div>
               </Suspense>
             )}
             <WorkspaceChromeLayer>
-              <WorkspaceChromeGlassBatches />
               {leftPanelOpen && (
                 <Suspense fallback={null}>
                   <WorkspaceSidePanel
                     ref={leftPanelRef}
+                    backdropRevision={activeCanvas.id}
                     closing={leftPanelClosing}
                     label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
                     radius={workspaceGeometryValues.canvasBrowserRadius}
@@ -6538,6 +6554,8 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                           cycleHighlightCanvasId={canvasCycleHighlightId}
                           closing={leftPanelClosing}
                           cardRadius={workspaceGeometryValues.canvasCardRadius}
+                          previewGap={previewTuningValues.gap}
+                          smallGlassBlur={glassMaterialValues.small.blur}
                           minimalView={canvasManagerMinimalView}
                           sharedPanel
                           viewportWidth={stageWidth}
@@ -6555,6 +6573,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                           closing={leftPanelClosing}
                           panelRef={leftPanelRef}
                           sharedPanel
+                          smallGlassBlur={glassMaterialValues.small.blur}
                           onDropExtension={dropExtensionOnCanvas}
                         />,
                       ]}

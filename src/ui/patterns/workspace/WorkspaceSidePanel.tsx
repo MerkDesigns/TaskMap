@@ -10,17 +10,19 @@ import {
   type ReactNode,
 } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
+import { refreshMaterialSurfaceBackdrop } from "../../materials/materialGeometryInvalidation";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
 import {
   useWorkspaceSidePanelMotion,
   WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
 } from "./useWorkspaceSidePanelMotion";
 import "./WorkspaceSidePanel.css";
-import { LEFT_CHROME_GLASS_BATCH } from "./WorkspaceChromeGlassBatches";
+import { subscribeWorkspacePanelContentSizeChanged } from "./workspacePanelContentSize";
 
 export { WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS };
 
 export interface WorkspaceSidePanelProps extends HTMLAttributes<HTMLElement> {
+  readonly backdropRevision?: string;
   readonly closing: boolean;
   readonly label: string;
   readonly radius?: number;
@@ -28,7 +30,7 @@ export interface WorkspaceSidePanelProps extends HTMLAttributes<HTMLElement> {
 
 export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelProps>(
   function WorkspaceSidePanel(
-    { children, className, closing, label, radius, ...props },
+    { backdropRevision, children, className, closing, label, radius, ...props },
     forwardedRef,
   ) {
     const motionRef = useRef<HTMLElement | null>(null);
@@ -40,17 +42,19 @@ export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelP
       },
       [forwardedRef],
     );
+    useLayoutEffect(() => {
+      const panel = motionRef.current;
+      if (panel && backdropRevision !== undefined) refreshMaterialSurfaceBackdrop(panel);
+    }, [backdropRevision]);
 
     return (
       <MaterialSurface
         {...props}
         ref={panelRef}
         material="acrylic-large"
-        backdropSource="shared"
         radius={radius}
         aria-label={label}
         data-closing={closing || undefined}
-        data-glass-batch-target={LEFT_CHROME_GLASS_BATCH}
         className={["taskmap-workspace-side-panel", className].filter(Boolean).join(" ")}
       >
         {children}
@@ -111,9 +115,14 @@ export function WorkspaceSidePanelContentSwitcher({
     const measure = () => setHeight(measurePanelViewHeight(activeView));
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     observer?.observe(observed);
+    const unsubscribeContentSize = subscribeWorkspacePanelContentSizeChanged(
+      activeView,
+      (contentHeight) => setHeight(clampPanelViewHeight(activeView, contentHeight)),
+    );
     window.addEventListener("resize", measure);
     return () => {
       observer?.disconnect();
+      unsubscribeContentSize();
       window.removeEventListener("resize", measure);
     };
   }, [activeIndex, outgoingIndex]);
@@ -166,6 +175,10 @@ export function WorkspaceSidePanelContentSwitcher({
 
 function measurePanelViewHeight(view: HTMLElement): number {
   const contentHeight = Math.max(view.scrollHeight, view.firstElementChild?.scrollHeight ?? 0);
+  return clampPanelViewHeight(view, contentHeight);
+}
+
+function clampPanelViewHeight(view: HTMLElement, contentHeight: number): number {
   const panel = view.closest<HTMLElement>(".taskmap-workspace-side-panel");
   if (!panel) return Math.ceil(contentHeight);
   const bottomInset = Number.parseFloat(

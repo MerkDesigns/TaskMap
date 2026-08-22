@@ -3,7 +3,7 @@ import { useMotionFrameScheduler } from "../../motion/MotionProvider";
 import type { MotionFrameScheduler } from "../../motion/motionFrameScheduler";
 import { interpolate, normalizedProgress } from "../../motion/motionMath";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
-import { invalidateChromeGlassBatch, LEFT_CHROME_GLASS_BATCH } from "./WorkspaceChromeGlassBatches";
+import { refreshMaterialSurfaceBackdrop } from "../../materials/materialGeometryInvalidation";
 
 export const WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 240;
 export const WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32;
@@ -29,12 +29,12 @@ export function useWorkspaceSidePanelMotion(
         delete panel.dataset.panelMotion;
         panel.style.transform = "";
         panel.style.willChange = "";
+        refreshMaterialSurfaceBackdrop(panel);
       } else {
         panel.dataset.panelMotion = phase;
         panel.style.transform = `translate3d(${translateX}px, 0, 0)`;
         panel.style.willChange = phase === "active" ? "transform" : "";
       }
-      invalidateChromeGlassBatch(LEFT_CHROME_GLASS_BATCH);
     },
     [panelRef],
   );
@@ -53,8 +53,6 @@ export function useWorkspaceSidePanelMotion(
 
     return subscribeSlideAnimation(scheduler, writePanel, from, target, opening);
   }, [closing, panelRef, reducedMotion, scheduler, writePanel]);
-
-  useLayoutEffect(() => () => invalidateChromeGlassBatch(LEFT_CHROME_GLASS_BATCH), []);
 }
 
 function subscribeSlideAnimation(

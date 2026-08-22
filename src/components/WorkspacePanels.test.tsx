@@ -29,8 +29,15 @@ describe("C2C workspace panels", () => {
     for (const label of ["Canvases panel", "Extensions panel"]) {
       const panel = screen.getByLabelText(label);
       expect(panel).toHaveAttribute("data-material", "acrylic-large");
+      expect(panel).toHaveAttribute("data-material-backdrop-source", "self");
       expect(panel).toHaveAttribute("data-material-elevation", "default");
       expect(panel.style.getPropertyValue("--taskmap-material-radius")).toBe("23px");
+      expect(panel.style.getPropertyValue("--taskmap-material-preblur")).toBe("6px");
+      expect(panel.style.getPropertyValue("--taskmap-material-blur")).toBe("60px");
+      expect(
+        panel.querySelector('.taskmap-material-native-glass__preblur[data-enabled="true"]'),
+      ).not.toBeNull();
+      expect(panel.querySelector(".taskmap-material-native-glass__backdrop")).not.toBeNull();
     }
     expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(16);
     expect(registry.getSnapshot().surfaces).toEqual([]);
@@ -109,9 +116,9 @@ describe("C2C workspace panels", () => {
     ).toHaveLength(10);
     expect(container.querySelectorAll('[data-shared-small-glass-plane="active"]')).toHaveLength(1);
     expect(readNativeGlassDiagnostics(container)).toMatchObject({
-      localMaterialBackdropFilterCount: 0,
-      nativeBackdropSurfaceCount: 1,
-      nativeBackdropFilterLayerCount: 1,
+      localMaterialBackdropFilterCount: 1,
+      nativeBackdropSurfaceCount: 2,
+      nativeBackdropFilterLayerCount: 4,
       sharedSmallBatchCount: 1,
       sharedSmallPlaneActive: true,
     });
@@ -120,8 +127,8 @@ describe("C2C workspace panels", () => {
     rerender(view());
     expect(container.querySelectorAll("[data-canvas-card-id]")).toHaveLength(100);
     expect(readNativeGlassDiagnostics(container)).toMatchObject({
-      localMaterialBackdropFilterCount: 0,
-      nativeBackdropFilterLayerCount: 1,
+      localMaterialBackdropFilterCount: 1,
+      nativeBackdropFilterLayerCount: 4,
       sharedSmallBatchCount: 1,
     });
   });

@@ -52,8 +52,9 @@ describe("MaterialSurface", () => {
     expect(surface.style.getPropertyValue("--taskmap-material-preblur")).toBe("6px");
     expect(surface.style.getPropertyValue("--taskmap-material-interaction-preblur")).toBe("0px");
     expect(surface.style.getPropertyValue("--taskmap-material-content-clip-inset")).toBe("2px");
-    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("38px");
+    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("60px");
     expect(surface.style.getPropertyValue("--taskmap-material-brightness")).toBe("0.82");
+    expect(surface.style.getPropertyValue("--taskmap-material-border-brightness")).toBe("1");
     expect(surface.querySelector(".taskmap-material-native-glass__preblur")).toHaveAttribute(
       "data-enabled",
       "true",
@@ -66,23 +67,23 @@ describe("MaterialSurface", () => {
     expect(clip).not.toContainElement(rim);
   });
 
-  it("renders Acrylic Small one-pass at rest with its moving pre-blur ready", () => {
+  it("renders Acrylic Small with the same permanent two-pass recipe in every state", () => {
     render(<MaterialSurface material="acrylic-small">Small</MaterialSurface>);
     const surface = screen.getByText("Small");
 
     expect(surface).toHaveAttribute("data-material-strategy", "native-glass");
     expect(surface).toHaveAttribute("data-material-role", "small");
     expect(surface.style.getPropertyValue("--taskmap-material-radius")).toBe("13.5px");
-    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("20px");
-    expect(surface.style.getPropertyValue("--taskmap-material-interaction-preblur")).toBe("5px");
+    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("23.5px");
+    expect(surface.style.getPropertyValue("--taskmap-material-preblur")).toBe("5px");
     expect(surface.style.getPropertyValue("--taskmap-material-content-clip-inset")).toBe("2px");
     expect(surface.style.getPropertyValue("--taskmap-material-brightness")).toBe("0.9");
-    expect(surface.querySelector(".taskmap-material-native-glass__preblur")).not.toHaveAttribute(
-      "data-enabled",
-    );
     expect(surface.querySelector(".taskmap-material-native-glass__preblur")).toHaveAttribute(
-      "data-interaction-enabled",
+      "data-enabled",
       "true",
+    );
+    expect(surface.querySelector(".taskmap-material-native-glass__preblur")).not.toHaveAttribute(
+      "data-interaction-enabled",
     );
   });
 
@@ -191,12 +192,12 @@ describe("MaterialSurface", () => {
 
     fireEvent(window, new Event("resize"));
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
-    expect(overscan(small)).toEqual(["5.00px", "20.00px", "23.00px", "23.00px"]);
+    expect(overscan(small)).toEqual(["5.00px", "20.00px", "32.77px", "32.77px"]);
 
     rerender(view("is-dragging is-snapping"));
     fireEvent(window, new Event("resize"));
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
-    expect(overscan(small)).toEqual(["5.00px", "20.00px", "23.00px", "23.00px"]);
+    expect(overscan(small)).toEqual(["5.00px", "20.00px", "32.77px", "32.77px"]);
     expect(registry.getSnapshot().surfaces).toEqual([]);
   });
 

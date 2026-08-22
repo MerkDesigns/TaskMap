@@ -9,6 +9,44 @@
   background: transparent;
 }
 
+[data-material-role="large"] {
+  --taskmap-material-effective-blur: var(
+    --taskmap-material-large-blur-override,
+    var(--taskmap-material-blur)
+  );
+  --taskmap-material-effective-tint-rgb: var(
+    --taskmap-material-large-tint-rgb-override,
+    var(--taskmap-material-tint-rgb)
+  );
+  --taskmap-material-effective-tint-opacity: var(
+    --taskmap-material-large-tint-opacity-override,
+    var(--taskmap-material-tint-opacity)
+  );
+  --taskmap-material-effective-border-brightness: var(
+    --taskmap-material-large-border-brightness-override,
+    var(--taskmap-material-border-brightness)
+  );
+}
+
+[data-material-role="small"] {
+  --taskmap-material-effective-blur: var(
+    --taskmap-material-small-blur-override,
+    var(--taskmap-material-blur)
+  );
+  --taskmap-material-effective-tint-rgb: var(
+    --taskmap-material-small-tint-rgb-override,
+    var(--taskmap-material-tint-rgb)
+  );
+  --taskmap-material-effective-tint-opacity: var(
+    --taskmap-material-small-tint-opacity-override,
+    var(--taskmap-material-tint-opacity)
+  );
+  --taskmap-material-effective-border-brightness: var(
+    --taskmap-material-small-border-brightness-override,
+    var(--taskmap-material-border-brightness)
+  );
+}
+
 .taskmap-material-surface[data-material-strategy="native-glass"]
   > .taskmap-material-native-glass__clip {
   position: absolute;
@@ -62,12 +100,13 @@
   .taskmap-material-native-glass__backdrop {
   z-index: 1;
   backface-visibility: hidden;
-  -webkit-backdrop-filter: blur(var(--taskmap-material-blur))
+  transform: translateZ(var(--taskmap-material-backdrop-revision, 0px));
+  -webkit-backdrop-filter: blur(var(--taskmap-material-effective-blur))
     saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
     contrast(var(--taskmap-material-contrast));
-  backdrop-filter: blur(var(--taskmap-material-blur)) saturate(var(--taskmap-material-saturation))
-    brightness(var(--taskmap-material-brightness)) contrast(var(--taskmap-material-contrast));
-  transform: translateZ(0);
+  backdrop-filter: blur(var(--taskmap-material-effective-blur))
+    saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
+    contrast(var(--taskmap-material-contrast));
 }
 
 .taskmap-material-surface[data-material-backdrop-source="shared"]
@@ -77,12 +116,6 @@
   display: none;
 }
 
-.taskmap-material-surface[data-material-backdrop-source="shared"]
-  > .taskmap-material-native-glass__clip {
-  backface-visibility: visible;
-  transform: none;
-}
-
 .taskmap-material-surface[data-material-strategy="native-glass"]
   .taskmap-material-native-glass__highlight {
   position: absolute;
@@ -90,8 +123,12 @@
   border-radius: inherit;
   background:
     linear-gradient(
-      rgb(var(--taskmap-material-tint-rgb) / var(--taskmap-material-tint-opacity)),
-      rgb(var(--taskmap-material-tint-rgb) / var(--taskmap-material-tint-opacity))
+      rgb(
+        var(--taskmap-material-effective-tint-rgb) / var(--taskmap-material-effective-tint-opacity)
+      ),
+      rgb(
+        var(--taskmap-material-effective-tint-rgb) / var(--taskmap-material-effective-tint-opacity)
+      )
     ),
     linear-gradient(
       rgb(var(--taskmap-material-tone-rgb) / var(--taskmap-material-tone-opacity)),

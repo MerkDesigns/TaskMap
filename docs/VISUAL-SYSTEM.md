@@ -142,19 +142,19 @@ visual and performance acceptance.
 | Property           | Exact value                    |
 | ------------------ | ------------------------------ |
 | Pre-blur pass      | `6px`                          |
-| Main blur pass     | `38px`                         |
+| Main blur pass     | `60px`                         |
 | Saturation         | `0.78`                         |
 | Brightness         | `0.82`                         |
 | Contrast           | `1.00`                         |
 | Overscan ratio     | `1.15` of pre-blur + main blur |
-| Tint               | `39 40 42 / 0.45`              |
+| Tint               | `186 190 196 / 0.075`          |
 | Tone               | `14 15 17 / 0`                 |
 | Default radius     | `23px`                         |
 | Rim                | `1.5px`, base alpha `0.205`    |
 | Rim softness/scale | `0.5px` / `0.9`                |
 | Shadow source      | `0 3.5px 16.5px 0 / 0.50`      |
 
-Large is permanently two-pass. The 6px pre-blur paints before the 38px main material pass; the two
+Large is permanently two-pass. The 6px pre-blur paints before the 60px main material pass; the two
 passes must not be collapsed because this construction removed temporal crawling in the accepted
 reference.
 
@@ -162,40 +162,42 @@ reference.
 
 | Property           | Exact value                  |
 | ------------------ | ---------------------------- |
-| Moving pre-blur    | `5px`                        |
-| Main blur pass     | `20px`                       |
+| Pre-blur pass      | `5px`                        |
+| Main blur pass     | `23.5px`                     |
 | Saturation         | `0.78`                       |
 | Brightness         | `0.90`                       |
 | Contrast           | `1.00`                       |
-| Overscan ratio     | `1.15` of active blur passes |
-| Tint               | `133 133 133 / 0.025`        |
+| Overscan ratio     | `1.15` of both blur passes   |
+| Tint               | `182 183 195 / 0`            |
 | Tone               | `148 148 148 / 0`            |
 | Default radius     | `13.5px`                     |
 | Rim                | `1.5px`, base alpha `0.135`  |
 | Rim softness/scale | `0.5px` / `0.9`              |
 | Shadow source      | `0 3.5px 11.5px 0.5px / .48` |
 
-Small is one-pass while settled. During drag and snap, a Small surface temporarily paints the 5px
-pre-blur before its normal 20px pass so thin content underneath remains temporally stable. A Small
+Small is permanently two-pass. Both the shared settled batch and the bounded moving-card batch paint
+the 5px pre-blur before the normal 23.5px main pass so motion never changes the card's optical recipe. A Small
 surface inherits the nearest logical Large sampling boundary through React context. Its blur-derived
 backdrop overscan is clamped per side to that boundary, including while UI classes or physical DOM
 placement change. Standalone Small and Large surfaces clamp to the application viewport.
 
 Canvas Browser and primary Extensions Browser cards use bounded shared Small batches. Their private
-pre-blur/backdrop spans remain disabled in every geometry and motion state. One 20px Small filter is
-clipped by live rounded SVG rectangles while every card retains the same Small tint, tone, rim,
-shadow, radius, and content mask. Canvas drag adds a temporary moving clip to the same physical
-Small source, rather than switching the card to a private or optically different filter. Thus
-`data-material-motion` never changes shared-card optics. Native backdrop layers do not use permanent
-`will-change: backdrop-filter` promotion.
+pre-blur/backdrop spans remain disabled in every motion state. One shared 5px + 23.5px Small stack is clipped by live
+rounded SVG rectangles while every card retains the same Small tint, tone, rim, shadow, radius, and
+content mask. The actual dragged/snapping card leaves the settled mask and activates a separate bounded,
+optically identical shared-style 5px + 23.5px drag batch above the other card content. The card itself
+never activates its nested private filter. Slot-moving cards remain on the shared source and do
+not gain private filters. Shared Small backdrop layers do not use permanent compositor promotion.
+The one retained side-panel Large main pass uses the reference HTML's
+`will-change: backdrop-filter` hint because WebView2 otherwise intermittently re-promotes that
+large moving/retained layer and flickers along its top edge.
 
 ### Semantic native glass depths
 
-Native glass batches have explicit visual depth. Depth 1 is base workspace chrome and samples only
-Depth 0 canvas/application content. The nearby toolbar groups and open shared side-panel shell reuse
-one bounded two-pass Large batch. The distant window controls use a separate bounded two-pass Large
-batch, avoiding a viewport-sized 38px texture. Per-surface Depth-1 tints, rims, shadows, radii, and
-content paint after those batch filters, so same-depth chrome does not feed another Depth-1 blur.
+Depth 1 is base workspace chrome. Each bounded Large `MaterialSurface` owns the accepted local
+6px + 60px stack inside its rounded overscan clip. This is the reference-proven WebView2 topology;
+shared SVG-clipped Large batches are not visually equivalent and must not replace it without direct
+pixel and motion acceptance.
 
 Depth 2 is Small card glass inside a Large owner. It samples the completed Depth 0 + Depth 1 result.
 Each active card browser owns one bounded Small batch regardless of card count. Same-depth card
@@ -259,7 +261,7 @@ the two representations.
 
 - Position: `16px` from top and `16px` from the nearest horizontal edge by default
 - Group gap: `8px`
-- Group: `40px` height, `6px` horizontal padding, `12px` radius
+- Group: `40px` height, `6px` horizontal padding, `17px` radius
 - Buttons: `28px` square; the interaction highlight remains circular at the default radius and
   contracts with the containing island radius when that radius is reduced
 - Toolbar material external shadow: suppressed
@@ -276,9 +278,11 @@ the close hover uses the conventional red treatment. Native window edge and corn
 remains enabled.
 
 Horizontal and top chrome insets are independent semantic values and both default to `16px`; the
-bottom inset remains `16px`. The development-only Visual Tuner exposes temporary controls for those
-two insets plus Canvas Browser, full Canvas Card, and shared left/right top-bar radii. These values
-remain transient and are not persisted.
+bottom inset remains `16px`. The development-only Visual Tuner is a local Acrylic Large surface
+anchored on the right, `50px` below the window-control island. Its fixed top edge keeps the tab row
+stationary while the lower edge follows each tab's content. Large and Small expose live material
+optics and their relevant radii; Preview exposes its tint, border, and equal edge gap; Gaps owns the
+window-edge insets and the toolbar-to-side-panel distance. None of these values are persisted.
 
 ### Side panels
 
@@ -286,7 +290,7 @@ remain transient and are not persisted.
 - Width: `288px` for the shared Canvas/Extensions shell
 - Maximum height: viewport height minus `80px` (`64px` top plus `16px` bottom inset)
 - Padding: view-owned (`0px` for Canvas Browser; `12px` for Extensions)
-- Radius: the shared Canvas Browser radius (`22.5px` by default)
+- Radius: the shared Canvas Browser radius (`19px` by default)
 - Material/elevation: Acrylic Large with its default elevation
 
 Production mounts one `WorkspaceSidePanel` beside the toolbar in the layer-41
@@ -296,18 +300,15 @@ over `180ms` from a `4px` horizontal offset while the active view's measured hei
 shell-height transition. The inactive view is inert and interaction-free. Menus, filter popovers,
 tooltips, and drag UI retain their existing portals.
 
-The shared side panel and left toolbar islands are shapes in the same bounded Depth-1 Large batch.
-Their filters therefore share one pre-Depth-1 source even when their sampling overscan overlaps.
-Individual tint/rim/content layers remain above that batch. The top-right window controls use the
-separate bounded right batch because combining both sides would create an unnecessarily wide blur
-texture.
+The shared side panel, left toolbar islands, and top-right window controls each retain a bounded
+local Acrylic Large surface. Every surface uses the accepted two-pass clip structure and exact
+6px + 60px recipe; no fullscreen or shared SVG-clipped Large texture is used.
 
 The Acrylic Large surface never changes opacity, blur, filter, or backdrop-filter values during
 panel presence motion. The complete panel mounts beyond the left window edge and translates into
 place over `240ms` with a cubic ease-in; closing translates the same mounted panel fully beyond the
 left edge with a cubic ease-out before unmounting. There is no reveal cover or panel-presence fade.
-Transform frames use the shared UI scheduler and invalidate only the left chrome batch geometry so
-its panel clip follows the moving surface. They do not broadcast geometry work to other
+Transform frames use the shared UI scheduler and do not broadcast geometry work to other
 `MaterialSurface` instances. Reduced motion settles directly at
 the open or offscreen position without scheduling animation frames.
 App-owned closing flags and the `240ms` final unmount timer remain authoritative. Content switches
@@ -318,9 +319,10 @@ surface is reused.
 
 - Floating browser: `16px` top/left, `288px` width, `58px` header, and `23px` Large radius
 - Card layout: `12px` horizontal inset, `264px` width, `84px` height, and `10px` gap
-- Full card: `84px` height and the default Acrylic Small `13.5px` radius
+- Full card: `84px` height and a `13px` Acrylic Small radius
 - Minimal card: `40px` height and `8px` radius
-- Canvas preview: `114.4px × 66px` with `8px` radius and an even `9px` card inset
+- Canvas preview: `114.4px × 66px` by default with `8px` radius and an even `9px` card inset;
+  the development tuner preserves its aspect ratio while changing that equal top/bottom/left gap
 
 Every card mode clips its content wrapper inside the card's inherited radius. The native clip inset
 is the `1.5px` rim plus its `0.5px` softness; Opaque uses its `1px` border width. The material rim
@@ -331,14 +333,16 @@ Phase 4.5C2D maps non-embedded full, minimal, and inline-editor cards to Acrylic
 Canvas Manager cards use the non-registering Opaque strategy so embedded mode creates no cached-
 acrylic surfaces. The preview shell uses Cutout; its miniature containers, text blocks, and images
 remain cheap projected geometry and retain user-selected colors and the existing projection math.
+The active canvas preview receives frame-coalesced camera and transient element geometry while the
+stable card list remains outside the per-frame runtime reconciliation path.
 Active/cycle application state uses the scoped target accent tokens.
 
 All visible non-embedded cards reuse the one bounded Small backdrop batch described above. With
-`N` settled cards, Canvas Browser backdrop ownership changes from `N` card filters to one shared
-filter. The owning panel shares the left Large batch with the toolbar. Drag, slot motion,
-autoscroll, and snap update only rounded mask geometry; they never activate a card-local filter or
-interaction preblur. The moving card's temporary drag region stays in the same physical Small
-source, so the native filter count is constant before, during, and after drag.
+`N` settled cards, Canvas Browser backdrop ownership changes from `N` card stacks to one shared
+two-layer stack. The owning panel retains its own exact two-pass Large surface. Drag removes only the actual
+card from the settled mask and activates one bounded 5px + 23.5px shared-style backdrop batch behind
+the live card in the drag layer. Slot motion continues to update only shared rounded-mask geometry. The Small subsystem thus
+adds exactly two filter layers during drag, never one filter per slot-moving card.
 
 The Renderer V2-derived Canvas Browser runtime owns one on-demand frame loop for authoritative
 `45ms`-constant wheel smoothing, slot interpolation, pointer following, release snap, and drag
@@ -349,8 +353,10 @@ pointer frame.
 Cards render once into stable React portal hosts. Active drag reparents the same host into a
 temporary unclipped layer owned by the Large Canvas Browser; there is no clone, hidden duplicate,
 or placeholder. React material context therefore keeps the same logical Large sampling boundary
-through activation, drag, snap, and reattachment. Active frames use only DOM transforms and local
-shared-mask writes; they do not invoke global material geometry. Fully offscreen preview contents
+through activation, drag, snap, and reattachment. Active frames use DOM transforms and local
+shared-mask writes; they do not invoke global material geometry. Card-count changes emit a local
+content-size signal so the retained side-panel shell remeasures immediately. Panel motion settling
+and canvas switches refresh only that shell's native overscan. Fully offscreen preview contents
 use browser visibility containment. A settled inactive Canvas view destroys its runtime, wheel
 router, shared batch, mask observer, card rim observers, and preview contents. Reduced motion
 settles immediately.

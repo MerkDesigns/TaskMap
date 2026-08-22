@@ -1,5 +1,6 @@
 import { CANVAS_BROWSER_LAYOUT, canvasBrowserPanelHeight } from "./canvasBrowserLayout";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
+import { notifyWorkspacePanelContentSizeChanged } from "./workspacePanelContentSize";
 
 export function createCanvasBrowserDragLayer(owner: HTMLElement) {
   const layer = document.createElement("div");
@@ -14,11 +15,14 @@ export function writeCanvasBrowserContentHeight(
   cardsLayer: HTMLElement,
   contentHeight: number,
 ) {
+  const panelHeight = canvasBrowserPanelHeight(contentHeight);
+  const nextPanelHeight = `${panelHeight}px`;
   cardsLayer.style.height = `${contentHeight}px`;
-  panel.style.setProperty(
-    "--taskmap-canvas-browser-content-height",
-    `${canvasBrowserPanelHeight(contentHeight)}px`,
-  );
+  if (panel.style.getPropertyValue("--taskmap-canvas-browser-content-height") === nextPanelHeight) {
+    return;
+  }
+  panel.style.setProperty("--taskmap-canvas-browser-content-height", nextPanelHeight);
+  notifyWorkspacePanelContentSizeChanged(panel, panelHeight);
 }
 
 export function measureCanvasBrowserCard<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
@@ -67,7 +71,6 @@ export function writeDraggingCardHost<Id extends string>(
   record.host.style.height = `${record.height}px`;
   record.host.style.transform = "none";
   record.host.dataset.dragging = "true";
-  record.card.dataset.materialMotion = "active";
 }
 
 export function writeDraggingCardTop<Id extends string>(
@@ -85,7 +88,6 @@ export function restoreSettledCardHost<Id extends string>(record: CanvasBrowserC
   record.host.style.height = `${record.height}px`;
   record.host.style.transform = `translate3d(0, ${record.y}px, 0)`;
   delete record.host.dataset.dragging;
-  delete record.card.dataset.materialMotion;
 }
 
 export function syncCanvasBrowserCardViewport<Id extends string>(

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TaskCanvas } from "../types";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
+import { readNativeGlassDiagnostics } from "../ui/materials/SharedSmallGlassPlane";
 import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
@@ -148,6 +149,40 @@ describe("C2D Canvas Browser cards", () => {
     expect(imagePreview.style.zIndex).toBe("27");
     expect(imagePreview.style.borderColor).toBe("rgb(254, 220, 186)");
     expect(imagePreview.style.backgroundColor).toBe("transparent");
+  });
+
+  it("updates the active preview from transient camera and element geometry", () => {
+    const settled = canvas("canvas-a", {
+      containers: [
+        {
+          id: "container-a",
+          name: "Container",
+          x: 10,
+          y: 20,
+          width: 100,
+          height: 80,
+          accent: "#123456",
+        },
+      ],
+    });
+    const props = canvasManagerProps([settled]);
+    const { container, rerender } = render(<CanvasManager {...props} embedded />);
+    const preview = container.querySelector(
+      '[data-canvas-preview-container="container-a"]',
+    ) as HTMLElement;
+    const initialLeft = preview.style.left;
+    const live = {
+      ...settled,
+      pan: { x: -120, y: -40 },
+      containers: [{ ...settled.containers[0], x: 50, y: 60 }],
+    };
+
+    rerender(<CanvasManager {...canvasManagerProps([live])} embedded />);
+
+    expect(preview.style.left).not.toBe(initialLeft);
+    expect(Number.parseFloat(preview.style.left)).toBeCloseTo(
+      (50 - 120) * (CANVAS_BROWSER_LAYOUT.previewWidth / 1200),
+    );
   });
 
   it("preserves inline editor focus, constraints, save, Enter, and Escape behavior", async () => {
@@ -295,12 +330,17 @@ describe("C2D Canvas Browser cards", () => {
       return rect(16, 370, 288);
     });
     const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderProduction([canvas("canvas-a")], registry);
+    const { container } = renderProduction([canvas("canvas-a"), canvas("canvas-b")], registry);
     const card = container.querySelector('[data-canvas-card-id="canvas-a"]') as HTMLElement;
     const originalCard = card;
     const settledHost = card.parentElement;
     const settledOwner = settledHost?.parentElement;
     const cloneNode = vi.spyOn(Node.prototype, "cloneNode");
+
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      nativeBackdropFilterLayerCount: 4,
+      temporaryDragBatchActive: false,
+    });
 
     fireEvent(card, canvasPointerEvent("pointerdown", 7, 90));
     fireEvent(document, canvasPointerEvent("pointermove", 7, 96));
@@ -314,7 +354,20 @@ describe("C2D Canvas Browser cards", () => {
     expect(settledHost?.parentElement).not.toBe(settledOwner);
     expect(settledHost?.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
     expect(card).toHaveAttribute("data-material", "acrylic-small");
+    expect(card).not.toHaveAttribute("data-material-motion");
     expect(card).toHaveAttribute("data-material-sampling-boundary", "inherited");
+    expect(card.querySelector(".taskmap-material-native-glass__preblur")).toHaveAttribute(
+      "data-enabled",
+      "true",
+    );
+    expect(card.style.getPropertyValue("--taskmap-material-overscan-top")).toBe("");
+    expect(container.querySelectorAll('[data-shared-small-glass-plane="active"]')).toHaveLength(2);
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      nativeBackdropFilterLayerCount: 6,
+      localMaterialBackdropFilterCount: 1,
+      sharedSmallBatchCount: 2,
+      temporaryDragBatchActive: true,
+    });
     expect(cloneNode).not.toHaveBeenCalled();
     expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
     expect(document.querySelectorAll('[data-canvas-card-id="canvas-a"]')).toHaveLength(1);
@@ -326,7 +379,12 @@ describe("C2D Canvas Browser cards", () => {
     expect(card).toBe(originalCard);
     expect(card.parentElement).toBe(settledHost);
     expect(settledHost?.parentElement).toBe(settledOwner);
+    expect(card).not.toHaveAttribute("data-material-motion");
     expect(card).toHaveAttribute("data-material-sampling-boundary", "inherited");
+    expect(readNativeGlassDiagnostics(container)).toMatchObject({
+      nativeBackdropFilterLayerCount: 4,
+      temporaryDragBatchActive: false,
+    });
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(document.querySelector("[data-canvas-browser-drag-layer]")).toBeNull();
     registry.dispose();

@@ -66,8 +66,8 @@ export class CanvasBrowserRuntime<Id extends string> {
     );
     this.sharedGlass = new CanvasBrowserSharedGlass(
       options.sharedSmallGlassPlane,
+      options.dragSmallGlassPlane,
       this.records,
-      options.viewport,
     );
     this.resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.resize());
@@ -118,14 +118,14 @@ export class CanvasBrowserRuntime<Id extends string> {
       reorderCanvasBrowserHosts(this.displayOrder, this.records, this.options.cardsLayer);
     }
     this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
-    this.sharedGlass.sync(this.scroll.currentScrollY);
+    this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
   }
 
   resize = () => {
     this.records.forEach(measureCanvasBrowserCard);
     this.updateScrollRange();
     this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
-    this.sharedGlass.sync(this.scroll.currentScrollY);
+    this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
   };
 
   scrollByWheel(deltaY: number, deltaMode: number) {
@@ -225,7 +225,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     }
     changed = this.tickDrag(now) || changed;
     if (changed) {
-      this.sharedGlass.sync(this.scroll.currentScrollY);
+      this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
     }
     if (
       canvasBrowserRuntimeNeedsFrame(this.scroll, this.drag !== null, this.geometry.isAnimating())
@@ -255,9 +255,8 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.dragLayer = createCanvasBrowserDragLayer(this.options.panel);
     this.dragLayer.append(record.host);
     writeDraggingCardHost(record, rectangle, panelRectangle);
-    this.sharedGlass.beginDrag(drag.id, record, rectangle, panelRectangle);
     this.viewport.sync(drag.id);
-    this.sharedGlass.sync(this.scroll.currentScrollY);
+    this.sharedGlass.sync(this.scroll.currentScrollY, drag.id);
     drag.active = true;
     drag.snapFromY = rectangle.top;
     this.scroll.synchronizeTarget();
@@ -273,7 +272,6 @@ export class CanvasBrowserRuntime<Id extends string> {
     const top =
       drag.pointerY - drag.pointerOffsetY - this.options.panel.getBoundingClientRect().top;
     writeDraggingCardTop(record, top);
-    this.sharedGlass.moveDrag(top);
     if (drag.finish) {
       if (drag.finish === "cancel") {
         drag.order = drag.initialOrder;
@@ -329,7 +327,6 @@ export class CanvasBrowserRuntime<Id extends string> {
       record,
       drag.snapFromY + (target - drag.snapFromY) * easeOutQuart(progress),
     );
-    this.sharedGlass.moveDrag(drag.snapFromY + (target - drag.snapFromY) * easeOutQuart(progress));
     if (progress < 1) return true;
     this.completeDrag(drag, record);
     return true;
@@ -348,12 +345,11 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.dragLayer = null;
     this.scroll.synchronizeTarget();
     this.drag = null;
-    this.sharedGlass.endDrag();
     this.suppressedClickId = null;
     this.pointerSession.release(drag.pointerId);
     this.updateScrollRange();
     this.viewport.sync();
-    this.sharedGlass.sync(this.scroll.currentScrollY);
+    this.sharedGlass.sync(this.scroll.currentScrollY, null);
     if (shouldCommit) this.commitOrder(finalOrder);
   }
 
@@ -369,12 +365,11 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.dragLayer?.remove();
     this.dragLayer = null;
     this.drag = null;
-    this.sharedGlass.endDrag();
     this.suppressedClickId = null;
     this.scroll.synchronizeTarget();
     this.pointerSession.release(drag.pointerId);
     this.viewport.sync();
-    this.sharedGlass.sync(this.scroll.currentScrollY);
+    this.sharedGlass.sync(this.scroll.currentScrollY, null);
   }
 
   private dragAutoScroll() {

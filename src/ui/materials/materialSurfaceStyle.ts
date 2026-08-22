@@ -25,6 +25,7 @@ export function createMaterialSurfaceStyle(
     materialStyle["--taskmap-material-tone-rgb"] = definition.tone.rgb.join(" ");
     materialStyle["--taskmap-material-tone-opacity"] = definition.tone.opacity;
     materialStyle["--taskmap-material-rim-softness"] = `${definition.rim.softnessPx}px`;
+    materialStyle["--taskmap-material-border-brightness"] = 1;
     materialStyle["--taskmap-material-content-clip-inset"] =
       `${definition.rim.widthPx + definition.rim.softnessPx}px`;
     materialStyle["--taskmap-material-shadow"] =
