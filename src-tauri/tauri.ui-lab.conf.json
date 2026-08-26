@@ -9,7 +9,7 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "capabilities": ["mcp-development"],
+      "capabilities": ["mcp-development", "ui-lab-window"],
       "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:6970; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'"
     },
     "windows": [

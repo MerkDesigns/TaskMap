@@ -70,7 +70,7 @@
   right: calc(0px - var(--taskmap-material-overscan-right, 0px));
   bottom: calc(0px - var(--taskmap-material-overscan-bottom, 0px));
   left: calc(0px - var(--taskmap-material-overscan-left, 0px));
-  background: rgb(0 0 0 / 0.001);
+  background: rgb(0 0 0 / calc(0.001 * var(--taskmap-material-presence-progress, 1)));
   pointer-events: none;
 }
 
@@ -79,9 +79,17 @@
   z-index: 0;
   display: none;
   -webkit-backdrop-filter: blur(
-    var(--taskmap-material-active-preblur, var(--taskmap-material-preblur))
+    calc(
+      var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)) *
+        var(--taskmap-material-presence-progress, 1)
+    )
   );
-  backdrop-filter: blur(var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)));
+  backdrop-filter: blur(
+    calc(
+      var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)) *
+        var(--taskmap-material-presence-progress, 1)
+    )
+  );
 }
 
 .taskmap-material-surface[data-material-strategy="native-glass"]
@@ -101,12 +109,42 @@
   z-index: 1;
   backface-visibility: hidden;
   transform: translateZ(var(--taskmap-material-backdrop-revision, 0px));
-  -webkit-backdrop-filter: blur(var(--taskmap-material-effective-blur))
-    saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
-    contrast(var(--taskmap-material-contrast));
-  backdrop-filter: blur(var(--taskmap-material-effective-blur))
-    saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness))
-    contrast(var(--taskmap-material-contrast));
+  -webkit-backdrop-filter: blur(
+      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-presence-progress, 1))
+    )
+    saturate(
+      calc(
+        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    brightness(
+      calc(
+        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    contrast(
+      calc(
+        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    );
+  backdrop-filter: blur(
+      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-presence-progress, 1))
+    )
+    saturate(
+      calc(
+        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    brightness(
+      calc(
+        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    contrast(
+      calc(
+        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    );
 }
 
 .taskmap-material-surface[data-material-backdrop-source="shared"]
@@ -135,6 +173,7 @@
       rgb(var(--taskmap-material-tone-rgb) / var(--taskmap-material-tone-opacity))
     );
   inset: 0;
+  opacity: var(--taskmap-material-presence-progress, 1);
   pointer-events: none;
 }
 
@@ -145,6 +184,7 @@
   overflow: hidden;
   border-radius: inherit;
   inset: 0;
+  opacity: var(--taskmap-material-presence-progress, 1);
   pointer-events: none;
 }
 

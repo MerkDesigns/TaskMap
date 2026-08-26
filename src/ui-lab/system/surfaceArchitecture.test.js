@@ -48,21 +48,42 @@ describe("UI Lab Surface architecture", () => {
     expect(css).not.toMatch(/\.taskmap-ui-lab-surface\s*\{/);
   });
 
-  it("documents material-aware presence without composited group alpha", async () => {
+  it("documents exactly Surface, Material, and ordinary Content as core concepts", async () => {
     const [simple, reference] = await Promise.all([
       read("docs/ui-architecture/SIMPLE-UI-SYSTEM.md"),
       read("docs/ui-architecture/UI-SYSTEM-PART-REFERENCE.md"),
     ]);
     const documentation = `${simple}\n${reference}`;
 
-    expect(documentation).toContain("VisualGroup");
-    expect(documentation).toContain("ContentLayer");
+    expect(documentation).toContain("The three core concepts");
+    expect(documentation).toContain("### Surface");
+    expect(documentation).toContain("### Material");
+    expect(documentation).toContain("### Content");
+    expect(documentation).toContain("does not require a universal component or wrapper");
     expect(documentation).toContain("material-aware presence");
-    expect(documentation).not.toMatch(/OpacityGroup|composited group alpha|alpha[- ]mask/i);
+    expect(documentation).not.toMatch(
+      /VisualGroup|ContentLayer|OpacityGroup|four core concepts|group progress|group transform|alpha[- ]mask/i,
+    );
     expect(simple).toContain("[TaskMap UI System Part Reference](UI-SYSTEM-PART-REFERENCE.md)");
     expect(reference).toContain("[TaskMap Simple UI System](SIMPLE-UI-SYSTEM.md)");
     expect(documentation).toContain(
       "Native glass must never be faded using ancestor opacity, masks, or `filter: opacity()`.",
     );
+  });
+
+  it("keeps the experimental fade seam in materials and behavior on the Surface ref", async () => {
+    const [prototype, controller, hook, labCss, materialCss] = await Promise.all([
+      read("src/ui-lab/MaterialAwarePresencePrototype.tsx"),
+      read("src/ui-lab/system/presenceController.ts"),
+      read("src/ui-lab/system/useSurfacePresence.ts"),
+      read("src/ui-lab/materialAwarePresence.css"),
+      read("src/ui/materials/MaterialSurface.css"),
+    ]);
+
+    expect(prototype).toContain("animatedRef={surfaceRef}");
+    expect(hook).toContain("useMotionFrameScheduler");
+    expect(controller).not.toMatch(/requestAnimationFrame|querySelector|querySelectorAll/);
+    expect(labCss).not.toMatch(/(?:-webkit-)?backdrop-filter\s*:|box-shadow\s*:/);
+    expect(materialCss).toContain("--taskmap-material-presence-progress");
   });
 });

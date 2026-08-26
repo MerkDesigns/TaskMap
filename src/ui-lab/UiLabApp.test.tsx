@@ -20,8 +20,10 @@ describe("UiLabApp", () => {
       screen.getByRole("heading", { name: "Surface + Material prototype" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Material-aware show / hide prototype" }),
+      screen.getByRole("heading", { name: "Composable presence behaviors" }),
     ).toBeInTheDocument();
+    expect(container.querySelector("[data-ui-lab-scroll-viewport]")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Window controls" })).toBeInTheDocument();
   });
 
   it("uses the shared production theme, canvas background, and ordinary controls", () => {

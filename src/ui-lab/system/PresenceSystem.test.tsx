@@ -1,150 +1,205 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef } from "react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MotionProvider } from "../../ui/motion/MotionProvider";
+import type {
+  MotionFrame,
+  MotionFrameScheduler,
+  MotionFrameSubscriber,
+} from "../../ui/motion/motionFrameScheduler";
+import { ReducedMotionProvider } from "../../ui/motion/reducedMotionPreference";
 import { MaterialAwarePresencePrototype } from "../MaterialAwarePresencePrototype";
-import { ContentLayer } from "./ContentLayer";
-import { createPresenceMaterialStyle } from "./materialPresence";
-import { createPresenceMotionController, type PresenceProgressTarget } from "./presenceMotion";
-import { VisualGroup, type VisualGroupHandle } from "./VisualGroup";
+import {
+  createPresenceController,
+  Fade,
+  FadeLift,
+  FadeSlide,
+  Lift,
+  SlideLeft,
+} from "./presenceController";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-describe("UI Lab material-aware presence", () => {
-  it("keeps VisualGroup stable and writes only progress plus optional transform", () => {
-    const ref = createRef<VisualGroupHandle>();
-    const { rerender } = render(
-      <VisualGroup ref={ref} data-testid="group">
-        Stable child
-      </VisualGroup>,
-    );
-    const group = screen.getByTestId("group");
+describe("UI Lab Surface presence behaviors", () => {
+  it("keeps Fade, Lift, and Slide output channels independent", () => {
+    const cases = [
+      { effects: Fade, fade: true, x: false, y: false },
+      { effects: Lift, fade: false, x: false, y: true },
+      { effects: SlideLeft, fade: false, x: true, y: false },
+      { effects: FadeLift, fade: true, x: false, y: true },
+      { effects: FadeSlide, fade: true, x: true, y: false },
+    ] as const;
 
-    expect(group).toHaveStyle({ "--taskmap-ui-lab-presence-progress": "1" });
-    expect(group.style.opacity).toBe("");
-    expect(group.style.filter).toBe("");
-    expect(group.style.mask).toBe("");
-    expect(group.style.getPropertyValue("backdrop-filter")).toBe("");
+    for (const testCase of cases) {
+      const surface = document.createElement("section");
+      const content = document.createElement("div");
+      const controller = createPresenceController(surface, {
+        scheduler: new ManualScheduler(),
+        reducedMotion: false,
+        effects: testCase.effects,
+        contentTargets: () => [content],
+      });
+      controller.setProgress(0.5);
 
-    ref.current?.writePresenceProgress(0.5, 6);
-    expect(group).toHaveStyle({
-      "--taskmap-ui-lab-presence-progress": "0.5",
-      transform: "translate3d(0, 6px, 0)",
-    });
-
-    rerender(
-      <VisualGroup ref={ref} data-testid="group">
-        Updated child
-      </VisualGroup>,
-    );
-    expect(screen.getByTestId("group")).toBe(group);
+      expect(surface.style.getPropertyValue("--taskmap-material-presence-progress") !== "").toBe(
+        testCase.fade,
+      );
+      expect(surface.style.transform.includes("translate3d(")).toBe(testCase.x || testCase.y);
+      expect(readTranslation(surface.style.transform, 0) !== 0).toBe(testCase.x);
+      expect(readTranslation(surface.style.transform, 1) !== 0).toBe(testCase.y);
+      expect(content.style.opacity).toBe(testCase.fade ? "0.5" : "");
+      expect(surface.style.opacity).toBe("");
+      expect(surface.style.filter).toBe("");
+      expect(surface.style.mask).toBe("");
+      controller.setProgress(1);
+      expect(content.style.opacity).toBe("");
+      expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
+      controller.destroy();
+    }
   });
 
-  it("renders ContentLayer as the smallest ordinary content wrapper", () => {
-    const { container } = render(
-      <ContentLayer className="feature-content" onClick={() => undefined}>
-        <span>Ordinary content</span>
-      </ContentLayer>,
-    );
-    const content = screen.getByText("Ordinary content").parentElement!;
-
-    expect(container.childElementCount).toBe(1);
-    expect(content).toHaveClass("taskmap-ui-lab-content-layer", "feature-content");
-    expect(content.querySelector("[data-material-strategy='native-glass']")).toBeNull();
-  });
-
-  it("derives presence shadow values from the authoritative production recipes", () => {
-    expect(createPresenceMaterialStyle("major-glass")).toMatchObject({
-      "--taskmap-ui-lab-shadow-y": "3.5px",
-      "--taskmap-ui-lab-shadow-first-blur": "12.5px",
-      "--taskmap-ui-lab-shadow-second-blur": "16.5px",
-      "--taskmap-ui-lab-shadow-opacity": 0.5,
-    });
-    expect(createPresenceMaterialStyle("minor-glass")).toMatchObject({
-      "--taskmap-ui-lab-shadow-y": "3.5px",
-      "--taskmap-ui-lab-shadow-first-blur": "7.5px",
-      "--taskmap-ui-lab-shadow-second-blur": "11.5px",
-      "--taskmap-ui-lab-shadow-opacity": 0.48,
-    });
-  });
-
-  it("supports eased interruption and reversal without changing React state per frame", () => {
-    const scheduler = new TestFrameScheduler();
-    const writes: number[] = [];
-    const target: PresenceProgressTarget = {
-      readPresenceProgress: () => writes[writes.length - 1] ?? 1,
-      writePresenceProgress(progress) {
-        writes.push(progress);
+  it("uses one scheduler subscription and one composed transform write per frame", () => {
+    const scheduler = new ManualScheduler();
+    const writes = vi.fn();
+    const surface = document.createElement("section");
+    const controller = createPresenceController(surface, {
+      scheduler,
+      reducedMotion: false,
+      durationMs: 400,
+      effects: {
+        fade: true,
+        lift: { distancePx: 10 },
+        slide: { direction: "right", distancePx: 18 },
       },
-    };
-    const controller = createPresenceMotionController(target, { durationMs: 400 }, scheduler);
+      onTransformWrite: writes,
+    });
+    writes.mockClear();
 
     controller.hide();
+    expect(scheduler.getSnapshot().subscriberCount).toBe(1);
     scheduler.step(100);
-    const interrupted = writes[writes.length - 1]!;
-    expect(interrupted).toBeGreaterThan(0);
-    expect(interrupted).toBeLessThan(1);
-
-    controller.reverse();
-    scheduler.step(50);
-    expect(writes.some((progress) => progress > interrupted && progress < 1)).toBe(true);
-    scheduler.step(350);
-    expect(writes[writes.length - 1]).toBe(1);
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(surface.style.transform).toMatch(/^translate3d\([^,]+px, [^,]+px, 0\)$/);
+    expect(Number(surface.dataset.presenceProgress)).toBeCloseTo(
+      Number(surface.style.getPropertyValue("--taskmap-material-presence-progress")),
+      3,
+    );
+    controller.destroy();
+    expect(scheduler.getSnapshot().subscriberCount).toBe(0);
   });
 
-  it("keeps nested glass Surfaces outside ContentLayer and preserves node identity while scrubbing", () => {
+  it.each([0.02, 0.5, 0.98])(
+    "reverses from progress %s and scales remaining duration to distance",
+    (initialProgress) => {
+      const scheduler = new ManualScheduler();
+      const surface = document.createElement("section");
+      const controller = createPresenceController(surface, {
+        scheduler,
+        reducedMotion: false,
+        durationMs: 400,
+        initialProgress,
+        effects: Fade,
+      });
+
+      controller.reverse();
+      const target = initialProgress >= 0.5 ? 0 : 1;
+      scheduler.step(Math.abs(target - initialProgress) * 400);
+      expect(controller.getSnapshot()).toMatchObject({
+        progress: target,
+        target,
+        phase: target === 0 ? "hidden" : "visible",
+      });
+      expect(scheduler.getSnapshot().subscriberCount).toBe(0);
+    },
+  );
+
+  it("honors reduced motion, endpoint interaction, and cleanup", () => {
+    const scheduler = new ManualScheduler();
+    const surface = document.createElement("section");
+    const controller = createPresenceController(surface, {
+      scheduler,
+      reducedMotion: true,
+      effects: FadeSlide,
+    });
+
+    controller.hide();
+    expect(controller.getSnapshot()).toMatchObject({ progress: 0, phase: "hidden" });
+    expect(surface.inert).toBe(true);
+    expect(surface).toHaveAttribute("aria-hidden", "true");
+    expect(surface.style.pointerEvents).toBe("none");
+    expect(scheduler.getSnapshot().subscriberCount).toBe(0);
+
+    controller.show();
+    expect(surface.inert).toBe(false);
+    expect(surface).not.toHaveAttribute("aria-hidden");
+    controller.destroy();
+    expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
+    expect(surface.style.transform).toBe("");
+  });
+
+  it("keeps nodes stable, nested glass outside content fades, and React idle per frame", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-    const { container } = render(<MaterialAwarePresencePrototype />);
-    const group = container.querySelector<HTMLElement>("[data-presence-group]")!;
-    const major = container.querySelector<HTMLElement>("[data-presence-surface='animated-major']")!;
-
-    expect(screen.getByRole("button", { name: "Show" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Hide" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Reverse" })).toBeVisible();
-    expect(
-      container.querySelectorAll(
-        ".taskmap-ui-lab-content-layer [data-material-strategy='native-glass']",
-      ),
-    ).toHaveLength(0);
-    expect(group.style.opacity).toBe("");
-    expect(group.style.filter).toBe("");
-    expect(group.style.mask).toBe("");
-    expect(group.style.getPropertyValue("backdrop-filter")).toBe("");
-
-    fireEvent.click(container.querySelector("[data-presence-set='0.5']")!);
-    expect(group.dataset.presenceProgress).toBe("0.500");
-    expect(container.querySelector<HTMLElement>("[data-presence-surface='animated-major']")).toBe(
-      major,
+    const scheduler = new ManualScheduler();
+    const { container } = render(
+      <ReducedMotionProvider override={false}>
+        <MotionProvider scheduler={scheduler}>
+          <MaterialAwarePresencePrototype />
+        </MotionProvider>
+      </ReducedMotionProvider>,
     );
+    const comparison = container.querySelector<HTMLElement>("[data-fade-comparison]")!;
+    const major = container.querySelector<HTMLElement>("[data-presence-surface='animated-major']")!;
+    const minor = container.querySelector<HTMLElement>(
+      "[data-presence-surface='animated-minor-a']",
+    )!;
+    const renderCount = comparison.dataset.renderCount;
+
+    expect(
+      container.querySelectorAll(".taskmap-ui-lab-fade-content .taskmap-material-surface"),
+    ).toHaveLength(0);
+    fireEvent.click(container.querySelector("[data-presence-hide='comparison']")!);
+    scheduler.step(100);
+    scheduler.step(100);
+    expect(comparison.dataset.renderCount).toBe(renderCount);
+    expect(container.querySelector("[data-presence-surface='animated-major']")).toBe(major);
+    expect(container.querySelector("[data-presence-surface='animated-minor-a']")).toBe(minor);
+
+    fireEvent.click(container.querySelector("[data-fade-progress='0.5']")!);
+    fireEvent.click(container.querySelector("[data-fade-comparison] button")!);
+    expect(container.querySelector("[data-presence-surface='animated-major']")).toBe(major);
+    expect(container.querySelector("[data-presence-surface='animated-minor-a']")).toBe(minor);
   });
 });
 
-class TestFrameScheduler {
-  private time = 0;
-  private nextHandle = 1;
-  private readonly callbacks = new Map<number, FrameRequestCallback>();
+class ManualScheduler implements MotionFrameScheduler {
+  private readonly subscribers = new Set<MotionFrameSubscriber>();
+  private timestampMs = 0;
 
-  now(): number {
-    return this.time;
+  subscribe(subscriber: MotionFrameSubscriber): () => void {
+    this.subscribers.add(subscriber);
+    return () => this.subscribers.delete(subscriber);
   }
 
-  request(callback: FrameRequestCallback): number {
-    const handle = this.nextHandle;
-    this.nextHandle += 1;
-    this.callbacks.set(handle, callback);
-    return handle;
+  step(deltaMs: number): void {
+    this.timestampMs += deltaMs;
+    const frame: MotionFrame = { timestampMs: this.timestampMs, deltaMs };
+    for (const subscriber of [...this.subscribers]) {
+      if (!subscriber(frame)) this.subscribers.delete(subscriber);
+    }
   }
 
-  cancel(handle: number): void {
-    this.callbacks.delete(handle);
+  getSnapshot() {
+    return { subscriberCount: this.subscribers.size, framePending: this.subscribers.size > 0 };
   }
 
-  step(milliseconds: number): void {
-    this.time += milliseconds;
-    const callbacks = [...this.callbacks.values()];
-    this.callbacks.clear();
-    callbacks.forEach((callback) => callback(this.time));
+  dispose(): void {
+    this.subscribers.clear();
   }
+}
+
+function readTranslation(transform: string, index: 0 | 1): number {
+  if (!transform) return 0;
+  return Number.parseFloat(transform.slice(12, -1).split(",")[index] ?? "0");
 }

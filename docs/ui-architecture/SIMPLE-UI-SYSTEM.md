@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This document defines the proposed public architecture for TaskMap UI. It describes four core
+This document defines the proposed public architecture for TaskMap UI. It describes three core
 concepts and the contracts between them. It does not define development tooling, feature recipes,
 or a specific WebView2 rendering technique.
 
@@ -18,9 +18,9 @@ geometry and content. The UI system privately handles material rendering and Web
 
 The public architecture must remain simple even when a Material needs private rendering details.
 
-## The four core concepts
+## The three core concepts
 
-These are architectural roles, not four physical renderer layers.
+These are architectural roles, not three required renderer layers.
 
 ### 1. Surface
 
@@ -33,10 +33,10 @@ A Surface describes visible geometry and a local interaction area:
 - stable identity for geometry tracking
 
 A Surface can exist without a Material. A Surface can have at most one base Material. More complex
-visuals are built from nested Surfaces instead of stacking unrelated Materials on one Surface.
+visuals use nested Surfaces instead of stacking unrelated Materials on one Surface.
 
-Layout, scrolling, dragging, resizing, motion, and presence behaviors may change or contain a
-Surface, but they are not responsibilities of the Surface itself.
+Layout, scrolling, dragging, resizing, motion, and presence behaviors may act on a Surface, but they
+are not responsibilities of the Surface itself.
 
 ### 2. Material
 
@@ -53,14 +53,11 @@ Materials own their complete visual construction. For glass this includes preblu
 overscan, tint, rim, shadow, and WebView2-specific stability behavior.
 
 Materials do not own layout, feature state, scrolling, interaction, Content, presence, or animation
-timing.
+timing. Major and Minor describe optical roles, not enforced physical sizes or nesting depths.
 
-Major and Minor describe different optical roles. They do not enforce a specific physical size or
-exact nesting depth.
+### 3. Content
 
-### 3. ContentLayer
-
-A ContentLayer is the smallest wrapper around ordinary HTML associated with a Surface:
+Content is ordinary HTML associated with a Surface:
 
 - text
 - buttons
@@ -70,38 +67,25 @@ A ContentLayer is the smallest wrapper around ordinary HTML associated with a Su
 - previews
 - custom feature UI
 
-A ContentLayer retains normal DOM layout, accessibility, focus, and interaction. It may fade its
-ordinary content during a presence transition. It must not contain nested glass Surfaces; nested
-Surfaces remain siblings so their Materials respond independently to inherited presence progress.
-
-### 4. VisualGroup
-
-A VisualGroup is a stable wrapper that exposes one inherited presence-progress value from `0` to
-`1` and may apply a transform. It does not apply opacity, masks, `filter: opacity()`, or backdrop
-filtering to itself.
-
-VisualGroup does not own Material recipes, geometry, feature state, mounting, or animation timing.
-A presence behavior may update its progress and transform imperatively without rendering React on
-every frame.
+Content retains normal DOM layout, accessibility, focus, selection, and interaction. It is a
+conceptual role and does not require a universal component or wrapper.
 
 ## How the concepts relate
 
 ```text
-VisualGroup
-└── Surface
-    ├── optional Material
-    ├── ContentLayer
-    └── optional nested Surfaces
+Surface
+├── optional Material
+├── Content
+└── optional nested Surfaces
 ```
 
-The Surface is the authoritative geometry source. The Material renders that geometry. ContentLayer
-places ordinary content in the same local coordinate space. VisualGroup exposes presentation
-progress without becoming a material renderer.
+The Surface is the authoritative geometry source. The Material renders that geometry. Content uses
+ordinary DOM in the same local coordinate space.
 
 ## Optional behavior helpers
 
-Reusable behaviors are tools used with the four core concepts, not additional architectural
-layers or compositor abstractions.
+Reusable behaviors are tools used with the three core concepts, not additional architectural
+layers.
 
 Expected behavior categories include:
 
@@ -113,61 +97,56 @@ Expected behavior categories include:
 - resizing
 - pointer and focus control
 
-Behaviors may coordinate core concepts while keeping feature state and rendering ownership in their
-appropriate modules.
+Behaviors may coordinate Surface, Material, and Content while keeping feature state and rendering
+ownership in their appropriate modules.
 
 ## Composition contract
 
-- ContentLayer layout remains the DOM source of truth.
+- Content layout remains the DOM source of truth.
 - A Surface is the authoritative source for its Material geometry and hit area.
 - Feature code never implements backdrop filters, blur, tint, rim, shadow, overscan, or renderer
   refresh workarounds.
-- Material geometry, ContentLayer geometry, rims, and shadows use one authoritative Surface geometry
+- Material geometry, Content geometry, rims, and shadows use one authoritative Surface geometry
   snapshot per frame.
 - Material renderer nodes remain stable during ordinary state changes.
 - Optional behaviors do not become new material or content layers.
 
-## Material-aware presence
+## Experimental material-aware presence
 
 Native glass must never be faded using ancestor opacity, masks, or `filter: opacity()`.
 
-Presence is coordinated rather than applied as one composited alpha. VisualGroup publishes progress
-and optional transform. Each glass Material interpolates preblur and main blur from zero to its
-recipe values, saturation and brightness from neutral to their recipe values, and fades its tint,
-highlight, rim, and shadow separately. Overscan and renderer node identity remain stable.
+The isolated UI Lab validates an experimental optional presence behavior attached directly to a
+Surface. It uses one progress timeline. Fade asks each glass Material to interpolate its existing
+parts toward neutral and fades only explicitly marked ordinary Content. Nested glass Surfaces
+inherit progress and respond through their own Materials. Full overscan and Material node identity
+remain stable.
 
-ContentLayer alone uses ordinary opacity for ordinary content. Nested glass Surfaces do not live in
-ContentLayer; they consume the inherited progress through their own Material layers.
+Lift and Slide are independent movement effects. They may share the same timeline with Fade, and
+their numerical movement channels are combined into one Surface transform write. Presence timing,
+interruption, reduced-motion settling, and endpoint interaction state remain behavior concerns.
 
-The current implementation is an isolated UI Lab prototype. It is not an accepted production
-presence API or a production migration.
+This experiment does not finalize a production API or migrate production features.
 
 ## Minimal example
 
 ```tsx
-<VisualGroup progress={presenceProgress} transform={presenceTransform}>
-  <Surface material="major-glass">
-    <ContentLayer>
-      <Header />
-    </ContentLayer>
+<Surface material="major-glass">
+  <Header />
 
-    <Surface material="minor-glass">
-      <ContentLayer>
-        <Controls />
-      </ContentLayer>
-    </Surface>
+  <Surface material="minor-glass">
+    <Controls />
   </Surface>
-</VisualGroup>
+</Surface>
 ```
 
 Exact component names and JSX remain provisional. The example documents ownership only.
 
 ## Core rules
 
-- Keep the public model limited to VisualGroup, Surface, Material, and ContentLayer.
+- Keep the public model limited to Surface, Material, and Content.
 - Add capability through specialized parts and optional behavior helpers, not new fundamental
   layers.
-- Preserve native DOM semantics for ContentLayer, focus, hit testing, and scrolling.
+- Preserve native DOM semantics for Content, focus, hit testing, and scrolling.
 - Keep renderer-owned nodes decorative, inaccessible to pointer input, and hidden from
   accessibility APIs.
 - Preserve accepted glass optics unless an intentional visual change is requested.
@@ -179,7 +158,7 @@ Exact component names and JSX remain provisional. The example documents ownershi
 
 This document does not choose:
 
-- production adoption of the UI Lab presence prototype
+- production adoption or a public API for the UI Lab presence experiment
 - CSS, SVG, Canvas, or another private material renderer
 - feature-specific compositions such as Canvas Browser or Settings
 - development tooling and workflow

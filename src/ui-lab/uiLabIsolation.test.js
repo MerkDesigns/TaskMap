@@ -57,14 +57,16 @@ describe("isolated UI Lab entry", () => {
   });
 
   it("keeps the Tauri Lab configuration isolated and development-only", async () => {
-    const [packageSource, configSource, cargo, rust] = await Promise.all([
+    const [packageSource, configSource, capabilitySource, cargo, rust] = await Promise.all([
       read("package.json"),
       read("src-tauri/tauri.ui-lab.conf.json"),
+      read("src-tauri/capabilities/ui-lab-window.json"),
       read("src-tauri/Cargo.toml"),
       read("src-tauri/src/main.rs"),
     ]);
     const packageJson = JSON.parse(packageSource);
     const config = JSON.parse(configSource);
+    const capability = JSON.parse(capabilitySource);
 
     expect(packageJson.scripts["dev:ui-lab"]).toContain("--port 6970");
     expect(packageJson.scripts["app:ui-lab"]).toContain("tauri dev");
@@ -72,7 +74,21 @@ describe("isolated UI Lab entry", () => {
     expect(config.productName).toBe("TaskMap UI Lab");
     expect(config.identifier).toBe("com.merkdesigns.taskmap.ui-lab");
     expect(config.build.devUrl).toBe("http://127.0.0.1:6970/ui-lab.html");
-    expect(config.app.security.capabilities).toEqual(["mcp-development"]);
+    expect(config.app.security.capabilities).toEqual(["mcp-development", "ui-lab-window"]);
+    expect(capability).toMatchObject({
+      identifier: "ui-lab-window",
+      windows: ["main"],
+      permissions: [
+        "core:event:allow-listen",
+        "core:event:allow-unlisten",
+        "core:window:allow-close",
+        "core:window:allow-is-maximized",
+        "core:window:allow-minimize",
+        "core:window:allow-start-dragging",
+        "core:window:allow-toggle-maximize",
+      ],
+    });
+    expect(config.app.security.capabilities).not.toContain("default");
     expect(config.app.windows[0]).toMatchObject({
       width: 1280,
       height: 820,

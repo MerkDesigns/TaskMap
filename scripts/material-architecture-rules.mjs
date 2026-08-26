@@ -34,12 +34,6 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
   }),
 });
 
-export const UI_LAB_EXPERIMENTAL_MATERIAL_USAGE = Object.freeze({
-  directBackdropFilter: Object.freeze({
-    "src/ui-lab/materialAwarePresence.css": 4,
-  }),
-});
-
 const MATERIAL_PATTERNS = Object.freeze([
   {
     name: "direct backdrop-filter declaration",
@@ -83,8 +77,7 @@ export function findMaterialArchitectureViolations(entries) {
   for (const { path, source } of entries) {
     for (const rule of MATERIAL_PATTERNS) {
       const count = matchCount(source, rule.expression);
-      const allowed =
-        rule.allowance[path] ?? UI_LAB_EXPERIMENTAL_MATERIAL_USAGE[rule.allowanceKey]?.[path] ?? 0;
+      const allowed = rule.allowance[path] ?? 0;
       if (count > allowed) {
         violations.push(
           `${path}: ${rule.name} has ${count} occurrence(s); frozen legacy allowance is ${allowed}`,

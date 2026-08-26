@@ -76,7 +76,8 @@ Typed frontend boundary for database, media, settings, and structured workflow o
 
 Shared presentation primitives. `src/ui/theme/` owns scoped target theme tokens;
 `src/ui/materials/` owns `MaterialSurface`, the static typed material registry, exact native-glass
-definitions, logical sampling boundaries, and the parked compositor boundary; `src/ui/motion/` owns deterministic math, the one shared UI animation
+definitions, logical sampling boundaries, the opt-in material-presence seam, and the parked
+compositor boundary; `src/ui/motion/` owns deterministic math, the one shared UI animation
 frame, reduced-motion state, and local FLIP utilities; `src/ui/primitives/` owns generic semantic
 controls; and `src/ui/dev/` owns the doubly gated UI Lab. The old `FrostedSurface` remains frozen
 migration debt until Phase 4.5C/4.5D.
@@ -87,7 +88,7 @@ Permanent isolated development entry for material and UI-system baselines. It co
 UI presentation boundaries and never mounts product application, state, persistence, or platform
 modules. `ui-lab.html` and `src-tauri/tauri.ui-lab.conf.json` are its dedicated web and Tauri
 entrypoints; `src/ui-lab/system/` owns the experimental Surface and Material boundary plus the
-UI-Lab-only VisualGroup, ContentLayer, and imperative material-aware presence controller. The older
+UI-Lab-only Surface-attached presence controller and shared-scheduler hook. The older
 `src/ui/dev/DevelopmentUiLab.tsx` remains unchanged.
 
 ## Phase 1 architecture foundation
@@ -353,8 +354,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `scripts/check-version.mjs`                                            |    56 | Repository maintenance script                                                           |
 | `scripts/generate-baseline-fixtures.mjs`                               |   115 | Repository maintenance script                                                           |
 | `scripts/generate-codemap.mjs`                                         |   103 | Repository maintenance script                                                           |
-| `scripts/material-architecture-rules.mjs`                              |   152 | Repository maintenance script                                                           |
-| `scripts/material-architecture-rules.test.mjs`                         |   167 | Tests for the adjacent module                                                           |
+| `scripts/material-architecture-rules.mjs`                              |   145 | Repository maintenance script                                                           |
+| `scripts/material-architecture-rules.test.mjs`                         |   158 | Tests for the adjacent module                                                           |
 | `scripts/report-file-sizes.mjs`                                        |    46 | Repository maintenance script                                                           |
 | `src-tauri/src/commands.rs`                                            |   566 | Rust backend module                                                                     |
 | `src-tauri/src/commands/database_command_types.rs`                     |    65 | Rust backend module                                                                     |
@@ -627,20 +628,18 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                           |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                           |
 | `src/ui-lab/main.tsx`                                                  |    11 | TypeScript application module                                                           |
-| `src/ui-lab/MaterialAwarePresencePrototype.tsx`                        |   156 | React component or typed UI module                                                      |
+| `src/ui-lab/MaterialAwarePresencePrototype.tsx`                        |   281 | React component or typed UI module                                                      |
 | `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                         |    54 | Tests for the adjacent module                                                           |
 | `src/ui-lab/SurfaceMaterialPrototype.tsx`                              |   150 | React component or typed UI module                                                      |
-| `src/ui-lab/system/ContentLayer.tsx`                                   |    12 | React component or typed UI module                                                      |
 | `src/ui-lab/system/Material.test.ts`                                   |    18 | Tests for the adjacent module                                                           |
 | `src/ui-lab/system/Material.ts`                                        |    15 | React component or typed UI module                                                      |
-| `src/ui-lab/system/materialPresence.ts`                                |    38 | TypeScript application module                                                           |
-| `src/ui-lab/system/presenceMotion.ts`                                  |    94 | TypeScript application module                                                           |
-| `src/ui-lab/system/PresenceSystem.test.tsx`                            |   151 | Tests for the adjacent module                                                           |
+| `src/ui-lab/system/presenceController.ts`                              |   209 | TypeScript application module                                                           |
+| `src/ui-lab/system/PresenceSystem.test.tsx`                            |   206 | Tests for the adjacent module                                                           |
 | `src/ui-lab/system/Surface.test.tsx`                                   |    98 | Tests for the adjacent module                                                           |
 | `src/ui-lab/system/Surface.tsx`                                        |    39 | React component or typed UI module                                                      |
-| `src/ui-lab/system/VisualGroup.tsx`                                    |    75 | React component or typed UI module                                                      |
-| `src/ui-lab/UiLabApp.test.tsx`                                         |    49 | Tests for the adjacent module                                                           |
-| `src/ui-lab/UiLabApp.tsx`                                              |    70 | React component or typed UI module                                                      |
+| `src/ui-lab/system/useSurfacePresence.ts`                              |    70 | TypeScript application module                                                           |
+| `src/ui-lab/UiLabApp.test.tsx`                                         |    51 | Tests for the adjacent module                                                           |
+| `src/ui-lab/UiLabApp.tsx`                                              |    91 | React component or typed UI module                                                      |
 | `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                      |   110 | Tests for the adjacent module                                                           |
 | `src/ui/dev/AcrylicCompositorPlayground.tsx`                           |   246 | React component or typed UI module                                                      |
 | `src/ui/dev/acrylicPlaygroundModel.test.ts`                            |    95 | Tests for the adjacent module                                                           |
@@ -714,6 +713,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialGeometryInvalidation.ts`                     |    36 | TypeScript application module                                                           |
 | `src/ui/materials/materialPerformanceDiagnostics.ts`                   |    23 | TypeScript application module                                                           |
 | `src/ui/materials/MaterialPlane.tsx`                                   |    18 | React component or typed UI module                                                      |
+| `src/ui/materials/materialPresence.test.ts`                            |    27 | Tests for the adjacent module                                                           |
+| `src/ui/materials/materialPresence.ts`                                 |    15 | TypeScript application module                                                           |
 | `src/ui/materials/materialRegistry.test.ts`                            |   131 | Tests for the adjacent module                                                           |
 | `src/ui/materials/materialRegistry.ts`                                 |    38 | TypeScript application module                                                           |
 | `src/ui/materials/materialSamplingBoundary.test.ts`                    |    27 | @vitest-environment node                                                                |

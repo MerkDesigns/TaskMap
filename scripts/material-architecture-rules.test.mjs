@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   findMaterialArchitectureViolations,
   FROZEN_LEGACY_MATERIAL_USAGE,
-  UI_LAB_EXPERIMENTAL_MATERIAL_USAGE,
 } from "./material-architecture-rules.mjs";
 
 describe("transitional material architecture rules", () => {
@@ -29,14 +28,6 @@ describe("transitional material architecture rules", () => {
     ).toEqual([
       "src/features/example/Panel.css: direct backdrop-filter declaration has 1 occurrence(s); frozen legacy allowance is 0",
     ]);
-  });
-
-  it("accepts only the explicit isolated UI Lab material experiment", async () => {
-    const path = "src/ui-lab/materialAwarePresence.css";
-    const source = await readFile(path, "utf8");
-
-    expect(UI_LAB_EXPERIMENTAL_MATERIAL_USAGE.directBackdropFilter[path]).toBe(4);
-    expect(findMaterialArchitectureViolations([{ path, source }])).toEqual([]);
   });
 
   it("rejects a new Tailwind backdrop-blur utility", () => {

@@ -77,7 +77,7 @@ function nativeGlassShadow(shadow: {
   readonly opacity: number;
 }): string {
   return [
-    `${shadow.xPx}px ${shadow.yPx}px ${Math.max(0, shadow.blurPx - 4)}px ${shadow.spreadPx}px color-mix(in srgb, rgb(0 0 0 / ${shadow.opacity}) 58%, transparent)`,
-    `${shadow.xPx}px ${shadow.yPx + 1}px ${shadow.blurPx}px ${Math.max(-4, shadow.spreadPx - 1)}px color-mix(in srgb, rgb(0 0 0 / ${shadow.opacity}) 42%, transparent)`,
+    `${shadow.xPx}px ${shadow.yPx}px ${Math.max(0, shadow.blurPx - 4)}px ${shadow.spreadPx}px color-mix(in srgb, rgb(0 0 0 / ${shadow.opacity}) calc(58% * var(--taskmap-material-presence-progress, 1)), transparent)`,
+    `${shadow.xPx}px ${shadow.yPx + 1}px ${shadow.blurPx}px ${Math.max(-4, shadow.spreadPx - 1)}px color-mix(in srgb, rgb(0 0 0 / ${shadow.opacity}) calc(42% * var(--taskmap-material-presence-progress, 1)), transparent)`,
   ].join(", ");
 }
