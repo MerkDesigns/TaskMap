@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document expands the [TaskMap Simple UI System](SIMPLE-UI-SYSTEM.md). It catalogs the three
+This document expands the [TaskMap Simple UI System](SIMPLE-UI-SYSTEM.md). It catalogs the four
 core concepts, optional Surface variants, supporting behaviors, and renderer invariants without
 adding architectural layers.
 
@@ -18,24 +18,25 @@ adding architectural layers.
 
 ## Index
 
-| Category      | Part                                                                        | Classification     |
-| ------------- | --------------------------------------------------------------------------- | ------------------ |
-| Core          | [Surface](#surface)                                                         | Core               |
-| Core          | [Material](#material)                                                       | Core               |
-| Core          | [Content](#content)                                                         | Core               |
-| Materials     | [Major Glass](#major-glass)                                                 | Default recipe     |
-| Materials     | [Minor Glass](#minor-glass)                                                 | Default recipe     |
-| Materials     | [Opaque](#opaque)                                                           | Default recipe     |
-| Materials     | [Cutout](#cutout)                                                           | Default recipe     |
-| Geometry      | [Surface geometry contract](#surface-geometry-contract)                     | Private invariant  |
-| Surface types | [Standard Surface](#standard-surface)                                       | Default            |
-| Surface types | [Viewport Surface](#viewport-surface)                                       | Optional           |
-| Surface types | [Slice Viewport Surface](#slice-viewport-surface)                           | Optional           |
-| Behaviors     | [Behavior helpers](#behavior-helpers)                                       | Supporting         |
-| Rendering     | [Material ordering and sampling](#material-ordering-and-sampling)           | Private invariant  |
-| Animation     | [Future presence-animation direction](#future-presence-animation-direction) | Future direction   |
-| Quality       | [Performance and accessibility](#performance-and-accessibility)             | Required invariant |
-| Decisions     | [Decision status](#decision-status)                                         | Index              |
+| Category      | Part                                                              | Classification     |
+| ------------- | ----------------------------------------------------------------- | ------------------ |
+| Core          | [Surface](#surface)                                               | Core               |
+| Core          | [Material](#material)                                             | Core               |
+| Core          | [ContentLayer](#contentlayer)                                     | Core               |
+| Core          | [VisualGroup](#visualgroup)                                       | Core               |
+| Materials     | [Major Glass](#major-glass)                                       | Default recipe     |
+| Materials     | [Minor Glass](#minor-glass)                                       | Default recipe     |
+| Materials     | [Opaque](#opaque)                                                 | Default recipe     |
+| Materials     | [Cutout](#cutout)                                                 | Default recipe     |
+| Geometry      | [Surface geometry contract](#surface-geometry-contract)           | Private invariant  |
+| Surface types | [Standard Surface](#standard-surface)                             | Default            |
+| Surface types | [Viewport Surface](#viewport-surface)                             | Optional           |
+| Surface types | [Slice Viewport Surface](#slice-viewport-surface)                 | Optional           |
+| Behaviors     | [Behavior helpers](#behavior-helpers)                             | Supporting         |
+| Rendering     | [Material ordering and sampling](#material-ordering-and-sampling) | Private invariant  |
+| Animation     | [Material-aware presence](#material-aware-presence)               | UI Lab prototype   |
+| Quality       | [Performance and accessibility](#performance-and-accessibility)   | Required invariant |
+| Decisions     | [Decision status](#decision-status)                               | Index              |
 
 ## Core concepts
 
@@ -82,18 +83,28 @@ Glass recipe responsibilities:
 The Material does not measure feature DOM independently. It consumes the Surface geometry so its
 body, rim, shadow, and Content alignment cannot disagree within one frame.
 
-### Content
+### ContentLayer
 
-Content is ordinary UI associated with a Surface. It retains native browser behavior for layout,
-focus, selection, scrolling, pointer input, images, and text.
+A ContentLayer is the smallest wrapper around ordinary UI associated with a Surface. It retains
+native browser behavior for layout, focus, selection, scrolling, pointer input, images, and text.
 
-Content is not required to use a universal wrapper. Specialized Surface implementations may
-introduce private slots only when necessary to separate native Content clipping from decorative
-material effects.
+During material-aware presence, only ContentLayer uses opacity. It must not contain nested glass
+Surfaces because those Surfaces need to respond to inherited progress through their own Material
+parts.
 
 Menus, tooltips, dialogs, and other UI that intentionally escape a Surface use the application's
 existing portal or overlay facilities. Those facilities are integration mechanisms, not core UI
 system concepts.
+
+### VisualGroup
+
+VisualGroup is a stable wrapper that exposes one inherited presence-progress value from `0` to `1`
+and may apply a transform.
+
+It never applies opacity, masks, `filter: opacity()`, or backdrop filtering to itself. It does not
+own Surface geometry, Material recipes, ContentLayer behavior, feature state, or animation timing.
+An optional presence controller may write progress and transform imperatively without rendering
+React on every frame.
 
 ## Material recipes
 
@@ -156,7 +167,7 @@ A geometry snapshot conceptually contains:
 
 Rules:
 
-- Content layout remains the DOM source of truth.
+- ContentLayer layout remains the DOM source of truth.
 - DOM measurement is coalesced into one geometry snapshot per affected frame.
 - Body, overscan, rim, and shadow read the same snapshot.
 - Resize, scroll, and layout invalidations are local and frame-coalesced.
@@ -211,7 +222,7 @@ For a partially clipped circle or rounded rectangle:
 - the rim follows the complete visible silhouette, including new flat edges
 - the shadow is generated from the visible silhouette
 - invisible geometry produces no material output
-- Content continues to use native HTML clipping
+- ContentLayer continues to use native HTML clipping
 
 The Surface system publishes three related geometries:
 
@@ -233,8 +244,8 @@ Initial implementation is limited to axis-aligned cases.
 
 Classification: **Supporting, not architectural layers**.
 
-Behavior helpers may coordinate Surfaces, Materials, or Content while keeping their responsibilities
-narrow.
+Behavior helpers may coordinate VisualGroups, Surfaces, Materials, or ContentLayers while keeping
+their responsibilities narrow.
 
 Expected categories:
 
@@ -245,8 +256,8 @@ Expected categories:
 - **Interaction helpers:** pointer blocking, drag ownership, and focus behavior.
 - **Resize helpers:** user-driven or content-driven resizing.
 
-Helpers may be components, hooks, or controllers. They do not become Surfaces, Materials, Content,
-or compositor layers merely because they coordinate those parts.
+Helpers may be components, hooks, or controllers. They do not become VisualGroups, Surfaces,
+Materials, ContentLayers, or compositor layers merely because they coordinate those parts.
 
 Layout, presence, motion, scrolling, dragging, and resizing remain optional behaviors. A feature
 uses only the helpers it needs.
@@ -265,14 +276,26 @@ uses only the helpers it needs.
 - Overscan is clamped to the correct sampling boundary and never used as a substitute for visible
   effect overflow.
 
-## Future presence-animation direction
-
-No accepted presence-animation implementation exists yet.
+## Material-aware presence
 
 Native glass must never be faded using ancestor opacity, masks, or `filter: opacity()`.
 
-A future material-aware presence behavior may coordinate Material parts and Content separately.
-This statement does not specify an API and does not claim an implementation exists.
+Presence is coordinated rather than implemented by fading a completed glass subtree:
+
+- VisualGroup publishes one inherited progress value and an optional transform.
+- Each glass Material interpolates preblur and main blur from zero to its recipe values.
+- Each glass Material interpolates saturation and brightness from neutral to recipe values.
+- Tint, the existing highlight layer, rim, and shadow fade separately.
+- Full overscan and Material DOM identity remain stable throughout.
+- ContentLayer fades ordinary content with opacity.
+- Nested glass Surfaces remain outside ContentLayer and respond through their own Material parts.
+
+At progress `1`, the result must match the unanimated Material. At progress `0`, no material or
+ContentLayer output remains over the bare backdrop. Intermediate progress retains live backdrop
+sampling with monotonically decreasing blur toward zero.
+
+The current implementation is an isolated UI Lab prototype. Production presence behavior and its
+feature-facing API remain undecided.
 
 ## Quality invariants
 
@@ -284,7 +307,7 @@ This statement does not specify an API and does not claim an implementation exis
 - React does not render on every scroll, drag, resize, or animation sample.
 - Only visible or imminently visible repeated Surfaces retain expensive material work.
 - Fully off-screen material geometry is culled.
-- Large lists may virtualize Content and material geometry together.
+- Large lists may virtualize ContentLayer and material geometry together.
 - Geometry changes must not touch persistence, history, encryption, or database work.
 - Window resizing and device-pixel-ratio changes refresh geometry, overscan, and rims coherently.
 
@@ -307,10 +330,11 @@ paths:
 
 ### Accepted architectural contracts
 
-- Three core concepts: Surface, Material, and Content.
+- Four core concepts: VisualGroup, Surface, Material, and ContentLayer.
 - Surface is the geometry and interaction-area authority.
 - One optional base Material may be applied to a Surface.
-- Content remains ordinary UI with native DOM behavior.
+- ContentLayer remains ordinary UI with native DOM behavior.
+- VisualGroup exposes inherited progress and optional transform without applying group opacity.
 - Layout, scrolling, motion, presence, dragging, and resizing are optional behavior helpers.
 - Supporting helpers are not additional layers.
 - Major and Minor are optical roles rather than enforced sizes or depths.

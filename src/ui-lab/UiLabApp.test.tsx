@@ -19,6 +19,9 @@ describe("UiLabApp", () => {
     expect(
       screen.getByRole("heading", { name: "Surface + Material prototype" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Material-aware show / hide prototype" }),
+    ).toBeInTheDocument();
   });
 
   it("uses the shared production theme, canvas background, and ordinary controls", () => {

@@ -5,6 +5,7 @@ import { Button } from "../ui/primitives/Button";
 import { TextField } from "../ui/primitives/FormControls";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import { WorkspaceRoot } from "../ui/patterns/workspace/WorkspaceRoot";
+import { MaterialAwarePresencePrototype } from "./MaterialAwarePresencePrototype";
 import { SurfaceMaterialPrototype } from "./SurfaceMaterialPrototype";
 
 const presentation = createMaterialCompositorPresentationBridge();
@@ -60,6 +61,7 @@ export function UiLabApp() {
           </MaterialSurface>
 
           <SurfaceMaterialPrototype />
+          <MaterialAwarePresencePrototype />
         </div>
       </WorkspaceRoot>
     </MaterialCompositorProvider>

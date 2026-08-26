@@ -48,24 +48,21 @@ describe("UI Lab Surface architecture", () => {
     expect(css).not.toMatch(/\.taskmap-ui-lab-surface\s*\{/);
   });
 
-  it("keeps the documented architecture limited to three concepts and no fade implementation", async () => {
+  it("documents material-aware presence without composited group alpha", async () => {
     const [simple, reference] = await Promise.all([
       read("docs/ui-architecture/SIMPLE-UI-SYSTEM.md"),
       read("docs/ui-architecture/UI-SYSTEM-PART-REFERENCE.md"),
     ]);
     const documentation = `${simple}\n${reference}`;
 
-    expect(documentation).not.toMatch(
-      /VisualGroup|OpacityGroup|group[- ]alpha|alpha[- ]mask|mask[- ]fading|batching boundaries|provisional backend/i,
-    );
+    expect(documentation).toContain("VisualGroup");
+    expect(documentation).toContain("ContentLayer");
+    expect(documentation).toContain("material-aware presence");
+    expect(documentation).not.toMatch(/OpacityGroup|composited group alpha|alpha[- ]mask/i);
     expect(simple).toContain("[TaskMap UI System Part Reference](UI-SYSTEM-PART-REFERENCE.md)");
     expect(reference).toContain("[TaskMap Simple UI System](SIMPLE-UI-SYSTEM.md)");
-    expect(documentation).toContain("No accepted presence-animation implementation exists yet.");
     expect(documentation).toContain(
       "Native glass must never be faded using ancestor opacity, masks, or `filter: opacity()`.",
-    );
-    expect(documentation).toContain(
-      "A future material-aware presence behavior may coordinate Material parts and Content separately.",
     );
   });
 });
