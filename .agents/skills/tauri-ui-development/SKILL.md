@@ -1,28 +1,16 @@
 ---
-
 name: tauri-ui-development
 
 description: Use for any TaskMap UI implementation, debugging, visual refactor, styling, animation, interaction, or layout work. Inspect and verify the actual running Tauri application through the Tauri MCP instead of judging results only from source code.
-
 ---
-
-
 
 \# TaskMap Tauri UI Development
 
-
-
 The running Tauri application is the source of truth for visible UI behavior.
-
-
 
 \## Required workflow
 
-
-
 For any task that changes visible UI:
-
-
 
 1\. Start or connect to TaskMap using the MCP-enabled development build.
 
@@ -46,19 +34,11 @@ For any task that changes visible UI:
 
 11\. Do not claim the task is complete unless the resulting application was actually inspected.
 
-
-
 Compilation or passing tests alone are not visual verification.
-
-
 
 \## Visual parity
 
-
-
 When a task is intended to preserve existing appearance:
-
-
 
 \- Treat the current running application as the visual baseline.
 
@@ -70,19 +50,11 @@ When a task is intended to preserve existing appearance:
 
 \- Keep window dimensions consistent when comparing screenshots.
 
-
-
 If an architectural or refactoring change causes unintended visual differences, fix the regression before considering the task complete.
-
-
 
 \## Shared visual systems
 
-
-
 Be especially careful when changing:
-
-
 
 \- glass or acrylic primitives
 
@@ -112,11 +84,7 @@ Be especially careful when changing:
 
 \- compositing layers
 
-
-
 Before changing a shared primitive:
-
-
 
 1\. Identify its consumers.
 
@@ -126,11 +94,7 @@ Before changing a shared primitive:
 
 4\. Prefer changing the primitive rather than duplicating implementations only when visual parity can be preserved.
 
-
-
 After changing it:
-
-
 
 1\. Inspect representative consumers again.
 
@@ -138,23 +102,13 @@ After changing it:
 
 3\. Look specifically for flicker, flashing, lost blur, opacity changes, stacking changes and layout shifts.
 
-
-
 \## Glass-specific rules
-
-
 
 TaskMap uses layered acrylic/glass effects.
 
-
-
 Never move backdrop-filter, opacity, masks, gradients, pseudo-elements or transforms between DOM layers merely to solve an animation problem without checking the resulting appearance in the actual application.
 
-
-
 For glass changes:
-
-
 
 1\. Inspect which DOM element owns each visual layer.
 
@@ -168,35 +122,27 @@ For glass changes:
 
 6\. Look for:
 
-&nbsp;  - flashing during rerenders
+&nbsp; - flashing during rerenders
 
-&nbsp;  - temporary loss of blur
+&nbsp; - temporary loss of blur
 
-&nbsp;  - changed tint
+&nbsp; - changed tint
 
-&nbsp;  - changed border brightness
+&nbsp; - changed border brightness
 
-&nbsp;  - changed gradient/rim lighting
+&nbsp; - changed gradient/rim lighting
 
-&nbsp;  - changed transparency
+&nbsp; - changed transparency
 
-&nbsp;  - changed stacking/compositing
+&nbsp; - changed stacking/compositing
 
 7\. Compare against the baseline.
 
-
-
 Visual parity takes priority over architectural elegance unless the user explicitly requests a visual change.
-
-
 
 \## Interactions
 
-
-
 When modifying UI with states such as:
-
-
 
 \- hover
 
@@ -218,55 +164,29 @@ When modifying UI with states such as:
 
 \- modal states
 
-
-
 do not inspect only the idle state.
-
-
 
 Actually trigger the relevant state using the Tauri MCP and verify the result.
 
-
-
 \## Scope control
-
-
 
 Do not make unrelated cleanup changes while performing visual work.
 
-
-
 Do not replace existing architecture merely because another implementation seems cleaner.
-
-
 
 Prefer localized, reversible changes.
 
-
-
 For architectural refactors, preserve existing application behavior and visual output unless explicitly instructed otherwise.
-
-
 
 \## Existing unrelated failures
 
-
-
 Do not modify unrelated failing tests or unrelated worktree changes merely to obtain a clean test run.
-
-
 
 Report them separately.
 
-
-
 \## Completion report
 
-
-
 For UI work, explicitly report:
-
-
 
 \- what changed
 
@@ -280,7 +200,4 @@ For UI work, explicitly report:
 
 \- anything that could not be visually verified
 
-
-
 Never state that visual verification occurred if the Tauri MCP was unavailable or the actual running application was not inspected.
-

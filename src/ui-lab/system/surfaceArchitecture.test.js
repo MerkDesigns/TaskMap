@@ -1,13 +1,9 @@
 // @vitest-environment node
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { fileURLToPath, URL } from "node:url";
 import { readFile } from "node:fs/promises";
+import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const execFileAsync = promisify(execFile);
 const rootUrl = new URL("../../../", import.meta.url);
-const root = fileURLToPath(rootUrl);
 const read = (path) => readFile(new URL(path, rootUrl), "utf8");
 
 describe("UI Lab Surface architecture", () => {
@@ -26,21 +22,24 @@ describe("UI Lab Surface architecture", () => {
     );
   });
 
-  it("adds no product, state, persistence, database, motion, or layout-system ownership", async () => {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["diff", "--unified=0", "HEAD", "--", "src/ui-lab"],
-      { cwd: root },
+  it("keeps the primitive dependency boundary limited to React and production materials", async () => {
+    const [material, surface] = await Promise.all([
+      read("src/ui-lab/system/Material.ts"),
+      read("src/ui-lab/system/Surface.tsx"),
+    ]);
+    const imports = [...`${material}\n${surface}`.matchAll(/from\s+["']([^"']+)["']/g)].map(
+      (match) => match[1],
     );
-    const additions = stdout
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
-      .join("\n");
 
-    expect(additions).not.toMatch(
-      /\b(?:opacity|overflow|scroll(?:ing)?|motion|redux|persistence|database|AppShell|LegacyApplication|AppProviders)\b/i,
+    expect(imports).toEqual([
+      "../../ui/materials/materialTypes",
+      "react",
+      "../../ui/materials/MaterialSurface",
+      "./Material",
+    ]);
+    expect(`${material}\n${surface}`).not.toMatch(
+      /redux|persistence|database|AppShell|LegacyApplication|AppProviders|@tauri-apps|VisualGroup|OpacityGroup|motion|presence/i,
     );
-    expect(additions).not.toMatch(/@tauri-apps\//);
   });
 
   it("does not style the primitive with implicit geometry or containment defaults", async () => {
@@ -49,13 +48,24 @@ describe("UI Lab Surface architecture", () => {
     expect(css).not.toMatch(/\.taskmap-ui-lab-surface\s*\{/);
   });
 
-  it("leaves every production material source unchanged from HEAD", async () => {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["diff", "--name-only", "HEAD", "--", "src/ui/materials"],
-      { cwd: root },
-    );
+  it("keeps the documented architecture limited to three concepts and no fade implementation", async () => {
+    const [simple, reference] = await Promise.all([
+      read("docs/ui-architecture/SIMPLE-UI-SYSTEM.md"),
+      read("docs/ui-architecture/UI-SYSTEM-PART-REFERENCE.md"),
+    ]);
+    const documentation = `${simple}\n${reference}`;
 
-    expect(stdout.trim()).toBe("");
+    expect(documentation).not.toMatch(
+      /VisualGroup|OpacityGroup|group[- ]alpha|alpha[- ]mask|mask[- ]fading|batching boundaries|provisional backend/i,
+    );
+    expect(simple).toContain("[TaskMap UI System Part Reference](UI-SYSTEM-PART-REFERENCE.md)");
+    expect(reference).toContain("[TaskMap Simple UI System](SIMPLE-UI-SYSTEM.md)");
+    expect(documentation).toContain("No accepted presence-animation implementation exists yet.");
+    expect(documentation).toContain(
+      "Native glass must never be faded using ancestor opacity, masks, or `filter: opacity()`.",
+    );
+    expect(documentation).toContain(
+      "A future material-aware presence behavior may coordinate Material parts and Content separately.",
+    );
   });
 });
