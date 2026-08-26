@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TaskMap UI Lab",
+  "identifier": "com.merkdesigns.taskmap.ui-lab",
+  "build": {
+    "beforeDevCommand": "npm run dev:ui-lab",
+    "devUrl": "http://127.0.0.1:6970/ui-lab.html"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": ["mcp-development"],
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:6970; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'"
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "TaskMap UI Lab",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "decorations": false,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": false,
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": null
+  }
+}

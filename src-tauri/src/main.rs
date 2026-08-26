@@ -99,7 +99,7 @@ fn main() {
         .map(|elapsed| elapsed.as_secs() as i64)
         .unwrap_or(0);
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // Register first so a duplicate process exits before other plugins
         // initialize application state.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -112,9 +112,25 @@ fn main() {
         .manage(DatabasePathAuthorizationState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
+
+    #[cfg(not(feature = "ui-lab-development"))]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(all(debug_assertions, feature = "mcp-development"))]
+    let builder = builder.plugin(
+        tauri_plugin_mcp_bridge::Builder::new()
+            .bind_address("127.0.0.1")
+            .build(),
+    );
+
+    builder
         .setup(|app| {
+            if cfg!(feature = "ui-lab-development") {
+                eprintln!("TaskMap UI Lab: product storage and session lifecycle disabled");
+                return Ok(());
+            }
+
             match initialize_storage(app.handle()) {
                 Ok(()) => {
                     if let Err(error) = gc_images_at_startup(app.handle()) {
@@ -137,6 +153,10 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if cfg!(feature = "ui-lab-development") {
+                return;
+            }
+
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() != "main" {
                     return;

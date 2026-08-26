@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TaskMap Dev",
+  "identifier": "com.merkdesigns.taskmap.dev",
+  "build": {
+    "beforeDevCommand": "npm run dev:phase2",
+    "beforeBuildCommand": "npm run build:phase2"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": ["default", "phase2-development", "mcp-development"]
+    },
+    "windows": [
+      {
+        "title": "taskmap",
+        "decorations": false,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false
+  }
+}

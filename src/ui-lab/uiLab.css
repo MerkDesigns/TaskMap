@@ -1,0 +1,197 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#ui-lab-root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  user-select: none;
+}
+
+.taskmap-ui-lab__background {
+  position: fixed;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  inset: 0;
+  --taskmap-canvas-grid-opacity: 0.5;
+  --taskmap-canvas-dot-opacity-scale: 1;
+  --taskmap-canvas-dot-size: 1.25px;
+}
+
+.taskmap-ui-lab__stage {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(1180px, calc(100% - 48px));
+  min-height: 100%;
+  align-content: center;
+  gap: var(--taskmap-space-3);
+  margin: 0 auto;
+  padding: var(--taskmap-space-6) 0;
+}
+
+.taskmap-ui-lab__status {
+  width: min(900px, 100%);
+  justify-self: center;
+  margin: 0;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  letter-spacing: 0.02em;
+}
+
+.taskmap-ui-lab__major {
+  display: grid;
+  width: min(900px, 100%);
+  justify-self: center;
+  gap: var(--taskmap-space-5);
+  padding: var(--taskmap-space-6);
+}
+
+.taskmap-ui-lab__heading {
+  display: grid;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-ui-lab__heading h1,
+.taskmap-ui-lab__heading p,
+.taskmap-ui-lab__sample h2,
+.taskmap-ui-lab__sample p {
+  margin: 0;
+}
+
+.taskmap-ui-lab__heading h1 {
+  font-size: var(--taskmap-text-heading-size);
+  line-height: var(--taskmap-text-heading-line);
+}
+
+.taskmap-ui-lab__heading p,
+.taskmap-ui-lab__sample p {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-ui-lab__eyebrow {
+  color: var(--taskmap-accent);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.taskmap-ui-lab__samples {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--taskmap-space-4);
+}
+
+.taskmap-ui-lab__sample {
+  display: grid;
+  min-height: 164px;
+  align-content: start;
+  gap: var(--taskmap-space-3);
+  padding: var(--taskmap-space-4);
+}
+
+.taskmap-ui-lab__sample h2 {
+  font-size: var(--taskmap-text-section-size);
+  line-height: var(--taskmap-text-section-line);
+}
+
+.taskmap-ui-lab__sample .taskmap-button {
+  justify-self: start;
+}
+
+.taskmap-ui-lab-prototype {
+  display: grid;
+  gap: var(--taskmap-space-4);
+  padding-top: var(--taskmap-space-2);
+}
+
+.taskmap-ui-lab-prototype__heading {
+  display: grid;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-ui-lab-prototype__heading h2 {
+  margin: 0;
+  font-size: var(--taskmap-text-heading-size);
+  line-height: var(--taskmap-text-heading-line);
+}
+
+.taskmap-ui-lab-prototype__samples {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-ui-lab-prototype__surface {
+  display: grid;
+  min-height: 106px;
+  align-content: center;
+  gap: var(--taskmap-space-1);
+  padding: var(--taskmap-space-3);
+}
+
+.taskmap-ui-lab-prototype__surface span,
+.taskmap-ui-lab-prototype__interactive-surface span {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-ui-lab-prototype__plain {
+  border: 1px solid var(--taskmap-canvas-border);
+  background: var(--taskmap-container-bg);
+}
+
+.taskmap-ui-lab-prototype__interactive {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--taskmap-space-5);
+}
+
+.taskmap-ui-lab-prototype__controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--taskmap-space-3);
+}
+
+.taskmap-ui-lab-prototype__interactive-surface {
+  display: grid;
+  align-content: center;
+  gap: var(--taskmap-space-1);
+  padding: var(--taskmap-space-4);
+}
+
+@media (max-height: 700px) {
+  .taskmap-ui-lab__stage {
+    align-content: start;
+    padding-block: var(--taskmap-space-3);
+  }
+
+  .taskmap-ui-lab-prototype {
+    gap: var(--taskmap-space-2);
+  }
+
+  .taskmap-ui-lab-prototype__surface {
+    min-height: 88px;
+  }
+}
+
+@media (max-width: 760px) {
+  .taskmap-ui-lab__stage {
+    align-content: start;
+    overflow: auto;
+  }
+
+  .taskmap-ui-lab__samples {
+    grid-template-columns: 1fr;
+  }
+}

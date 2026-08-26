@@ -81,6 +81,14 @@ frame, reduced-motion state, and local FLIP utilities; `src/ui/primitives/` owns
 controls; and `src/ui/dev/` owns the doubly gated UI Lab. The old `FrostedSurface` remains frozen
 migration debt until Phase 4.5C/4.5D.
 
+### `src/ui-lab/`
+
+Permanent isolated development entry for material and UI-system baselines. It composes only shared
+UI presentation boundaries and never mounts product application, state, persistence, or platform
+modules. `ui-lab.html` and `src-tauri/tauri.ui-lab.conf.json` are its dedicated web and Tauri
+entrypoints; `src/ui-lab/system/` owns the experimental Surface primitive and typed target-to-current
+material aliases. The older `src/ui/dev/DevelopmentUiLab.tsx` remains unchanged.
+
 ## Phase 1 architecture foundation
 
 - `src/app/interactions/` - read-only transient interaction consumer contract, idle default, provider,
@@ -207,6 +215,21 @@ migration debt until Phase 4.5C/4.5D.
 - `public/phase2-keeper.html` - empty hidden webview that keeps an unlocked development session alive after the legacy main window is destroyed.
 - `docs/decisions/002-encrypted-database-and-session.md` - exact format, cryptography, session, writer-lock, backup, dependency, and deferral decisions.
 
+## Opt-in development tooling
+
+- `ui-lab.html`, `src/ui-lab/`, and `src-tauri/tauri.ui-lab.conf.json` — isolated baseline Lab on
+  Vite port 6970 with its own application identifier, the development MCP capability, and no
+  product storage/session startup or updater behavior. Only `npm run app:ui-lab` enables the
+  `ui-lab-development` Cargo feature.
+- `src-tauri/capabilities/mcp-development/mcp-development.json` and
+  `src-tauri/tauri.mcp.dev.conf.json` — isolated localhost-only Tauri MCP Bridge capability and
+  global-Tauri configuration. `src-tauri/build.rs` excludes the nested capability unless the MCP
+  feature is active. Only `npm run app:dev:mcp` enables the optional `mcp-development` Cargo
+  feature; stable, ordinary development, and packaged commands exclude the bridge.
+- `scripts/check-mcp-development-exclusion.mjs` — static contract that keeps the optional bridge,
+  its capability, and `withGlobalTauri` out of ordinary stable/development configurations and
+  commands.
+
 ## Phase 3A normalized document foundation
 
 - `src/domain/document/documentTypes.ts`, `documentVersion.ts`, and `documentLimits.ts` - the single
@@ -324,6 +347,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | File                                                                   | Lines | Responsibility                                                                          |
 | ---------------------------------------------------------------------- | ----: | --------------------------------------------------------------------------------------- |
 | `scripts/check-architecture.mjs`                                       |   270 | Repository maintenance script                                                           |
+| `scripts/check-mcp-development-exclusion.mjs`                          |    89 | Repository maintenance script                                                           |
 | `scripts/check-phase2-production-exclusion.mjs`                        |    72 | Repository maintenance script                                                           |
 | `scripts/check-version.mjs`                                            |    56 | Repository maintenance script                                                           |
 | `scripts/generate-baseline-fixtures.mjs`                               |   115 | Repository maintenance script                                                           |
@@ -354,7 +378,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/files/database_path_authorization.rs`                   |   330 | Rust backend module                                                                     |
 | `src-tauri/src/files/mod.rs`                                           |     3 | Rust backend module                                                                     |
 | `src-tauri/src/images.rs`                                              |   691 | / Longest edge (px) a raster image is downscaled to on import. Matches the              |
-| `src-tauri/src/main.rs`                                                |   160 | Register first so a duplicate process exits before other plugins                        |
+| `src-tauri/src/main.rs`                                                |   180 | Register first so a duplicate process exits before other plugins                        |
 | `src-tauri/src/model.rs`                                               |  1105 | Rust backend module                                                                     |
 | `src-tauri/src/phase2_error.rs`                                        |   184 | Rust backend module                                                                     |
 | `src-tauri/src/portable.rs`                                            |   309 | / The decrypted body of an export. Images are bundled so the file is portable           |
@@ -372,7 +396,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/settings/recent_databases.rs`                           |   193 | Rust backend module                                                                     |
 | `src-tauri/src/storage.rs`                                             |   722 | Rust backend module                                                                     |
 | `src-tauri/src/window_state.rs`                                        |   105 | Clamp the saved geometry so the window can never restore off-screen or                  |
-| `src/App.tsx`                                                          |  7626 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
+| `src/App.tsx`                                                          |  7628 | Latest image drop/paste handlers, refreshed each render so the once-mounted             |
 | `src/app/appData.test.ts`                                              |   355 | Tests for the adjacent module                                                           |
 | `src/app/appData.ts`                                                   |   299 | TypeScript application module                                                           |
 | `src/app/appDataSchema.ts`                                             |   274 | TypeScript application module                                                           |
@@ -435,7 +459,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/canvas/virtualization/viewportCulling.ts`                         |    69 | TypeScript application module                                                           |
 | `src/canvasMath.test.ts`                                               |   159 | Tests for the adjacent module                                                           |
 | `src/canvasMath.ts`                                                    |   128 | TypeScript application module                                                           |
-| `src/components/CanvasManager.tsx`                                     |   933 | React component or typed UI module                                                      |
+| `src/components/CanvasManager.tsx`                                     |   940 | React component or typed UI module                                                      |
 | `src/components/CanvasManagerCards.test.tsx`                           |   536 | Tests for the adjacent module                                                           |
 | `src/components/ColorPickerMenu.tsx`                                   |   340 | React component or typed UI module                                                      |
 | `src/components/CommandRunnerModals.test.tsx`                          |   141 | Tests for the adjacent module                                                           |
@@ -447,14 +471,14 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ContextMenus.tsx`                                      |  1144 | React component or typed UI module                                                      |
 | `src/components/ExtensionDropEffect.tsx`                               |   203 | React component or typed UI module                                                      |
 | `src/components/ExtensionsPanel.test.tsx`                              |   350 | Tests for the adjacent module                                                           |
-| `src/components/ExtensionsPanel.tsx`                                   |   616 | React component or typed UI module                                                      |
+| `src/components/ExtensionsPanel.tsx`                                   |   619 | React component or typed UI module                                                      |
 | `src/components/FloatingToolbar.test.tsx`                              |   164 | Tests for the adjacent module                                                           |
 | `src/components/FloatingToolbar.tsx`                                   |   197 | The material registry's shared ResizeObserver follows intermediate width frames. These  |
 | `src/components/FpsCounter.tsx`                                        |    34 | React component or typed UI module                                                      |
 | `src/components/FrostedGlassTuner.test.tsx`                            |   139 | Tests for the adjacent module                                                           |
 | `src/components/FrostedGlassTuner.tsx`                                 |   196 | React component or typed UI module                                                      |
-| `src/components/FrostedGlassTunerControls.tsx`                         |    63 | React component or typed UI module                                                      |
-| `src/components/FrostedGlassTunerPanels.tsx`                           |   147 | React component or typed UI module                                                      |
+| `src/components/FrostedGlassTunerControls.tsx`                         |    96 | React component or typed UI module                                                      |
+| `src/components/FrostedGlassTunerPanels.tsx`                           |   167 | React component or typed UI module                                                      |
 | `src/components/FrostedGlassTunerState.ts`                             |   105 | React component or typed UI module                                                      |
 | `src/components/ImageNode.tsx`                                         |   142 | Background extension off: only show the image, no frame/border/shell, so a              |
 | `src/components/MarkdownContent.tsx`                                   |    92 | React component or typed UI module                                                      |
@@ -601,6 +625,15 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                           |
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                           |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                           |
+| `src/ui-lab/main.tsx`                                                  |    11 | TypeScript application module                                                           |
+| `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                         |    54 | Tests for the adjacent module                                                           |
+| `src/ui-lab/SurfaceMaterialPrototype.tsx`                              |   150 | React component or typed UI module                                                      |
+| `src/ui-lab/system/Material.test.ts`                                   |    18 | Tests for the adjacent module                                                           |
+| `src/ui-lab/system/Material.ts`                                        |    15 | React component or typed UI module                                                      |
+| `src/ui-lab/system/Surface.test.tsx`                                   |    98 | Tests for the adjacent module                                                           |
+| `src/ui-lab/system/Surface.tsx`                                        |    39 | React component or typed UI module                                                      |
+| `src/ui-lab/UiLabApp.test.tsx`                                         |    46 | Tests for the adjacent module                                                           |
+| `src/ui-lab/UiLabApp.tsx`                                              |    68 | React component or typed UI module                                                      |
 | `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                      |   110 | Tests for the adjacent module                                                           |
 | `src/ui/dev/AcrylicCompositorPlayground.tsx`                           |   246 | React component or typed UI module                                                      |
 | `src/ui/dev/acrylicPlaygroundModel.test.ts`                            |    95 | Tests for the adjacent module                                                           |
@@ -687,8 +720,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialTypes.ts`                                    |   109 | TypeScript application module                                                           |
 | `src/ui/materials/nativeGlassRim.test.ts`                              |    41 | @vitest-environment node                                                                |
 | `src/ui/materials/nativeGlassRim.ts`                                   |   162 | TypeScript application module                                                           |
-| `src/ui/materials/SharedSmallGlassPlane.test.tsx`                      |    96 | Tests for the adjacent module                                                           |
-| `src/ui/materials/SharedSmallGlassPlane.tsx`                           |   205 | React component or typed UI module                                                      |
+| `src/ui/materials/SharedSmallGlassPlane.test.tsx`                      |    95 | Tests for the adjacent module                                                           |
+| `src/ui/materials/SharedSmallGlassPlane.tsx`                           |   223 | React component or typed UI module                                                      |
 | `src/ui/motion/layoutMotion.test.ts`                                   |   104 | One shared frame remains pending only while motion subscribers are active.              |
 | `src/ui/motion/layoutMotion.ts`                                        |    89 | TypeScript application module                                                           |
 | `src/ui/motion/liquidIndicatorMotion.test.ts`                          |   144 | Tests for the adjacent module                                                           |

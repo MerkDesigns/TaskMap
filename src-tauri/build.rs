@@ -50,7 +50,13 @@ fn main() {
             ]
         };
 
+    let capabilities_path_pattern = if std::env::var_os("CARGO_FEATURE_MCP_DEVELOPMENT").is_some() {
+        "./capabilities/**/*.json"
+    } else {
+        "./capabilities/*.json"
+    };
     let attributes = tauri_build::Attributes::new()
-        .app_manifest(tauri_build::AppManifest::new().commands(commands));
+        .app_manifest(tauri_build::AppManifest::new().commands(commands))
+        .capabilities_path_pattern(capabilities_path_pattern);
     tauri_build::try_build(attributes).expect("failed to run Tauri build script");
 }
