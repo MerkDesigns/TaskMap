@@ -6,6 +6,12 @@
 }
 
 .taskmap-material-surface[data-material-strategy="native-glass"] {
+  --taskmap-material-blur-presence-progress: clamp(
+    0,
+    calc((var(--taskmap-material-presence-progress, 1) - 0.3) / 0.7),
+    1
+  );
+
   background: transparent;
 }
 
@@ -81,13 +87,13 @@
   -webkit-backdrop-filter: blur(
     calc(
       var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)) *
-        var(--taskmap-material-presence-progress, 1)
+        var(--taskmap-material-blur-presence-progress)
     )
   );
   backdrop-filter: blur(
     calc(
       var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)) *
-        var(--taskmap-material-presence-progress, 1)
+        var(--taskmap-material-blur-presence-progress)
     )
   );
 }
@@ -110,7 +116,7 @@
   backface-visibility: hidden;
   transform: translateZ(var(--taskmap-material-backdrop-revision, 0px));
   -webkit-backdrop-filter: blur(
-      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-presence-progress, 1))
+      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
     )
     saturate(
       calc(
@@ -128,7 +134,7 @@
       )
     );
   backdrop-filter: blur(
-      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-presence-progress, 1))
+      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
     )
     saturate(
       calc(

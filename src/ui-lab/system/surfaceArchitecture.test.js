@@ -86,4 +86,17 @@ describe("UI Lab Surface architecture", () => {
     expect(labCss).not.toMatch(/(?:-webkit-)?backdrop-filter\s*:|box-shadow\s*:/);
     expect(materialCss).toContain("--taskmap-material-presence-progress");
   });
+
+  it("delays only material blur and preblur until presence progress passes 0.3", async () => {
+    const materialCss = await read("src/ui/materials/MaterialSurface.css");
+
+    expect(materialCss).toMatch(
+      /--taskmap-material-blur-presence-progress:\s*clamp\(\s*0,\s*calc\(\(var\(--taskmap-material-presence-progress, 1\) - 0\.3\) \/ 0\.7\),\s*1\s*\)/,
+    );
+    expect(materialCss.match(/var\(--taskmap-material-blur-presence-progress\)/g)).toHaveLength(4);
+    expect(materialCss).toContain(
+      "(var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)",
+    );
+    expect(materialCss).toContain("opacity: var(--taskmap-material-presence-progress, 1)");
+  });
 });

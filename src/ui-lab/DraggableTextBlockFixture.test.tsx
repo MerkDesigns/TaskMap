@@ -70,19 +70,20 @@ describe("DraggableTextBlockFixture", () => {
     scheduledFrame?.(0);
     expect(nodeLayer).toHaveAttribute("data-drag-x", "278");
     expect(nodeLayer).toHaveAttribute("data-drag-y", "328");
-    expect(nodeLayer.style.transform).toBe("translate3d(278px, 328px, 0)");
+    expect(nodeLayer).toHaveStyle({ left: "278px", top: "328px" });
   });
 
   it("resets the locally dragged node without product state", () => {
     const { container } = render(<DraggableTextBlockFixture />);
     const nodeLayer = container.querySelector<HTMLElement>("[data-ui-lab-draggable-text-block]")!;
-    nodeLayer.style.transform = "translate3d(500px, 100px, 0)";
+    nodeLayer.style.left = "500px";
+    nodeLayer.style.top = "100px";
     nodeLayer.dataset.dragX = "500";
 
     fireEvent.click(screen.getByRole("button", { name: "Reset node" }));
 
     expect(nodeLayer).toHaveAttribute("data-drag-x", "48");
     expect(nodeLayer).toHaveAttribute("data-drag-y", "238");
-    expect(nodeLayer.style.transform).toBe("translate3d(48px, 238px, 0)");
+    expect(nodeLayer).toHaveStyle({ left: "48px", top: "238px" });
   });
 });

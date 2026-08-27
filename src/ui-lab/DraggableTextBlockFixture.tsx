@@ -45,7 +45,8 @@ export function DraggableTextBlockFixture() {
     positionRef.current = position;
     const layer = nodeLayerRef.current;
     if (!layer) return;
-    layer.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`;
+    layer.style.left = `${position.x}px`;
+    layer.style.top = `${position.y}px`;
     layer.dataset.dragX = String(Math.round(position.x));
     layer.dataset.dragY = String(Math.round(position.y));
   };
@@ -133,7 +134,8 @@ export function DraggableTextBlockFixture() {
           onPointerMove={move}
           onPointerUp={finishMove}
           style={{
-            transform: `translate3d(${INITIAL_POSITION.x}px, ${INITIAL_POSITION.y}px, 0)`,
+            left: INITIAL_POSITION.x,
+            top: INITIAL_POSITION.y,
           }}
         >
           <TextBlockNode
