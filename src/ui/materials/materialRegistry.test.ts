@@ -32,7 +32,7 @@ describe("material definitions", () => {
       saturation: 0.78,
       brightness: 0.82,
       contrast: 1,
-      overscanRatio: 1.15,
+      overscanRatio: 3,
       tint: { rgb: [186, 190, 196], opacity: 0.075 },
       tone: { rgb: [14, 15, 17], opacity: 0 },
       rim: {
@@ -62,7 +62,7 @@ describe("material definitions", () => {
       saturation: 0.78,
       brightness: 0.9,
       contrast: 1,
-      overscanRatio: 1.15,
+      overscanRatio: 3,
       tint: { rgb: [182, 183, 195], opacity: 0 },
       tone: { rgb: [148, 148, 148], opacity: 0 },
       rim: {

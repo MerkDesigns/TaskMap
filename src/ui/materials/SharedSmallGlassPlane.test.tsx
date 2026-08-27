@@ -16,7 +16,7 @@ describe("SharedSmallGlassPlane", () => {
 
     refreshSharedSmallGlassTuning(plane);
 
-    expect(plane.style.getPropertyValue("--taskmap-shared-small-overscan")).toBe("42.55px");
+    expect(plane.style.getPropertyValue("--taskmap-shared-small-overscan")).toBe("111px");
   });
 
   it("reuses one active backdrop for multiple rounded Small surface clips", () => {

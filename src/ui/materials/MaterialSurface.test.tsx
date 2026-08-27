@@ -193,12 +193,12 @@ describe("MaterialSurface", () => {
 
     fireEvent(window, new Event("resize"));
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
-    expect(overscan(small)).toEqual(["5.00px", "20.00px", "32.77px", "32.77px"]);
+    expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
 
     rerender(view("is-dragging is-snapping"));
     fireEvent(window, new Event("resize"));
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
-    expect(overscan(small)).toEqual(["5.00px", "20.00px", "32.77px", "32.77px"]);
+    expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
     expect(registry.getSnapshot().surfaces).toEqual([]);
   });
 
@@ -219,7 +219,7 @@ describe("MaterialSurface", () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it("coalesces resize-settled backdrop refreshes without starting a refresh loop", () => {
+  it("coalesces scroll-driven position refreshes without creating a refresh loop", () => {
     const frames = new Map<number, FrameRequestCallback>();
     const requestFrame = vi.fn((callback: FrameRequestCallback) => {
       const id = frames.size + 1;
@@ -229,20 +229,18 @@ describe("MaterialSurface", () => {
     vi.stubGlobal("requestAnimationFrame", requestFrame);
     render(<MaterialSurface material="acrylic-large">Large</MaterialSurface>);
     const surface = screen.getByText("Large");
+    vi.spyOn(surface, "getBoundingClientRect").mockReturnValue(rectangle(100, 100, 300, 300));
 
-    fireEvent(window, new Event("resize"));
-    fireEvent(window, new Event("resize"));
+    fireEvent.scroll(document.body);
+    fireEvent.scroll(document.body);
 
     expect(requestFrame).toHaveBeenCalledOnce();
-    expect(surface.style.getPropertyValue("--taskmap-material-backdrop-revision")).toBe("");
-
     frames.get(1)?.(0);
-
-    expect(surface.style.getPropertyValue("--taskmap-material-backdrop-revision")).toBe("0.01px");
+    expect(overscan(surface)).toEqual(["100.00px", "100.00px", "198.00px", "198.00px"]);
     expect(requestFrame).toHaveBeenCalledOnce();
   });
 
-  it("cancels a pending resize-settled backdrop refresh during cleanup", () => {
+  it("cancels a pending scroll-driven position refresh during cleanup", () => {
     vi.stubGlobal(
       "requestAnimationFrame",
       vi.fn(() => 41),
@@ -251,11 +249,25 @@ describe("MaterialSurface", () => {
     vi.stubGlobal("cancelAnimationFrame", cancelFrame);
     const { unmount } = render(<MaterialSurface material="acrylic-small">Small</MaterialSurface>);
 
-    fireEvent(window, new Event("resize"));
+    fireEvent.scroll(document.body);
     unmount();
 
     expect(cancelFrame).toHaveBeenCalledOnce();
     expect(cancelFrame).toHaveBeenCalledWith(41);
+  });
+
+  it("does not schedule position refreshes for shared backdrop consumers", () => {
+    const requestFrame = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", requestFrame);
+    render(
+      <MaterialSurface material="acrylic-small" backdropSource="shared">
+        Shared
+      </MaterialSurface>,
+    );
+
+    fireEvent.scroll(document.body);
+
+    expect(requestFrame).not.toHaveBeenCalled();
   });
 });
 

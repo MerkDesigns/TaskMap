@@ -627,8 +627,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                           |
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                           |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                           |
-| `src/ui-lab/DraggableTextBlockFixture.test.tsx`                        |    89 | Tests for the adjacent module                                                           |
-| `src/ui-lab/DraggableTextBlockFixture.tsx`                             |   205 | React component or typed UI module                                                      |
+| `src/ui-lab/DraggableTextBlockFixture.test.tsx`                        |    90 | Tests for the adjacent module                                                           |
+| `src/ui-lab/DraggableTextBlockFixture.tsx`                             |   207 | React component or typed UI module                                                      |
 | `src/ui-lab/main.tsx`                                                  |    12 | TypeScript application module                                                           |
 | `src/ui-lab/MaterialAwarePresencePrototype.tsx`                        |   281 | React component or typed UI module                                                      |
 | `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                         |    54 | Tests for the adjacent module                                                           |
@@ -721,8 +721,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialRegistry.ts`                                 |    38 | TypeScript application module                                                           |
 | `src/ui/materials/materialSamplingBoundary.test.ts`                    |    27 | @vitest-environment node                                                                |
 | `src/ui/materials/materialSamplingBoundary.tsx`                        |    89 | TypeScript application module                                                           |
-| `src/ui/materials/MaterialSurface.test.tsx`                            |   245 | Tests for the adjacent module                                                           |
-| `src/ui/materials/MaterialSurface.tsx`                                 |   256 | React component or typed UI module                                                      |
+| `src/ui/materials/MaterialSurface.test.tsx`                            |   297 | Tests for the adjacent module                                                           |
+| `src/ui/materials/MaterialSurface.tsx`                                 |   271 | React component or typed UI module                                                      |
 | `src/ui/materials/MaterialSurfaceRegistration.tsx`                     |   131 | React component or typed UI module                                                      |
 | `src/ui/materials/materialSurfaceRegistry.test.ts`                     |   151 | @vitest-environment node                                                                |
 | `src/ui/materials/materialSurfaceRegistry.ts`                          |   260 | TypeScript application module                                                           |

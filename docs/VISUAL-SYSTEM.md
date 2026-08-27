@@ -139,20 +139,20 @@ visual and performance acceptance.
 
 ### Acrylic Large
 
-| Property           | Exact value                    |
-| ------------------ | ------------------------------ |
-| Pre-blur pass      | `6px`                          |
-| Main blur pass     | `60px`                         |
-| Saturation         | `0.78`                         |
-| Brightness         | `0.82`                         |
-| Contrast           | `1.00`                         |
-| Overscan ratio     | `1.15` of pre-blur + main blur |
-| Tint               | `186 190 196 / 0.075`          |
-| Tone               | `14 15 17 / 0`                 |
-| Default radius     | `23px`                         |
-| Rim                | `1.5px`, base alpha `0.205`    |
-| Rim softness/scale | `0.5px` / `0.9`                |
-| Shadow source      | `0 3.5px 16.5px 0 / 0.50`      |
+| Property           | Exact value                   |
+| ------------------ | ----------------------------- |
+| Pre-blur pass      | `6px`                         |
+| Main blur pass     | `60px`                        |
+| Saturation         | `0.78`                        |
+| Brightness         | `0.82`                        |
+| Contrast           | `1.00`                        |
+| Overscan ratio     | `3.0` of pre-blur + main blur |
+| Tint               | `186 190 196 / 0.075`         |
+| Tone               | `14 15 17 / 0`                |
+| Default radius     | `23px`                        |
+| Rim                | `1.5px`, base alpha `0.205`   |
+| Rim softness/scale | `0.5px` / `0.9`               |
+| Shadow source      | `0 3.5px 16.5px 0 / 0.50`     |
 
 Large is permanently two-pass. The 6px pre-blur paints before the 60px main material pass; the two
 passes must not be collapsed because this construction removed temporal crawling in the accepted
@@ -167,7 +167,7 @@ reference.
 | Saturation         | `0.78`                       |
 | Brightness         | `0.90`                       |
 | Contrast           | `1.00`                       |
-| Overscan ratio     | `1.15` of both blur passes   |
+| Overscan ratio     | `3.0` of both blur passes    |
 | Tint               | `182 183 195 / 0`            |
 | Tone               | `148 148 148 / 0`            |
 | Default radius     | `13.5px`                     |

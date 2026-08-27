@@ -20,7 +20,6 @@ import {
 import { useMaterialPlane } from "./MaterialPlane";
 import { materialRegistry } from "./materialRegistry";
 import {
-  refreshMaterialSurfaceBackdrop,
   subscribeMaterialSurfaceGeometryInvalidation,
   subscribeMaterialTuningChanged,
 } from "./materialGeometryInvalidation";
@@ -153,23 +152,27 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       const unsubscribeTuning = import.meta.env.DEV
         ? subscribeMaterialTuningChanged(refreshNativeGeometry)
         : null;
-      let resizeRefreshFrame: number | null = null;
-      const refreshAfterWindowResize = () => {
-        refreshNativeGeometry();
-        if (resizeRefreshFrame !== null) return;
-        resizeRefreshFrame = requestAnimationFrame(() => {
-          resizeRefreshFrame = null;
-          const currentElement = elementRef.current;
-          if (currentElement) refreshMaterialSurfaceBackdrop(currentElement);
+      let scrollRefreshFrame: number | null = null;
+      const refreshAfterScroll = () => {
+        if (scrollRefreshFrame !== null) return;
+        scrollRefreshFrame = requestAnimationFrame(() => {
+          scrollRefreshFrame = null;
+          refreshNativeGeometry();
         });
       };
-      window.addEventListener("resize", refreshAfterWindowResize);
+      window.addEventListener("resize", refreshNativeGeometry);
+      if (backdropSourceOverride === "self") {
+        window.addEventListener("scroll", refreshAfterScroll, true);
+      }
       return () => {
-        if (resizeRefreshFrame !== null) cancelAnimationFrame(resizeRefreshFrame);
+        if (scrollRefreshFrame !== null) cancelAnimationFrame(scrollRefreshFrame);
         observer?.disconnect();
         unsubscribeInvalidation?.();
         unsubscribeTuning?.();
-        window.removeEventListener("resize", refreshAfterWindowResize);
+        window.removeEventListener("resize", refreshNativeGeometry);
+        if (backdropSourceOverride === "self") {
+          window.removeEventListener("scroll", refreshAfterScroll, true);
+        }
       };
     }, [
       backdropSourceOverride,
