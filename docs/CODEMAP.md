@@ -627,7 +627,9 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/workflow/workflowTypes.ts`                               |    20 | TypeScript application module                                                           |
 | `src/test/setup.ts`                                                    |     2 | TypeScript application module                                                           |
 | `src/types.ts`                                                         |   418 | TypeScript application module                                                           |
-| `src/ui-lab/main.tsx`                                                  |    11 | TypeScript application module                                                           |
+| `src/ui-lab/DraggableTextBlockFixture.test.tsx`                        |    89 | Tests for the adjacent module                                                           |
+| `src/ui-lab/DraggableTextBlockFixture.tsx`                             |   205 | React component or typed UI module                                                      |
+| `src/ui-lab/main.tsx`                                                  |    12 | TypeScript application module                                                           |
 | `src/ui-lab/MaterialAwarePresencePrototype.tsx`                        |   281 | React component or typed UI module                                                      |
 | `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                         |    54 | Tests for the adjacent module                                                           |
 | `src/ui-lab/SurfaceMaterialPrototype.tsx`                              |   150 | React component or typed UI module                                                      |
@@ -638,8 +640,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui-lab/system/Surface.test.tsx`                                   |    98 | Tests for the adjacent module                                                           |
 | `src/ui-lab/system/Surface.tsx`                                        |    39 | React component or typed UI module                                                      |
 | `src/ui-lab/system/useSurfacePresence.ts`                              |    70 | TypeScript application module                                                           |
-| `src/ui-lab/UiLabApp.test.tsx`                                         |    51 | Tests for the adjacent module                                                           |
-| `src/ui-lab/UiLabApp.tsx`                                              |    91 | React component or typed UI module                                                      |
+| `src/ui-lab/UiLabApp.test.tsx`                                         |    64 | Tests for the adjacent module                                                           |
+| `src/ui-lab/UiLabApp.tsx`                                              |    93 | React component or typed UI module                                                      |
 | `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                      |   110 | Tests for the adjacent module                                                           |
 | `src/ui/dev/AcrylicCompositorPlayground.tsx`                           |   246 | React component or typed UI module                                                      |
 | `src/ui/dev/acrylicPlaygroundModel.test.ts`                            |    95 | Tests for the adjacent module                                                           |

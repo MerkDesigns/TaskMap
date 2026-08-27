@@ -8,6 +8,7 @@ import { TextField } from "../ui/primitives/FormControls";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import { WorkspaceChromeLayer, WorkspaceRoot } from "../ui/patterns/workspace/WorkspaceRoot";
 import { WindowChrome } from "../components/WindowChrome";
+import { DraggableTextBlockFixture } from "./DraggableTextBlockFixture";
 import { MaterialAwarePresencePrototype } from "./MaterialAwarePresencePrototype";
 import { SurfaceMaterialPrototype } from "./SurfaceMaterialPrototype";
 
@@ -75,6 +76,7 @@ export function UiLabApp() {
                 </MaterialSurface>
 
                 <SurfaceMaterialPrototype />
+                <DraggableTextBlockFixture />
                 <MaterialAwarePresencePrototype />
               </div>
             </div>

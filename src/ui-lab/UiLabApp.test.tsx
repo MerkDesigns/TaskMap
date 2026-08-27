@@ -1,6 +1,16 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { UiLabApp } from "./UiLabApp";
+
+class TestResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeAll(() => vi.stubGlobal("ResizeObserver", TestResizeObserver));
+
+afterAll(() => vi.unstubAllGlobals());
 
 afterEach(cleanup);
 
@@ -21,6 +31,9 @@ describe("UiLabApp", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Composable presence behaviors" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Production TextBlock beneath glass" }),
     ).toBeInTheDocument();
     expect(container.querySelector("[data-ui-lab-scroll-viewport]")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Window controls" })).toBeInTheDocument();

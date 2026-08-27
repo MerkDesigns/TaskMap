@@ -22,6 +22,7 @@ describe("isolated UI Lab entry", () => {
       [
         "src/ui-lab/main.tsx",
         "src/ui-lab/UiLabApp.tsx",
+        "src/ui-lab/DraggableTextBlockFixture.tsx",
         "src/ui-lab/SurfaceMaterialPrototype.tsx",
         "src/ui-lab/system/Material.ts",
         "src/ui-lab/system/Surface.tsx",
@@ -43,6 +44,25 @@ describe("isolated UI Lab entry", () => {
         /(?:^|\/)(?:platform|persistence|database)(?:\/|$)/.test(specifier),
       ),
     ).toBe(false);
+  });
+
+  it("keeps the production TextBlock drag fixture local and frame-scheduled", async () => {
+    const [app, fixture, styles] = await Promise.all([
+      read("src/ui-lab/UiLabApp.tsx"),
+      read("src/ui-lab/DraggableTextBlockFixture.tsx"),
+      read("src/ui-lab/draggableTextBlockFixture.css"),
+    ]);
+
+    expect(fixture).toContain('from "../components/TextBlockNode"');
+    expect(fixture).toContain("setPointerCapture(event.pointerId)");
+    expect(fixture).toContain("requestAnimationFrame(flushPendingPosition)");
+    expect(fixture).not.toMatch(/react-redux|@reduxjs\/toolkit|framer-motion|dnd-kit/);
+    expect(styles).toMatch(/taskmap-ui-lab-text-block__node-layer[\s\S]*z-index: 20/);
+    expect(styles).toMatch(/taskmap-ui-lab-text-block__major[\s\S]*z-index: 40/);
+    expect(styles).toMatch(/taskmap-ui-lab-text-block__foreground[\s\S]*z-index: 60/);
+    expect(app.indexOf("<DraggableTextBlockFixture />")).toBeLessThan(
+      app.indexOf("<MaterialAwarePresencePrototype />"),
+    );
   });
 
   it("uses the current production material boundary for exactly four samples", async () => {
