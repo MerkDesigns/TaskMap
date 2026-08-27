@@ -19,6 +19,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("MaterialSurface", () => {
@@ -216,6 +217,45 @@ describe("MaterialSurface", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Move surface" }));
     expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("coalesces resize-settled backdrop refreshes without starting a refresh loop", () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    const requestFrame = vi.fn((callback: FrameRequestCallback) => {
+      const id = frames.size + 1;
+      frames.set(id, callback);
+      return id;
+    });
+    vi.stubGlobal("requestAnimationFrame", requestFrame);
+    render(<MaterialSurface material="acrylic-large">Large</MaterialSurface>);
+    const surface = screen.getByText("Large");
+
+    fireEvent(window, new Event("resize"));
+    fireEvent(window, new Event("resize"));
+
+    expect(requestFrame).toHaveBeenCalledOnce();
+    expect(surface.style.getPropertyValue("--taskmap-material-backdrop-revision")).toBe("");
+
+    frames.get(1)?.(0);
+
+    expect(surface.style.getPropertyValue("--taskmap-material-backdrop-revision")).toBe("0.01px");
+    expect(requestFrame).toHaveBeenCalledOnce();
+  });
+
+  it("cancels a pending resize-settled backdrop refresh during cleanup", () => {
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn(() => 41),
+    );
+    const cancelFrame = vi.fn();
+    vi.stubGlobal("cancelAnimationFrame", cancelFrame);
+    const { unmount } = render(<MaterialSurface material="acrylic-small">Small</MaterialSurface>);
+
+    fireEvent(window, new Event("resize"));
+    unmount();
+
+    expect(cancelFrame).toHaveBeenCalledOnce();
+    expect(cancelFrame).toHaveBeenCalledWith(41);
   });
 });
 

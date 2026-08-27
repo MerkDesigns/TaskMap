@@ -20,6 +20,7 @@ import {
 import { useMaterialPlane } from "./MaterialPlane";
 import { materialRegistry } from "./materialRegistry";
 import {
+  refreshMaterialSurfaceBackdrop,
   subscribeMaterialSurfaceGeometryInvalidation,
   subscribeMaterialTuningChanged,
 } from "./materialGeometryInvalidation";
@@ -152,12 +153,23 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       const unsubscribeTuning = import.meta.env.DEV
         ? subscribeMaterialTuningChanged(refreshNativeGeometry)
         : null;
-      window.addEventListener("resize", refreshNativeGeometry);
+      let resizeRefreshFrame: number | null = null;
+      const refreshAfterWindowResize = () => {
+        refreshNativeGeometry();
+        if (resizeRefreshFrame !== null) return;
+        resizeRefreshFrame = requestAnimationFrame(() => {
+          resizeRefreshFrame = null;
+          const currentElement = elementRef.current;
+          if (currentElement) refreshMaterialSurfaceBackdrop(currentElement);
+        });
+      };
+      window.addEventListener("resize", refreshAfterWindowResize);
       return () => {
+        if (resizeRefreshFrame !== null) cancelAnimationFrame(resizeRefreshFrame);
         observer?.disconnect();
         unsubscribeInvalidation?.();
         unsubscribeTuning?.();
-        window.removeEventListener("resize", refreshNativeGeometry);
+        window.removeEventListener("resize", refreshAfterWindowResize);
       };
     }, [
       backdropSourceOverride,
