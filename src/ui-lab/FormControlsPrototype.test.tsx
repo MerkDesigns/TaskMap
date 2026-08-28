@@ -1,7 +1,6 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { renderWithUiProviders as render } from "../test/renderWithUiProviders";
 import { FormControlsPrototype } from "./FormControlsPrototype";
 
 afterEach(cleanup);
@@ -19,8 +18,10 @@ describe("FormControlsPrototype", () => {
     await user.click(disabled);
     expect(disabled).not.toBeChecked();
 
-    fireEvent.keyDown(screen.getByRole("slider", { name: "Grid opacity" }), { key: "End" });
-    expect(screen.getByText("Grid opacity: 100%")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("slider", { name: "Grid opacity" }), {
+      target: { value: "82" },
+    });
+    expect(screen.getByText("Grid opacity: 82%")).toBeInTheDocument();
   });
 
   it("edits the production text, textarea, and search inputs", async () => {
@@ -42,21 +43,18 @@ describe("FormControlsPrototype", () => {
     expect(search).toHaveValue("Archive");
   });
 
-  it("uses the Mantine-backed production Select and Tooltip", async () => {
+  it("uses the production Select and IconButton with the native tooltip convention", async () => {
     const user = userEvent.setup();
     render(<FormControlsPrototype />);
 
     const select = screen.getByRole("combobox", { name: "Theme" });
-    expect(select).toHaveValue("System");
-    await user.click(select);
-    await user.click(screen.getByRole("option", { name: "Dark" }));
-    expect(select).toHaveValue("Dark");
+    expect(select).toHaveValue("system");
+    await user.selectOptions(select, "dark");
+    expect(select).toHaveValue("dark");
 
     const iconButton = screen.getByRole("button", { name: "Open settings example" });
     expect(iconButton).toHaveClass("taskmap-icon-button");
-    expect(iconButton).not.toHaveAttribute("title");
-    await user.hover(iconButton);
-    expect(await screen.findByRole("tooltip", { name: "Open settings" })).toBeVisible();
+    expect(iconButton).toHaveAttribute("title", "Open settings");
     await user.click(iconButton);
     expect(screen.getByText("Settings requested")).toBeInTheDocument();
   });

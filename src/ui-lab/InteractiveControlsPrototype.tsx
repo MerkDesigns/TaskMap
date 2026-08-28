@@ -135,7 +135,7 @@ export function InteractiveControlsPrototype() {
               max={0.8}
               step={0.01}
               value={toggleTintOpacity}
-              onValueChange={setToggleTintOpacity}
+              onChange={(event) => setToggleTintOpacity(Number(event.currentTarget.value))}
             />
           </Field>
         </article>
@@ -193,7 +193,13 @@ function RadiusControl({
 }) {
   return (
     <Field label={`${label} · ${value}px`}>
-      <Slider aria-label={label} min={0} max={20} value={value} onValueChange={onChange} />
+      <Slider
+        aria-label={label}
+        min={0}
+        max={20}
+        value={value}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+      />
     </Field>
   );
 }

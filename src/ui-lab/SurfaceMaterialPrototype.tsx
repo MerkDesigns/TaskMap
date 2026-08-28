@@ -142,7 +142,7 @@ function RangeControl({ label, value, min, max, onChange }: RangeControlProps) {
         min={min}
         max={max}
         value={value}
-        onValueChange={onChange}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
       />
     </Field>
   );

@@ -1,7 +1,6 @@
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { renderWithUiProviders as render } from "../test/renderWithUiProviders";
 import { MotionProvider } from "../ui/motion/MotionProvider";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { InteractiveControlsPrototype } from "./InteractiveControlsPrototype";

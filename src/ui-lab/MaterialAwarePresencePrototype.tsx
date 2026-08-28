@@ -1,6 +1,6 @@
 import { useRef, useState, type RefObject } from "react";
 import { Button } from "../ui/primitives/Button";
-import { setSliderDisplayValue, Slider } from "../ui/primitives/SelectionControls";
+import { Slider } from "../ui/primitives/SelectionControls";
 import {
   Fade,
   FadeLift,
@@ -97,7 +97,7 @@ function FadeComparison() {
   const majorContentRef = useRef<HTMLDivElement>(null);
   const minorContentARef = useRef<HTMLDivElement>(null);
   const minorContentBRef = useRef<HTMLDivElement>(null);
-  const progressControlRef = useRef<HTMLDivElement>(null);
+  const progressControlRef = useRef<HTMLInputElement>(null);
   const progressOutputRef = useRef<HTMLOutputElement>(null);
   renderCountRef.current += 1;
 
@@ -108,7 +108,7 @@ function FadeComparison() {
         (content): content is HTMLDivElement => content !== null,
       ),
     onProgress(progress) {
-      setSliderDisplayValue(progressControlRef.current, progress);
+      if (progressControlRef.current) progressControlRef.current.value = String(progress);
       if (progressOutputRef.current) progressOutputRef.current.value = progress.toFixed(3);
     },
     onComplete(endpoint) {
@@ -146,7 +146,7 @@ function FadeComparison() {
             min={0}
             max={1}
             step={0.001}
-            onValueChange={controls.setProgress}
+            onChange={(event) => controls.setProgress(Number(event.currentTarget.value))}
           />
         </label>
         <div className="taskmap-ui-lab-presence__inspection" aria-label="Inspection progress">

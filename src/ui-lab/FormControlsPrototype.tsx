@@ -4,7 +4,6 @@ import { IconButton } from "../ui/primitives/Button";
 import { Field } from "../ui/primitives/Field";
 import { SearchField, Select, TextArea, TextField } from "../ui/primitives/FormControls";
 import { Checkbox, Slider } from "../ui/primitives/SelectionControls";
-import { Tooltip } from "../ui/primitives/Tooltip";
 
 export function FormControlsPrototype() {
   const [snappingEnabled, setSnappingEnabled] = useState(false);
@@ -36,7 +35,7 @@ export function FormControlsPrototype() {
             max={100}
             step={1}
             value={gridOpacity}
-            onValueChange={setGridOpacity}
+            onChange={(event) => setGridOpacity(Number(event.currentTarget.value))}
           />
         </Field>
 
@@ -74,13 +73,12 @@ export function FormControlsPrototype() {
 
         <div className="taskmap-ui-lab-controls__icon-sample">
           <span>Icon button with tooltip</span>
-          <Tooltip label="Open settings">
-            <IconButton
-              aria-label="Open settings example"
-              icon={<IconSettings size={18} stroke={2} />}
-              onClick={() => setIconAction("Settings requested")}
-            />
-          </Tooltip>
+          <IconButton
+            aria-label="Open settings example"
+            icon={<IconSettings size={18} stroke={2} />}
+            title="Open settings"
+            onClick={() => setIconAction("Settings requested")}
+          />
           <output className="taskmap-ui-lab-controls__status">{iconAction}</output>
         </div>
       </div>

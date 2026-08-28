@@ -1,7 +1,6 @@
-import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithUiProviders as render } from "../test/renderWithUiProviders";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { ComponentProps } from "react";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
@@ -76,11 +75,12 @@ describe("Phase 4.5C3A primary Settings", () => {
     await user.click(screen.getByRole("button", { name: "Lines" }));
     expect(props.onCanvasGridStyleChange).toHaveBeenCalledWith("lines");
     const slider = screen.getByRole("slider", { name: "Grid opacity" });
-    expect(slider).toHaveAttribute("aria-valuemin", "0");
-    expect(slider).toHaveAttribute("aria-valuemax", "100");
-    expect(slider).toHaveValue(50);
-    fireEvent.keyDown(slider, { key: "ArrowRight" });
-    expect(props.onCanvasGridOpacityChange).toHaveBeenCalledWith(55);
+    expect(slider).toHaveAttribute("min", "0");
+    expect(slider).toHaveAttribute("max", "100");
+    expect(slider).toHaveAttribute("step", "5");
+    expect(slider).toHaveValue("50");
+    fireEvent.change(slider, { target: { value: "65" } });
+    expect(props.onCanvasGridOpacityChange).toHaveBeenCalledWith(65);
 
     for (const label of ["containers", "text cards", "text blocks", "images", "mindmaps"]) {
       expect(screen.getByTitle(`Choose default ${label} color`)).toBeInTheDocument();

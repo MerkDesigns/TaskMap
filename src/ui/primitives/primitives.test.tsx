@@ -1,8 +1,7 @@
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithUiProviders as render } from "../../test/renderWithUiProviders";
 import { Button, IconButton, ToggleButton } from "./Button";
 import { Field } from "./Field";
 import { SearchField, Select, TextArea, TextField } from "./FormControls";
@@ -59,21 +58,16 @@ describe("UI primitives", () => {
         </>
       );
     }
-    const { container } = render(<SelectionHarness />);
+    render(<SelectionHarness />);
 
     const checkbox = screen.getByRole("checkbox", { name: "Keep open" });
     const switchControl = screen.getByRole("switch", { name: "Private" });
     await user.click(checkbox);
     await user.click(switchControl);
     expect(checkbox).toBeChecked();
-    expect(container.querySelector(".taskmap-check-control__box svg")).toBeInTheDocument();
-    expect(container.querySelector(".taskmap-check-control__mark")).toHaveAttribute(
-      "pathLength",
-      "1",
-    );
     expect(switchControl).toBeChecked();
     expect(screen.getByRole("radio", { name: "Two" })).toBeDisabled();
-    expect(screen.getByRole("slider", { name: "Zoom" })).toHaveValue(50);
+    expect(screen.getByRole("slider", { name: "Zoom" })).toHaveValue("50");
   });
 
   it("associates Field labels, descriptions, errors, and controls", () => {

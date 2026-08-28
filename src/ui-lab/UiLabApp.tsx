@@ -3,7 +3,6 @@ import { createMaterialCompositorPresentationBridge } from "../ui/materials/mate
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { MotionProvider } from "../ui/motion/MotionProvider";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
-import { TaskMapMantineProvider } from "../ui/providers/TaskMapMantineProvider";
 import { Button } from "../ui/primitives/Button";
 import { TextField } from "../ui/primitives/FormControls";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
@@ -18,8 +17,7 @@ const presentation = createMaterialCompositorPresentationBridge();
 
 export function UiLabApp() {
   return (
-    <TaskMapMantineProvider>
-      <ReducedMotionProvider override={null}>
+    <ReducedMotionProvider override={null}>
         <MotionProvider>
           <MaterialCompositorProvider presentation={presentation}>
             <WorkspaceRoot data-taskmap-ui-lab="isolated-baseline">
@@ -91,7 +89,6 @@ export function UiLabApp() {
             </WorkspaceRoot>
           </MaterialCompositorProvider>
         </MotionProvider>
-      </ReducedMotionProvider>
-    </TaskMapMantineProvider>
+    </ReducedMotionProvider>
   );
 }

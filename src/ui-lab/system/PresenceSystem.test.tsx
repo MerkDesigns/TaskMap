@@ -1,6 +1,5 @@
-import { cleanup, fireEvent } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithUiProviders as render } from "../../test/renderWithUiProviders";
 import { MotionProvider } from "../../ui/motion/MotionProvider";
 import type {
   MotionFrame,

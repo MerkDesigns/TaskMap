@@ -1,8 +1,8 @@
-import { Select as MantineSelect, type SelectProps as MantineSelectProps } from "@mantine/core";
 import {
   forwardRef,
   type InputHTMLAttributes,
   type ReactNode,
+  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
 import { useFieldControl } from "./Field";
@@ -70,20 +70,20 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
 
 export interface SelectOption {
   readonly value: string;
-  readonly label: string;
+  readonly label: ReactNode;
   readonly disabled?: boolean;
 }
 
 export interface SelectProps extends Omit<
-  MantineSelectProps<string>,
-  "classNames" | "data" | "onChange" | "unstyled" | "value"
+  SelectHTMLAttributes<HTMLSelectElement>,
+  "value" | "onChange"
 > {
   readonly options: readonly SelectOption[];
   readonly value: string;
   readonly onValueChange: (value: string) => void;
 }
 
-export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
   {
     "aria-describedby": describedBy,
     "aria-invalid": invalid,
@@ -98,29 +98,21 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
 ) {
   const field = useFieldControl(id, describedBy, invalid);
   return (
-    <MantineSelect
+    <select
       {...props}
       ref={ref}
       id={field.id}
       value={value}
       aria-describedby={field.describedBy}
       aria-invalid={field.invalid}
-      allowDeselect={false}
-      data={options.map(({ disabled, label, value: optionValue }) => ({
-        disabled,
-        label,
-        value: optionValue,
-      }))}
-      onChange={(nextValue) => {
-        if (nextValue !== null) onValueChange(nextValue);
-      }}
-      classNames={{
-        root: "taskmap-select-root",
-        input: primitiveClassNames("taskmap-input taskmap-select", className),
-        dropdown: "taskmap-select__dropdown",
-        option: "taskmap-select__option",
-        section: "taskmap-select__section",
-      }}
-    />
+      onChange={(event) => onValueChange(event.currentTarget.value)}
+      className={primitiveClassNames("taskmap-input taskmap-select", className)}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value} disabled={option.disabled}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   );
 });

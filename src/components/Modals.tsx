@@ -344,7 +344,9 @@ export function SettingsModal({
                           step={5}
                           value={canvasGridOpacity}
                           spellCheck={false}
-                          onValueChange={onCanvasGridOpacityChange}
+                          onChange={(event) =>
+                            onCanvasGridOpacityChange(Number(event.currentTarget.value))
+                          }
                           title="Grid opacity"
                         />
                       </div>
