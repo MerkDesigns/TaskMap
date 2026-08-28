@@ -491,7 +491,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/Minimap.test.tsx`                                      |   155 | Tests for the adjacent module                                                           |
 | `src/components/Minimap.tsx`                                           |   209 | React component or typed UI module                                                      |
 | `src/components/Modals.test.tsx`                                       |   111 | Tests for the adjacent module                                                           |
-| `src/components/Modals.tsx`                                            |   556 | React component or typed UI module                                                      |
+| `src/components/Modals.tsx`                                            |   555 | React component or typed UI module                                                      |
 | `src/components/ProductionDialogs.test.tsx`                            |   204 | Shared scheduler drains the retained modal presence.                                    |
 | `src/components/ProductionDialogs.tsx`                                 |   241 | React component or typed UI module                                                      |
 | `src/components/SettingsModal.test.tsx`                                |   354 | One pending shared frame advances all active UI motion subscribers.                     |
@@ -630,11 +630,11 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui-lab/DraggableTextBlockFixture.test.tsx`                        |    90 | Tests for the adjacent module                                                           |
 | `src/ui-lab/DraggableTextBlockFixture.tsx`                             |   207 | React component or typed UI module                                                      |
 | `src/ui-lab/FormControlsPrototype.test.tsx`                            |    62 | Tests for the adjacent module                                                           |
-| `src/ui-lab/FormControlsPrototype.tsx`                                 |    97 | React component or typed UI module                                                      |
+| `src/ui-lab/FormControlsPrototype.tsx`                                 |    98 | React component or typed UI module                                                      |
 | `src/ui-lab/InteractiveControlsPrototype.test.tsx`                     |    61 | Tests for the adjacent module                                                           |
-| `src/ui-lab/InteractiveControlsPrototype.tsx`                          |   237 | React component or typed UI module                                                      |
+| `src/ui-lab/InteractiveControlsPrototype.tsx`                          |   236 | React component or typed UI module                                                      |
 | `src/ui-lab/main.tsx`                                                  |    15 | TypeScript application module                                                           |
-| `src/ui-lab/MaterialAwarePresencePrototype.tsx`                        |   281 | React component or typed UI module                                                      |
+| `src/ui-lab/MaterialAwarePresencePrototype.tsx`                        |   280 | React component or typed UI module                                                      |
 | `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                         |    58 | Tests for the adjacent module                                                           |
 | `src/ui-lab/SurfaceMaterialPrototype.tsx`                              |   150 | React component or typed UI module                                                      |
 | `src/ui-lab/system/Material.test.ts`                                   |    18 | Tests for the adjacent module                                                           |
@@ -804,20 +804,22 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/primitives/ContextMenu.tsx`                                    |   210 | React component or typed UI module                                                      |
 | `src/ui/primitives/ContextMenuParts.tsx`                               |   108 | React component or typed UI module                                                      |
 | `src/ui/primitives/Field.tsx`                                          |    87 | React component or typed UI module                                                      |
-| `src/ui/primitives/FormControls.tsx`                                   |   119 | React component or typed UI module                                                      |
-| `src/ui/primitives/index.ts`                                           |    17 | TypeScript application module                                                           |
+| `src/ui/primitives/FloatingPanel.tsx`                                  |   122 | React component or typed UI module                                                      |
+| `src/ui/primitives/FormControls.tsx`                                   |   170 | React component or typed UI module                                                      |
+| `src/ui/primitives/index.ts`                                           |    19 | TypeScript application module                                                           |
 | `src/ui/primitives/Layout.tsx`                                         |   119 | React component or typed UI module                                                      |
 | `src/ui/primitives/LiquidSelectionIndicator.tsx`                       |   125 | React component or typed UI module                                                      |
 | `src/ui/primitives/LiquidTabs.motion.test.tsx`                         |   236 | A shared scheduler may enqueue the next frame while processing this one.                |
 | `src/ui/primitives/LiquidTabs.tsx`                                     |   137 | React component or typed UI module                                                      |
-| `src/ui/primitives/LiquidToggleSwitch.tsx`                             |   120 | React component or typed UI module                                                      |
+| `src/ui/primitives/LiquidToggleSwitch.tsx`                             |   122 | React component or typed UI module                                                      |
 | `src/ui/primitives/primitiveClassNames.ts`                             |     6 | TypeScript application module                                                           |
 | `src/ui/primitives/primitives.test.tsx`                                |   137 | Tests for the adjacent module                                                           |
-| `src/ui/primitives/SelectionControls.tsx`                              |   182 | React component or typed UI module                                                      |
+| `src/ui/primitives/SelectionControls.tsx`                              |   187 | React component or typed UI module                                                      |
 | `src/ui/primitives/Status.tsx`                                         |   108 | React component or typed UI module                                                      |
 | `src/ui/primitives/tabListBehavior.ts`                                 |    52 | TypeScript application module                                                           |
 | `src/ui/primitives/Tabs.test.tsx`                                      |   104 | Tests for the adjacent module                                                           |
 | `src/ui/primitives/Tabs.tsx`                                           |    58 | React component or typed UI module                                                      |
+| `src/ui/primitives/Tooltip.tsx`                                        |    91 | React component or typed UI module                                                      |
 | `src/ui/primitives/Typography.tsx`                                     |    26 | React component or typed UI module                                                      |
 | `src/ui/primitives/usePressSpringScale.ts`                             |    74 | TypeScript application module                                                           |
 | `src/ui/theme/theme.test.tsx`                                          |    72 | Tests for the adjacent module                                                           |

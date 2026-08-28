@@ -130,6 +130,12 @@
   --taskmap-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.taskmap-target-theme::selection,
+.taskmap-target-theme ::selection {
+  background-color: rgb(var(--taskmap-accent-rgb) / 0.46);
+  color: var(--taskmap-text);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .taskmap-target-theme {
     --taskmap-motion-fast: 1ms;

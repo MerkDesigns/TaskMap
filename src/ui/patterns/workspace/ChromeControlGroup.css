@@ -1,0 +1,8 @@
+.taskmap-chrome-control-group .taskmap-control {
+  border-color: transparent;
+  border-radius: min(
+    50%,
+    max(0px, calc(var(--taskmap-material-radius) - var(--taskmap-toolbar-group-padding-inline)))
+  );
+  box-shadow: none;
+}

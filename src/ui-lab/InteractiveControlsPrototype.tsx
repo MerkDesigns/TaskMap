@@ -29,8 +29,8 @@ export function InteractiveControlsPrototype() {
   const [horizontalValue, setHorizontalValue] = useState<HorizontalValue>("general");
   const [toggleEnabled, setToggleEnabled] = useState(false);
   const [indicatorRadius, setIndicatorRadius] = useState(7);
-  const [movingIndicatorRadius, setMovingIndicatorRadius] = useState(10);
-  const [backgroundRadius, setBackgroundRadius] = useState(12);
+  const [movingIndicatorRadius, setMovingIndicatorRadius] = useState(14);
+  const [backgroundRadius, setBackgroundRadius] = useState(11);
   const [toggleTintOpacity, setToggleTintOpacity] = useState(0.67);
   const [confirmationCount, setConfirmationCount] = useState(0);
   const [lastAction, setLastAction] = useState("No action yet");
@@ -133,7 +133,6 @@ export function InteractiveControlsPrototype() {
               aria-label="Toggle dark tint opacity"
               min={0}
               max={0.8}
-              step={0.01}
               value={toggleTintOpacity}
               onChange={(event) => setToggleTintOpacity(Number(event.currentTarget.value))}
             />
@@ -192,7 +191,7 @@ function RadiusControl({
   readonly onChange: (value: number) => void;
 }) {
   return (
-    <Field label={`${label} · ${value}px`}>
+    <Field label={`${label} · ${value.toFixed(1)}px`}>
       <Slider
         aria-label={label}
         min={0}

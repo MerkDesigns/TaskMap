@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type MouseEvent, type PointerEvent } 
 import { windowChromeActions, type WindowChromeActions } from "../app/windowChrome";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { IconButton } from "../ui/primitives/Button";
+import "../ui/patterns/workspace/ChromeControlGroup.css";
 import "../ui/patterns/workspace/WindowChrome.css";
 
 interface WindowChromeProps {
@@ -73,7 +74,7 @@ export function WindowChrome({ actions = windowChromeActions, radius }: WindowCh
         radius={radius}
         role="group"
         aria-label="Window controls"
-        className="taskmap-window-controls"
+        className="taskmap-chrome-control-group taskmap-window-controls"
         onDoubleClick={(event) => event.stopPropagation()}
         onPointerDown={stopChromePointerPropagation}
       >

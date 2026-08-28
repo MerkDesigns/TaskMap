@@ -84,7 +84,8 @@
 }
 
 .taskmap-input:disabled,
-.taskmap-input:read-only {
+input.taskmap-input:read-only,
+textarea.taskmap-input:read-only {
   opacity: var(--taskmap-state-disabled-opacity);
 }
 
@@ -104,5 +105,93 @@
 }
 
 .taskmap-select {
-  appearance: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.taskmap-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-select__chevron {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-right: 1.5px solid currentcolor;
+  border-bottom: 1.5px solid currentcolor;
+  color: var(--taskmap-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.taskmap-select__panel {
+  max-height: min(260px, calc(100vh - 16px));
+  overflow: auto;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-medium);
+  background: #161618;
+  box-shadow: var(--taskmap-shadow-outer);
+  padding: 5px 6px;
+  font-family: var(--taskmap-font-family);
+}
+
+.taskmap-select__panel [role="listbox"] {
+  display: grid;
+  gap: 2px;
+}
+
+.taskmap-select__option {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-radius: var(--taskmap-radius-small);
+  background: transparent;
+  padding: 5px 8px;
+  color: var(--taskmap-text);
+  font: inherit;
+  font-size: var(--taskmap-text-small-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+.taskmap-select__option:hover:not(:disabled) {
+  background: var(--taskmap-state-hover);
+}
+
+.taskmap-select__option-check {
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  color: var(--taskmap-text);
+  opacity: 0;
+}
+
+.taskmap-select__option-check svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.taskmap-select__option[aria-selected="true"] .taskmap-select__option-check {
+  opacity: 1;
+}
+
+.taskmap-select__option:disabled {
+  opacity: var(--taskmap-state-disabled-opacity);
+  cursor: default;
 }

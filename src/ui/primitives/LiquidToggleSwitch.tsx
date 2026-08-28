@@ -108,7 +108,9 @@ export function LiquidToggleSwitch({
               transform: `translate3d(${frame.x}px, -50%, 0)`,
             } as CSSProperties
           }
-        />
+        >
+          <span className="taskmap-liquid-toggle__knob-tint" />
+        </MaterialSurface>
       </span>
     </button>
   );

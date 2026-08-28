@@ -25,13 +25,6 @@
   padding: 0 var(--taskmap-toolbar-group-padding-inline);
 }
 
-.taskmap-window-controls .taskmap-control {
-  border-radius: min(
-    50%,
-    max(0px, calc(var(--taskmap-material-radius) - var(--taskmap-toolbar-group-padding-inline)))
-  );
-}
-
 .taskmap-window-controls__close:hover:not(:disabled) {
   background-color: #c42b1c;
   color: white;

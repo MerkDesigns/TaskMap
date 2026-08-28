@@ -1,5 +1,6 @@
 import { forwardRef, type HTMLAttributes } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
+import "./ChromeControlGroup.css";
 import "./FloatingCanvasToolbar.css";
 
 export const FloatingCanvasToolbar = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
@@ -32,7 +33,9 @@ export const ToolbarGroup = forwardRef<HTMLElement, ToolbarGroupProps>(function 
       radius={radius}
       role="group"
       aria-label={label}
-      className={["taskmap-floating-canvas-toolbar__group", className].filter(Boolean).join(" ")}
+      className={["taskmap-chrome-control-group", "taskmap-floating-canvas-toolbar__group", className]
+        .filter(Boolean)
+        .join(" ")}
     />
   );
 });

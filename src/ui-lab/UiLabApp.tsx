@@ -9,9 +9,11 @@ import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import { WorkspaceChromeLayer, WorkspaceRoot } from "../ui/patterns/workspace/WorkspaceRoot";
 import { WindowChrome } from "../components/WindowChrome";
 import { DraggableTextBlockFixture } from "./DraggableTextBlockFixture";
+import { ContextMenuPlayground } from "./ContextMenuPlayground";
 import { InteractiveControlsPrototype } from "./InteractiveControlsPrototype";
 import { MaterialAwarePresencePrototype } from "./MaterialAwarePresencePrototype";
 import { SurfaceMaterialPrototype } from "./SurfaceMaterialPrototype";
+import { TopBarControlsPrototype } from "./TopBarControlsPrototype";
 
 const presentation = createMaterialCompositorPresentationBridge();
 
@@ -79,6 +81,8 @@ export function UiLabApp() {
                   <SurfaceMaterialPrototype />
                   <DraggableTextBlockFixture />
                   <MaterialAwarePresencePrototype />
+                  <TopBarControlsPrototype />
+                  <ContextMenuPlayground />
                   <InteractiveControlsPrototype />
                 </div>
               </div>

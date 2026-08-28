@@ -1,0 +1,45 @@
+.taskmap-tooltip {
+  max-width: 220px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-small);
+  background: #1b1b1e;
+  box-shadow: var(--taskmap-shadow-outer);
+  padding: 5px 8px;
+  color: var(--taskmap-text);
+  font-family: var(--taskmap-font-family);
+  font-size: calc(var(--taskmap-text-caption-size) + 1px);
+  line-height: var(--taskmap-text-caption-line);
+  pointer-events: none;
+}
+
+.taskmap-tooltip[data-motion-state="open"] {
+  animation: taskmap-tooltip-in var(--taskmap-motion-fast) var(--taskmap-ease-standard) both;
+}
+
+.taskmap-tooltip[data-motion-state="closed"] {
+  animation: taskmap-tooltip-out var(--taskmap-motion-fast) var(--taskmap-ease-standard) both;
+}
+
+@keyframes taskmap-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes taskmap-tooltip-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-tooltip {
+    animation-duration: 1ms;
+  }
+}

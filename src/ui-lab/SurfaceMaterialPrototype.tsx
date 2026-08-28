@@ -118,7 +118,7 @@ export function SurfaceMaterialPrototype() {
           <strong>Interactive Surface</strong>
           <span>{material}</span>
           <span>
-            {width} × {height} · {radius}px
+            {Math.round(width)} × {Math.round(height)} · {Math.round(radius)}px
           </span>
         </Surface>
       </div>
@@ -136,7 +136,7 @@ interface RangeControlProps {
 
 function RangeControl({ label, value, min, max, onChange }: RangeControlProps) {
   return (
-    <Field label={`${label} · ${value}`}>
+    <Field label={`${label} · ${Math.round(value)}`}>
       <Slider
         aria-label={`Prototype ${label.toLowerCase()}`}
         min={min}

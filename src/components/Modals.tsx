@@ -334,14 +334,13 @@ export function SettingsModal({
                         <div className="taskmap-settings-slider-heading">
                           <span>Opacity</span>
                           <span className="taskmap-settings-slider-value">
-                            {canvasGridOpacity}%
+                            {Math.round(canvasGridOpacity)}%
                           </span>
                         </div>
                         <Slider
                           className="taskmap-settings-slider"
                           min={0}
                           max={100}
-                          step={5}
                           value={canvasGridOpacity}
                           spellCheck={false}
                           onChange={(event) =>

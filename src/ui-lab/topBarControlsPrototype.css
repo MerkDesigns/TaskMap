@@ -1,0 +1,22 @@
+.taskmap-ui-lab-top-bar-controls {
+  display: grid;
+  gap: var(--taskmap-space-4);
+  padding-top: var(--taskmap-space-2);
+}
+
+.taskmap-ui-lab-top-bar-controls__sample {
+  position: relative;
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  border: 1px solid var(--taskmap-canvas-border);
+  border-radius: var(--taskmap-radius-large);
+  background: var(--taskmap-container-bg);
+  padding: var(--taskmap-space-4);
+}
+
+.taskmap-ui-lab-top-bar-controls__sample .taskmap-floating-canvas-toolbar {
+  position: relative;
+  top: auto;
+  left: auto;
+}

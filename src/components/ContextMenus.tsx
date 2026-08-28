@@ -6,11 +6,11 @@ import {
   IconCopy,
   IconCut,
   IconCheck,
+  IconBox,
   IconLink,
   IconLock,
   IconLockOpen,
   IconPencil,
-  IconPlus,
   IconNotes,
   IconPalette,
   IconPhoto,
@@ -40,6 +40,7 @@ import {
   TextCardElement,
 } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import { Tooltip } from "../ui/primitives/Tooltip";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 const REMOVE_EXTENSIONS_TITLE_CLASS = "px-2 pb-1 pt-0.5 text-[11px] font-semibold text-white/45";
@@ -146,10 +147,9 @@ export function ContainerContextMenu({
           {presets.map((preset) => (
             <button
               key={preset.accent}
-              className="relative aspect-square rounded-[2px] transition hover:ring-2 hover:ring-white/12"
+              className="relative aspect-square rounded-[2px] outline-none"
               style={{ backgroundColor: preset.swatch }}
               onClick={() => onUpdateAccent(element.id, preset.accent)}
-              title="Container accent color"
             >
               {element.accent === preset.accent && (
                 <span className="absolute inset-[4px] rounded-[1px] bg-white" />
@@ -161,34 +161,42 @@ export function ContainerContextMenu({
       <div className={MENU_DIVIDER_CLASS} />
       <div className="px-1 py-1">
         <div className="grid grid-cols-4 gap-1">
-          <button
-            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
-            onClick={() => onMoveLayer(element.id, "back")}
-            title="Send to back"
-          >
-            <IconArrowAutofitDown size={20} stroke={2} />
-          </button>
-          <button
-            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
-            onClick={() => onMoveLayer(element.id, "backward")}
-            title="Send one layer back"
-          >
-            <IconArrowAutofitDownFilled size={20} />
-          </button>
-          <button
-            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
-            onClick={() => onMoveLayer(element.id, "forward")}
-            title="Bring one layer forward"
-          >
-            <IconArrowAutofitUpFilled size={20} />
-          </button>
-          <button
-            className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
-            onClick={() => onMoveLayer(element.id, "front")}
-            title="Bring to front"
-          >
-            <IconArrowAutofitUp size={20} stroke={2} />
-          </button>
+          <Tooltip label="Send to back" openDelayMs={1000}>
+            <button
+              aria-label="Send to back"
+              className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+              onClick={() => onMoveLayer(element.id, "back")}
+            >
+              <IconArrowAutofitDown size={20} stroke={2} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Send one layer back" openDelayMs={1000}>
+            <button
+              aria-label="Send one layer back"
+              className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+              onClick={() => onMoveLayer(element.id, "backward")}
+            >
+              <IconArrowAutofitDownFilled size={20} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Bring one layer forward" openDelayMs={1000}>
+            <button
+              aria-label="Bring one layer forward"
+              className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+              onClick={() => onMoveLayer(element.id, "forward")}
+            >
+              <IconArrowAutofitUpFilled size={20} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Bring to front" openDelayMs={1000}>
+            <button
+              aria-label="Bring to front"
+              className="grid h-7 place-items-center rounded-md text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
+              onClick={() => onMoveLayer(element.id, "front")}
+            >
+              <IconArrowAutofitUp size={20} stroke={2} />
+            </button>
+          </Tooltip>
         </div>
       </div>
       <div className={MENU_DIVIDER_CLASS} />
@@ -418,18 +426,15 @@ export function CanvasContextMenu({
       onClick={(event) => event.stopPropagation()}
     >
       {hasCopiedItem && (
-        <>
-          <button
-            className={`${MENU_ITEM_CLASS} group`}
-            onClick={() => onPaste(menu.clientX, menu.clientY)}
-          >
-            <IconCopy size={17} stroke={2} />
-            <span className="text-[#7debe1] transition-colors group-hover:text-[#9af3eb]">
-              Paste
-            </span>
-          </button>
-          <div className={MENU_DIVIDER_CLASS} />
-        </>
+        <button
+          className={`${MENU_ITEM_CLASS} group`}
+          onClick={() => onPaste(menu.clientX, menu.clientY)}
+        >
+          <IconCopy size={17} stroke={2} />
+          <span className="text-[#7debe1] transition-colors group-hover:text-[#9af3eb]">
+            Paste
+          </span>
+        </button>
       )}
       <button
         className={MENU_ITEM_CLASS}
@@ -438,12 +443,10 @@ export function CanvasContextMenu({
         <IconTextSize size={17} stroke={2} />
         <span>Create text card</span>
       </button>
-      <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCreate(menu.clientX, menu.clientY)}>
-        <IconPlus size={17} stroke={2} />
+        <IconBox size={17} stroke={2} />
         <span>Create container</span>
       </button>
-      <div className={MENU_DIVIDER_CLASS} />
       <button
         className={MENU_ITEM_CLASS}
         onClick={() => onCreateTextBlock(menu.clientX, menu.clientY)}
@@ -451,7 +454,6 @@ export function CanvasContextMenu({
         <IconNotes size={17} stroke={2} />
         <span>Create text block</span>
       </button>
-      <div className={MENU_DIVIDER_CLASS} />
       <button
         className={MENU_ITEM_CLASS}
         onClick={() => onCreateMindmap(menu.clientX, menu.clientY)}
@@ -459,7 +461,6 @@ export function CanvasContextMenu({
         <IconSitemap size={17} stroke={2} />
         <span>Create mindmap</span>
       </button>
-      <div className={MENU_DIVIDER_CLASS} />
       <button className={MENU_ITEM_CLASS} onClick={() => onCreateImage(menu.clientX, menu.clientY)}>
         <IconPhoto size={17} stroke={2} />
         <span>Create image</span>

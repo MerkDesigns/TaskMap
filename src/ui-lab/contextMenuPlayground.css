@@ -1,0 +1,12 @@
+.taskmap-ui-lab-context-menu {
+  display: grid;
+  gap: var(--taskmap-space-4);
+  padding-top: var(--taskmap-space-2);
+}
+
+.taskmap-ui-lab-context-menu__canvas {
+  position: relative;
+  height: 390px;
+  overflow: hidden;
+  border-radius: var(--taskmap-radius-large);
+}

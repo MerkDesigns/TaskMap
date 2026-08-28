@@ -180,20 +180,45 @@
 }
 
 .taskmap-check-control__box {
+  display: grid;
   width: 17px;
   height: 17px;
+  place-items: center;
   border: 1px solid rgb(255 255 255 / 0.26);
   border-radius: 5px;
   background: rgb(0 0 0 / 0.22);
   box-shadow: var(--taskmap-shadow-inner);
+  transition:
+    border-color var(--taskmap-motion-normal) var(--taskmap-ease-standard),
+    background-color var(--taskmap-motion-normal) var(--taskmap-ease-standard);
+}
+
+.taskmap-check-control__box svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.taskmap-check-control__mark {
+  fill: none;
+  stroke: #15100c;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset calc(var(--taskmap-motion-normal) * 1.3)
+    var(--taskmap-ease-emphasized);
 }
 
 .taskmap-check-control__input:checked + .taskmap-check-control__box {
   border-color: var(--taskmap-accent);
-  background:
-    linear-gradient(135deg, transparent 43%, #15100c 43% 55%, transparent 55%) 1px 1px / 9px 9px,
-    linear-gradient(45deg, transparent 46%, #15100c 46% 58%, transparent 58%) 6px 0 / 8px 12px,
-    var(--taskmap-accent);
+  background-color: var(--taskmap-accent);
+}
+
+.taskmap-check-control__input:checked + .taskmap-check-control__box .taskmap-check-control__mark {
+  stroke-dashoffset: 0;
+  transition-delay: calc(var(--taskmap-motion-normal) * 0.35);
 }
 
 .taskmap-switch__track {
@@ -308,8 +333,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .taskmap-control,
+  .taskmap-check-control__box,
+  .taskmap-check-control__mark,
   .taskmap-switch__track,
   .taskmap-switch__thumb {
     transition-duration: 1ms;
+  }
+
+  .taskmap-check-control__input:checked + .taskmap-check-control__box .taskmap-check-control__mark {
+    transition-delay: 0ms;
   }
 }

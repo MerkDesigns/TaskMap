@@ -44,25 +44,27 @@
   left: 0;
   z-index: 41;
   overflow: hidden;
-  clip-path: inset(0 round var(--taskmap-material-radius));
   will-change: width, height, transform;
 }
 
-.taskmap-liquid-toggle__knob::before {
+.taskmap-liquid-toggle__knob > .taskmap-material-native-glass__clip {
+  clip-path: inset(0 round var(--taskmap-material-radius));
+}
+
+.taskmap-liquid-toggle__knob-tint {
   position: absolute;
   z-index: 0;
-  border-radius: inherit;
-  content: "";
+  border-radius: 50%;
   inset: 0;
   pointer-events: none;
   transition: background var(--taskmap-motion-normal) var(--taskmap-ease-standard);
 }
 
-.taskmap-liquid-toggle__knob[data-switch-state="off"]::before {
+.taskmap-liquid-toggle__knob[data-switch-state="off"] .taskmap-liquid-toggle__knob-tint {
   background: rgb(255 255 255 / 0.16);
 }
 
-.taskmap-liquid-toggle__knob[data-switch-state="on"]::before {
+.taskmap-liquid-toggle__knob[data-switch-state="on"] .taskmap-liquid-toggle__knob-tint {
   background: rgb(0 0 0 / var(--taskmap-liquid-toggle-tint-opacity, 0.67));
 }
 

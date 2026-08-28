@@ -21,7 +21,11 @@ export const Checkbox = forwardRef<HTMLInputElement, LabeledCheckProps>(function
   return (
     <label className={primitiveClassNames("taskmap-check-control", className)}>
       <input {...props} ref={ref} type="checkbox" className="taskmap-check-control__input" />
-      <span className="taskmap-check-control__box" aria-hidden="true" />
+      <span className="taskmap-check-control__box" aria-hidden="true">
+        <svg viewBox="0 0 16 16">
+          <path className="taskmap-check-control__mark" pathLength="1" d="M3 8.5 6.5 12 13 4.5" />
+        </svg>
+      </span>
       {label ? <span className="taskmap-check-control__label">{label}</span> : null}
     </label>
   );
@@ -89,7 +93,7 @@ export function RadioGroup<Value extends string>({
   );
 }
 
-export type SliderProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
+export type SliderProps = Omit<InputHTMLAttributes<HTMLInputElement>, "step" | "type">;
 
 export const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
   { className, ...props },
@@ -100,6 +104,7 @@ export const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
       {...props}
       ref={ref}
       type="range"
+      step="any"
       className={primitiveClassNames("taskmap-slider", className)}
     />
   );
