@@ -13,4 +13,5 @@ export * from "./LiquidToggleSwitch";
 export * from "./SelectionControls";
 export * from "./Status";
 export * from "./Tabs";
+export * from "./Tooltip";
 export * from "./Typography";

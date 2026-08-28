@@ -35,6 +35,9 @@ describe("UiLabApp", () => {
     expect(
       screen.getByRole("heading", { name: "Production TextBlock beneath glass" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Interactive controls prototype" }),
+    ).toBeInTheDocument();
     expect(container.querySelector("[data-ui-lab-scroll-viewport]")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Window controls" })).toBeInTheDocument();
   });

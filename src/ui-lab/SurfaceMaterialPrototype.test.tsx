@@ -1,5 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithUiProviders as render } from "../test/renderWithUiProviders";
 import { SurfaceMaterialPrototype } from "./SurfaceMaterialPrototype";
 
 beforeEach(() => {
@@ -27,24 +29,24 @@ describe("SurfaceMaterialPrototype", () => {
     expect(sample(container, "cutout")).toHaveAttribute("data-material", "cutout");
   });
 
-  it("updates only the local inspection Surface while preserving its DOM owner", () => {
+  it("updates only the local inspection Surface while preserving its DOM owner", async () => {
+    const user = userEvent.setup();
     const { container } = render(<SurfaceMaterialPrototype />);
     const interactive = container.querySelector<HTMLElement>("[data-prototype-interactive]")!;
 
-    fireEvent.change(screen.getByLabelText("Prototype material"), {
-      target: { value: "minor-glass" },
-    });
-    fireEvent.change(screen.getByLabelText("Prototype width"), { target: { value: "284" } });
-    fireEvent.change(screen.getByLabelText("Prototype height"), { target: { value: "146" } });
-    fireEvent.change(screen.getByLabelText("Prototype corner radius"), {
-      target: { value: "29" },
+    await user.click(screen.getByRole("combobox", { name: "Prototype material" }));
+    await user.click(screen.getByRole("option", { name: "Minor glass" }));
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Prototype width" }), { key: "End" });
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Prototype height" }), { key: "End" });
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Prototype corner radius" }), {
+      key: "End",
     });
 
     const updated = container.querySelector<HTMLElement>("[data-prototype-interactive]")!;
     expect(updated).toBe(interactive);
     expect(updated).toHaveAttribute("data-material", "acrylic-small");
-    expect(updated).toHaveStyle({ width: "284px", height: "146px", borderRadius: "29px" });
-    expect(screen.getByText("284 × 146 · 29px")).toBeInTheDocument();
+    expect(updated).toHaveStyle({ width: "300px", height: "160px", borderRadius: "32px" });
+    expect(screen.getByText("300 × 160 · 32px")).toBeInTheDocument();
   });
 });
 

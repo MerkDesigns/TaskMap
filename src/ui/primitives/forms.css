@@ -104,5 +104,61 @@
 }
 
 .taskmap-select {
-  appearance: auto;
+  cursor: pointer;
+  padding-right: calc(var(--taskmap-space-3) + var(--taskmap-icon));
+}
+
+.taskmap-select-root {
+  position: relative;
+  width: 100%;
+}
+
+.taskmap-select-root .taskmap-select {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(8 9 10 / 0.66);
+  box-shadow: var(--taskmap-shadow-inner);
+}
+
+.taskmap-select__section {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: var(--taskmap-control-height);
+  height: var(--taskmap-control-height);
+  place-items: center;
+  color: var(--taskmap-muted);
+  pointer-events: none;
+}
+
+.taskmap-select__dropdown[class] {
+  padding: var(--taskmap-space-1);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: var(--taskmap-radius-medium);
+  background: rgb(18 19 21 / 0.98);
+  box-shadow: var(--taskmap-shadow-floating);
+}
+
+.taskmap-select__option[class] {
+  min-height: var(--taskmap-control-height-compact);
+  padding: var(--taskmap-space-1) var(--taskmap-space-2);
+  border-radius: var(--taskmap-radius-small);
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  cursor: pointer;
+}
+
+.taskmap-select__option[data-checked] {
+  background: var(--taskmap-state-selected);
+  color: color-mix(in srgb, var(--taskmap-accent) 78%, white);
+}
+
+.taskmap-select__option[data-combobox-active],
+.taskmap-select__option:hover {
+  background: var(--taskmap-state-hover);
+}
+
+.taskmap-select__option[data-combobox-disabled] {
+  cursor: default;
+  opacity: var(--taskmap-state-disabled-opacity);
 }

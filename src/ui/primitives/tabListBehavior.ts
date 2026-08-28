@@ -10,14 +10,12 @@ export interface TabItem<Value extends string = string> {
 
 export function useTabListBehavior<Value extends string>(
   items: readonly TabItem<Value>[],
-  value: Value,
   onValueChange: (value: Value) => void,
   orientation: "horizontal" | "vertical",
 ) {
   const generatedId = useId();
   const refs = useRef(new Map<Value, HTMLButtonElement>());
   const enabled = items.filter((item) => !item.disabled);
-  const rovingValue = enabled.some((item) => item.value === value) ? value : enabled[0]?.value;
 
   const setRef = (itemValue: Value, element: HTMLButtonElement | null) => {
     if (element) refs.current.set(itemValue, element);
@@ -47,7 +45,6 @@ export function useTabListBehavior<Value extends string>(
   return {
     generatedId,
     refs,
-    rovingValue,
     setRef,
     handleKeyDown,
   };

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { renderWithUiProviders as render } from "../test/renderWithUiProviders";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { ModalPresence } from "../ui/patterns/overlays";

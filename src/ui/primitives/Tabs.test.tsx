@@ -36,7 +36,7 @@ describe.each([
     expect(general).toHaveAttribute("aria-controls", "general-panel");
     await user.click(canvas);
     expect(canvas).toHaveAttribute("aria-selected", "true");
-    expect(canvas).toHaveAttribute("tabindex", "0");
+    expect(canvas).toHaveAttribute("tabindex", "-1");
     expect(general).toHaveAttribute("tabindex", "-1");
     if (_name === "LiquidTabs") {
       expect(canvas.querySelector(".taskmap-liquid-tabs__label")).toHaveStyle("transform: none");
@@ -51,18 +51,53 @@ describe.each([
     fireEvent.keyDown(general, { key: "ArrowRight" });
     expect(canvas).toHaveFocus();
     expect(canvas).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(canvas, { key: "ArrowLeft" });
+    expect(general).toHaveFocus();
+    expect(general).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Disabled" })).toBeDisabled();
   });
 
-  it("supports Home and End with roving tabindex", () => {
+  it("supports Home and End without entering native Tab navigation", () => {
     render(<ControlledTabs component={Component} />);
     const general = screen.getByRole("tab", { name: "General" });
     const last = screen.getByRole("tab", { name: "Keyboard Shortcuts" });
     fireEvent.keyDown(general, { key: "End" });
     expect(last).toHaveFocus();
-    expect(last).toHaveAttribute("tabindex", "0");
+    expect(last).toHaveAttribute("tabindex", "-1");
     fireEvent.keyDown(last, { key: "Home" });
     expect(general).toHaveFocus();
-    expect(screen.getAllByRole("tab").filter((tab) => tab.tabIndex === 0)).toHaveLength(1);
+    expect(screen.getAllByRole("tab").every((tab) => tab.tabIndex === -1)).toBe(true);
+  });
+});
+
+describe("LiquidTabs orientation", () => {
+  it("uses vertical semantics and Up/Down navigation while skipping disabled tabs", () => {
+    function VerticalTabs() {
+      const [value, setValue] = useState<TestProps["value"]>("general");
+      return (
+        <LiquidTabs
+          label="Vertical categories"
+          items={items}
+          orientation="vertical"
+          value={value}
+          onValueChange={setValue}
+        />
+      );
+    }
+
+    render(<VerticalTabs />);
+    const list = screen.getByRole("tablist", { name: "Vertical categories" });
+    const general = screen.getByRole("tab", { name: "General" });
+    const canvas = screen.getByRole("tab", { name: "Canvas" });
+    expect(list).toHaveAttribute("aria-orientation", "vertical");
+
+    general.focus();
+    fireEvent.keyDown(general, { key: "ArrowDown" });
+    expect(canvas).toHaveFocus();
+    expect(canvas).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(canvas, { key: "ArrowUp" });
+    expect(general).toHaveFocus();
+    expect(general).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Disabled" })).toBeDisabled();
   });
 });

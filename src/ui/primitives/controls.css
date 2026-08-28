@@ -5,6 +5,7 @@
   justify-content: center;
   min-width: 0;
   border: 0;
+  outline: 0;
   color: var(--taskmap-text);
   font: inherit;
   cursor: pointer;
@@ -12,6 +13,7 @@
     background-color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
     border-color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
     color var(--taskmap-motion-fast) var(--taskmap-ease-standard),
+    box-shadow var(--taskmap-motion-fast) var(--taskmap-ease-standard),
     transform var(--taskmap-motion-fast) var(--taskmap-ease-emphasized);
 }
 
@@ -24,7 +26,6 @@
   transform: scale(0.97);
 }
 
-.taskmap-control:focus-visible,
 .taskmap-check-control__input:focus-visible + .taskmap-check-control__box,
 .taskmap-switch__input:focus-visible + .taskmap-switch__track,
 .taskmap-radio input:focus-visible + .taskmap-radio__mark {
@@ -47,8 +48,19 @@
   border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: var(--taskmap-radius-medium);
   background: rgb(255 255 255 / 0.055);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035);
   font-size: var(--taskmap-text-body-size);
   font-weight: 600;
+}
+
+.taskmap-button--secondary:hover:not(:disabled) {
+  border-color: rgb(255 255 255 / 0.16);
+  background: rgb(255 255 255 / 0.09);
+}
+
+.taskmap-button--secondary:active:not(:disabled) {
+  border-color: rgb(255 255 255 / 0.2);
+  background: rgb(255 255 255 / 0.13);
 }
 
 .taskmap-button--compact {
@@ -61,10 +73,18 @@
   border-color: rgb(var(--taskmap-accent-rgb) / 0.72);
   background: var(--taskmap-accent);
   color: #15100c;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 3px rgb(0 0 0 / 0.22);
 }
 
 .taskmap-button--primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--taskmap-accent) 88%, white);
+}
+
+.taskmap-button--primary:active:not(:disabled) {
+  border-color: rgb(var(--taskmap-accent-rgb) / 0.82);
+  background: color-mix(in srgb, var(--taskmap-accent) 88%, #5a2921);
 }
 
 .taskmap-button--danger {
@@ -73,9 +93,31 @@
   color: color-mix(in srgb, var(--taskmap-danger) 78%, white);
 }
 
+.taskmap-button--danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--taskmap-danger) 68%, transparent);
+  background: color-mix(in srgb, var(--taskmap-danger) 21%, transparent);
+}
+
+.taskmap-button--danger:active:not(:disabled) {
+  border-color: color-mix(in srgb, var(--taskmap-danger) 78%, transparent);
+  background: color-mix(in srgb, var(--taskmap-danger) 28%, transparent);
+}
+
 .taskmap-button--ghost {
   border-color: transparent;
   background: transparent;
+}
+
+.taskmap-button--ghost:hover:not(:disabled) {
+  background: var(--taskmap-state-hover);
+}
+
+.taskmap-button--ghost:active:not(:disabled) {
+  background: var(--taskmap-state-pressed);
+}
+
+.taskmap-button:disabled {
+  opacity: 0.52;
 }
 
 .taskmap-button__icon,
@@ -138,20 +180,39 @@
 }
 
 .taskmap-check-control__box {
+  display: grid;
   width: 17px;
   height: 17px;
+  place-items: center;
   border: 1px solid rgb(255 255 255 / 0.26);
   border-radius: 5px;
   background: rgb(0 0 0 / 0.22);
   box-shadow: var(--taskmap-shadow-inner);
 }
 
+.taskmap-check-control__box svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: #15100c;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+.taskmap-check-control__mark {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--taskmap-motion-normal) var(--taskmap-ease-emphasized);
+}
+
 .taskmap-check-control__input:checked + .taskmap-check-control__box {
   border-color: var(--taskmap-accent);
-  background:
-    linear-gradient(135deg, transparent 43%, #15100c 43% 55%, transparent 55%) 1px 1px / 9px 9px,
-    linear-gradient(45deg, transparent 46%, #15100c 46% 58%, transparent 58%) 6px 0 / 8px 12px,
-    var(--taskmap-accent);
+  background: var(--taskmap-accent);
+}
+
+.taskmap-check-control__input:checked + .taskmap-check-control__box .taskmap-check-control__mark {
+  stroke-dashoffset: 0;
 }
 
 .taskmap-switch__track {
@@ -212,34 +273,58 @@
 }
 
 .taskmap-slider {
+  position: relative;
   width: 100%;
   height: 18px;
   margin: 0;
-  appearance: none;
-  background: transparent;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
-.taskmap-slider::-webkit-slider-runnable-track {
+.taskmap-slider .taskmap-slider__track-container {
+  position: absolute;
+  inset: 0;
+}
+
+.taskmap-slider .taskmap-slider__track {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
   height: 4px;
   border-radius: var(--taskmap-radius-pill);
   background: rgb(255 255 255 / 0.14);
+  transform: translateY(-50%);
 }
 
-.taskmap-slider::-webkit-slider-thumb {
+.taskmap-slider .taskmap-slider__bar {
+  position: absolute;
+  inset-block: 0;
+  background: transparent;
+}
+
+.taskmap-slider .taskmap-slider__thumb {
+  position: absolute;
+  top: 50%;
   width: 14px;
   height: 14px;
-  margin-top: -5px;
-  appearance: none;
   border: 2px solid #15100c;
   border-radius: 50%;
+  outline: none;
   background: var(--taskmap-accent);
   box-shadow: 0 1px 5px rgb(0 0 0 / 0.46);
+  left: var(--slider-thumb-offset);
+  transform: translate(-50%, -50%);
 }
 
-.taskmap-slider:focus-visible {
-  outline: none;
+.taskmap-slider .taskmap-slider__thumb:focus-visible {
   filter: drop-shadow(0 0 3px rgb(var(--taskmap-accent-rgb) / 0.72));
+}
+
+.taskmap-slider[data-disabled] {
+  cursor: default;
+  opacity: var(--taskmap-state-disabled-opacity);
 }
 
 .taskmap-segmented {
@@ -266,6 +351,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .taskmap-control,
+  .taskmap-check-control__mark,
   .taskmap-switch__track,
   .taskmap-switch__thumb {
     transition-duration: 1ms;

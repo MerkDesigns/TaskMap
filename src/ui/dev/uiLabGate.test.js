@@ -49,14 +49,13 @@ describe("development UI Lab gate", () => {
     expect(playground).not.toMatch(/(?:localStorage|redux|history|persistence)/i);
   });
 
-  it("keeps focus-visible styling pseudo-class driven", async () => {
+  it("does not include a native Tab-navigation demonstration", async () => {
     const [uiLab, css] = await Promise.all([
       readFile(uiLabPath, "utf8"),
       readFile(uiLabCssPath, "utf8"),
     ]);
-    expect(uiLab).toContain("Keyboard focus: press Tab");
-    expect(css).toContain(".taskmap-ui-lab__focus-target:focus-visible");
-    expect(uiLab).not.toMatch(/focus-visible.*className|className.*focus-visible/);
+    expect(uiLab).not.toContain("Keyboard focus: press Tab");
+    expect(css).not.toContain("taskmap-ui-lab__focus-target");
   });
 
   it("keeps Lab material content above the base compositor without a root stacking trap", async () => {

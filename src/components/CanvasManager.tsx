@@ -887,7 +887,7 @@ interface CanvasManagerShellProps extends HTMLAttributes<HTMLDivElement> {
   readonly closing: boolean;
   readonly embedded: boolean;
   readonly panelRadius?: number;
-  readonly panelRef: RefObject<HTMLDivElement>;
+  readonly panelRef: RefObject<HTMLDivElement | null>;
   readonly sharedPanel: boolean;
 }
 

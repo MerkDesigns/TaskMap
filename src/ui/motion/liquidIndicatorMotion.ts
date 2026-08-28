@@ -6,10 +6,19 @@ import {
 } from "./motionMath";
 import { SPRING } from "./motionTokens";
 
-export interface LiquidIndicatorTarget {
+export interface HorizontalLiquidIndicatorTarget {
+  readonly orientation?: "horizontal";
   readonly left: number;
   readonly width: number;
 }
+
+export interface VerticalLiquidIndicatorTarget {
+  readonly orientation: "vertical";
+  readonly top: number;
+  readonly height: number;
+}
+
+export type LiquidIndicatorTarget = HorizontalLiquidIndicatorTarget | VerticalLiquidIndicatorTarget;
 
 export interface LiquidIndicatorState {
   readonly left: ScalarSpringState;
@@ -26,8 +35,8 @@ export interface LiquidIndicatorFrame {
 
 const MIN_INDICATOR_WIDTH = 1;
 export const LIQUID_REST_RADIUS_PX = 7;
-export const LIQUID_MAX_RADIUS_PX = 14;
-const MAX_RADIUS_STRETCH_RATIO = 0.32;
+export const LIQUID_MAX_RADIUS_PX = 16;
+const MAX_RADIUS_STRETCH_RATIO = 0.28;
 
 export function createLiquidIndicatorState(target: LiquidIndicatorTarget): LiquidIndicatorState {
   const normalized = normalizeTarget(target);
@@ -53,13 +62,13 @@ export function advanceLiquidIndicator(
   let left = advanceScalarSpring(
     state.left,
     normalized.left,
-    movingRight ? SPRING.liquid : SPRING.snappy,
+    movingRight ? SPRING.soft : SPRING.snappy,
     deltaMs,
   );
   let right = advanceScalarSpring(
     state.right,
     targetRight,
-    movingRight ? SPRING.snappy : SPRING.liquid,
+    movingRight ? SPRING.snappy : SPRING.soft,
     deltaMs,
   );
 
@@ -86,11 +95,12 @@ export function advanceLiquidIndicator(
 }
 
 function settledFrame(target: LiquidIndicatorTarget): LiquidIndicatorFrame {
-  const state = createLiquidIndicatorState(target);
+  const normalized = normalizeTarget(target);
+  const state = createLiquidIndicatorState(normalized);
   return Object.freeze({
     state,
-    left: target.left,
-    width: target.width,
+    left: normalized.left,
+    width: normalized.width,
     radius: LIQUID_REST_RADIUS_PX,
     settled: true,
   });
@@ -103,9 +113,11 @@ export function liquidRadiusForStretch(width: number, targetWidth: number): numb
   return LIQUID_REST_RADIUS_PX + progress * (LIQUID_MAX_RADIUS_PX - LIQUID_REST_RADIUS_PX);
 }
 
-function normalizeTarget(target: LiquidIndicatorTarget): LiquidIndicatorTarget {
-  if (!Number.isFinite(target.left) || !Number.isFinite(target.width)) {
+function normalizeTarget(target: LiquidIndicatorTarget): HorizontalLiquidIndicatorTarget {
+  const left = "top" in target ? target.top : target.left;
+  const width = "height" in target ? target.height : target.width;
+  if (!Number.isFinite(left) || !Number.isFinite(width)) {
     throw new RangeError("Liquid indicator geometry must be finite");
   }
-  return Object.freeze({ left: target.left, width: Math.max(MIN_INDICATOR_WIDTH, target.width) });
+  return Object.freeze({ left, width: Math.max(MIN_INDICATOR_WIDTH, width) });
 }

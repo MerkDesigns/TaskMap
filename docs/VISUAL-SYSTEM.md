@@ -85,8 +85,9 @@ settlement returns it exactly to `7px`. The reusable `bright-selection` effect r
 dark material tint for this surface and applies a cheap `7.5%` white wash while retaining the shared
 Acrylic Small cache. The moving surface keeps the normal Acrylic Small gradient rim, so its bitmap
 mask, wash, radius, and rim deform together. LiquidTabs labels remain at unit scale. Individual
-options have no hover or pressed fill; the track retains one subtle outer border and keyboard focus
-remains visibly indicated.
+options add no hover or pressed treatment; the selected option relies only on the moving indicator.
+The track retains one subtle outer border. Native Tab-key focus traversal is disabled application-
+wide.
 
 ### C1 control and overlay states
 
@@ -107,8 +108,8 @@ Reduced motion uses a near-immediate duration and no independently-owned animati
 The revised liquid toggle geometry is a `52px` by `30px` track with a vertically centered, settled
 `22px` Acrylic Small knob. Velocity deformation may lengthen the knob to `30px` and thin it to
 `18px`; bounded positional overshoot is at most `2px`. The off track is near-black and its knob gets
-a `20%` white contrast wash. The on track uses the bright `#e36b55` accent with a restrained accent
-glow, while the on knob uses a `42%` black tint over the real acrylic.
+a restrained white contrast wash. The on track uses a muted blend of the `#e36b55` accent with a
+restrained accent shadow, while the on knob keeps the real acrylic unobscured by an additional tint.
 Settlement restores the exact circle. Confirm buttons share the `0.965` acrylic press scale. Normal
 confirms use a `27%` accent wash and brighter accent rim without a hover highlight. Their disabled
 state retains the earlier subdued `12%` wash. The glowing confirm uses an opaque accent wash, black

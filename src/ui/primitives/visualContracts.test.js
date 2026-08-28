@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const formsCssPath = new URL("./forms.css", import.meta.url);
+const controlsCssPath = new URL("./controls.css", import.meta.url);
 const navigationCssPath = new URL("./navigation.css", import.meta.url);
 const materialCssPath = new URL("../materials/MaterialSurface.css", import.meta.url);
 const toggleCssPath = new URL("./acrylicToggleButton.css", import.meta.url);
@@ -92,10 +93,11 @@ describe("C1 visual-state contracts", () => {
   });
 
   it("keeps the new button-material controls on shared tokens and real acrylic surfaces", async () => {
-    const [confirmCss, liquidToggleCss, checkboxCss] = await Promise.all([
+    const [confirmCss, liquidToggleCss, checkboxCss, controlsCss] = await Promise.all([
       readFile(confirmCssPath, "utf8"),
       readFile(liquidToggleCssPath, "utf8"),
       readFile(animatedCheckboxCssPath, "utf8"),
+      readFile(controlsCssPath, "utf8"),
     ]);
     expect(confirmCss).toContain('data-treatment="glowing"');
     expect(confirmCss).toContain("color: #17100a");
@@ -112,19 +114,30 @@ describe("C1 visual-state contracts", () => {
     expect(liquidToggleCss).toContain("width: 52px");
     expect(liquidToggleCss).toContain("height: 30px");
     expect(liquidToggleCss).toContain("top: 50%");
-    expect(liquidToggleCss).toContain("background: rgb(0 0 1 / 0.97)");
-    expect(liquidToggleCss).toContain("background: var(--taskmap-accent)");
-    expect(liquidToggleCss).toContain("box-shadow: 0 0 10px rgb(var(--taskmap-accent-rgb) / 0.28)");
+    expect(liquidToggleCss).toContain("background: rgb(6 7 9 / 0.94)");
+    expect(liquidToggleCss).toContain("var(--taskmap-accent) 84%");
+    expect(liquidToggleCss).toContain("rgb(var(--taskmap-accent-rgb) / 0.18)");
     expect(liquidToggleCss).toContain('data-switch-state="off"');
     expect(liquidToggleCss).toContain('data-switch-state="on"');
-    expect(liquidToggleCss).toContain("rgb(255 255 255 / 0.2)");
-    expect(liquidToggleCss).toContain("rgb(0 0 0 / 0.42)");
-    expect(cssRule(liquidToggleCss, ".taskmap-liquid-toggle:focus-visible")).toContain(
-      "rgb(255 255 255 / 0.3)",
+    const liquidKnob = cssRule(liquidToggleCss, ".taskmap-liquid-toggle__knob");
+    expect(liquidKnob).toContain("overflow: hidden");
+    expect(liquidKnob).toContain("clip-path: inset(0 round var(--taskmap-material-radius))");
+    expect(liquidToggleCss).toContain("rgb(255 255 255 / 0.16)");
+    expect(liquidToggleCss).toContain(
+      '.taskmap-liquid-toggle__knob[data-switch-state="on"]::before',
     );
-    expect(cssRule(liquidToggleCss, ".taskmap-liquid-toggle:focus-visible")).not.toContain(
-      "taskmap-accent",
-    );
+    expect(
+      cssRule(liquidToggleCss, '.taskmap-liquid-toggle__knob[data-switch-state="on"]::before'),
+    ).toContain("--taskmap-liquid-toggle-tint-opacity, 0.67");
+    expect(liquidToggleCss).not.toContain("rgb(0 0 0 / 0.32)");
+    expect(liquidToggleCss).not.toContain(".taskmap-liquid-toggle:hover");
+    expect(liquidToggleCss).not.toContain(".taskmap-liquid-toggle:active");
+    expect(liquidToggleCss).not.toContain(".taskmap-liquid-toggle:focus-visible");
+    for (const variant of ["primary", "secondary", "danger", "ghost"]) {
+      expect(controlsCss).toContain(`.taskmap-button--${variant}:hover:not(:disabled)`);
+      expect(controlsCss).toContain(`.taskmap-button--${variant}:active:not(:disabled)`);
+    }
+    expect(controlsCss).toContain("box-shadow var(--taskmap-motion-fast)");
     expect(checkboxCss).toContain("var(--taskmap-motion-fast)");
     expect(checkboxCss).toContain("var(--taskmap-motion-normal)");
     expect(`${confirmCss}\n${liquidToggleCss}\n${checkboxCss}`).not.toContain("backdrop-filter");

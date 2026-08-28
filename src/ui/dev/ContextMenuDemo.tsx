@@ -161,8 +161,8 @@ export function ContextMenuDemo({ embedded = false }: { readonly embedded?: bool
 }
 
 function useLabContextMenuPosition(
-  triggerRef: RefObject<HTMLElement>,
-  menuRef: RefObject<HTMLElement>,
+  triggerRef: RefObject<HTMLElement | null>,
+  menuRef: RefObject<HTMLElement | null>,
   open: boolean,
 ) {
   const [position, setPosition] = useState({ left: 8, top: 8 });

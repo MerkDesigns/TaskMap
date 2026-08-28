@@ -30,7 +30,7 @@ export interface ContextMenuProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly position: ContextMenuPosition;
-  readonly returnFocusRef?: RefObject<HTMLElement>;
+  readonly returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 export const ContextMenu = forwardRef<HTMLElement, ContextMenuProps>(function ContextMenu(

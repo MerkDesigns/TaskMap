@@ -125,7 +125,7 @@ describe("liquid indicator motion", () => {
     }
     expect(maximumRadius).toBeGreaterThan(LIQUID_REST_RADIUS_PX);
     expect(maximumRadius).toBe(LIQUID_MAX_RADIUS_PX);
-    expect(LIQUID_MAX_RADIUS_PX).toBe(14);
+    expect(LIQUID_MAX_RADIUS_PX).toBe(16);
     expect(frame.radius).toBe(LIQUID_REST_RADIUS_PX);
     expect(frame.settled).toBe(true);
   });

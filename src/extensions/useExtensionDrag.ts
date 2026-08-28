@@ -15,7 +15,7 @@ export type ExtensionDragState = {
 };
 
 type UseExtensionDragOptions = {
-  sourceRef: RefObject<HTMLElement>;
+  sourceRef: RefObject<HTMLElement | null>;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
   onDropComplete?: () => void;

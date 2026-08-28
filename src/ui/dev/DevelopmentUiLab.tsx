@@ -100,9 +100,6 @@ function UiLabContent({
           <p>Reusable primitives, materials, interaction states, and shared motion.</p>
         </div>
         <Inline gap="small">
-          <Button className="taskmap-ui-lab__focus-target" size="compact" variant="ghost">
-            Keyboard focus: press Tab
-          </Button>
           <Badge tone={systemReducedMotion ? "warning" : "success"}>
             System reduced motion: {systemReducedMotion ? "on" : "off"}
           </Badge>

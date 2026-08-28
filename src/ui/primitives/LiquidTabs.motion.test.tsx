@@ -41,6 +41,7 @@ class ControlledFrameDriver implements MotionFrameDriver {
 
 let resizeCallbacks: ResizeObserverCallback[] = [];
 let shortcutWidth = 160;
+let shortcutHeight = 56;
 
 class TestResizeObserver implements ResizeObserver {
   constructor(callback: ResizeObserverCallback) {
@@ -53,19 +54,32 @@ class TestResizeObserver implements ResizeObserver {
 
 beforeEach(() => {
   shortcutWidth = 160;
+  shortcutHeight = 56;
   resizeCallbacks = [];
   vi.stubGlobal("ResizeObserver", TestResizeObserver);
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
     this: HTMLElement,
   ) {
-    if (this.getAttribute("role") === "tablist") return rectangle(100, 0, 500, 40);
-    if (this.textContent === "General") return rectangle(110, 0, 72, 32);
-    if (this.textContent === "Appearance") return rectangle(190, 0, 110, 32);
+    if (this.getAttribute("role") === "tablist") {
+      return this.getAttribute("aria-orientation") === "vertical"
+        ? rectangle(100, 50, 180, 220)
+        : rectangle(100, 0, 500, 40);
+    }
+    const vertical = this.parentElement?.getAttribute("aria-orientation") === "vertical";
+    if (this.textContent === "General") {
+      return vertical ? rectangle(110, 60, 160, 36) : rectangle(110, 0, 72, 32);
+    }
+    if (this.textContent === "Appearance") {
+      return vertical ? rectangle(110, 100, 160, 48) : rectangle(190, 0, 110, 32);
+    }
     if (this.textContent === "Keyboard Shortcuts") {
-      return rectangle(320, 0, shortcutWidth, 32);
+      return vertical
+        ? rectangle(110, 152, 160, shortcutHeight)
+        : rectangle(320, 0, shortcutWidth, 32);
     }
     const width = Number.parseFloat(this.style.width) || 1;
-    return rectangle(0, 0, width, 32);
+    const height = Number.parseFloat(this.style.height) || 32;
+    return rectangle(0, 0, width, height);
   });
 });
 
@@ -158,6 +172,50 @@ describe("LiquidTabs material motion", () => {
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
     cleanup();
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
+    scheduler.dispose();
+  });
+
+  it("measures and animates top and height for vertical tabs", () => {
+    const driver = new ControlledFrameDriver();
+    const scheduler = createMotionFrameScheduler(driver);
+
+    function Harness() {
+      const [value, setValue] = useState("general");
+      return (
+        <MotionProvider scheduler={scheduler}>
+          <LiquidTabs
+            label="Vertical liquid categories"
+            orientation="vertical"
+            value={value}
+            onValueChange={setValue}
+            items={[
+              { value: "general", label: "General" },
+              { value: "appearance", label: "Appearance" },
+              { value: "shortcuts", label: "Keyboard Shortcuts" },
+            ]}
+          />
+        </MotionProvider>
+      );
+    }
+
+    const { container } = render(<Harness />);
+    const indicator = container.querySelector<HTMLElement>(".taskmap-liquid-indicator");
+    act(() => driver.flush());
+    expect(indicator).toHaveAttribute("data-orientation", "vertical");
+    expect(indicator?.style.transform).toBe("translate3d(0, 10px, 0)");
+    expect(indicator?.style.height).toBe("36px");
+    expect(indicator?.style.width).toBe("");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Keyboard Shortcuts" }));
+    act(() => driver.flush());
+    expect(indicator?.style.transform).toBe("translate3d(0, 102px, 0)");
+    expect(indicator?.style.height).toBe("56px");
+
+    shortcutHeight = 80;
+    act(() => resizeCallbacks.forEach((callback) => callback([], {} as ResizeObserver)));
+    act(() => driver.flush());
+    expect(indicator?.style.height).toBe("80px");
+
     scheduler.dispose();
   });
 });

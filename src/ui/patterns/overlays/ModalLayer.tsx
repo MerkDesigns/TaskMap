@@ -4,9 +4,9 @@ import "./ModalLayer.css";
 
 export interface ModalLayerProps {
   readonly children: ReactNode;
-  readonly groupRef: RefObject<HTMLDivElement>;
+  readonly groupRef: RefObject<HTMLDivElement | null>;
   readonly phase: string;
-  readonly scrimRef: RefObject<HTMLDivElement>;
+  readonly scrimRef: RefObject<HTMLDivElement | null>;
 }
 
 export function ModalLayer({ children, groupRef, phase, scrimRef }: ModalLayerProps) {

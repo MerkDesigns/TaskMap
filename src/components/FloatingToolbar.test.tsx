@@ -93,9 +93,12 @@ describe("FloatingToolbar", () => {
     );
     expect(screen.getByRole("button", { name: "Enable privacy mode" })).toHaveAttribute(
       "tabindex",
-      "0",
+      "-1",
     );
-    expect(screen.getByRole("button", { name: "Enable minimap" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("button", { name: "Enable minimap" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
     expect(screen.getByTitle("Enable privacy mode").parentElement).toHaveAttribute(
       "aria-hidden",
       "false",

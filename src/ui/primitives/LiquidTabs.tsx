@@ -1,4 +1,11 @@
-import { useCallback, useLayoutEffect, useRef, useState, type HTMLAttributes } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+} from "react";
 import type { LiquidIndicatorTarget } from "../motion/liquidIndicatorMotion";
 import { LiquidSelectionIndicator } from "./LiquidSelectionIndicator";
 import { primitiveClassNames } from "./primitiveClassNames";
@@ -11,19 +18,28 @@ export interface LiquidTabsProps<Value extends string = string> extends Omit<
 > {
   readonly label: string;
   readonly items: readonly TabItem<Value>[];
+  readonly backgroundRadius?: number;
+  readonly indicatorRadius?: number;
+  readonly movingIndicatorRadius?: number;
+  readonly orientation?: "horizontal" | "vertical";
   readonly value: Value;
   readonly onValueChange: (value: Value) => void;
 }
 
 export function LiquidTabs<Value extends string>({
+  backgroundRadius,
   className,
+  indicatorRadius,
   items,
   label,
+  movingIndicatorRadius,
   onValueChange,
+  orientation = "horizontal",
+  style,
   value,
   ...props
 }: LiquidTabsProps<Value>) {
-  const behavior = useTabListBehavior(items, value, onValueChange, "horizontal");
+  const behavior = useTabListBehavior(items, onValueChange, orientation);
   const rootRef = useRef<HTMLDivElement>(null);
   const [indicatorTarget, setIndicatorTarget] = useState<LiquidIndicatorTarget | null>(null);
 
@@ -33,14 +49,22 @@ export function LiquidTabs<Value extends string>({
     if (!root || !active) return;
     const rootBounds = root.getBoundingClientRect();
     const activeBounds = active.getBoundingClientRect();
-    const next = {
-      left: activeBounds.left - rootBounds.left,
-      width: activeBounds.width,
-    };
+    const next: LiquidIndicatorTarget =
+      orientation === "vertical"
+        ? {
+            orientation,
+            top: activeBounds.top - rootBounds.top,
+            height: activeBounds.height,
+          }
+        : {
+            orientation,
+            left: activeBounds.left - rootBounds.left,
+            width: activeBounds.width,
+          };
     setIndicatorTarget((current) =>
-      current?.left === next.left && current.width === next.width ? current : Object.freeze(next),
+      sameIndicatorTarget(current, next) ? current : Object.freeze(next),
     );
-  }, [behavior.refs, value]);
+  }, [behavior.refs, orientation, value]);
 
   useLayoutEffect(measure, [items, measure]);
   useLayoutEffect(() => {
@@ -57,10 +81,22 @@ export function LiquidTabs<Value extends string>({
       ref={rootRef}
       role="tablist"
       aria-label={label}
-      aria-orientation="horizontal"
+      aria-orientation={orientation}
+      data-orientation={orientation}
       className={primitiveClassNames("taskmap-liquid-tabs", className)}
+      style={
+        backgroundRadius === undefined
+          ? style
+          : ({ ...style, "--taskmap-liquid-tabs-radius": `${backgroundRadius}px` } as CSSProperties)
+      }
     >
-      {indicatorTarget ? <LiquidSelectionIndicator target={indicatorTarget} /> : null}
+      {indicatorTarget ? (
+        <LiquidSelectionIndicator
+          target={indicatorTarget}
+          settledRadius={indicatorRadius}
+          movingRadius={movingIndicatorRadius}
+        />
+      ) : null}
       {items.map((item, index) => (
         <button
           key={item.value}
@@ -71,7 +107,7 @@ export function LiquidTabs<Value extends string>({
           disabled={item.disabled}
           aria-selected={item.value === value}
           aria-controls={item.panelId}
-          tabIndex={item.value === behavior.rovingValue ? 0 : -1}
+          tabIndex={-1}
           className="taskmap-control taskmap-liquid-tabs__tab"
           onClick={() => onValueChange(item.value)}
           onKeyDown={(event) => behavior.handleKeyDown(event, item.value)}
@@ -81,4 +117,20 @@ export function LiquidTabs<Value extends string>({
       ))}
     </div>
   );
+}
+
+function sameIndicatorTarget(
+  current: LiquidIndicatorTarget | null,
+  next: LiquidIndicatorTarget,
+): boolean {
+  if (!current || (current.orientation ?? "horizontal") !== (next.orientation ?? "horizontal")) {
+    return false;
+  }
+  if (current.orientation === "vertical" && next.orientation === "vertical") {
+    return current.top === next.top && current.height === next.height;
+  }
+  if (current.orientation !== "vertical" && next.orientation !== "vertical") {
+    return current.left === next.left && current.width === next.width;
+  }
+  return false;
 }

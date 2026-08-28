@@ -30,6 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...props}
       ref={ref}
       type={type}
+      tabIndex={-1}
       className={primitiveClassNames(
         "taskmap-control taskmap-button",
         `taskmap-button--${variant}`,

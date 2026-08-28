@@ -116,7 +116,6 @@ export function FloatingToolbar({
             pressed={privacyModeEnabled}
             onClick={() => onPrivacyModeEnabledChange(!privacyModeEnabled)}
             title={privacyTitle}
-            tabIndex={toolbarButtonsVisible ? 0 : -1}
             icon={
               privacyModeEnabled ? (
                 <IconEyeOff size={18} stroke={2} />
@@ -129,7 +128,6 @@ export function FloatingToolbar({
             pressed={minimapEnabled}
             onClick={() => onMinimapEnabledChange(!minimapEnabled)}
             title={minimapTitle}
-            tabIndex={toolbarButtonsVisible ? 0 : -1}
             icon={
               minimapEnabled ? (
                 <IconMap size={18} stroke={2} />
@@ -168,17 +166,10 @@ interface ToolbarToggleButtonProps {
   readonly icon: ReactNode;
   readonly onClick: () => void;
   readonly pressed: boolean;
-  readonly tabIndex?: number;
   readonly title: string;
 }
 
-function ToolbarToggleButton({
-  icon,
-  onClick,
-  pressed,
-  tabIndex,
-  title,
-}: ToolbarToggleButtonProps) {
+function ToolbarToggleButton({ icon, onClick, pressed, title }: ToolbarToggleButtonProps) {
   return (
     <ToggleButton
       variant="ghost"
@@ -188,7 +179,6 @@ function ToolbarToggleButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      tabIndex={tabIndex}
     >
       <span aria-hidden="true">{icon}</span>
     </ToggleButton>

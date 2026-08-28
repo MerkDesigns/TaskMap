@@ -1,5 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithUiProviders as render } from "../../test/renderWithUiProviders";
 import { createMaterialCompositorPresentationBridge } from "../materials/materialCompositorPresentation";
 import { AcrylicCompositorPlayground } from "./AcrylicCompositorPlayground";
 import { ACRYLIC_PLAYGROUND_SCENE } from "./acrylicPlaygroundModel";
@@ -49,21 +51,20 @@ describe("AcrylicCompositorPlayground", () => {
     expect(screen.getByText(/Zoom \d+%/)).toHaveTextContent("Zoom 58%");
   });
 
-  it("switches the real MaterialSurface among existing preset strategies", () => {
+  it("switches the real MaterialSurface among existing preset strategies", async () => {
+    const user = userEvent.setup();
     const presentation = createMaterialCompositorPresentationBridge();
     const { container } = render(<AcrylicCompositorPlayground presentation={presentation} />);
     const surface = () =>
       container.querySelector<HTMLElement>(".taskmap-acrylic-playground__surface");
 
     expect(surface()).toHaveAttribute("data-material", "acrylic-large");
-    fireEvent.change(screen.getByRole("combobox", { name: "Test surface" }), {
-      target: { value: "compact-card" },
-    });
+    await user.click(screen.getByRole("combobox", { name: "Test surface" }));
+    await user.click(screen.getByRole("option", { name: "Compact Acrylic Card" }));
     expect(surface()).toHaveAttribute("data-material", "acrylic-small");
     expect(surface()).toHaveStyle("--taskmap-material-radius: 7px");
-    fireEvent.change(screen.getByRole("combobox", { name: "Test surface" }), {
-      target: { value: "cutout" },
-    });
+    await user.click(screen.getByRole("combobox", { name: "Test surface" }));
+    await user.click(screen.getByRole("option", { name: "Cutout" }));
     expect(surface()).toHaveAttribute("data-material", "cutout");
     expect(screen.getByText("Cutout does not blur.")).toBeVisible();
   });

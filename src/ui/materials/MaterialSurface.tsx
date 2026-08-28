@@ -227,7 +227,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
 );
 
 function nativeGlassChrome(
-  rimCanvasRef: RefObject<HTMLCanvasElement>,
+  rimCanvasRef: RefObject<HTMLCanvasElement | null>,
   definition: NativeGlassMaterialDefinition,
 ) {
   return (

@@ -17,13 +17,6 @@
   z-index: 41;
 }
 
-.taskmap-ui-lab__focus-target:focus-visible {
-  box-shadow:
-    0 0 0 3px #0b0b0c,
-    0 0 0 6px var(--taskmap-focus),
-    0 0 24px rgb(var(--taskmap-accent-rgb) / 0.48);
-}
-
 .taskmap-ui-lab[data-reduced-motion="true"] {
   --taskmap-motion-fast: 1ms;
   --taskmap-motion-menu-exit: 1ms;

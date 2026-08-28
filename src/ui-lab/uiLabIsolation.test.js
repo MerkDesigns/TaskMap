@@ -23,6 +23,8 @@ describe("isolated UI Lab entry", () => {
         "src/ui-lab/main.tsx",
         "src/ui-lab/UiLabApp.tsx",
         "src/ui-lab/DraggableTextBlockFixture.tsx",
+        "src/ui-lab/FormControlsPrototype.tsx",
+        "src/ui-lab/InteractiveControlsPrototype.tsx",
         "src/ui-lab/SurfaceMaterialPrototype.tsx",
         "src/ui-lab/system/Material.ts",
         "src/ui-lab/system/Surface.tsx",

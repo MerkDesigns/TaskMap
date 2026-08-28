@@ -44,7 +44,7 @@ type ExtensionsPanelProps = {
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
   embedded?: boolean;
-  panelRef?: RefObject<HTMLDivElement>;
+  panelRef?: RefObject<HTMLDivElement | null>;
   sharedPanel?: boolean;
   smallGlassBlur?: number;
 };

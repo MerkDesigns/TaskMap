@@ -39,6 +39,6 @@ describe("stable React interaction-controller ownership", () => {
     );
     act(() => controller!.resizeViewport({ width: 240, height: 120 }));
     expect(screen.getByText("240")).toBeInTheDocument();
-    expect(create).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 });

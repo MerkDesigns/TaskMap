@@ -4,6 +4,7 @@ import { MaterialSurface } from "../materials/MaterialSurface";
 import {
   advanceLiquidIndicator,
   createLiquidIndicatorState,
+  LIQUID_MAX_RADIUS_PX,
   LIQUID_REST_RADIUS_PX,
   type LiquidIndicatorState,
   type LiquidIndicatorTarget,
@@ -14,36 +15,61 @@ import { primitiveClassNames } from "./primitiveClassNames";
 import "./navigation.css";
 
 export interface LiquidSelectionIndicatorProps extends HTMLAttributes<HTMLElement> {
+  readonly movingRadius?: number;
+  readonly settledRadius?: number;
   readonly target: LiquidIndicatorTarget;
 }
 
 export function LiquidSelectionIndicator({
   className,
+  movingRadius = LIQUID_MAX_RADIUS_PX,
+  settledRadius = LIQUID_REST_RADIUS_PX,
   target,
   ...props
 }: LiquidSelectionIndicatorProps) {
   const surfaceRef = useRef<HTMLElement>(null);
   const stateRef = useRef<LiquidIndicatorState | null>(null);
+  const orientationRef = useRef<"horizontal" | "vertical">("horizontal");
   const cancelRef = useRef<(() => void) | null>(null);
   const [radius, setRadius] = useState(LIQUID_REST_RADIUS_PX);
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
   const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
-  const targetLeft = target.left;
-  const targetWidth = target.width;
+  const orientation = "top" in target ? "vertical" : "horizontal";
+  const targetOffset = "top" in target ? target.top : target.left;
+  const targetSize = "height" in target ? target.height : target.width;
 
   useLayoutEffect(() => {
-    const currentTarget = { left: targetLeft, width: targetWidth };
+    const currentTarget: LiquidIndicatorTarget =
+      orientation === "vertical"
+        ? { orientation, top: targetOffset, height: targetSize }
+        : { orientation, left: targetOffset, width: targetSize };
     cancelRef.current?.();
     cancelRef.current = null;
+    if (orientationRef.current !== orientation) stateRef.current = null;
+    orientationRef.current = orientation;
     stateRef.current ??= createLiquidIndicatorState(currentTarget);
 
-    const write = (left: number, width: number, nextRadius: number) => {
+    const write = (offset: number, size: number, nextRadius: number) => {
       const element = surfaceRef.current;
       if (!element) return;
-      element.style.width = `${width}px`;
-      element.style.transform = `translate3d(${left}px, 0, 0)`;
-      setRadius(nextRadius);
+      if (orientation === "vertical") {
+        element.style.removeProperty("width");
+        element.style.height = `${size}px`;
+        element.style.transform = `translate3d(0, ${offset}px, 0)`;
+      } else {
+        element.style.removeProperty("height");
+        element.style.width = `${size}px`;
+        element.style.transform = `translate3d(${offset}px, 0, 0)`;
+      }
+      const movingProgress = Math.max(
+        0,
+        Math.min(
+          1,
+          (nextRadius - LIQUID_REST_RADIUS_PX) / (LIQUID_MAX_RADIUS_PX - LIQUID_REST_RADIUS_PX),
+        ),
+      );
+      setRadius(Math.max(0, settledRadius + movingProgress * (movingRadius - settledRadius)));
       invalidateGeometry();
     };
 
@@ -71,7 +97,16 @@ export function LiquidSelectionIndicator({
       cancelRef.current?.();
       cancelRef.current = null;
     };
-  }, [invalidateGeometry, reducedMotion, scheduler, targetLeft, targetWidth]);
+  }, [
+    invalidateGeometry,
+    movingRadius,
+    orientation,
+    reducedMotion,
+    scheduler,
+    settledRadius,
+    targetOffset,
+    targetSize,
+  ]);
 
   return (
     <MaterialSurface
@@ -82,6 +117,7 @@ export function LiquidSelectionIndicator({
       elevation="none"
       radius={radius}
       aria-hidden="true"
+      data-orientation={orientation}
       className={primitiveClassNames("taskmap-liquid-indicator", className)}
     />
   );

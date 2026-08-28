@@ -1,6 +1,7 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderWithUiProviders as render } from "../../test/renderWithUiProviders";
 import { createMaterialCompositorPresentationBridge } from "../materials/materialCompositorPresentation";
 import { DevelopmentUiLab } from "./DevelopmentUiLab";
 
@@ -29,21 +30,16 @@ describe("DevelopmentUiLab", () => {
     expect(screen.getByRole("heading", { name: "Acrylic compositor playground" })).toBeVisible();
   });
 
-  it("starts keyboard traversal at the dedicated focus target and traverses backward", async () => {
-    const user = userEvent.setup();
-    render(<DevelopmentUiLab presentation={createMaterialCompositorPresentationBridge()} />);
-    const focusTarget = screen.getByRole("button", { name: "Keyboard focus: press Tab" });
-    const simulation = screen.getByRole("switch", { name: "Simulate reduced motion" });
-
-    await user.tab();
-    expect(focusTarget).toHaveFocus();
-    expect(focusTarget).toHaveClass("taskmap-ui-lab__focus-target");
-    await user.tab();
-    expect(simulation).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(focusTarget).toHaveFocus();
-    await user.click(focusTarget);
-    expect(focusTarget.className).not.toContain("focus-visible");
+  it("keeps shared buttons outside native Tab navigation", () => {
+    const { container } = render(
+      <DevelopmentUiLab presentation={createMaterialCompositorPresentationBridge()} />,
+    );
+    expect(screen.queryByText("Keyboard focus: press Tab")).not.toBeInTheDocument();
+    expect(
+      [...container.querySelectorAll<HTMLButtonElement>(".taskmap-button")].every(
+        (button) => button.tabIndex === -1,
+      ),
+    ).toBe(true);
   });
 
   it("reports the system preference and applies a non-persistent Lab-only override", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties } from "react";
 import { MaterialSurface } from "../materials/MaterialSurface";
 import { useMaterialSurfaceGeometryInvalidation } from "../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../motion/MotionProvider";
@@ -18,6 +18,7 @@ export interface LiquidToggleSwitchProps extends Omit<
   readonly checked: boolean;
   readonly label: string;
   readonly onCheckedChange: (checked: boolean) => void;
+  readonly size?: 28 | 29 | 30;
 }
 
 export function LiquidToggleSwitch({
@@ -26,6 +27,8 @@ export function LiquidToggleSwitch({
   disabled,
   label,
   onCheckedChange,
+  size,
+  style,
   ...props
 }: LiquidToggleSwitchProps) {
   const stateRef = useRef(createLiquidToggleState(checked));
@@ -35,6 +38,7 @@ export function LiquidToggleSwitch({
   const reducedMotion = useReducedMotion();
   const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
   const [frame, setFrame] = useState<LiquidToggleFrame>(() => settledFrame(checked));
+  const sizeAdjustment = size === undefined ? 0 : size - 30;
 
   useEffect(() => {
     checkedRef.current = checked;
@@ -74,23 +78,36 @@ export function LiquidToggleSwitch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      tabIndex={-1}
       disabled={disabled}
       className={primitiveClassNames("taskmap-liquid-toggle", className)}
+      style={size === undefined ? style : { ...style, width: size + 22, height: size }}
       onClick={() => onCheckedChange(!checked)}
     >
-      <span className="taskmap-liquid-toggle__track" data-checked={checked} aria-hidden="true">
+      <span
+        className="taskmap-liquid-toggle__track"
+        data-checked={checked}
+        aria-hidden="true"
+        style={
+          size === undefined
+            ? undefined
+            : { width: size + 22, height: size, borderRadius: size / 2 }
+        }
+      >
         <MaterialSurface
           material="acrylic-small"
           elevation="none"
-          radius={frame.radius}
+          radius={Math.max(0, frame.radius + sizeAdjustment / 2)}
           className="taskmap-liquid-toggle__knob"
           data-switch-state={checked ? "on" : "off"}
           data-settled={frame.settled}
-          style={{
-            width: frame.width,
-            height: frame.height,
-            transform: `translate3d(${frame.x}px, -50%, 0)`,
-          }}
+          style={
+            {
+              width: frame.width + sizeAdjustment,
+              height: frame.height + sizeAdjustment,
+              transform: `translate3d(${frame.x}px, -50%, 0)`,
+            } as CSSProperties
+          }
         />
       </span>
     </button>

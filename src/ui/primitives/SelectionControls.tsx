@@ -1,3 +1,4 @@
+import { Slider as MantineSlider, type SliderProps as MantineSliderProps } from "@mantine/core";
 import {
   forwardRef,
   useId,
@@ -21,7 +22,15 @@ export const Checkbox = forwardRef<HTMLInputElement, LabeledCheckProps>(function
   return (
     <label className={primitiveClassNames("taskmap-check-control", className)}>
       <input {...props} ref={ref} type="checkbox" className="taskmap-check-control__input" />
-      <span className="taskmap-check-control__box" aria-hidden="true" />
+      <span className="taskmap-check-control__box" aria-hidden="true">
+        <svg viewBox="0 0 17 17">
+          <path
+            className="taskmap-check-control__mark"
+            pathLength="1"
+            d="M 3.5 8.5 L 7 12 L 13.5 5"
+          />
+        </svg>
+      </span>
       {label ? <span className="taskmap-check-control__label">{label}</span> : null}
     </label>
   );
@@ -89,21 +98,51 @@ export function RadioGroup<Value extends string>({
   );
 }
 
-export type SliderProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
+export interface SliderProps extends Omit<
+  MantineSliderProps,
+  "aria-label" | "classNames" | "label" | "onChange" | "thumbLabel" | "unstyled"
+> {
+  readonly "aria-label"?: string;
+  readonly onValueChange?: (value: number) => void;
+}
 
-export const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
-  { className, ...props },
+export const Slider = forwardRef<HTMLDivElement, SliderProps>(function Slider(
+  { "aria-label": ariaLabel, className, onValueChange, ...props },
   ref,
 ) {
   return (
-    <input
+    <MantineSlider
       {...props}
       ref={ref}
-      type="range"
+      label={null}
+      thumbLabel={ariaLabel ?? props.title}
+      onChange={onValueChange}
       className={primitiveClassNames("taskmap-slider", className)}
+      classNames={{
+        trackContainer: "taskmap-slider__track-container",
+        track: "taskmap-slider__track",
+        bar: "taskmap-slider__bar",
+        thumb: "taskmap-slider__thumb",
+      }}
     />
   );
 });
+
+export function setSliderDisplayValue(element: HTMLDivElement | null, value: number) {
+  if (!element) return;
+  const min = Number(
+    element.querySelector<HTMLElement>('[role="slider"]')?.getAttribute("aria-valuemin") ?? 0,
+  );
+  const max = Number(
+    element.querySelector<HTMLElement>('[role="slider"]')?.getAttribute("aria-valuemax") ?? 100,
+  );
+  const position = max === min ? 0 : ((value - min) / (max - min)) * 100;
+  const thumb = element.querySelector<HTMLElement>(".taskmap-slider__thumb");
+  const input = element.querySelector<HTMLInputElement>('input[type="hidden"]');
+  thumb?.style.setProperty("--slider-thumb-offset", `${position}%`);
+  thumb?.setAttribute("aria-valuenow", String(value));
+  if (input) input.value = String(value);
+}
 
 export interface SegmentedItem<Value extends string = string> {
   readonly value: Value;

@@ -25,7 +25,7 @@ export function Tabs<Value extends string>({
   value,
   ...props
 }: TabsProps<Value>) {
-  const behavior = useTabListBehavior(items, value, onValueChange, orientation);
+  const behavior = useTabListBehavior(items, onValueChange, orientation);
   return (
     <div
       {...props}
@@ -44,7 +44,7 @@ export function Tabs<Value extends string>({
           disabled={item.disabled}
           aria-selected={item.value === value}
           aria-controls={item.panelId}
-          tabIndex={item.value === behavior.rovingValue ? 0 : -1}
+          tabIndex={-1}
           className="taskmap-control taskmap-tabs__tab"
           onClick={() => onValueChange(item.value)}
           onKeyDown={(event) => behavior.handleKeyDown(event, item.value)}
