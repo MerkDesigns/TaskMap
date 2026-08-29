@@ -7,8 +7,10 @@
 ## Last audit
 
 - Branch: `architecture-v1`
-- Audited commit: `b21fea6069cc031bb0c4700266aed19f98914502`
-- Commit message: `Refine Quick Extensions UI`
+- Repository/docs HEAD before this reconciliation: `71c5a93ae56ab054031bd85a9802d44945826953`
+- Repository/docs HEAD message: `Add refactor workflow and state tracking docs`
+- Implementation audited through: `b21fea6069cc031bb0c4700266aed19f98914502`
+- Implementation audit commit message: `Refine Quick Extensions UI`
 - Audit date: 2026-08-29
 
 ## Current roadmap position
@@ -16,7 +18,9 @@
 **Phase 4.5 — Visual System + Adaptive Acrylic Compositor**
 
 - 4.5A Contract / foundation: complete.
-- 4.5B Adaptive compositor: core implementation complete; real image/GIF fidelity acceptance remains open.
+- 4.5B Cached Canvas2D compositor proof: core implementation complete; ADR 003 later superseded it
+  for production and the implementation is parked for rollback/reference. Its historical image/GIF
+  fidelity follow-up remains incomplete but is not a current production acceptance gate.
 - 4.5C Production visual migration: active/incomplete.
 - 4.5D Cleanup / acceptance: not yet complete.
 - Phase 4 release-mode rendered FPS acceptance is intentionally still open and is closed against the final Phase 4.5 rendering path.
@@ -33,6 +37,8 @@ The repository is intentionally hybrid during this phase:
 - Production interaction completion currently crosses the temporary legacy commit/compatibility boundary.
 - Normalized document/workspace/history/persistence foundations exist for later production ownership migration.
 - Phase 5 progressively replaces legacy element ownership one complete vertical slice at a time.
+- Active production acrylic is live native CSS glass through `MaterialSurface`; the cached Canvas2D
+  compositor/worker/fallback/`BackdropScene` path is parked and is not a production rendering owner.
 
 Do not interpret the continued size/responsibility of legacy `App.tsx` as permission to perform an unscheduled broad split. Remove responsibilities through the roadmap's ownership slices.
 
@@ -75,7 +81,11 @@ Official roadmap items still include:
 - target-accent migration across remaining production chrome;
 - remaining frozen legacy frosted/material consumers;
 - preservation of user-selected and semantic/spatial colors;
-- production visual, media-under-acrylic, animation, stacking, worker/fallback acceptance.
+- production native-glass visual, media-under-acrylic, animation, stacking, and Windows WebView2
+  acceptance.
+
+The parked cached-compositor worker/fallback path is not an active production acceptance blocker
+unless ADR 003 is deliberately revised.
 
 Quick Extensions is one of the remaining practical areas being refined inside this gate.
 
@@ -124,8 +134,10 @@ Current working order:
 3. Complete remaining official 4.5C consumers and acceptance.
 4. Perform 4.5D cleanup:
    - remove obsolete frosted paths/allowlists;
+   - remove the parked cached compositor/worker/fallback source once native-glass acceptance confirms
+     it is no longer needed for rollback/reference;
    - run architecture/material scans and full validation;
-   - perform release-mode rendered performance measurement;
+   - perform release-mode rendered performance measurement against the active native-glass path;
    - regenerate/update final documentation/code map.
 5. Begin Phase 5 with the Text Card vertical slice.
 
