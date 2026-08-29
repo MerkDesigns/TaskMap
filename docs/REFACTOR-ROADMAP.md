@@ -173,7 +173,7 @@ corresponding ownership to normalized feature slices.
 - [ ] 60 FPS target receives a release-mode visual/manual measurement. Deterministic hot-path and
       10,000-element culling fixtures pass, but they do not by themselves prove rendered FPS. Phase
       4.5 changes the rendering path, so the final measurement is intentionally performed once after
-      Phase 4.5D against the accepted compositor.
+      Phase 4.5D against the accepted production material path.
 - [x] Pointer frames perform no serialization, cloning, persistence, database calls, or history commits.
 - [x] Multi-selection and locked-element rules match characterized parity in deterministic tests.
 - [x] Production manual parity checklist passed after commit `9a34a23`; the user directly verified
@@ -188,6 +188,12 @@ twice.
 This phase establishes the final application material/theme boundary before element migration so
 Phase 5 renderers target it once. Exact values and runtime invariants live in
 `docs/VISUAL-SYSTEM.md`; ADR 003 records the foundational decision.
+
+Phase 4.5B originally implemented and proved the cached Canvas2D adaptive compositor. ADR 003 later
+superseded that production strategy with live native CSS glass behind the same `MaterialSurface`
+boundary. The cached compositor, worker, fallback, `BackdropScene`, and cache code remain parked for
+rollback/reference until Phase 4.5D cleanup. Phase 4.5C and 4.5D production acceptance applies to
+the native-glass path unless the accepted ADR is deliberately revised.
 
 ### 4.5A — Contract / foundation
 
@@ -207,9 +213,12 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
       surface-registry, `base`/`modal` compositor, worker, fallback, and stale-result contracts.
 - [x] Integrate with the authoritative Phase 4 interaction controller without per-sample scene
       building, blur, or persistent work; coalesce coverage-required rebuilds during long gestures.
-- [ ] Validate real image/GIF fidelity beneath acrylic and add a generic raster/thumbnail primitive
-      only if visual acceptance requires it.
+- [ ] Historical cached-compositor image/GIF fidelity validation remains incomplete. After ADR 003
+      supersession it is not a production acceptance gate unless the cached path is reconsidered.
 - [x] Add deterministic compositor tests and development-only diagnostics.
+
+The completed 4.5B work remains valid as a historical proof and rollback/reference implementation.
+Its worker/fallback/cache runtime is not the active production acrylic path.
 
 ### 4.5C — Production visual migration
 
@@ -253,8 +262,9 @@ Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
 - [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
       frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
 - [ ] Preserve user-selected element colors and semantic/spatial colors.
-- [ ] Complete production visual, worker/fallback, media-under-acrylic, animation, and stacking
-      acceptance.
+- [ ] Complete production visual, native-glass media-under-acrylic, animation, stacking, and Windows
+      WebView2 acceptance. Parked cached-compositor worker/fallback checks remain regression/reference
+      coverage rather than production acceptance gates unless that strategy is reactivated.
 
 C1 deliberately leaves the production root and production consumers unchanged. C2A migrates the
 scoped root and canvas frame/grid presentation, C2B migrates the floating toolbar, C2C migrates the
@@ -272,16 +282,19 @@ Completion and visual acceptance for 4.5C remain open.
 - [ ] Delete `FrostedSurface`, legacy frosted CSS/tuner paths, and the transitional allowlist.
 - [ ] Run the full automated matrix and final architecture/material scan.
 - [ ] Complete manual visual acceptance and the release-mode rendered 60 FPS measurement on the
-      normal fixture against the final compositor.
+      normal fixture against the final active `MaterialSurface`/native-glass production path.
 - [ ] Regenerate the final code map and close Phase 4.5 documentation gates.
 
 ### Exit criteria
 
-- All production chrome surfaces use the static material system; no direct/nested backdrop-filter
-  or second acrylic compositor remains.
+- All production chrome surfaces use the static material system; no feature-owned or legacy direct
+  backdrop-filter implementation and no second active acrylic renderer remains outside the material
+  boundary.
 - Pan, zoom, drag, and resize preserve the Phase 4 high-frequency contract and pass deterministic
-  cache/culling tests.
-- Stable and development Tauri/WebView2 builds pass worker, fallback, visual, and disposal checks.
+  interaction/culling tests plus applicable native-material hot-path checks.
+- Stable and development Tauri/WebView2 builds pass native-glass visual, lifecycle, and
+  material-boundary checks. Parked cached-compositor worker/fallback/disposal coverage remains
+  historical regression coverage and does not gate production unless that strategy is reactivated.
 - Manual visual acceptance and documented release-mode performance measurement pass.
 
 ## Phase 5 — Element modules
