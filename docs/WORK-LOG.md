@@ -142,6 +142,52 @@ This is now the intended anti-drift loop.
 
 ---
 
+## 2026-08-29 — Native-glass documentation reconciliation
+
+**Phase/slice:** Phase 4.5C documentation reconciliation  
+**Repository/docs baseline HEAD:** `71c5a93ae56ab054031bd85a9802d44945826953` — `Add refactor workflow and state tracking docs`  
+**Implementation audited through:** `b21fea6069cc031bb0c4700266aed19f98914502` — `Refine Quick Extensions UI`  
+**Goal:** Reconcile lower-level migration/wiring/state docs with the accepted ADR 003 native CSS
+glass production decision without rewriting the historical Phase 4.5B cached-compositor work.
+
+### What changed
+
+- Reworded Phase 4/4.5 acceptance language so current production acceptance targets the active
+  `MaterialSurface`/native-glass path rather than the superseded cached compositor.
+- Preserved 4.5B as the completed proof of the cached Canvas2D compositor, worker/fallback,
+  `BackdropScene`, cache scheduling, and associated deterministic coverage.
+- Marked the incomplete cached-compositor image/GIF fidelity follow-up as historical and no longer a
+  production gate unless that strategy is deliberately reconsidered.
+- Updated `FEATURE-WIRING.md` so new production features target native `MaterialSurface` sampling,
+  overscan/rim geometry, and shared Small batching instead of the parked cache/worker interfaces.
+- Updated `REFACTOR-STATE.md` to distinguish repository/docs baseline HEAD from the implementation
+  commit actually audited.
+
+### Reconciliation basis
+
+ADR 003 and `docs/VISUAL-SYSTEM.md` already agree on the authoritative current decision:
+- Acrylic Large/Small use live native CSS glass through `MaterialSurface`;
+- the cached Canvas2D compositor is superseded for production and parked for rollback/reference;
+- native production surfaces do not register with or rebuild the cached compositor.
+
+No contradiction was found between those two authoritative documents, so neither was changed.
+
+### Status / scope
+
+- No code changed.
+- No roadmap phase ordering changed.
+- No roadmap completion checkbox changed except wording around the superseded cached-compositor
+  production gate; the historical unchecked media-fidelity follow-up remains unchecked.
+- No CODEMAP update is required because no source file, subsystem, or ownership boundary moved.
+
+### Follow-up
+
+Continue Phase 4.5C from the reconciled native-glass production boundary. The smallest implementation
+task remains the local Quick Extensions material-backed scrolling correction before unrelated
+migration work is opened.
+
+---
+
 ## Entry template
 
 ## YYYY-MM-DD — Short task name
