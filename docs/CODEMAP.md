@@ -18,6 +18,12 @@ materials.
 - `docs/TESTING.md` — Test layers, fixtures, performance budgets, and phase gates.
 - `docs/UI-SYSTEM.md` — Reusable UI capability catalog, status, ownership, motion, and UI Lab guide.
 - `docs/BASELINE-CAPTURE.md` — Required screenshots, recordings, behavior descriptions, and performance evidence for retained legacy behavior.
+- `docs/AI-WORKFLOW.md` — Cross-session workflow for determining current refactor state, selecting
+  work, reviewing actual changes, and maintaining documentation.
+- `docs/REFACTOR-STATE.md` — Concise current snapshot of the active phase, migration boundary,
+  blockers, and immediate next work. It is descriptive and does not override normative docs.
+- `docs/WORK-LOG.md` — Chronological implementation/debugging history including experiments,
+  measurements, reversions, decisions, and follow-ups.
 
 ## Current legacy implementation
 

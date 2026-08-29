@@ -102,6 +102,25 @@ Each extension owns its definition, state schema, commands, selectors, controls/
 - Never log plaintext document content, passwords, derived keys, nonces, or decrypted payloads.
 - Imported workflows are disabled until explicitly trusted.
 
+## Refactor session workflow
+
+For AI-assisted refactor work, also follow `docs/AI-WORKFLOW.md`.
+
+Before recommending the next refactor task or making a substantial change:
+
+- Read `docs/REFACTOR-STATE.md`.
+- Read the current section of `docs/REFACTOR-ROADMAP.md`.
+- Inspect the relevant current implementation instead of relying on chat memory.
+
+After a completed implementation/review cycle:
+
+- Append useful working context to `docs/WORK-LOG.md`.
+- Refresh `docs/REFACTOR-STATE.md`.
+- Update roadmap, CODEMAP, parity, ADRs, and specialized normative docs only when their actual
+  responsibility changed.
+
+The repository documentation is the cross-session source of truth; conversation memory is not.
+
 ## Required validation
 
 Every completed phase must pass formatting, TypeScript type checking, linting, unit tests, Rust formatting, Clippy, Rust tests, architecture dependency checks, and the phase-specific acceptance tests in `docs/TESTING.md`.

@@ -8,6 +8,9 @@
 - Retained behavior is accepted against `docs/FEATURE-PARITY.md`.
 - Every phase must leave the branch buildable and testable.
 - Do not port a feature by copying its old orchestration code.
+- `docs/REFACTOR-STATE.md` summarizes the current implementation position and
+  `docs/WORK-LOG.md` preserves chronological working context. Neither overrides this roadmap,
+  `ARCHITECTURE.md`, or accepted ADRs.
 
 ## Phase 0 — Baseline and evidence
 

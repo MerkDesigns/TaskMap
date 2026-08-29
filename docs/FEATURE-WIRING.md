@@ -306,6 +306,15 @@ For rendering or interaction features:
 
 ## Documentation checklist
 
+For refactor-session lifecycle and cross-session handoff, follow `docs/AI-WORKFLOW.md`.
+
+After a meaningful implementation/review cycle:
+
+- Append relevant implementation, debugging, measurement, and reversion context to
+  `docs/WORK-LOG.md`.
+- Refresh `docs/REFACTOR-STATE.md` when the current phase position, migration boundary, blockers,
+  or immediate next task changes.
+
 For every feature:
 
 - Update `docs/CODEMAP.md`.
