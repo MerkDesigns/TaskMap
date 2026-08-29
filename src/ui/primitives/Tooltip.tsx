@@ -7,6 +7,7 @@ import {
   type FocusEventHandler,
   type PointerEventHandler,
   type ReactElement,
+  type ReactNode,
   type Ref,
 } from "react";
 import { FloatingPanel } from "./FloatingPanel";
@@ -23,7 +24,7 @@ interface TooltipTriggerProps {
 
 export interface TooltipProps {
   readonly children: ReactElement<TooltipTriggerProps>;
-  readonly label: string;
+  readonly label: ReactNode;
   readonly openDelayMs?: number;
 }
 

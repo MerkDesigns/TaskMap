@@ -38,14 +38,26 @@ export function useSharedSmallGlassList({
       const viewportRectangle = viewport.getBoundingClientRect();
       const shapes = [...viewport.querySelectorAll<HTMLElement>(cardSelector)].flatMap((card) => {
         const rectangle = card.getBoundingClientRect();
-        const top = Math.max(rectangle.top, viewportRectangle.top);
-        const bottom = Math.min(rectangle.bottom, viewportRectangle.bottom);
-        if (rectangle.width <= 0 || bottom <= top) return [];
+        const localViewport = card.closest<HTMLElement>("[data-shared-small-glass-viewport]");
+        const localRectangle = localViewport?.getBoundingClientRect();
+        const left = Math.max(rectangle.left, viewportRectangle.left, localRectangle?.left ?? -Infinity);
+        const top = Math.max(rectangle.top, viewportRectangle.top, localRectangle?.top ?? -Infinity);
+        const right = Math.min(
+          rectangle.right,
+          viewportRectangle.right,
+          localRectangle?.right ?? Infinity,
+        );
+        const bottom = Math.min(
+          rectangle.bottom,
+          viewportRectangle.bottom,
+          localRectangle?.bottom ?? Infinity,
+        );
+        if (right <= left || bottom <= top) return [];
         return [
           {
-            x: rectangle.left - viewportRectangle.left,
+            x: left - viewportRectangle.left,
             y: top - viewportRectangle.top,
-            width: rectangle.width,
+            width: right - left,
             height: bottom - top,
             radius:
               Number.parseFloat(card.style.getPropertyValue("--taskmap-material-radius")) || 0,
@@ -65,14 +77,14 @@ export function useSharedSmallGlassList({
 
     observeCards();
     sync();
-    viewport.addEventListener("scroll", schedule, { passive: true });
+    viewport.addEventListener("scroll", schedule, { capture: true, passive: true });
     window.addEventListener("resize", schedule);
     mutationObserver.observe(viewport, { childList: true, subtree: true });
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
       resizeObserver?.disconnect();
       mutationObserver.disconnect();
-      viewport.removeEventListener("scroll", schedule);
+      viewport.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       writeSharedSmallGlassShapes(plane, []);
     };

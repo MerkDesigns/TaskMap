@@ -74,6 +74,28 @@
   color: var(--taskmap-muted);
 }
 
+.taskmap-input[type="search"]::-webkit-search-cancel-button {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background:
+    linear-gradient(
+      45deg,
+      transparent 43%,
+      var(--taskmap-muted) 43% 57%,
+      transparent 57%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 43%,
+      var(--taskmap-muted) 43% 57%,
+      transparent 57%
+    );
+  cursor: pointer;
+}
+
 .taskmap-input:focus-visible {
   border-color: rgb(255 255 255 / 0.23);
   box-shadow: none;

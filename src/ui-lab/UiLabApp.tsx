@@ -12,6 +12,7 @@ import { DraggableTextBlockFixture } from "./DraggableTextBlockFixture";
 import { ContextMenuPlayground } from "./ContextMenuPlayground";
 import { InteractiveControlsPrototype } from "./InteractiveControlsPrototype";
 import { MaterialAwarePresencePrototype } from "./MaterialAwarePresencePrototype";
+import { QuickExtensionsMenuPlayground } from "./QuickExtensionsMenuPlayground";
 import { SurfaceMaterialPrototype } from "./SurfaceMaterialPrototype";
 import { TopBarControlsPrototype } from "./TopBarControlsPrototype";
 
@@ -83,6 +84,7 @@ export function UiLabApp() {
                   <MaterialAwarePresencePrototype />
                   <TopBarControlsPrototype />
                   <ContextMenuPlayground />
+                  <QuickExtensionsMenuPlayground />
                   <InteractiveControlsPrototype />
                 </div>
               </div>

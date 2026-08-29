@@ -6,10 +6,14 @@ import "./ExtensionBrowserCard.css";
 export interface ExtensionBrowserCardProps extends HTMLAttributes<HTMLDivElement> {
   readonly embedded: boolean;
   readonly geometryActive?: boolean;
+  readonly radius?: number;
 }
 
 export const ExtensionBrowserCard = forwardRef<HTMLDivElement, ExtensionBrowserCardProps>(
-  function ExtensionBrowserCard({ className, embedded, geometryActive = true, ...props }, ref) {
+  function ExtensionBrowserCard(
+    { className, embedded, geometryActive = true, radius = 8, ...props },
+    ref,
+  ) {
     return (
       <MaterialSurface
         {...props}
@@ -17,21 +21,25 @@ export const ExtensionBrowserCard = forwardRef<HTMLDivElement, ExtensionBrowserC
         material={embedded ? "opaque" : "acrylic-small"}
         backdropSource={embedded ? undefined : "shared"}
         geometryActive={geometryActive}
-        radius={8}
+        radius={radius}
         className={primitiveClassNames("taskmap-extension-browser-card", className)}
       />
     );
   },
 );
 
-export const ExtensionIconBox = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  function ExtensionIconBox({ className, ...props }, ref) {
+export interface ExtensionIconBoxProps extends HTMLAttributes<HTMLDivElement> {
+  readonly radius?: number;
+}
+
+export const ExtensionIconBox = forwardRef<HTMLDivElement, ExtensionIconBoxProps>(
+  function ExtensionIconBox({ className, radius = 6, ...props }, ref) {
     return (
       <MaterialSurface
         {...props}
         ref={ref}
         material="cutout"
-        radius={6}
+        radius={radius}
         className={primitiveClassNames("taskmap-extension-browser-icon", className)}
       />
     );

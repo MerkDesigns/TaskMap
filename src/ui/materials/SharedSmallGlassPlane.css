@@ -28,8 +28,12 @@
 
 .taskmap-shared-small-glass-plane__preblur {
   z-index: 0;
-  -webkit-backdrop-filter: blur(var(--taskmap-material-preblur));
-  backdrop-filter: blur(var(--taskmap-material-preblur));
+  -webkit-backdrop-filter: blur(
+    calc(var(--taskmap-material-preblur) * var(--taskmap-material-blur-presence-progress, 1))
+  );
+  backdrop-filter: blur(
+    calc(var(--taskmap-material-preblur) * var(--taskmap-material-blur-presence-progress, 1))
+  );
 }
 
 .taskmap-shared-small-glass-plane__backdrop {

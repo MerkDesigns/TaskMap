@@ -260,7 +260,9 @@
 .taskmap-material-surface[data-material-strategy="css"] {
   border: var(--taskmap-material-border-width) solid
     rgb(var(--taskmap-material-border-rgb) / var(--taskmap-material-border-alpha));
-  background: rgb(var(--taskmap-material-fill-rgb));
+  background: rgb(
+    var(--taskmap-material-fill-rgb) / var(--taskmap-material-fill-opacity, 1)
+  );
 }
 
 .taskmap-material-surface--bright-selection[data-material-strategy="native-glass"]::before {

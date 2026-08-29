@@ -116,7 +116,9 @@ export function refreshSharedSmallGlassTuning(
         ? Math.max(0, tunedBlur)
         : ACRYLIC_SMALL.blurPx;
   const backdrop = plane.querySelector<HTMLElement>(".taskmap-shared-small-glass-plane__backdrop");
-  const filter = `blur(${blur}px) saturate(var(--taskmap-material-saturation)) brightness(var(--taskmap-material-brightness)) contrast(var(--taskmap-material-contrast))`;
+  const progress = "var(--taskmap-material-presence-progress, 1)";
+  const blurProgress = "var(--taskmap-material-blur-presence-progress, 1)";
+  const filter = `blur(calc(${blur}px * ${blurProgress})) saturate(calc(1 + (var(--taskmap-material-saturation) - 1) * ${progress})) brightness(calc(1 + (var(--taskmap-material-brightness) - 1) * ${progress})) contrast(calc(1 + (var(--taskmap-material-contrast) - 1) * ${progress}))`;
   backdrop?.style.setProperty("-webkit-backdrop-filter", filter);
   backdrop?.style.setProperty("backdrop-filter", filter);
   plane.style.setProperty(

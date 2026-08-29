@@ -12,7 +12,15 @@ import {
   IconStar,
   IconTextSize,
 } from "@tabler/icons-react";
-import { RefObject, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   EXTENSIONS,
@@ -31,10 +39,14 @@ import {
 import { IconButton } from "../ui/primitives/Button";
 import { SearchField } from "../ui/primitives/FormControls";
 import { ScrollArea } from "../ui/primitives/Layout";
+import { Tooltip } from "../ui/primitives/Tooltip";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
+import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
 import { useSharedSmallGlassList } from "../ui/patterns/workspace/useSharedSmallGlassList";
+import "./QuickExtensionsMenu.css";
 
 export type { ExtensionId } from "../extensions/registry";
 
@@ -58,10 +70,6 @@ const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof Ico
 };
 
 function ExtensionInfoButton({ targets }: { targets: readonly ExtensionTargetType[] }) {
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
   const targetItems = (
     <div className="flex flex-col gap-1">
       {targets.map((target) => {
@@ -77,64 +85,18 @@ function ExtensionInfoButton({ targets }: { targets: readonly ExtensionTargetTyp
     </div>
   );
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const updateTooltipPosition = () => {
-      const button = buttonRef.current;
-      if (!button) {
-        return;
-      }
-
-      const rect = button.getBoundingClientRect();
-      const tooltipWidth = tooltipRef.current?.offsetWidth ?? 130;
-      const tooltipHeight = tooltipRef.current?.offsetHeight ?? 40;
-      const margin = 8;
-      const left = Math.min(rect.right, window.innerWidth - tooltipWidth - margin);
-      const top = Math.min(rect.bottom, window.innerHeight - tooltipHeight - margin);
-
-      setTooltipPosition({ left: Math.max(left, margin), top: Math.max(top, margin) });
-    };
-
-    updateTooltipPosition();
-    window.addEventListener("resize", updateTooltipPosition);
-    window.addEventListener("scroll", updateTooltipPosition, true);
-
-    return () => {
-      window.removeEventListener("resize", updateTooltipPosition);
-      window.removeEventListener("scroll", updateTooltipPosition, true);
-    };
-  }, [open]);
-
   return (
-    <>
+    <Tooltip label={targetItems}>
       <button
-        ref={buttonRef}
         type="button"
-        className="grid h-6 w-6 place-items-center rounded-md border border-white/[0.10] bg-black/[0.20] text-white/42 transition-colors hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-white/72"
+        aria-label="Compatible elements"
+        className="taskmap-extension-info-button"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
       >
         <IconInfoCircle size={15} stroke={2} />
       </button>
-      {open &&
-        createPortal(
-          <div
-            ref={tooltipRef}
-            className="pointer-events-none fixed z-[1001] w-max rounded-md border border-white/[0.16] bg-[#18191d] px-2 py-1.5 text-[13px] font-medium leading-4 text-white/82 shadow-[0_12px_28px_rgba(0,0,0,0.42)]"
-            style={{ left: tooltipPosition.left, top: tooltipPosition.top }}
-          >
-            {targetItems}
-          </div>,
-          document.body,
-        )}
-    </>
+    </Tooltip>
   );
 }
 
@@ -162,6 +124,10 @@ export function loadExtensionFavorites(): Partial<Record<ExtensionId, boolean>> 
 type QuickExtensionsMenuProps = {
   left: number;
   top: number;
+  majorRadius?: number;
+  minorRadius?: number;
+  iconRadius?: number;
+  iconBackgroundOpacity?: number;
   onClose: () => void;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
@@ -170,13 +136,22 @@ type QuickExtensionsMenuProps = {
 export function QuickExtensionsMenu({
   left,
   top,
+  majorRadius = 17,
+  minorRadius = 9,
+  iconRadius = 7,
+  iconBackgroundOpacity = 0.75,
   onClose,
   onDropExtension,
   onDragExtension,
 }: QuickExtensionsMenuProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [closing, setClosing] = useState(false);
+  const reducedMotion = useReducedMotion();
   const favorites = loadExtensionFavorites();
   const position = useClampedFixedPosition(menuRef, { left: left + 10, top: top + 10 });
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -194,11 +169,29 @@ export function QuickExtensionsMenu({
   );
   const favoriteExtensions = filteredExtensions.filter((extension) => favorites[extension.id]);
   const otherExtensions = filteredExtensions.filter((extension) => !favorites[extension.id]);
+  const requestClose = useCallback(() => {
+    if (closeTimerRef.current !== null) return;
+    if (reducedMotion) {
+      onClose();
+      return;
+    }
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      onClose();
+    }, 160);
+  }, [onClose, reducedMotion]);
   const { drag, startExtensionDrag } = useExtensionDrag({
     sourceRef: menuRef,
     onDropExtension,
     onDragExtension,
-    onDropComplete: onClose,
+    onDropComplete: requestClose,
+  });
+  useSharedSmallGlassList({
+    active: true,
+    cardSelector: "[data-extension-card-id]",
+    planeRef: sharedSmallGlassPlaneRef,
+    viewportRef: scrollAreaRef,
   });
 
   useEffect(() => {
@@ -208,44 +201,71 @@ export function QuickExtensionsMenu({
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) {
-        onClose();
+        requestClose();
       }
     };
 
     document.addEventListener("pointerdown", closeOnOutsidePointer);
     return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
-  }, [onClose]);
+  }, [requestClose]);
 
   const renderCategory = (
     label: string,
     extensions: readonly ExtensionDefinition[],
     scrollable = false,
   ) => (
-    <div className={scrollable ? "flex min-h-0 flex-1 flex-col" : ""}>
-      <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
-        {label}
-      </div>
+    <div
+      className={
+        scrollable
+          ? "taskmap-quick-extensions-menu__category taskmap-quick-extensions-menu__category--scrollable"
+          : "taskmap-quick-extensions-menu__category"
+      }
+    >
+      <div className="taskmap-quick-extensions-menu__heading">{label}</div>
       <div
-        className={`space-y-1 ${scrollable ? "quick-extensions-scroll min-h-0 overflow-y-auto pr-1.5" : ""}`}
+        data-shared-small-glass-viewport={scrollable || undefined}
+        className={
+          scrollable
+            ? "taskmap-quick-extensions-menu__list quick-extensions-scroll taskmap-quick-extensions-menu__list--scrollable"
+            : "taskmap-quick-extensions-menu__list"
+        }
       >
         {extensions.map((extension) => {
           const ExtensionIcon = extension.Icon;
           return (
-            <div
+            <ExtensionBrowserCard
               key={extension.id}
-              className="flex h-[43px] w-full touch-none select-none items-center gap-2.5 rounded-md border border-white/[0.14] bg-[#15161a] px-2.5 text-white transition-colors hover:border-white/[0.24] hover:bg-[#1d1e24]"
+              embedded={false}
+              radius={minorRadius}
+              data-extension-card-id={extension.id}
+              className="taskmap-quick-extensions-menu__card"
               onPointerDown={(event) => startExtensionDrag(event, extension.id)}
-              title={extension.label}
             >
-              <ExtensionIcon size={22} stroke={2} className="shrink-0" />
-              <span className="min-w-0 flex-1 truncate text-left text-[16px] font-medium text-white">
-                {extension.label}
+              <ExtensionIconBox
+                radius={iconRadius}
+                style={
+                  {
+                    "--taskmap-material-fill-opacity": iconBackgroundOpacity,
+                  } as CSSProperties
+                }
+              >
+                <ExtensionIcon size={19} stroke={2} />
+              </ExtensionIconBox>
+              <span className="taskmap-extension-browser-card__title">{extension.label}</span>
+              <span className="taskmap-extension-browser-card__actions">
+                <ExtensionInfoButton targets={extension.targets} />
               </span>
-              <ExtensionInfoButton targets={extension.targets} />
-            </div>
+            </ExtensionBrowserCard>
           );
         })}
       </div>
@@ -256,48 +276,54 @@ export function QuickExtensionsMenu({
 
   return (
     <>
-      <div
+      <MaterialSurface
         ref={menuRef}
         data-quick-extensions-menu
-        className="frosted-glass context-menu-enter fixed z-[1000] flex max-h-[516px] w-[269px] flex-col rounded-lg border border-white/[0.15] bg-[#1b1b1e]/94 p-2.5 text-white shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
+        data-presence-phase={closing ? "exiting" : "entering"}
+        material="acrylic-large"
+        elevation="none"
+        radius={majorRadius}
+        className="taskmap-quick-extensions-menu"
         style={position}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <label className="mb-2.5 flex h-9 shrink-0 items-center gap-2 rounded-lg border border-white/[0.10] bg-[#111216] px-2.5 text-white/42 focus-within:border-white/[0.20] focus-within:text-white/68">
-          <IconSearch size={16} stroke={2} />
-          <input
+        <div className="taskmap-quick-extensions-menu__search taskmap-quick-extensions-menu__fade-content">
+          <SearchField
             ref={searchInputRef}
-            className="min-w-0 flex-1 bg-transparent text-sm text-white/82 outline-none placeholder:text-white/32"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
-                onClose();
+                requestClose();
               }
             }}
             placeholder="Search extensions"
             spellCheck={false}
+            aria-label="Search extensions"
+            prefixSlot={<IconSearch size={16} stroke={2} />}
           />
-        </label>
-        <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-          {favoriteExtensions.length > 0 && renderCategory("Favorited", favoriteExtensions)}
-          {favoriteExtensions.length > 0 && otherExtensions.length > 0 && (
-            <div className="h-px shrink-0 bg-white/[0.09]" />
-          )}
-          {otherExtensions.length > 0 &&
-            renderCategory(
-              favoriteExtensions.length > 0 ? "Not favorited" : "Extensions",
-              otherExtensions,
-              true,
-            )}
-          {filteredExtensions.length === 0 && (
-            <div className="rounded-md border border-white/[0.10] bg-[#15161a] px-3 py-4 text-center text-sm text-white/42">
-              No extensions found
-            </div>
-          )}
         </div>
-      </div>
+        <div className="taskmap-quick-extensions-menu__scroll-frame">
+          <SharedSmallGlassPlane
+            ref={sharedSmallGlassPlaneRef}
+            batchId="quick-extension-browser-small"
+            kind="small-extension"
+          />
+          <div ref={scrollAreaRef} className="taskmap-quick-extensions-menu__content">
+            {favoriteExtensions.length > 0 && renderCategory("Favorited", favoriteExtensions)}
+            {otherExtensions.length > 0 &&
+              renderCategory(
+                favoriteExtensions.length > 0 ? "Not favorited" : "Extensions",
+                otherExtensions,
+                true,
+              )}
+            {filteredExtensions.length === 0 && (
+              <div className="taskmap-extension-browser-empty">No extensions found</div>
+            )}
+          </div>
+        </div>
+      </MaterialSurface>
       {drag &&
         createPortal(
           <div

@@ -1,0 +1,167 @@
+@property --taskmap-material-presence-progress {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+.taskmap-quick-extensions-menu {
+  --taskmap-material-presence-progress: 1;
+
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  width: 269px;
+  max-height: 516px;
+  flex-direction: column;
+  padding: var(--taskmap-space-3);
+  color: var(--taskmap-text);
+  transform-origin: center;
+  animation: taskmap-quick-extensions-enter 220ms var(--taskmap-ease-emphasized) both;
+}
+
+.taskmap-quick-extensions-menu[data-presence-phase="exiting"] {
+  pointer-events: none;
+  animation: taskmap-quick-extensions-exit 160ms var(--taskmap-ease-standard) both;
+}
+
+.taskmap-quick-extensions-menu__search {
+  margin-bottom: var(--taskmap-space-3);
+  flex: none;
+}
+
+.taskmap-quick-extensions-menu__search .taskmap-input-shell {
+  width: 100%;
+}
+
+.taskmap-quick-extensions-menu__scroll-frame,
+.taskmap-quick-extensions-menu__content,
+.taskmap-quick-extensions-menu__category {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.taskmap-quick-extensions-menu__scroll-frame {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  margin-inline: calc(0px - var(--taskmap-space-3));
+}
+
+.taskmap-quick-extensions-menu__scroll-frame > .taskmap-shared-small-glass-plane {
+  inset: 0;
+}
+
+.taskmap-quick-extensions-menu__content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  padding: 0 var(--taskmap-space-3) var(--taskmap-space-3);
+  scrollbar-width: none;
+}
+
+.taskmap-quick-extensions-menu__content::-webkit-scrollbar {
+  display: none;
+}
+
+.taskmap-quick-extensions-menu__category--scrollable {
+  flex: 1;
+  overflow: hidden;
+}
+
+.taskmap-quick-extensions-menu__category:not(.taskmap-quick-extensions-menu__category--scrollable) {
+  flex: none;
+}
+
+.taskmap-quick-extensions-menu__heading {
+  flex: none;
+  padding: 0 var(--taskmap-space-1) var(--taskmap-space-2);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.taskmap-quick-extensions-menu__category + .taskmap-quick-extensions-menu__category {
+  margin-top: var(--taskmap-space-3);
+  padding-top: var(--taskmap-space-3);
+  border-top: 1px solid
+    rgb(255 255 255 / calc(0.09 * var(--taskmap-material-presence-progress)));
+}
+
+.taskmap-quick-extensions-menu__list {
+  display: grid;
+  gap: calc(var(--taskmap-space-1) + 2px);
+}
+
+.taskmap-quick-extensions-menu__list--scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.taskmap-quick-extensions-menu__list--scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+.taskmap-quick-extensions-menu__card {
+  height: 43px;
+  min-height: 43px;
+  flex: none;
+  gap: 8px;
+  padding: 5px 38px 5px 6px;
+  contain-intrinsic-size: 43px;
+}
+
+.taskmap-quick-extensions-menu__card > .taskmap-extension-browser-card__title {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-quick-extensions-menu__fade-content,
+.taskmap-quick-extensions-menu__heading,
+.taskmap-quick-extensions-menu__card > .taskmap-extension-browser-icon,
+.taskmap-quick-extensions-menu__card > .taskmap-extension-browser-card__title,
+.taskmap-quick-extensions-menu__card > .taskmap-extension-browser-card__actions,
+.taskmap-quick-extensions-menu .taskmap-extension-browser-empty {
+  opacity: var(--taskmap-material-presence-progress);
+}
+
+@keyframes taskmap-quick-extensions-enter {
+  from {
+    --taskmap-material-presence-progress: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+
+  to {
+    --taskmap-material-presence-progress: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes taskmap-quick-extensions-exit {
+  from {
+    --taskmap-material-presence-progress: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    --taskmap-material-presence-progress: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-quick-extensions-menu,
+  .taskmap-quick-extensions-menu[data-presence-phase="exiting"] {
+    animation: none;
+  }
+}

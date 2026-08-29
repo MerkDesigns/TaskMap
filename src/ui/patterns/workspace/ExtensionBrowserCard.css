@@ -161,11 +161,33 @@
 .taskmap-extension-browser-card > .taskmap-extension-browser-card__actions {
   position: absolute;
   z-index: 3;
-  top: 6px;
+  top: 50%;
   right: 6px;
   display: flex;
   align-items: center;
   gap: 2px;
+  transform: translateY(-50%);
+}
+
+.taskmap-extension-info-button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--taskmap-muted);
+  cursor: pointer;
+  appearance: none;
+}
+
+.taskmap-extension-info-button:hover {
+  background: transparent;
+  color: var(--taskmap-text);
 }
 
 .taskmap-extension-browser-favorite.taskmap-icon-button {
