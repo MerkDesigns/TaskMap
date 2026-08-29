@@ -176,8 +176,9 @@ Feature UI selects an existing internal material with `MaterialSurface`:
 The surface defaults to the inherited `base` plane. Modal roots establish `modal` through
 `MaterialPlaneProvider`, including when content renders through a portal. Use `elevation="none"` only
 for a geometry whose contract suppresses the material's external shadow, such as the toolbar. Keep
-accessibility roles, labels, events, and content in the feature; keep blur, cache, worker, tint,
-border, shadow, mask, and compositor implementation in `src/ui/materials/`.
+accessibility roles, labels, events, and content in the feature; keep blur/pre-blur, overscan,
+sampling boundaries, shared-glass batching, tint, border, shadow, rim, and material rendering
+implementation in `src/ui/materials/`.
 
 To add an internal material using an existing strategy:
 
@@ -187,27 +188,30 @@ To add an internal material using an existing strategy:
 4. Update generic material implementation only when the existing strategy cannot render the new
    definition; never branch on the requesting feature or element type.
 
-Add an ADR when changing compositor strategy, dependency direction, plane semantics, shared cache
-behavior, or performance invariants. A routine variant using an established strategy does not need
-an ADR.
+Add an ADR when changing material rendering strategy, dependency direction, plane/sampling
+semantics, shared native-glass batching, or performance invariants. Re-activating or replacing the
+parked cached compositor is a foundational strategy change and requires an ADR. A routine variant
+using the accepted native-glass strategy does not need one.
 
-The production material provider centrally registers only cached-acrylic `MaterialSurface` elements.
-Plane membership is explicit or inherited; never infer it from classes or DOM ancestry. One shared
-observer measures only those registered UI surfaces. Surface movement, resize, radius, mount, and
-plane changes invalidate a cheap plane mask, not the expensive backdrop cache.
-Transform-driven motion calls `useMaterialSurfaceGeometryInvalidation` from the material boundary;
-many notifications coalesce through the existing compositor frame and do not create a second loop.
+Production Acrylic Large and Acrylic Small use live native CSS backdrop sampling through
+`MaterialSurface`. Plane membership and logical sampling boundaries are explicit or inherited;
+never infer them from feature classes or incidental DOM ancestry. Native surfaces own their bounded
+geometry, blur-derived overscan, and rim refresh. Shared Small browser-card batches remain inside the
+material/pattern boundary so feature code does not create independent backdrop-filter stacks.
 
-The compositor receives a generic, culled `BackdropScene` from presentation assembly. During the
-mixed architecture, the read-only legacy adapter traverses model/presentation data only and retains
-primitives intersecting the viewport-plus-cache-margin rectangle. Do not query the world DOM, import
-feature models into the compositor, or add element-type switches there. Phase 5 will define the
-normalized element scene-contribution boundary against this proven contract.
+Transform-driven material motion calls `useMaterialSurfaceGeometryInvalidation` from the public
+material boundary. Notifications must remain bounded/coalesced and may refresh geometry, overscan,
+or rim state; they must not create a second animation loop or perform persistent application work.
 
-Material work preserves the interaction contract: no persistent dispatch, scene scan/build, blur,
-serialization, history, persistence, or database access once per pointer sample. A long pan/zoom may
-coalesce a cache rebuild when coverage requires it. See `docs/VISUAL-SYSTEM.md` for the normative
-quality and invalidation contract.
+Phase 4.5B's cached Canvas2D compositor, `BackdropScene`, worker, fallback, and cache scheduler remain
+parked under `src/ui/materials/compositor/` for rollback/reference and regression coverage. They are
+not the active production material path, and native Large/Small surfaces do not register with or
+rebuild that cache. New features and Phase 5 renderers must not build against the parked compositor
+unless ADR 003 is deliberately revised.
+
+Material work preserves the interaction contract: no persistent dispatch, serialization, history,
+persistence, database work, or unbounded material/scene work once per pointer sample. See
+`docs/VISUAL-SYSTEM.md` for the normative native-glass quality, sampling, and invalidation contract.
 
 ## Selecting UI primitives and motion
 
@@ -220,7 +224,7 @@ is in `docs/UI-SYSTEM.md`.
 The allowed presentation dependency is:
 
 ```text
-feature or pattern -> primitive -> material + motion -> compositor public boundary
+feature or pattern -> primitive -> material + motion
 ```
 
 Features and primitives do not import `materials/compositor/` or the compositor coordinator. Motion
@@ -229,15 +233,14 @@ motion uses the shared scheduler and reduced-motion boundary; components must no
 independent `requestAnimationFrame` loop. Local FLIP measurement is acceptable for a participating
 toolbar row, tab group, card, or panel, but never for the canvas-world population.
 
-Animated cached-acrylic surfaces call `useMaterialSurfaceGeometryInvalidation()` from the public
-material boundary. This schedules only coalesced geometry/mask work; it must not request an expensive
-backdrop build or perform persistent work.
+Animated native-glass surfaces call `useMaterialSurfaceGeometryInvalidation()` from the public
+material boundary. This schedules only bounded/coalesced material geometry work; it must not activate
+the parked cached backdrop build or perform persistent work.
 
-The opt-in C1 UI Lab is the sole development exception that temporarily publishes a synthetic scene
-through the existing `MaterialCompositorPresentationPublisher`. AppShell still composes exactly one
-`MaterialCompositorProvider`; stable builds and ordinary development runs retain the legacy
-presentation owner. The Lab fixture and its visible SVG consume one shared generic BackdropScene
-model and never import production canvas state.
+The opt-in UI Lab may still exercise the parked cached compositor and synthetic `BackdropScene`
+fixtures for comparison/regression purposes. That development-only seam does not make the cached
+renderer a production dependency: active production acrylic remains the native-glass
+`MaterialSurface` path, and feature code must not depend on the parked compositor interfaces.
 
 ## Adding a platform operation
 
