@@ -248,6 +248,7 @@ export function QuickExtensionsMenu({
               embedded={false}
               radius={minorRadius}
               data-extension-card-id={extension.id}
+              data-shared-small-glass-shadow-item={extension.id}
               className="taskmap-quick-extensions-menu__card"
               onPointerDown={(event) => startExtensionDrag(event, extension.id)}
             >
@@ -308,7 +309,9 @@ export function QuickExtensionsMenu({
           <SharedSmallGlassPlane
             ref={sharedSmallGlassPlaneRef}
             batchId="quick-extension-browser-small"
+            className="taskmap-extension-shared-small-plane"
             kind="small-extension"
+            shadowIds={filteredExtensions.map((extension) => extension.id)}
           />
           <div ref={scrollAreaRef} className="taskmap-quick-extensions-menu__content">
             {favoriteExtensions.length > 0 && renderCategory("Favorited", favoriteExtensions)}
@@ -456,6 +459,7 @@ export function ExtensionsPanel({
         embedded={embedded}
         geometryActive={workActive}
         data-extension-card-id={extension.id}
+        data-shared-small-glass-shadow-item={!embedded ? extension.id : undefined}
         onPointerDown={(event) => startExtensionDrag(event, extension.id)}
       >
         <ExtensionIconBox>
@@ -575,7 +579,9 @@ export function ExtensionsPanel({
             ref={sharedSmallGlassPlaneRef}
             batchId="extension-browser-small"
             blurPx={smallGlassBlur}
+            className="taskmap-extension-shared-small-plane"
             kind="small-extension"
+            shadowIds={filteredExtensions.map((extension) => extension.id)}
           />
         )}
         <ScrollArea

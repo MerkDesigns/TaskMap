@@ -1,4 +1,7 @@
 import { IconRotateClockwise } from "@tabler/icons-react";
+import { memo, useLayoutEffect, useRef } from "react";
+import type { CanvasInteractionController } from "../app/interactions/canvasInteractionController";
+import { viewportWorldRectangle } from "../canvas/geometry/viewportMath";
 import { getTextCardAccent, MINIMAP_MAX_SIZE } from "../constants";
 import { getMindmapConnectionPath, getMindmapPortPoint } from "../mindmapMath";
 import { createMinimapProjection } from "../features/minimap/minimapProjection";
@@ -32,7 +35,28 @@ type MinimapProps = {
     height: number;
   };
   onResetZoom: () => void;
+  viewportService?: CanvasInteractionController;
 };
+
+type LiveMinimapProps = Omit<MinimapProps, "viewportWorld" | "zoom"> & {
+  viewportService: CanvasInteractionController;
+};
+
+export const LiveMinimap = memo(function LiveMinimap({
+  viewportService,
+  ...props
+}: LiveMinimapProps) {
+  const viewport = viewportService.getSnapshot().viewport;
+
+  return (
+    <Minimap
+      {...props}
+      viewportService={viewportService}
+      zoom={viewport.zoom}
+      viewportWorld={viewportWorldRectangle(viewport)}
+    />
+  );
+});
 
 export function Minimap({
   elements,
@@ -46,7 +70,12 @@ export function Minimap({
   zoom,
   viewportWorld,
   onResetZoom,
+  viewportService,
 }: MinimapProps) {
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  const zoomLabelRef = useRef<HTMLSpanElement | null>(null);
+  const viewportIndicatorRef = useRef<HTMLDivElement | null>(null);
   const cardGeometry = textCards.map((card) => {
     const longestLineLength = Math.max(1, ...card.text.split("\n").map((line) => line.length));
     const lineCount = card.text
@@ -81,10 +110,41 @@ export function Minimap({
   const minimapWidth = projection.size.width;
   const minimapHeight = projection.size.height;
 
+  useLayoutEffect(() => {
+    if (!viewportService) return;
+
+    const updateViewport = () => {
+      const viewport = viewportService.getSnapshot().viewport;
+      if (zoomLabelRef.current) {
+        zoomLabelRef.current.textContent = `${Math.round(viewport.zoom * 100)}%`;
+      }
+      const projectedViewport = createMinimapProjection(
+        { width: canvasWidth, height: canvasHeight },
+        viewportWorldRectangle(viewport),
+        [],
+        MINIMAP_MAX_SIZE,
+      ).viewport;
+      const indicator = viewportIndicatorRef.current;
+      if (!indicator) return;
+      indicator.style.left = `${projectedViewport.x}px`;
+      indicator.style.top = `${projectedViewport.y}px`;
+      indicator.style.width = `${projectedViewport.width}px`;
+      indicator.style.height = `${projectedViewport.height}px`;
+    };
+
+    updateViewport();
+    return viewportService.subscribe(updateViewport);
+  }, [canvasHeight, canvasWidth, viewportService]);
+
   return (
-    <MinimapSurface visible={visible}>
+    <MinimapSurface
+      visible={visible}
+      data-minimap-render-count={import.meta.env.DEV ? renderCountRef.current : undefined}
+    >
       <div className="taskmap-minimap-header">
-        <span className="taskmap-minimap-zoom">{Math.round(zoom * 100)}%</span>
+        <span ref={zoomLabelRef} className="taskmap-minimap-zoom">
+          {Math.round(zoom * 100)}%
+        </span>
         <IconButton
           className="taskmap-minimap-reset"
           variant="ghost"
@@ -193,6 +253,7 @@ export function Minimap({
           />
         ))}
         <div
+          ref={viewportIndicatorRef}
           className="taskmap-minimap-viewport-indicator absolute rounded-[2px] border"
           data-minimap-viewport-indicator
           style={{

@@ -21,6 +21,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import type { CanvasInteractionController } from "../app/interactions/canvasInteractionController";
 import {
   CONTEXT_MENU_PANEL_CLASS,
   MENU_DANGER_ITEM_CLASS,
@@ -57,6 +58,7 @@ type CanvasManagerProps = {
   smallGlassBlur?: number;
   viewportWidth: number;
   viewportHeight: number;
+  viewportService?: CanvasInteractionController;
   onMinimalViewChange: (minimalView: boolean) => void;
   onCreateCanvas: (draft: CanvasDraft) => void;
   onSelectCanvas: (id: string) => void;
@@ -99,6 +101,7 @@ export function CanvasManager({
   smallGlassBlur,
   viewportWidth,
   viewportHeight,
+  viewportService,
   onMinimalViewChange,
   onCreateCanvas,
   onSelectCanvas,
@@ -106,6 +109,8 @@ export function CanvasManager({
   onDeleteCanvas,
   onReorderCanvases,
 }: CanvasManagerProps) {
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const cardPortalHostsRef = useRef(new Map<string, HTMLDivElement>());
   const previewViewportSizesRef = useRef<Record<string, PreviewViewportSize>>({});
@@ -127,6 +132,60 @@ export function CanvasManager({
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
   const reducedMotion = useReducedMotion();
   const workActive = useSettledPanelWork(active);
+
+  useLayoutEffect(() => {
+    const canvas = canvases.find(({ id }) => id === activeCanvasId);
+    if (!viewportService || !workActive || !canvas) return;
+    const containersById = new Map(canvas.containers.map((element) => [element.id, element]));
+    const textBlocksById = new Map(canvas.textBlocks.map((element) => [element.id, element]));
+    const imagesById = new Map((canvas.images ?? []).map((element) => [element.id, element]));
+
+    const updateActivePreview = () => {
+      const card = cardRefs.current[activeCanvasId];
+      if (!card) return;
+
+      const viewport = viewportService.getSnapshot().viewport;
+      const safeZoom = Number.isFinite(viewport.zoom) && viewport.zoom > 0 ? viewport.zoom : 1;
+      const previewWidth =
+        (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
+        CANVAS_BROWSER_LAYOUT.previewAspectRatio;
+      const visibleWidth = viewportWidth / safeZoom;
+      const visibleLeft = -viewport.pan.x / safeZoom;
+      const visibleTop = -viewport.pan.y / safeZoom;
+      const previewScale = previewWidth / visibleWidth;
+      card.querySelectorAll<HTMLElement>("[data-canvas-preview-container]").forEach((node) => {
+        const element = containersById.get(node.dataset.canvasPreviewContainer ?? "");
+        if (!element) return;
+        node.style.left = `${(element.x - visibleLeft) * previewScale}px`;
+        node.style.top = `${(element.y - visibleTop) * previewScale}px`;
+        node.style.width = `${Math.max(element.width * previewScale, 3)}px`;
+        node.style.height = `${Math.max(element.height * previewScale, 3)}px`;
+        const header = node.firstElementChild as HTMLElement | null;
+        if (header) header.style.height = `${Math.max(2, 48 * previewScale)}px`;
+      });
+      card.querySelectorAll<HTMLElement>("[data-canvas-preview-text-block]").forEach((node) => {
+        const element = textBlocksById.get(node.dataset.canvasPreviewTextBlock ?? "");
+        if (!element) return;
+        node.style.left = `${(element.x - visibleLeft) * previewScale}px`;
+        node.style.top = `${(element.y - visibleTop) * previewScale}px`;
+        node.style.width = `${Math.max(element.width * previewScale, 3)}px`;
+        node.style.height = `${Math.max(element.height * previewScale, 3)}px`;
+        const header = node.firstElementChild as HTMLElement | null;
+        if (header) header.style.height = `${Math.max(2, 40 * previewScale)}px`;
+      });
+      card.querySelectorAll<HTMLElement>("[data-canvas-preview-image]").forEach((node) => {
+        const element = imagesById.get(node.dataset.canvasPreviewImage ?? "");
+        if (!element) return;
+        node.style.left = `${(element.x - visibleLeft) * previewScale}px`;
+        node.style.top = `${(element.y - visibleTop) * previewScale}px`;
+        node.style.width = `${Math.max(element.width * previewScale, 3)}px`;
+        node.style.height = `${Math.max(element.height * previewScale, 3)}px`;
+      });
+    };
+
+    updateActivePreview();
+    return viewportService.subscribe(updateActivePreview);
+  }, [activeCanvasId, canvases, previewGap, viewportService, viewportWidth, workActive]);
 
   useLayoutEffect(() => {
     if (active) return;
@@ -353,6 +412,7 @@ export function CanvasManager({
   return (
     <CanvasManagerShell
       panelRef={panelRef}
+      data-canvas-manager-render-count={import.meta.env.DEV ? renderCountRef.current : undefined}
       embedded={embedded}
       sharedPanel={sharedPanel}
       closing={closing}

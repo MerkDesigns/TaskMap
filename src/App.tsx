@@ -38,7 +38,7 @@ import type {
 } from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
-import { Minimap } from "./components/Minimap";
+import { LiveMinimap } from "./components/Minimap";
 import { MindmapConnectors } from "./components/MindmapConnectors";
 import { MindmapConnections } from "./components/MindmapConnections";
 import { TextCardNode } from "./components/TextCardNode";
@@ -111,8 +111,13 @@ import {
 } from "./app/history";
 import { createCanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
-import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
+import type {
+  CanvasInteractionSnapshot,
+  InteractionElement,
+} from "./app/interactions/canvasInteractionTypes";
+import { canvasInteractionRootSnapshotsEqual } from "./app/interactions/canvasInteractionRootSelection";
 import { TransientInteractionProvider } from "./app/interactions/TransientInteractionProvider";
+import { useExternalStoreSelector } from "./app/interactions/useExternalStoreSelector";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
 import { createViewport, viewportWorldRectangle } from "./canvas/geometry/viewportMath";
 import {
@@ -174,18 +179,19 @@ const CanvasManager = lazy(() =>
         previous.minimalView === next.minimalView &&
         previous.panelRadius === next.panelRadius &&
         previous.viewportWidth === next.viewportWidth &&
-        previous.viewportHeight === next.viewportHeight,
+        previous.viewportHeight === next.viewportHeight &&
+        previous.viewportService === next.viewportService,
     ),
   })),
 );
 const ExtensionsPanel = lazy(() =>
   import("./components/ExtensionsPanel").then(({ ExtensionsPanel }) => ({
-    default: ExtensionsPanel,
+    default: memo(ExtensionsPanel),
   })),
 );
 const QuickExtensionsMenu = lazy(() =>
   import("./components/ExtensionsPanel").then(({ QuickExtensionsMenu }) => ({
-    default: QuickExtensionsMenu,
+    default: memo(QuickExtensionsMenu),
   })),
 );
 const ClearCanvasModal = lazy(() =>
@@ -256,6 +262,10 @@ type PendingCanvasDeletions = {
   textBlocks: Set<string>;
   images: Set<string>;
 };
+
+const selectCanvasInteractionSnapshot = (
+  snapshot: CanvasInteractionSnapshot,
+): CanvasInteractionSnapshot => snapshot;
 
 type MindmapConnectionDrag = {
   pointerId: number;
@@ -446,8 +456,13 @@ interface AppProps {
 }
 
 function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
   const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
+  const activeTextCardLayerRef = useRef<HTMLDivElement>(null);
+  const releasedTextCardLayerRef = useRef<HTMLDivElement>(null);
+  const mindmapConnectionLayerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -514,6 +529,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     textCards,
     zoom: legacyZoom,
   } = useCanvasDocument();
+  const canvasManagerCanvasesRef = useRef(canvases);
   const interactionBindingsRef = useRef({ activeCanvas, setActiveCanvas, setCamera });
   interactionBindingsRef.current = { activeCanvas, setActiveCanvas, setCamera };
   const textCardInteractionRef = useRef<ReturnType<
@@ -579,10 +595,10 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     });
   });
   interactionControllerRef.current = interactionController;
-  const interactionSnapshot = useSyncExternalStore(
-    interactionController.subscribe,
-    interactionController.getSnapshot,
-    interactionController.getSnapshot,
+  const interactionSnapshot = useExternalStoreSelector(
+    interactionController,
+    selectCanvasInteractionSnapshot,
+    canvasInteractionRootSnapshotsEqual,
   );
   const textCardInteractionSnapshot = useSyncExternalStore(
     textCardInteraction.subscribe,
@@ -600,6 +616,35 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     interactionController.resizeViewport(stageSize);
   }, [interactionController, stageSize]);
   const latestCameraRef = useRef({ pan: DEFAULT_PAN, zoom: 1 });
+  useLayoutEffect(() => {
+    const synchronizeViewportPresentation = () => {
+      const viewport = interactionController.getSnapshot().viewport;
+      const previousZoom = latestCameraRef.current.zoom;
+      latestCameraRef.current = { pan: viewport.pan, zoom: viewport.zoom };
+      const viewportTransform = `translate3d(${viewport.pan.x}px, ${viewport.pan.y}px, 0) scale(${viewport.zoom})`;
+      if (worldRef.current) {
+        worldRef.current.style.transform = viewportTransform;
+        if (previousZoom !== viewport.zoom) {
+          worldRef.current.style.setProperty(
+            "--taskmap-canvas-dot-size",
+            `${1.25 / viewport.zoom}px`,
+          );
+          worldRef.current.style.setProperty(
+            "--taskmap-canvas-dot-opacity-scale",
+            `${clamp((viewport.zoom - 0.55) / 0.45, 0, 1)}`,
+          );
+        }
+      }
+
+      const overlayTransform = `${viewportTransform} translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`;
+      activeTextCardLayerRef.current?.style.setProperty("transform", overlayTransform);
+      releasedTextCardLayerRef.current?.style.setProperty("transform", overlayTransform);
+      mindmapConnectionLayerRef.current?.style.setProperty("transform", overlayTransform);
+    };
+
+    synchronizeViewportPresentation();
+    return interactionController.subscribe(synchronizeViewportPresentation);
+  }, [interactionController]);
   const [minimapVisible, setMinimapVisible] = useState(false);
   const [minimapMounted, setMinimapMounted] = useState(false);
   const selectedIds = interactionSnapshot.selectedIds as string[];
@@ -1344,12 +1389,10 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     images,
     mindmapConnections,
     minimapEnabled,
-    pan,
     privacyModeEnabled,
     textBlocks,
     textCards,
     toolbarButtonsVisible,
-    zoom,
     lifecycleActions,
   ]);
 
@@ -1377,10 +1420,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     const currentVersion = dirtyCanvasVersionsRef.current.get(activeCanvas.id) ?? 0;
     dirtyCanvasVersionsRef.current.set(activeCanvas.id, currentVersion + 1);
   }, [activeCanvas.id, elements, images, mindmapConnections, textBlocks, textCards]);
-
-  useEffect(() => {
-    latestCameraRef.current = { pan, zoom };
-  }, [pan, zoom]);
 
   useEffect(() => {
     const activeHistory = historyRef.current[activeCanvas.id];
@@ -1420,12 +1459,10 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       images,
       mindmapConnections,
       minimapEnabled,
-      pan,
       privacyModeEnabled,
       textBlocks,
       textCards,
       toolbarButtonsVisible,
-      zoom,
     ],
     save: persistAppData,
     onSaved: () => setStorageError(null),
@@ -6156,6 +6193,11 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     copyContainerJsonForAi,
     openContainerJsonEditor,
     pasteContainerJsonFromAi,
+    resetZoom,
+  });
+  const extensionPanelActions = useStableCallbacks({
+    closeQuickExtensionsMenu: () => setQuickExtensionsMenu(null),
+    dropExtensionOnCanvas,
   });
   const editingTextCardContainerId = editingTextCardId
     ? textCardsById.get(editingTextCardId)?.containerId
@@ -6239,25 +6281,27 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       measuredInteractionCardSizes,
     ],
   );
-  const materialBackdropPresentation = useMemo(
-    () => ({
-      sceneKey: activeCanvas.id,
-      sceneRevision: backdropRevision,
-      viewport: interactionSnapshot.viewport,
-      interactionActive: interactionSnapshot.activeInteraction !== null,
-      buildScene: buildBackdropScene,
-    }),
-    [
-      activeCanvas.id,
-      backdropRevision,
-      buildBackdropScene,
-      interactionSnapshot.activeInteraction,
-      interactionSnapshot.viewport,
-    ],
-  );
   useLayoutEffect(() => {
-    materialPresentation?.publish(materialBackdropPresentation);
-  }, [materialBackdropPresentation, materialPresentation]);
+    const publishPresentation = () => {
+      const snapshot = interactionController.getSnapshot();
+      materialPresentation?.publish({
+        sceneKey: activeCanvas.id,
+        sceneRevision: backdropRevision,
+        viewport: snapshot.viewport,
+        interactionActive: snapshot.activeInteraction !== null,
+        buildScene: buildBackdropScene,
+      });
+    };
+
+    publishPresentation();
+    return interactionController.subscribe(publishPresentation);
+  }, [
+    activeCanvas.id,
+    backdropRevision,
+    buildBackdropScene,
+    interactionController,
+    materialPresentation,
+  ]);
   useEffect(
     () => () => {
       materialPresentation?.clear();
@@ -6333,7 +6377,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     () => layeredLooseImages.filter((image) => visibleRenderIds.has(image.id)),
     [layeredLooseImages, visibleRenderIds],
   );
-  const minimapViewportWorld = viewportWorldRectangle(interactionSnapshot.viewport);
   const selectionScreenBounds = selectionBounds
     ? {
         left: pan.x + selectionBounds.left * zoom,
@@ -6509,11 +6552,16 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   const leftPanelOpen = canvasManagerOpen || extensionsOpen;
   const leftPanelClosing = canvasManagerClosing || extensionsClosing;
   const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
-  const canvasManagerCanvases = getPersistedCanvases();
+  let canvasManagerCanvases = canvasManagerCanvasesRef.current;
+  if (interactionSnapshot.activeInteraction?.kind !== "pan") {
+    canvasManagerCanvases = getPersistedCanvases();
+    canvasManagerCanvasesRef.current = canvasManagerCanvases;
+  }
   return (
     <TransientInteractionProvider service={interactionController}>
       <WorkspaceRoot
         spellCheck={false}
+        data-app-render-count={import.meta.env.DEV ? renderCountRef.current : undefined}
         style={workspaceStyle}
         onContextMenu={suppressContextMenu}
         onPointerDownCapture={handleMainPointerDownCapture}
@@ -6560,6 +6608,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                           sharedPanel
                           viewportWidth={stageWidth}
                           viewportHeight={stageHeight}
+                          viewportService={interactionController}
                           onMinimalViewChange={setCanvasManagerMinimalView}
                           onCreateCanvas={createCanvas}
                           onSelectCanvas={selectCanvas}
@@ -6574,7 +6623,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                           panelRef={leftPanelRef}
                           sharedPanel
                           smallGlassBlur={glassMaterialValues.small.blur}
-                          onDropExtension={dropExtensionOnCanvas}
+                          onDropExtension={extensionPanelActions.dropExtensionOnCanvas}
                         />,
                       ]}
                     />
@@ -6582,7 +6631,8 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 </Suspense>
               )}
               {minimapEnabled && minimapMounted && (
-                <Minimap
+                <LiveMinimap
+                  viewportService={interactionController}
                   elements={elements}
                   textBlocks={textBlocks}
                   textCards={looseTextCards}
@@ -6591,9 +6641,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   canvasWidth={canvasWidth}
                   canvasHeight={canvasHeight}
                   visible={minimapVisible}
-                  zoom={zoom}
-                  viewportWorld={minimapViewportWorld}
-                  onResetZoom={resetZoom}
+                  onResetZoom={canvasNodeActions.resetZoom}
                 />
               )}
               <WindowChrome radius={workspaceGeometryValues.topBarRadius} />
@@ -6626,8 +6674,8 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 <QuickExtensionsMenu
                   left={quickExtensionsMenu.left}
                   top={quickExtensionsMenu.top}
-                  onClose={() => setQuickExtensionsMenu(null)}
-                  onDropExtension={dropExtensionOnCanvas}
+                  onClose={extensionPanelActions.closeQuickExtensionsMenu}
+                  onDropExtension={extensionPanelActions.dropExtensionOnCanvas}
                 />
               </Suspense>
             )}
@@ -6663,6 +6711,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                     height: canvasHeight,
                     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
                     transformOrigin: "0 0",
+                    willChange: "transform",
                   } as React.CSSProperties
                 }
                 onContextMenu={handleCanvasContextMenu}
@@ -7050,12 +7099,14 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               </CanvasFrame>
               {activeTextCardPresentation && (
                 <div
+                  ref={activeTextCardLayerRef}
                   className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
                   style={{
                     width: canvasWidth,
                     height: canvasHeight,
                     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
                     transformOrigin: "0 0",
+                    willChange: "transform",
                   }}
                 >
                   {activeTextCardPresentation.ids.map((id, dragBundleIndex) => {
@@ -7106,12 +7157,14 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               )}
               {textCardInteractionSnapshot.release && (
                 <div
+                  ref={releasedTextCardLayerRef}
                   className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
                   style={{
                     width: canvasWidth,
                     height: canvasHeight,
                     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
                     transformOrigin: "0 0",
+                    willChange: "transform",
                   }}
                 >
                   {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => (
@@ -7145,12 +7198,14 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
               )}
               {mindmapConnectionMode && (
                 <div
+                  ref={mindmapConnectionLayerRef}
                   className="pointer-events-none absolute left-0 top-0 z-[110] overflow-visible"
                   style={{
                     width: canvasWidth,
                     height: canvasHeight,
                     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
                     transformOrigin: "0 0",
+                    willChange: "transform",
                   }}
                 >
                   {Array.from(connectableBoundsById.entries()).map(([ownerId, bounds]) => {

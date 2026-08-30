@@ -19,7 +19,10 @@ export function useSharedSmallGlassList({
     const plane = planeRef.current;
     const viewport = viewportRef.current;
     if (!active || !plane || !viewport) {
-      if (plane) writeSharedSmallGlassShapes(plane, []);
+      if (plane) {
+        writeSharedSmallGlassShapes(plane, []);
+        hideSharedSmallShadows(plane);
+      }
       return;
     }
     let frame: number | null = null;
@@ -36,6 +39,11 @@ export function useSharedSmallGlassList({
       frame = null;
       recordMaterialGeometryRefresh();
       const viewportRectangle = viewport.getBoundingClientRect();
+      const planeRectangle = plane.getBoundingClientRect();
+      const shadows = sharedSmallShadows(plane);
+      shadows.forEach((shadow) => {
+        delete shadow.dataset.sharedSmallGlassShadowVisible;
+      });
       const shapes = [...viewport.querySelectorAll<HTMLElement>(cardSelector)].flatMap((card) => {
         const rectangle = card.getBoundingClientRect();
         const localViewport = card.closest<HTMLElement>("[data-shared-small-glass-viewport]");
@@ -53,6 +61,15 @@ export function useSharedSmallGlassList({
           localRectangle?.bottom ?? Infinity,
         );
         if (right <= left || bottom <= top) return [];
+        const shadowId = card.dataset.sharedSmallGlassShadowItem;
+        const shadow = shadowId ? shadows.get(shadowId) : undefined;
+        if (shadow) {
+          shadow.style.width = `${rectangle.width}px`;
+          shadow.style.height = `${rectangle.height}px`;
+          shadow.style.borderRadius = card.style.getPropertyValue("--taskmap-material-radius");
+          shadow.style.transform = `translate3d(${rectangle.left - planeRectangle.left}px, ${rectangle.top - planeRectangle.top}px, 0)`;
+          shadow.dataset.sharedSmallGlassShadowVisible = "true";
+        }
         return [
           {
             x: left - viewportRectangle.left,
@@ -87,6 +104,24 @@ export function useSharedSmallGlassList({
       viewport.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       writeSharedSmallGlassShapes(plane, []);
+      hideSharedSmallShadows(plane);
     };
   }, [active, cardSelector, planeRef, viewportRef]);
+}
+
+function sharedSmallShadows(plane: HTMLElement): Map<string, HTMLElement> {
+  return new Map(
+    [...plane.querySelectorAll<HTMLElement>("[data-shared-small-glass-shadow]")].flatMap(
+      (shadow) => {
+        const id = shadow.dataset.sharedSmallGlassShadow;
+        return id ? [[id, shadow] as const] : [];
+      },
+    ),
+  );
+}
+
+function hideSharedSmallShadows(plane: HTMLElement): void {
+  sharedSmallShadows(plane).forEach((shadow) => {
+    delete shadow.dataset.sharedSmallGlassShadowVisible;
+  });
 }

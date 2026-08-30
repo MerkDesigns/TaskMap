@@ -82,8 +82,9 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
       expect(appSource).toContain(handler);
     }
     expect(appSource).toContain(
-      "transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`",
+      "worldRef.current.style.transform = viewportTransform",
     );
+    expect(appSource).toContain('willChange: "transform"');
   });
 
   it("locks visible grid geometry and formulas to the DOM-free BackdropScene mirror", async () => {

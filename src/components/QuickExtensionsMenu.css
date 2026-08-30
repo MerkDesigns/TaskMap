@@ -13,6 +13,7 @@
   width: 269px;
   max-height: 516px;
   flex-direction: column;
+  overflow: hidden;
   padding: var(--taskmap-space-3);
   color: var(--taskmap-text);
   transform-origin: center;
@@ -44,7 +45,7 @@
 .taskmap-quick-extensions-menu__scroll-frame {
   position: relative;
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   margin-inline: calc(0px - var(--taskmap-space-3));
 }
 
@@ -103,6 +104,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  clip-path: inset(0);
   scrollbar-width: none;
 }
 

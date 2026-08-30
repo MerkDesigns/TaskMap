@@ -38,11 +38,20 @@ export interface SharedSmallGlassPlaneProps extends HTMLAttributes<HTMLDivElemen
   readonly batchId?: string;
   readonly blurPx?: number;
   readonly kind?: "small-canvas" | "small-drag" | "small-extension";
+  readonly shadowIds?: readonly string[];
 }
 
 export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlassPlaneProps>(
   function SharedSmallGlassPlane(
-    { batchId = "canvas-small", blurPx, className, kind = "small-canvas", style, ...props },
+    {
+      batchId = "canvas-small",
+      blurPx,
+      className,
+      kind = "small-canvas",
+      shadowIds = [],
+      style,
+      ...props
+    },
     ref,
   ) {
     const clipId = `taskmap-shared-small-${useId().replace(/:/g, "")}`;
@@ -68,6 +77,8 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
       ...(blurPx === undefined
         ? {}
         : { "--taskmap-material-small-blur-override": `${Math.max(0, blurPx)}px` }),
+    } as CSSProperties;
+    const backdropClipStyle = {
       clipPath: `url(#${clipId})`,
       WebkitClipPath: `url(#${clipId})`,
     } as CSSProperties;
@@ -93,8 +104,22 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
             <clipPath id={clipId} clipPathUnits="userSpaceOnUse" data-shared-small-glass-clip />
           </defs>
         </svg>
-        <span className="taskmap-shared-small-glass-plane__preblur" data-native-filter-layer />
-        <span className="taskmap-shared-small-glass-plane__backdrop" data-native-filter-layer />
+        <span className="taskmap-shared-small-glass-plane__backdrop-clip" style={backdropClipStyle}>
+          <span className="taskmap-shared-small-glass-plane__preblur" data-native-filter-layer />
+          <span className="taskmap-shared-small-glass-plane__backdrop" data-native-filter-layer />
+        </span>
+        {shadowIds.map((id) => (
+          <span
+            key={id}
+            className="taskmap-shared-small-glass-plane__shadow"
+            data-shared-small-glass-shadow={id}
+            style={createMaterialSurfaceStyle(
+              ACRYLIC_SMALL,
+              "default",
+              ACRYLIC_SMALL.defaultRadiusPx,
+            )}
+          />
+        ))}
       </div>
     );
   },

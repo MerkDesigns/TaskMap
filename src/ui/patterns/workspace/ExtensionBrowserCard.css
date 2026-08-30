@@ -62,11 +62,15 @@
 
 .taskmap-extension-browser-scroll-frame {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .taskmap-extension-browser-scroll-frame > .taskmap-shared-small-glass-plane {
   inset: 0;
+}
+
+.taskmap-shared-small-glass-plane.taskmap-extension-shared-small-plane {
+  overflow: visible;
 }
 
 .taskmap-extension-browser-scroll-area {
@@ -74,6 +78,7 @@
   z-index: 1;
   width: 100%;
   height: 100%;
+  clip-path: inset(0);
 }
 
 .taskmap-extension-browser-section__heading {
@@ -105,6 +110,10 @@
   user-select: none;
   content-visibility: auto;
   contain-intrinsic-size: 58px;
+}
+
+.taskmap-extension-browser-card[data-shared-small-glass-shadow-item] {
+  box-shadow: none;
 }
 
 .taskmap-extension-browser-card::before {
