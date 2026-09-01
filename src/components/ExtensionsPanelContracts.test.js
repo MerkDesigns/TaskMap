@@ -9,6 +9,7 @@ const patternCssPath = new URL(
   "../ui/patterns/workspace/ExtensionBrowserCard.css",
   import.meta.url,
 );
+const quickCssPath = new URL("./QuickExtensionsMenu.css", import.meta.url);
 const dragPath = new URL("../extensions/useExtensionDrag.ts", import.meta.url);
 const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 
@@ -21,8 +22,8 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
 
     expect(pattern).toContain('material={embedded ? "opaque" : "acrylic-small"}');
     expect(pattern).toContain('material="cutout"');
-    expect(pattern).toContain("radius={8}");
-    expect(pattern).toContain("radius={6}");
+    expect(pattern).toContain("radius = 8");
+    expect(pattern).toContain("radius = 6");
     expect(css).toContain("min-height: 58px");
     expect(css).toContain("height: 58px");
     expect(css).toContain("width: 32px");
@@ -47,25 +48,50 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(`${main}\n${css}`).not.toMatch(/#2dd8c8|45\s*,\s*216\s*,\s*200/i);
   });
 
-  it("keeps the filter portal legacy and Quick Extensions structurally unmigrated", async () => {
-    const source = await readFile(panelPath, "utf8");
+  it("routes the filter portal and Quick Extensions through the accepted material patterns", async () => {
+    const [source, quickCss] = await Promise.all([
+      readFile(panelPath, "utf8"),
+      readFile(quickCssPath, "utf8"),
+    ]);
     const quickStart = source.indexOf("export function QuickExtensionsMenu");
     const mainStart = source.indexOf("export function ExtensionsPanel");
     const quick = source.slice(quickStart, mainStart);
     const main = source.slice(mainStart);
 
     expect(quick).toContain("data-quick-extensions-menu");
-    expect(quick).toContain("frosted-glass context-menu-enter");
-    expect(quick).toContain("<input");
-    expect(quick).toContain("h-[43px]");
+    expect(quick).toContain("<MaterialSurface");
+    expect(quick).toContain('material="acrylic-large"');
+    expect(quick).toContain("<SearchField");
+    expect(quick).toContain("<ExtensionBrowserCard");
     expect(quick).toContain("quick-extensions-scroll");
-    expect(quick).not.toMatch(/ExtensionBrowserCard|SearchField/);
+    expect(quick).toContain("useSurfacePresence(menuRef");
+    expect(quick).toContain("effects: FadeLift");
+    expect(quick).not.toMatch(/frosted-glass|backdrop-filter/);
+    expect(quickCss).not.toMatch(/@keyframes\s+taskmap-quick-extensions|animation\s*:/);
 
     expect(main).toContain("data-extension-filter-menu");
     expect(main).toContain("context-menu-panel context-menu-enter");
     expect(main).toContain("createPortal(");
-    expect(main).not.toMatch(/ContextMenu\b|material="(?:opaque|acrylic-small)"/);
+    expect(main).toContain("<MaterialSurface");
+    expect(main).toContain('material="opaque"');
+    expect(main).not.toMatch(/frosted-glass|backdrop-filter/);
     expect(main).not.toMatch(/QuickExtensionsMenu|Minimap|Settings/);
+  });
+
+  it("keeps extension cards inside their columns while reserving an internal shadow gutter", async () => {
+    const [patternCss, quickCss] = await Promise.all([
+      readFile(patternCssPath, "utf8"),
+      readFile(quickCssPath, "utf8"),
+    ]);
+
+    expect(patternCss).toContain("grid-template-columns: minmax(0, 1fr)");
+    expect(patternCss).toContain("margin-inline: calc(0px - var(--taskmap-panel-padding))");
+    expect(patternCss).toContain(
+      "padding: 1px var(--taskmap-panel-padding) var(--taskmap-panel-padding)",
+    );
+    expect(quickCss).toContain("margin-inline: calc(0px - var(--taskmap-space-3))");
+    expect(quickCss).toContain("padding: var(--taskmap-space-3)");
+    expect(quickCss).toContain("var(--taskmap-material-presence-progress, 1)");
   });
 
   it("retains drag ownership without new compositor, cache, provider, or animation-frame work", async () => {

@@ -22,6 +22,12 @@
   transform-origin: center;
 }
 
+.taskmap-modal-presence-group[data-material-aware-presence="true"]
+  > [data-material]
+  > :not(.taskmap-material-native-glass__clip):not(.taskmap-material-native-glass__rim) {
+  opacity: var(--taskmap-material-presence-progress, 1);
+}
+
 .taskmap-nested-modal-layer,
 .taskmap-nested-modal-scrim,
 .taskmap-nested-modal-content {

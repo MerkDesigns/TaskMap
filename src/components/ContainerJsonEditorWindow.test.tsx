@@ -17,6 +17,9 @@ describe("ContainerJsonEditorWindow", () => {
       />,
     );
 
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAttribute("data-material", "acrylic-large");
+    expect(dialog.querySelector("header")).not.toHaveClass("bg-[#1b1b1e]");
     const editor = screen.getByRole("textbox", { name: "Container JSON" });
     fireEvent.change(editor, { target: { value: '{"name":"Edited"}' } });
     await user.click(screen.getByRole("button", { name: "Apply JSON" }));

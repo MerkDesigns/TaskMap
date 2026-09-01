@@ -59,7 +59,7 @@ describe("C2C workspace panels", () => {
 
     expect(registry.getSnapshot().surfaces).toHaveLength(0);
     expect(container.querySelector('[data-material="acrylic-large"]')).toBeNull();
-    expect(screen.getByRole("heading", { name: "Canvas Browser" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Canvases" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Extensions" })).toBeInTheDocument();
     registry.dispose();
   });
@@ -155,7 +155,7 @@ describe("C2C workspace panels", () => {
     const props = canvasManagerProps();
     const { container } = render(<CanvasManager {...props} embedded />);
 
-    expect(screen.getByLabelText("1 canvases")).toHaveTextContent("1");
+    expect(screen.queryByLabelText("1 canvases")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Minimal view" }));
     expect(props.onMinimalViewChange).toHaveBeenCalledWith(true);
 

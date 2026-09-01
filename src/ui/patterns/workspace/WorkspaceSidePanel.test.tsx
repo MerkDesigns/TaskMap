@@ -8,11 +8,11 @@ import {
   type MotionFrameDriver,
 } from "../../motion/motionFrameScheduler";
 import { ReducedMotionProvider } from "../../motion/reducedMotionPreference";
-import { WorkspaceSidePanel, WorkspaceSidePanelContentSwitcher } from "./WorkspaceSidePanel";
 import {
-  WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX,
-  WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
-} from "./useWorkspaceSidePanelMotion";
+  WORKSPACE_SIDE_PANEL_PRESENCE_DURATION_MS,
+  WorkspaceSidePanel,
+  WorkspaceSidePanelContentSwitcher,
+} from "./WorkspaceSidePanel";
 
 afterEach(() => {
   cleanup();
@@ -20,18 +20,22 @@ afterEach(() => {
 });
 
 describe("WorkspaceSidePanel motion", () => {
-  it("slides the complete panel on and offscreen without fading it", () => {
-    expect(WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS).toBe(240);
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(panelBounds(288));
+  it("uses shared Fade + short SlideLeft presence and retains a reversible exit", () => {
+    expect(WORKSPACE_SIDE_PANEL_PRESENCE_DURATION_MS).toBe(180);
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
     const registry = createMaterialSurfaceRegistry(null);
     const notifySurfaceGeometryChanged = vi.fn();
+    const onExitComplete = vi.fn();
     const renderPanel = (closing: boolean) => (
       <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
         <ReducedMotionProvider override={false}>
           <MotionProvider scheduler={scheduler}>
-            <WorkspaceSidePanel closing={closing} label="Test panel">
+            <WorkspaceSidePanel
+              closing={closing}
+              label="Test panel"
+              onExitComplete={onExitComplete}
+            >
               <div data-testid="panel-content">Panel</div>
             </WorkspaceSidePanel>
           </MotionProvider>
@@ -40,41 +44,47 @@ describe("WorkspaceSidePanel motion", () => {
     );
     const { rerender } = render(renderPanel(false));
     const panel = screen.getByLabelText("Test panel");
-    const offscreenX = -(288 + 16 + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
+    const content = screen.getByTestId("panel-content");
+    const contentLayer = content.parentElement as HTMLElement;
 
     expect(panel).toHaveAttribute("data-material", "acrylic-large");
-    expect(panel).toHaveAttribute("data-panel-motion", "active");
-    expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0, 0)`);
+    expect(contentLayer).toHaveClass("taskmap-workspace-side-panel__content");
+    expect(panel).toHaveAttribute("data-presence-phase", "showing");
+    expect(panel.style.transform).toBe("translate3d(-18px, 0px, 0)");
     expect(panel.style.willChange).toBe("transform");
     expect(panel.style.opacity).toBe("");
+    expect(panel.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
+    expect(contentLayer.style.opacity).toBe("0");
+    expect(content.style.opacity).toBe("");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
 
     act(() => expect(driver.fire()).toBe(true));
-    expect(readTranslateX(panel)).toBeGreaterThan(offscreenX);
+    expect(readTranslateX(panel)).toBeGreaterThan(-18);
     expect(readTranslateX(panel)).toBeLessThan(0);
     expect(panel.style.opacity).toBe("");
     act(() => driver.flush());
-    expect(panel).not.toHaveAttribute("data-panel-motion");
+    expect(panel).toHaveAttribute("data-presence-phase", "visible");
     expect(panel.style.transform).toBe("");
     expect(panel.style.willChange).toBe("");
     expect(panel.style.opacity).toBe("");
+    expect(panel.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
+    expect(contentLayer.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    const invalidationsAtRest = notifySurfaceGeometryChanged.mock.calls.length;
-    expect(invalidationsAtRest).toBe(0);
     expect(driver.fire()).toBe(false);
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(invalidationsAtRest);
 
     rerender(renderPanel(true));
     expect(panel).toHaveAttribute("data-closing", "true");
-    expect(panel).toHaveAttribute("data-panel-motion", "active");
-    expect(panel.style.transform).toBe("translate3d(0px, 0, 0)");
+    expect(panel).toHaveAttribute("data-presence-phase", "hiding");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
     act(() => expect(driver.fire()).toBe(true));
     const interruptedCloseX = readTranslateX(panel);
     expect(interruptedCloseX).toBeLessThan(0);
-    expect(interruptedCloseX).toBeGreaterThan(offscreenX);
+    expect(interruptedCloseX).toBeGreaterThan(-18);
+    expect(
+      Number(panel.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeLessThan(1);
     expect(panel.style.opacity).toBe("");
 
     rerender(renderPanel(false));
@@ -87,42 +97,53 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel.style.willChange).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
+    expect(onExitComplete).not.toHaveBeenCalled();
+
+    rerender(renderPanel(true));
+    act(() => driver.flush());
+    expect(panel).toHaveAttribute("data-presence-phase", "hidden");
+    expect(panel.inert).toBe(true);
+    expect(panel.style.transform).toBe("translate3d(-18px, 0px, 0)");
+    expect(panel.style.opacity).toBe("");
+    expect(onExitComplete).toHaveBeenCalledOnce();
 
     scheduler.dispose();
     registry.dispose();
   });
 
-  it("settles immediately without opacity or scheduled frames under reduced motion", () => {
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(panelBounds(288));
+  it("settles immediately through the same lifecycle under reduced motion", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
     const notifySurfaceGeometryChanged = vi.fn();
     const registry = createMaterialSurfaceRegistry(null);
+    const onExitComplete = vi.fn();
     const renderPanel = (closing: boolean) => (
       <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
         <ReducedMotionProvider override>
           <MotionProvider scheduler={scheduler}>
-            <WorkspaceSidePanel closing={closing} label="Reduced panel" />
+            <WorkspaceSidePanel
+              closing={closing}
+              label="Reduced panel"
+              onExitComplete={onExitComplete}
+            />
           </MotionProvider>
         </ReducedMotionProvider>
       </MaterialSurfaceRegistrationProvider>
     );
     const { rerender } = render(renderPanel(false));
     const panel = screen.getByLabelText("Reduced panel");
-    const offscreenX = -(288 + 16 + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
 
-    expect(panel).not.toHaveAttribute("data-panel-motion");
+    expect(panel).toHaveAttribute("data-presence-phase", "visible");
     expect(panel.style.transform).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     rerender(renderPanel(true));
-    expect(panel).toHaveAttribute("data-panel-motion", "hidden");
-    expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0, 0)`);
-    expect(panel.style.willChange).toBe("");
+    expect(panel).toHaveAttribute("data-presence-phase", "hidden");
+    expect(panel.style.transform).toBe("translate3d(-18px, 0px, 0)");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
+    expect(onExitComplete).toHaveBeenCalledOnce();
 
     scheduler.dispose();
     registry.dispose();
@@ -131,20 +152,6 @@ describe("WorkspaceSidePanel motion", () => {
 
 function readTranslateX(element: HTMLElement): number {
   return Number.parseFloat(element.style.transform.match(/translate3d\(([-\d.]+)px/)?.[1] ?? "0");
-}
-
-function panelBounds(width: number): DOMRect {
-  return {
-    bottom: 400,
-    height: 326,
-    left: 16,
-    right: 16 + width,
-    top: 74,
-    width,
-    x: 16,
-    y: 74,
-    toJSON: () => ({}),
-  };
 }
 
 describe("WorkspaceSidePanelContentSwitcher", () => {
@@ -164,15 +171,17 @@ describe("WorkspaceSidePanelContentSwitcher", () => {
     );
     const { container, rerender } = render(renderSwitcher(0));
     const switcher = container.firstElementChild as HTMLElement;
-    const views = switcher.querySelectorAll<HTMLElement>("[data-view-index]");
+    let views = switcher.querySelectorAll<HTMLElement>("[data-view-index]");
 
-    expect(switcher.style.height).toBe("180px");
+    expect(switcher.style.height).toBe("");
+    expect(views).toHaveLength(1);
     expect(views[0]).toHaveAttribute("data-active", "true");
     expect(views[0]).not.toHaveAttribute("inert");
-    expect(views[1]).toHaveAttribute("inert");
 
     rerender(renderSwitcher(1));
+    views = switcher.querySelectorAll<HTMLElement>("[data-view-index]");
     expect(switcher.style.height).toBe("360px");
+    expect(views).toHaveLength(2);
     expect(views[0]).toHaveAttribute("inert");
     expect(views[1]).toHaveAttribute("data-active", "true");
     expect(views[1]).not.toHaveAttribute("inert");

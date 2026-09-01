@@ -129,13 +129,23 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
-  it("keeps Canvas C2D boundaries intact after the isolated C2E Extensions migration", async () => {
+  it("keeps Canvas C2D boundaries intact while routing creation chrome through materials", async () => {
     const [manager, extensions] = await Promise.all([
       readFile(canvasManagerPath, "utf8"),
       readFile(extensionsPanelPath, "utf8"),
     ]);
 
-    expect(manager).toContain("frosted-glass context-menu-panel");
+    expect(manager).toContain('material="acrylic-large"');
+    expect(manager).toContain("data-new-canvas-menu");
+    expect(manager).toContain("z-[1004]");
+    expect(manager).toContain("<NewCanvasWindow");
+    expect(manager).toContain("effects: FadeSlideLeft");
+    expect(manager).toContain("useSurfacePresence(surfaceRef");
+    expect(manager).toContain("onExitComplete={completeCreateMenuExit}");
+    expect(manager).not.toContain("taskmap-acrylic-window-enter");
+    expect(manager).not.toContain('"side-panel-enter"');
+    expect(manager).not.toContain("frosted-glass context-menu-panel");
+    expect(manager).not.toContain("backdrop-blur-sm");
     expect(manager).toContain("MENU_ITEM_CLASS");
     expect(extensions).toContain('placeholder="Search extensions"');
     expect(extensions).toContain("data-quick-extensions-menu");

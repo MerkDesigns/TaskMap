@@ -29,6 +29,11 @@ import {
 } from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
+import { CanvasManager as CanvasManagerComponent } from "./components/CanvasManager";
+import {
+  ExtensionsPanel as ExtensionsPanelComponent,
+  QuickExtensionsMenu as QuickExtensionsMenuComponent,
+} from "./components/ExtensionsPanel";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { WindowChrome } from "./components/WindowChrome";
 import type {
@@ -153,47 +158,35 @@ import type { MaterialCompositorPresentationPublisher } from "./ui/materials/mat
 import { notifyMaterialTuningChanged } from "./ui/materials/materialGeometryInvalidation";
 import {
   CanvasFrame,
-  MINIMAP_VISIBILITY_DURATION_MS,
   WorkspaceBackdropLayer,
   WorkspaceChromeLayer,
+  WorkspaceChromeMaterialWarmup,
+  WorkspaceMaterialLayer,
   WorkspaceRoot,
   WorkspaceSidePanel,
   WorkspaceSidePanelContentSwitcher,
-  WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
 } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 
-const CanvasManager = lazy(() =>
-  import("./components/CanvasManager").then(({ CanvasManager }) => ({
-    default: memo(
-      CanvasManager,
-      (previous, next) =>
-        previous.active === next.active &&
-        previous.canvases === next.canvases &&
-        previous.activeCanvasId === next.activeCanvasId &&
-        previous.cycleHighlightCanvasId === next.cycleHighlightCanvasId &&
-        previous.cardRadius === next.cardRadius &&
-        previous.closing === next.closing &&
-        previous.embedded === next.embedded &&
-        previous.sharedPanel === next.sharedPanel &&
-        previous.minimalView === next.minimalView &&
-        previous.panelRadius === next.panelRadius &&
-        previous.viewportWidth === next.viewportWidth &&
-        previous.viewportHeight === next.viewportHeight &&
-        previous.viewportService === next.viewportService,
-    ),
-  })),
+const CanvasManager = memo(
+  CanvasManagerComponent,
+  (previous, next) =>
+    previous.active === next.active &&
+    previous.canvases === next.canvases &&
+    previous.activeCanvasId === next.activeCanvasId &&
+    previous.cycleHighlightCanvasId === next.cycleHighlightCanvasId &&
+    previous.cardRadius === next.cardRadius &&
+    previous.closing === next.closing &&
+    previous.embedded === next.embedded &&
+    previous.sharedPanel === next.sharedPanel &&
+    previous.minimalView === next.minimalView &&
+    previous.panelRadius === next.panelRadius &&
+    previous.viewportWidth === next.viewportWidth &&
+    previous.viewportHeight === next.viewportHeight &&
+    previous.viewportService === next.viewportService,
 );
-const ExtensionsPanel = lazy(() =>
-  import("./components/ExtensionsPanel").then(({ ExtensionsPanel }) => ({
-    default: memo(ExtensionsPanel),
-  })),
-);
-const QuickExtensionsMenu = lazy(() =>
-  import("./components/ExtensionsPanel").then(({ QuickExtensionsMenu }) => ({
-    default: memo(QuickExtensionsMenu),
-  })),
-);
+const ExtensionsPanel = memo(ExtensionsPanelComponent);
+const QuickExtensionsMenu = memo(QuickExtensionsMenuComponent);
 const ClearCanvasModal = lazy(() =>
   import("./components/Modals").then(({ ClearCanvasModal }) => ({ default: ClearCanvasModal })),
 );
@@ -302,7 +295,6 @@ const createStorageError = (prefix: string, error: unknown): StorageErrorState =
 
 const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 const CLEAR_HISTORY_TRANSACTION = "clear-canvas";
 const DELETE_HISTORY_TRANSACTION = "delete-selection";
@@ -468,11 +460,9 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     height: window.innerHeight,
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-  const panelSwitchTimeoutRef = useRef<number | null>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
-  const minimapUnmountTimeoutRef = useRef<number | null>(null);
   const canvasCycleSessionRef = useRef<{
     order: string[];
     index: number;
@@ -753,6 +743,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
     left: number;
     top: number;
+    closing: boolean;
   } | null>(null);
   const [glassMaterialValues, setGlassMaterialValues] = useState(DEFAULT_GLASS_MATERIAL_VALUES);
   const [workspaceGeometryValues, setWorkspaceGeometryValues] = useState(
@@ -1585,9 +1576,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       if (minimapTimeoutRef.current) {
         window.clearTimeout(minimapTimeoutRef.current);
       }
-      if (minimapUnmountTimeoutRef.current) {
-        window.clearTimeout(minimapUnmountTimeoutRef.current);
-      }
       historyTransactions.clear();
       dirtyHistoryTransactions.clear();
       pendingDeletionTimeouts.forEach((timeouts) =>
@@ -1606,12 +1594,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       window.clearTimeout(minimapTimeoutRef.current);
       minimapTimeoutRef.current = null;
     }
-    if (minimapUnmountTimeoutRef.current) {
-      window.clearTimeout(minimapUnmountTimeoutRef.current);
-      minimapUnmountTimeoutRef.current = null;
-    }
     setMinimapVisible(false);
-    setMinimapMounted(false);
   }, [minimapEnabled]);
 
   useEffect(() => {
@@ -1699,18 +1682,9 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     if (minimapTimeoutRef.current) {
       window.clearTimeout(minimapTimeoutRef.current);
     }
-    if (minimapUnmountTimeoutRef.current) {
-      window.clearTimeout(minimapUnmountTimeoutRef.current);
-      minimapUnmountTimeoutRef.current = null;
-    }
-
     minimapTimeoutRef.current = window.setTimeout(() => {
       setMinimapVisible(false);
-      minimapUnmountTimeoutRef.current = window.setTimeout(() => {
-        setMinimapMounted(false);
-        minimapUnmountTimeoutRef.current = null;
-      }, MINIMAP_VISIBILITY_DURATION_MS);
-    }, 2200);
+    }, 3000);
   };
 
   const getContainerSearchQuery = (container: ContainerElement) =>
@@ -2444,15 +2418,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       return;
     }
 
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-    }
     setCanvasManagerClosing(true);
-    panelSwitchTimeoutRef.current = window.setTimeout(() => {
-      setCanvasManagerOpen(false);
-      setCanvasManagerClosing(false);
-      panelSwitchTimeoutRef.current = null;
-    }, CANVAS_MANAGER_ANIMATION_MS);
   }, [canvasManagerClosing, canvasManagerOpen]);
 
   const closeExtensionsPanel = useCallback(() => {
@@ -2460,23 +2426,33 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       return;
     }
 
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-    }
     setExtensionsClosing(true);
-    panelSwitchTimeoutRef.current = window.setTimeout(() => {
-      setExtensionsOpen(false);
-      setExtensionsClosing(false);
-      panelSwitchTimeoutRef.current = null;
-    }, CANVAS_MANAGER_ANIMATION_MS);
   }, [extensionsClosing, extensionsOpen]);
 
-  const switchLeftPanel = useCallback((target: "canvases" | "extensions") => {
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-      panelSwitchTimeoutRef.current = null;
+  const completeLeftPanelExit = useCallback(() => {
+    if (canvasManagerClosing) {
+      setCanvasManagerOpen(false);
+      setCanvasManagerClosing(false);
     }
+    if (extensionsClosing) {
+      setExtensionsOpen(false);
+      setExtensionsClosing(false);
+    }
+  }, [canvasManagerClosing, extensionsClosing]);
 
+  const requestQuickExtensionsClose = useCallback(() => {
+    setQuickExtensionsMenu((current) =>
+      current && !current.closing ? { ...current, closing: true } : current,
+    );
+  }, []);
+
+  const completeQuickExtensionsExit = useCallback(() => {
+    setQuickExtensionsMenu((current) => (current?.closing ? null : current));
+  }, []);
+
+  const completeMinimapExit = useCallback(() => setMinimapMounted(false), []);
+
+  const switchLeftPanel = useCallback((target: "canvases" | "extensions") => {
     if (target === "canvases") {
       setExtensionsOpen(false);
       setExtensionsClosing(false);
@@ -2492,9 +2468,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
 
   useEffect(
     () => () => {
-      if (panelSwitchTimeoutRef.current !== null) {
-        window.clearTimeout(panelSwitchTimeoutRef.current);
-      }
       if (canvasCycleRestoreTimeoutRef.current !== null) {
         window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
       }
@@ -2557,6 +2530,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
         setQuickExtensionsMenu({
           left: lastPointerPositionRef.current.x,
           top: lastPointerPositionRef.current.y,
+          closing: false,
         });
         return;
       }
@@ -2564,7 +2538,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       if (
         event.key === "Tab" &&
         !isEditingText &&
-        !isKeyboardFocusableControl(target) &&
         !event.altKey &&
         !event.ctrlKey &&
         !event.metaKey
@@ -2593,8 +2566,12 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
           return;
         }
 
-        closeExtensionsPanel();
-        setQuickExtensionsMenu(null);
+        if (extensionsOpen && !extensionsClosing) {
+          closeExtensionsPanel();
+          return;
+        }
+
+        requestQuickExtensionsClose();
         switchLeftPanel("canvases");
         return;
       }
@@ -2641,6 +2618,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     extensionsOpen,
     imagesById,
     pendingExtensionConflict,
+    requestQuickExtensionsClose,
     selectedIds,
     settingsOpen,
     switchLeftPanel,
@@ -3359,7 +3337,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
 
     const target = event.target as HTMLElement | null;
     if (quickExtensionsMenu && !target?.closest("[data-quick-extensions-menu]")) {
-      setQuickExtensionsMenu(null);
+      requestQuickExtensionsClose();
     }
 
     if (!target?.closest("[data-text-block-content]") && !isEditableKeyboardTarget(target)) {
@@ -3495,11 +3473,15 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       );
       return;
     }
+    const activeInteraction = interactionController.getSnapshot().activeInteraction;
     interactionController.updatePointer({
       pointerId: event.pointerId,
       screen: { x: event.clientX, y: event.clientY },
       snapping: event.shiftKey,
     });
+    if (activeInteraction?.kind === "pan" && activeInteraction.pointerId === event.pointerId) {
+      showMinimap();
+    }
     const textCardPresentation = textCardInteraction.getSnapshot().active;
     if (textCardPresentation?.pointerId === event.pointerId) {
       const primaryPreview = interactionController
@@ -6000,11 +5982,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
   };
 
   const restoreLeftPanelState = (state: LeftPanelState) => {
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-      panelSwitchTimeoutRef.current = null;
-    }
-
     if (state === "canvases") {
       setExtensionsOpen(false);
       setExtensionsClosing(false);
@@ -6024,10 +6001,6 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     setExtensionsOpen(false);
     setExtensionsClosing(false);
     setCanvasManagerClosing(true);
-    window.setTimeout(() => {
-      setCanvasManagerOpen(false);
-      setCanvasManagerClosing(false);
-    }, CANVAS_MANAGER_ANIMATION_MS);
   };
 
   const finishCanvasCycle = () => {
@@ -6065,16 +6038,12 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
       previousPanelState: session?.previousPanelState ?? getCurrentLeftPanelState(),
     };
 
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-      panelSwitchTimeoutRef.current = null;
-    }
     if (canvasCycleRestoreTimeoutRef.current !== null) {
       window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
       canvasCycleRestoreTimeoutRef.current = null;
     }
 
-    setQuickExtensionsMenu(null);
+    requestQuickExtensionsClose();
     setCanvasCycleHighlightId(nextCanvasId);
     setExtensionsOpen(false);
     setExtensionsClosing(false);
@@ -6196,7 +6165,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
     resetZoom,
   });
   const extensionPanelActions = useStableCallbacks({
-    closeQuickExtensionsMenu: () => setQuickExtensionsMenu(null),
+    closeQuickExtensionsMenu: requestQuickExtensionsClose,
     dropExtensionOnCanvas,
   });
   const editingTextCardContainerId = editingTextCardId
@@ -6580,13 +6549,15 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 />
               </Suspense>
             )}
-            <WorkspaceChromeLayer>
+            <WorkspaceMaterialLayer>
+              <WorkspaceChromeMaterialWarmup />
               {leftPanelOpen && (
                 <Suspense fallback={null}>
                   <WorkspaceSidePanel
                     ref={leftPanelRef}
-                    backdropRevision={activeCanvas.id}
+                    backdropRevision={backdropRevision}
                     closing={leftPanelClosing}
+                    onExitComplete={completeLeftPanelExit}
                     label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
                     radius={workspaceGeometryValues.canvasBrowserRadius}
                     className="taskmap-workspace-side-panel--switching"
@@ -6630,7 +6601,9 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   </WorkspaceSidePanel>
                 </Suspense>
               )}
-              {minimapEnabled && minimapMounted && (
+            </WorkspaceMaterialLayer>
+            <WorkspaceChromeLayer>
+              {minimapMounted && (
                 <LiveMinimap
                   viewportService={interactionController}
                   elements={elements}
@@ -6641,6 +6614,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                   canvasWidth={canvasWidth}
                   canvasHeight={canvasHeight}
                   visible={minimapVisible}
+                  onExitComplete={completeMinimapExit}
                   onResetZoom={canvasNodeActions.resetZoom}
                 />
               )}
@@ -6674,7 +6648,9 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 <QuickExtensionsMenu
                   left={quickExtensionsMenu.left}
                   top={quickExtensionsMenu.top}
-                  onClose={extensionPanelActions.closeQuickExtensionsMenu}
+                  open={!quickExtensionsMenu.closing}
+                  onRequestClose={extensionPanelActions.closeQuickExtensionsMenu}
+                  onExitComplete={completeQuickExtensionsExit}
                   onDropExtension={extensionPanelActions.dropExtensionOnCanvas}
                 />
               </Suspense>
@@ -7591,7 +7567,7 @@ function App({ onBeforeClose, materialPresentation }: AppProps = {}) {
                 />
               )}
 
-            <ModalPresence open={settingsOpen}>
+            <ModalPresence open={settingsOpen} materialAware>
               <Suspense fallback={null}>
                 <SettingsModal
                   canvasGridStyle={canvasGridStyle}

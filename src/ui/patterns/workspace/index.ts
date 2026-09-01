@@ -3,6 +3,5 @@ export * from "./CanvasBrowserCard";
 export * from "./ExtensionBrowserCard";
 export * from "./FloatingCanvasToolbar";
 export * from "./MinimapSurface";
-export * from "./useMinimapVisibilityMotion";
 export * from "./WorkspaceSidePanel";
 export * from "./WorkspaceRoot";

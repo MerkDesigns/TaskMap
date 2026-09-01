@@ -137,6 +137,11 @@
   overflow-x: hidden;
   padding: var(--taskmap-space-4) var(--taskmap-space-3) var(--taskmap-space-4)
     var(--taskmap-space-1);
+  scrollbar-width: none;
+}
+
+.taskmap-settings-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .taskmap-settings-content-stack {

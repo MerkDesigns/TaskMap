@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MaterialPlaneProvider } from "../../materials/MaterialPlane";
 import { MaterialSurface } from "../../materials/MaterialSurface";
 import {
@@ -30,6 +30,45 @@ describe("ModalPresence", () => {
       state: { opacity: 0, translateY: 4, scale: 0.985, scrimOpacity: 0 },
       settled: true,
     });
+  });
+
+  it("keeps a material-aware glass root opaque while fading its material presentation", () => {
+    const harness = createPresenceHarness(false);
+    const onExitComplete = vi.fn();
+    const view = (open: boolean) => (
+      <HarnessProviders harness={harness}>
+        <ModalPresence open={open} materialAware onExitComplete={onExitComplete}>
+          <TestAcrylicGroup />
+        </ModalPresence>
+      </HarnessProviders>
+    );
+    const { rerender } = render(view(true));
+    const group = presenceGroup();
+
+    expect(group).toHaveAttribute("data-material-aware-presence", "true");
+    expect(group.style.opacity).toBe("1");
+    expect(group.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
+    expect(group.style.willChange).toBe("transform");
+
+    act(() => harness.driver.fire());
+    expect(group.style.opacity).toBe("1");
+    expect(
+      Number(group.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeGreaterThan(0);
+    act(() => harness.driver.flush());
+    expect(group.style.opacity).toBe("1");
+    expect(group.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
+
+    rerender(view(false));
+    act(() => harness.driver.fire());
+    expect(group.style.opacity).toBe("1");
+    expect(
+      Number(group.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeLessThan(1);
+    act(() => harness.driver.flush());
+    expect(onExitComplete).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog", { name: "Motion dialog" })).not.toBeInTheDocument();
+    harness.dispose();
   });
 
   it("retains native glass DOM through exit on one scheduler without cached masks", () => {

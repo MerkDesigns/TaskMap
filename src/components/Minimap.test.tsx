@@ -9,7 +9,7 @@ import { Minimap } from "./Minimap";
 afterEach(cleanup);
 
 describe("C2F Minimap", () => {
-  it("uses one Acrylic Large shell, one unregistered Cutout interior, and the reset primitive", () => {
+  it("uses one Acrylic Large shell, a transparent viewport, and the reset primitive", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const onResetZoom = vi.fn();
     renderMinimap({ registry, onResetZoom, zoom: 1.254 });
@@ -18,11 +18,9 @@ describe("C2F Minimap", () => {
     const interior = document.querySelector("[data-minimap-viewport-surface]");
     expect(shell).toHaveAttribute("data-material", "acrylic-large");
     expect(shell.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
-    expect(interior).toHaveAttribute("data-material", "cutout");
+    expect(interior).not.toHaveAttribute("data-material");
     expect(interior).not.toHaveAttribute("data-material-surface-id");
-    expect((interior as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
-      "6px",
-    );
+    expect((interior as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe("");
     expect(shell).toHaveAttribute("data-material-strategy", "native-glass");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(screen.getByText("125%")).toBeInTheDocument();

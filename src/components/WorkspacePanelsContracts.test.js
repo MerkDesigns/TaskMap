@@ -13,7 +13,7 @@ const panelPatternPath = new URL(
 );
 const panelCssPath = new URL("../ui/patterns/workspace/WorkspaceSidePanel.css", import.meta.url);
 const panelMotionPath = new URL(
-  "../ui/patterns/workspace/useWorkspaceSidePanelMotion.ts",
+  "../ui/motion/presenceController.ts",
   import.meta.url,
 );
 const toolbarPath = new URL("./FloatingToolbar.tsx", import.meta.url);
@@ -32,7 +32,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     const layerContents = appSource.slice(layerStart, layerEnd);
 
     expect(appSource.match(/<WorkspaceChromeLayer>/g)).toHaveLength(1);
-    for (const component of ["FloatingToolbar", "CanvasManager", "ExtensionsPanel", "Minimap"]) {
+    for (const component of ["FloatingToolbar", "CanvasManager", "ExtensionsPanel", "LiveMinimap"]) {
       expect(layerContents).toMatch(new RegExp(`<${component}\\b`));
     }
     expect(layerContents.indexOf("<WorkspaceSidePanel")).toBeLessThan(
@@ -69,23 +69,37 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(windowChromeCss).toContain("z-index: 1");
   });
 
-  it("keeps open/closing lifecycle and timers in App", async () => {
+  it("keeps open/closing ownership in App and completes unmount from shared presence", async () => {
     const appSource = await readFile(appPath, "utf8");
 
-    expect(appSource).toContain(
-      "const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS",
-    );
     expect(appSource).toContain("setCanvasManagerClosing(true)");
     expect(appSource).toContain("setExtensionsClosing(true)");
     expect(appSource).toContain(
       "const leftPanelClosing = canvasManagerClosing || extensionsClosing",
     );
     expect(appSource.match(/closing=\{leftPanelClosing\}/g)).toHaveLength(3);
-    expect(appSource).toContain("panelSwitchTimeoutRef.current = window.setTimeout");
-    expect(appSource).toContain("window.clearTimeout(panelSwitchTimeoutRef.current)");
-    expect(appSource.match(/CANVAS_MANAGER_ANIMATION_MS/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(appSource).toContain("onExitComplete={completeLeftPanelExit}");
+    expect(appSource).not.toContain("panelSwitchTimeoutRef");
+    expect(appSource).not.toContain("CANVAS_MANAGER_ANIMATION_MS");
     expect(appSource).toContain("<WorkspaceSidePanelContentSwitcher");
     expect(appSource.match(/sharedPanel/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps Tab as a panel toggle and Shift+Tab as the panel cycle", async () => {
+    const appSource = await readFile(appPath, "utf8");
+    const shortcutStart = appSource.indexOf('event.key === "Tab"');
+    const shortcutEnd = appSource.indexOf('event.key === "Escape"', shortcutStart);
+    const shortcut = appSource.slice(shortcutStart, shortcutEnd);
+
+    expect(shortcut).not.toContain("isKeyboardFocusableControl(target)");
+    expect(shortcut).toContain("if (event.shiftKey)");
+    expect(shortcut).toContain('switchLeftPanel("extensions")');
+    expect(shortcut.match(/switchLeftPanel\("canvases"\)/g)).toHaveLength(3);
+    expect(shortcut).toContain("closeCanvasManager();\n          return;");
+    expect(shortcut).toContain("closeExtensionsPanel();\n          return;");
+    expect(shortcut.indexOf("closeExtensionsPanel()")).toBeLessThan(
+      shortcut.lastIndexOf('switchLeftPanel("canvases")'),
+    );
   });
 
   it("keeps the Acrylic Large shell on its proven local two-pass path", async () => {
@@ -110,8 +124,8 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     ]) {
       expect(patternCss).toContain(`var(${token})`);
     }
-    expect(motion).toContain("useMotionFrameScheduler");
-    expect(motion).not.toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(pattern).toContain("useSurfacePresence");
+    expect(pattern).toContain("effects: FadeSlideLeft");
     expect(pattern).not.toContain('backdropSource="shared"');
     expect(pattern).not.toContain("data-glass-batch-target");
     expect(pattern).not.toContain("data-side-panel-reveal-cover");
@@ -119,12 +133,10 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(patternCss).toContain("z-index: 0");
     expect(patternCss).not.toContain("taskmap-workspace-side-panel__reveal-cover");
     expect(patternCss).not.toContain("data-content-motion");
-    expect(motion).toContain("WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 240");
-    expect(motion).toContain("WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32");
-    expect(motion).toContain("easeInCubic");
-    expect(motion).toContain("easeOutCubic");
-    expect(motion).toMatch(/panel\.style\.(?:transform|willChange)/);
-    expect(motion).not.toMatch(/panel\.style\.(?:opacity|filter|backdropFilter)/);
+    expect(motion).toContain("export const FadeSlideLeft");
+    expect(motion).toContain("writeMaterialPresenceProgress");
+    expect(pattern).toMatch(/panel\.style\.willChange/);
+    expect(pattern).not.toMatch(/panel\.style\.(?:opacity|filter|backdropFilter)/);
     expect(boundary).not.toMatch(
       /(?:-webkit-)?backdrop-filter\s*:|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
     );

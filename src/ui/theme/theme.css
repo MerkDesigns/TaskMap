@@ -82,6 +82,7 @@
   --taskmap-icon-small: 14px;
   --taskmap-icon: 16px;
   --taskmap-icon-large: 20px;
+  --taskmap-layer-workspace-material: 40;
   --taskmap-layer-workspace-chrome: 41;
 
   /* Typography roles. */

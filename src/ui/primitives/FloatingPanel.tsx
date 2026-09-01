@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { MaterialSurface } from "../materials/MaterialSurface";
 import { primitiveClassNames } from "./primitiveClassNames";
 import "./floatingPanel.css";
 
@@ -88,18 +89,20 @@ export const FloatingPanel = forwardRef<HTMLDivElement, FloatingPanelProps>(func
 
   if (!open) return null;
   return createPortal(
-    <div
+    <MaterialSurface
       {...props}
+      material="opaque"
+      radius={8}
       ref={(element) => {
-        panelRef.current = element;
-        if (typeof forwardedRef === "function") forwardedRef(element);
-        else if (forwardedRef) forwardedRef.current = element;
+        panelRef.current = element as HTMLDivElement | null;
+        if (typeof forwardedRef === "function") forwardedRef(element as HTMLDivElement | null);
+        else if (forwardedRef) forwardedRef.current = element as HTMLDivElement | null;
       }}
       className={primitiveClassNames("taskmap-target-theme taskmap-floating-panel", className)}
       style={{ ...style, ...position, visibility: position ? undefined : "hidden" }}
     >
       {children}
-    </div>,
+    </MaterialSurface>,
     document.body,
   );
 });

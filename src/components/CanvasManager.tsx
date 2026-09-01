@@ -6,18 +6,21 @@ import {
   IconLayoutSidebarLeftExpand,
   IconPencil,
   IconPlus,
+  IconStack2,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import {
   PointerEvent as ReactPointerEvent,
   useCallback,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
   type HTMLAttributes,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
@@ -31,7 +34,11 @@ import {
 import { TaskCanvas } from "../types";
 import { CanvasBrowserCard, CanvasPreview, WorkspaceSidePanel } from "../ui/patterns/workspace";
 import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
+import { FadeSlideLeft } from "../ui/motion/presenceController";
+import { MOTION_DURATION_MS } from "../ui/motion/motionTokens";
+import { useSurfacePresence } from "../ui/motion/useSurfacePresence";
 import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
 import { Button, IconButton, ToggleButton } from "../ui/primitives/Button";
@@ -131,7 +138,8 @@ export function CanvasManager({
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
   const reducedMotion = useReducedMotion();
-  const workActive = useSettledPanelWork(active);
+  const deferredActive = useDeferredValue(active && !closing, false);
+  const workActive = useSettledPanelWork(deferredActive);
 
   useLayoutEffect(() => {
     const canvas = canvases.find(({ id }) => id === activeCanvasId);
@@ -147,8 +155,10 @@ export function CanvasManager({
       const viewport = viewportService.getSnapshot().viewport;
       const safeZoom = Number.isFinite(viewport.zoom) && viewport.zoom > 0 ? viewport.zoom : 1;
       const previewWidth =
-        (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
-        CANVAS_BROWSER_LAYOUT.previewAspectRatio;
+        snapPreviewPixel(
+          (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
+            CANVAS_BROWSER_LAYOUT.previewAspectRatio,
+        );
       const visibleWidth = viewportWidth / safeZoom;
       const visibleLeft = -viewport.pan.x / safeZoom;
       const visibleTop = -viewport.pan.y / safeZoom;
@@ -156,30 +166,34 @@ export function CanvasManager({
       card.querySelectorAll<HTMLElement>("[data-canvas-preview-container]").forEach((node) => {
         const element = containersById.get(node.dataset.canvasPreviewContainer ?? "");
         if (!element) return;
-        node.style.left = `${(element.x - visibleLeft) * previewScale}px`;
-        node.style.top = `${(element.y - visibleTop) * previewScale}px`;
-        node.style.width = `${Math.max(element.width * previewScale, 3)}px`;
-        node.style.height = `${Math.max(element.height * previewScale, 3)}px`;
+        node.style.left = `${snapPreviewPixel((element.x - visibleLeft) * previewScale)}px`;
+        node.style.top = `${snapPreviewPixel((element.y - visibleTop) * previewScale)}px`;
+        node.style.width = `${Math.max(snapPreviewPixel(element.width * previewScale), 3)}px`;
+        node.style.height = `${Math.max(snapPreviewPixel(element.height * previewScale), 3)}px`;
         const header = node.firstElementChild as HTMLElement | null;
-        if (header) header.style.height = `${Math.max(2, 48 * previewScale)}px`;
+        if (header) {
+          header.style.height = `${Math.max(2, snapPreviewPixel(48 * previewScale))}px`;
+        }
       });
       card.querySelectorAll<HTMLElement>("[data-canvas-preview-text-block]").forEach((node) => {
         const element = textBlocksById.get(node.dataset.canvasPreviewTextBlock ?? "");
         if (!element) return;
-        node.style.left = `${(element.x - visibleLeft) * previewScale}px`;
-        node.style.top = `${(element.y - visibleTop) * previewScale}px`;
-        node.style.width = `${Math.max(element.width * previewScale, 3)}px`;
-        node.style.height = `${Math.max(element.height * previewScale, 3)}px`;
+        node.style.left = `${snapPreviewPixel((element.x - visibleLeft) * previewScale)}px`;
+        node.style.top = `${snapPreviewPixel((element.y - visibleTop) * previewScale)}px`;
+        node.style.width = `${Math.max(snapPreviewPixel(element.width * previewScale), 3)}px`;
+        node.style.height = `${Math.max(snapPreviewPixel(element.height * previewScale), 3)}px`;
         const header = node.firstElementChild as HTMLElement | null;
-        if (header) header.style.height = `${Math.max(2, 40 * previewScale)}px`;
+        if (header) {
+          header.style.height = `${Math.max(2, snapPreviewPixel(40 * previewScale))}px`;
+        }
       });
       card.querySelectorAll<HTMLElement>("[data-canvas-preview-image]").forEach((node) => {
         const element = imagesById.get(node.dataset.canvasPreviewImage ?? "");
         if (!element) return;
-        node.style.left = `${(element.x - visibleLeft) * previewScale}px`;
-        node.style.top = `${(element.y - visibleTop) * previewScale}px`;
-        node.style.width = `${Math.max(element.width * previewScale, 3)}px`;
-        node.style.height = `${Math.max(element.height * previewScale, 3)}px`;
+        node.style.left = `${snapPreviewPixel((element.x - visibleLeft) * previewScale)}px`;
+        node.style.top = `${snapPreviewPixel((element.y - visibleTop) * previewScale)}px`;
+        node.style.width = `${Math.max(snapPreviewPixel(element.width * previewScale), 3)}px`;
+        node.style.height = `${Math.max(snapPreviewPixel(element.height * previewScale), 3)}px`;
       });
     };
 
@@ -188,12 +202,11 @@ export function CanvasManager({
   }, [activeCanvasId, canvases, previewGap, viewportService, viewportWidth, workActive]);
 
   useLayoutEffect(() => {
-    if (active) return;
+    if (active && !closing) return;
     setMenu(null);
-    setModalMode(null);
-    setCreateMenuClosing(false);
+    if (modalMode) setCreateMenuClosing(true);
     setEditingId(null);
-  }, [active]);
+  }, [active, closing, modalMode]);
   const menuPosition = useClampedFixedPosition(menuRef, {
     left: menu?.left ?? 0,
     top: menu?.top ?? 0,
@@ -234,13 +247,14 @@ export function CanvasManager({
     }
 
     setCreateMenuClosing(true);
-    window.setTimeout(() => {
-      setModalMode(null);
-      setCreateMenuClosing(false);
-      setEditingId(null);
-      setDraft(DEFAULT_DRAFT);
-    }, 120);
   }, [createMenuClosing, modalMode]);
+
+  const completeCreateMenuExit = useCallback(() => {
+    setModalMode(null);
+    setCreateMenuClosing(false);
+    setEditingId(null);
+    setDraft(DEFAULT_DRAFT);
+  }, []);
 
   useEffect(() => {
     if (!editingId) {
@@ -329,9 +343,7 @@ export function CanvasManager({
 
     if (modalMode === "create") {
       onCreateCanvas(nextDraft);
-      setModalMode(null);
-      setCreateMenuClosing(false);
-      setDraft(DEFAULT_DRAFT);
+      setCreateMenuClosing(true);
       return;
     }
   };
@@ -440,8 +452,13 @@ export function CanvasManager({
       )}
       <header className="taskmap-canvas-browser__header">
         <div className="taskmap-canvas-browser__header-copy">
-          <h2>Canvas Browser</h2>
-          <span>{canvases.length} Canvas Cards</span>
+          <IconStack2
+            size={17}
+            stroke={2}
+            className="taskmap-canvas-browser__header-icon"
+            aria-hidden="true"
+          />
+          <h2>Canvases</h2>
         </div>
         <div className="taskmap-canvas-browser__header-end">
           <ToggleButton
@@ -470,12 +487,6 @@ export function CanvasManager({
             aria-label="Create canvas"
             icon={<IconPlus size={19} stroke={2} />}
           />
-          <output
-            className="taskmap-canvas-browser__header-count"
-            aria-label={`${canvases.length} canvases`}
-          >
-            {canvases.length}
-          </output>
         </div>
       </header>
 
@@ -512,8 +523,10 @@ export function CanvasManager({
 
         const previewViewport = previewViewportSizesRef.current[canvas.id];
         const previewWidth =
-          (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
-          CANVAS_BROWSER_LAYOUT.previewAspectRatio;
+          snapPreviewPixel(
+            (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
+              CANVAS_BROWSER_LAYOUT.previewAspectRatio,
+          );
         const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
         const visibleWidth = previewViewport.width / safeZoom;
         const visibleLeft = -canvas.pan.x / safeZoom;
@@ -716,7 +729,7 @@ export function CanvasManager({
             }}
           >
             <span className="taskmap-canvas-browser-card__active-indicator" />
-            <CanvasPreview>
+            <CanvasPreview style={{ width: previewWidth }}>
               {workActive &&
                 canvas.containers.map((container) => (
                   <div
@@ -724,10 +737,10 @@ export function CanvasManager({
                     data-canvas-preview-container={container.id}
                     className="absolute overflow-hidden rounded-[1px] border"
                     style={{
-                      left: (container.x - visibleLeft) * previewScale,
-                      top: (container.y - visibleTop) * previewScale,
-                      width: Math.max(container.width * previewScale, 3),
-                      height: Math.max(container.height * previewScale, 3),
+                      left: snapPreviewPixel((container.x - visibleLeft) * previewScale),
+                      top: snapPreviewPixel((container.y - visibleTop) * previewScale),
+                      width: Math.max(snapPreviewPixel(container.width * previewScale), 3),
+                      height: Math.max(snapPreviewPixel(container.height * previewScale), 3),
                       zIndex: 20 + (container.layer ?? 0),
                       borderColor: container.accent,
                       backgroundColor: "#1b1b1e",
@@ -736,7 +749,7 @@ export function CanvasManager({
                     <div
                       className="absolute inset-x-0 top-0"
                       style={{
-                        height: Math.max(2, 48 * previewScale),
+                        height: Math.max(2, snapPreviewPixel(48 * previewScale)),
                         backgroundColor: container.accent,
                       }}
                     />
@@ -749,10 +762,10 @@ export function CanvasManager({
                     data-canvas-preview-text-block={element.id}
                     className="absolute overflow-hidden rounded-[1px] border"
                     style={{
-                      left: (element.x - visibleLeft) * previewScale,
-                      top: (element.y - visibleTop) * previewScale,
-                      width: Math.max(element.width * previewScale, 3),
-                      height: Math.max(element.height * previewScale, 3),
+                      left: snapPreviewPixel((element.x - visibleLeft) * previewScale),
+                      top: snapPreviewPixel((element.y - visibleTop) * previewScale),
+                      width: Math.max(snapPreviewPixel(element.width * previewScale), 3),
+                      height: Math.max(snapPreviewPixel(element.height * previewScale), 3),
                       zIndex: 20 + (element.layer ?? 0),
                       borderColor: element.accent,
                       backgroundColor: "#1b1b1e",
@@ -761,7 +774,7 @@ export function CanvasManager({
                     <div
                       className="absolute inset-x-0 top-0"
                       style={{
-                        height: Math.max(2, 40 * previewScale),
+                        height: Math.max(2, snapPreviewPixel(40 * previewScale)),
                         backgroundColor: element.accent,
                       }}
                     />
@@ -774,10 +787,10 @@ export function CanvasManager({
                     data-canvas-preview-image={image.id}
                     className="absolute overflow-hidden rounded-[1px] border"
                     style={{
-                      left: (image.x - visibleLeft) * previewScale,
-                      top: (image.y - visibleTop) * previewScale,
-                      width: Math.max(image.width * previewScale, 3),
-                      height: Math.max(image.height * previewScale, 3),
+                      left: snapPreviewPixel((image.x - visibleLeft) * previewScale),
+                      top: snapPreviewPixel((image.y - visibleTop) * previewScale),
+                      width: Math.max(snapPreviewPixel(image.width * previewScale), 3),
+                      height: Math.max(snapPreviewPixel(image.height * previewScale), 3),
                       zIndex: 20 + (image.layer ?? 0),
                       borderColor: image.accent,
                       backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
@@ -817,8 +830,10 @@ export function CanvasManager({
 
       {menu &&
         createPortal(
-          <div
+          <MaterialSurface
             ref={menuRef}
+            material="opaque"
+            radius={9}
             data-context-menu
             className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter z-40`}
             style={menuPosition}
@@ -849,17 +864,15 @@ export function CanvasManager({
               <IconTrash size={17} stroke={2} />
               <span>Delete</span>
             </button>
-          </div>,
+          </MaterialSurface>,
           document.body,
         )}
 
       {modalMode &&
         createPortal(
-          <div
-            data-new-canvas-menu
-            className={`frosted-glass context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
-              createMenuClosing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
-            }`}
+          <NewCanvasWindow
+            closing={createMenuClosing}
+            onExitComplete={completeCreateMenuExit}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
           >
@@ -936,10 +949,74 @@ export function CanvasManager({
                 <span>Create</span>
               </button>
             </div>
-          </div>,
+          </NewCanvasWindow>,
           document.body,
         )}
     </CanvasManagerShell>
+  );
+}
+
+function snapPreviewPixel(value: number): number {
+  const scale = Math.max(1, window.devicePixelRatio || 1);
+  return Math.round(value * scale) / scale;
+}
+
+interface NewCanvasWindowProps extends HTMLAttributes<HTMLElement> {
+  readonly children: ReactNode;
+  readonly closing: boolean;
+  readonly onExitComplete: () => void;
+}
+
+function NewCanvasWindow({
+  children,
+  className,
+  closing,
+  onExitComplete,
+  ...props
+}: NewCanvasWindowProps) {
+  const surfaceRef = useRef<HTMLElement | null>(null);
+  const presence = useSurfacePresence(surfaceRef, {
+    effects: FadeSlideLeft,
+    durationMs: MOTION_DURATION_MS.normal,
+    initialProgress: closing ? 1 : 0,
+    contentTargets: () => materialContentChildren(surfaceRef.current),
+    onComplete: (endpoint) => {
+      if (endpoint === "hidden") onExitComplete();
+    },
+  });
+  useLayoutEffect(() => {
+    if (closing) presence.hide();
+    else presence.show();
+  }, [closing, presence]);
+
+  return (
+    <MaterialSurface
+      {...props}
+      ref={surfaceRef}
+      material="acrylic-large"
+      radius={12}
+      data-new-canvas-menu
+      data-closing={closing || undefined}
+      className={[
+        "context-menu-panel fixed left-[318px] top-16 z-[1004] w-[300px] p-4 text-white",
+        closing && "pointer-events-none",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {children}
+    </MaterialSurface>
+  );
+}
+
+function materialContentChildren(surface: HTMLElement | null): HTMLElement[] {
+  if (!surface) return [];
+  return [...surface.children].filter(
+    (child): child is HTMLElement =>
+      child instanceof HTMLElement &&
+      !child.classList.contains("taskmap-material-native-glass__clip") &&
+      !child.classList.contains("taskmap-material-native-glass__rim"),
   );
 }
 

@@ -155,10 +155,6 @@ textarea.taskmap-input:read-only {
 .taskmap-select__panel {
   max-height: min(260px, calc(100vh - 16px));
   overflow: auto;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: var(--taskmap-radius-medium);
-  background: #161618;
-  box-shadow: var(--taskmap-shadow-outer);
   padding: 5px 6px;
   font-family: var(--taskmap-font-family);
 }

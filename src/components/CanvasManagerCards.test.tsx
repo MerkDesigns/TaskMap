@@ -139,7 +139,7 @@ describe("C2D Canvas Browser cards", () => {
       '[data-canvas-preview-image="image-a"]',
     ) as HTMLElement;
 
-    const expectedOffset = CANVAS_BROWSER_LAYOUT.previewWidth / 60;
+    const expectedOffset = Math.round(CANVAS_BROWSER_LAYOUT.previewWidth / 60);
     expect(Number.parseFloat(containerPreview.style.left)).toBeCloseTo(expectedOffset);
     expect(Number.parseFloat(containerPreview.style.top)).toBeCloseTo(expectedOffset);
     expect(containerPreview.style.zIndex).toBe("23");
@@ -181,7 +181,7 @@ describe("C2D Canvas Browser cards", () => {
 
     expect(preview.style.left).not.toBe(initialLeft);
     expect(Number.parseFloat(preview.style.left)).toBeCloseTo(
-      (50 - 120) * (CANVAS_BROWSER_LAYOUT.previewWidth / 1200),
+      Math.round((50 - 120) * (CANVAS_BROWSER_LAYOUT.previewWidth / 1200)),
     );
   });
 

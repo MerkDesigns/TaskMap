@@ -24,7 +24,14 @@ describe("Quick extensions menu", () => {
   it("focuses its search and filters extensions as the user types", async () => {
     const user = userEvent.setup();
     render(
-      <QuickExtensionsMenu left={100} top={100} onClose={vi.fn()} onDropExtension={vi.fn()} />,
+      <QuickExtensionsMenu
+        left={100}
+        top={100}
+        open
+        onRequestClose={vi.fn()}
+        onExitComplete={vi.fn()}
+        onDropExtension={vi.fn()}
+      />,
     );
 
     const search = screen.getByPlaceholderText("Search extensions");
@@ -33,6 +40,54 @@ describe("Quick extensions menu", () => {
 
     expect(screen.getByText("Command Runner")).toBeInTheDocument();
     expect(screen.queryByText("Checkbox")).not.toBeInTheDocument();
+  });
+
+  it("closes from a captured canvas pointer even when the canvas stops bubbling", async () => {
+    const onRequestClose = vi.fn();
+    render(
+      <>
+        <button data-testid="canvas-target" onPointerDown={(event) => event.stopPropagation()} />
+        <QuickExtensionsMenu
+          left={100}
+          top={100}
+          open
+          onRequestClose={onRequestClose}
+          onExitComplete={vi.fn()}
+          onDropExtension={vi.fn()}
+        />
+      </>,
+    );
+
+    fireEvent.pointerDown(screen.getByTestId("canvas-target"));
+    await waitFor(() => expect(onRequestClose).toHaveBeenCalledOnce());
+  });
+
+  it("completes the shared exit lifecycle without fading the glass root", () => {
+    const onExitComplete = vi.fn();
+    const renderMenu = (open: boolean) => (
+      <ReducedMotionProvider override>
+        <QuickExtensionsMenu
+          left={100}
+          top={100}
+          open={open}
+          onRequestClose={vi.fn()}
+          onExitComplete={onExitComplete}
+          onDropExtension={vi.fn()}
+        />
+      </ReducedMotionProvider>
+    );
+    const { rerender } = render(renderMenu(true));
+    const menu = document.querySelector<HTMLElement>("[data-quick-extensions-menu]");
+
+    expect(menu).toHaveAttribute("data-presence-phase", "visible");
+    expect(menu?.style.opacity).toBe("");
+
+    rerender(renderMenu(false));
+    expect(menu).toHaveAttribute("data-presence-phase", "hidden");
+    expect(menu).toHaveAttribute("data-closing", "true");
+    expect(menu?.style.opacity).toBe("");
+    expect(menu?.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
+    expect(onExitComplete).toHaveBeenCalledOnce();
   });
 });
 
@@ -138,7 +193,7 @@ describe("C2E Extensions panel", () => {
     expect(screen.queryByText("Lock")).not.toBeInTheDocument();
   });
 
-  it("preserves target filtering and keeps the legacy filter portal outside the panel", async () => {
+  it("preserves target filtering and keeps the material filter portal outside the panel", async () => {
     const user = userEvent.setup();
     render(<ExtensionsPanel closing={false} onDropExtension={vi.fn()} />);
     const panel = screen.getByLabelText("Extensions panel");
@@ -151,21 +206,25 @@ describe("C2E Extensions panel", () => {
 
     const filterMenu = document.body.querySelector("[data-extension-filter-menu]") as HTMLElement;
     expect(filterMenu).toHaveClass("context-menu-panel", "taskmap-target-theme");
-    expect(filterMenu).not.toHaveAttribute("data-material");
+    expect(filterMenu).toHaveAttribute("data-material", "opaque");
     expect(panel.contains(filterMenu)).toBe(false);
 
     for (const label of ["Containers", "Text blocks", "Text cards", "Images"]) {
-      await user.click(within(filterMenu).getByRole("button", { name: label }));
+      await user.click(within(filterMenu).getByRole("checkbox", { name: label }));
     }
     expect(trigger).toHaveAttribute("data-filter-active", "true");
     expect(screen.getByText("Lock")).toBeInTheDocument();
     expect(screen.getByText("Extra colors")).toBeInTheDocument();
     expect(screen.queryByText("Privacy")).not.toBeInTheDocument();
 
-    fireEvent.pointerDown(document.body);
+    const outsideTarget = document.createElement("button");
+    outsideTarget.addEventListener("pointerdown", (event) => event.stopPropagation());
+    document.body.append(outsideTarget);
+    fireEvent.pointerDown(outsideTarget);
     await waitFor(() =>
       expect(document.body.querySelector("[data-extension-filter-menu]")).toBeNull(),
     );
+    outsideTarget.remove();
   });
 
   it("preserves Favorites and Extensions grouping in registry order", () => {

@@ -1,28 +1,16 @@
-@property --taskmap-material-presence-progress {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 1;
-}
-
 .taskmap-quick-extensions-menu {
-  --taskmap-material-presence-progress: 1;
-
   position: fixed;
   z-index: 1000;
   display: flex;
   width: 269px;
   max-height: 516px;
   flex-direction: column;
-  overflow: hidden;
   padding: var(--taskmap-space-3);
   color: var(--taskmap-text);
-  transform-origin: center;
-  animation: taskmap-quick-extensions-enter 220ms var(--taskmap-ease-emphasized) both;
 }
 
-.taskmap-quick-extensions-menu[data-presence-phase="exiting"] {
+.taskmap-quick-extensions-menu[data-closing="true"] {
   pointer-events: none;
-  animation: taskmap-quick-extensions-exit 160ms var(--taskmap-ease-standard) both;
 }
 
 .taskmap-quick-extensions-menu__search {
@@ -45,7 +33,7 @@
 .taskmap-quick-extensions-menu__scroll-frame {
   position: relative;
   flex: 1;
-  overflow: visible;
+  overflow: hidden;
   margin-inline: calc(0px - var(--taskmap-space-3));
 }
 
@@ -91,7 +79,7 @@
   margin-top: var(--taskmap-space-3);
   padding-top: var(--taskmap-space-3);
   border-top: 1px solid
-    rgb(255 255 255 / calc(0.09 * var(--taskmap-material-presence-progress)));
+    rgb(255 255 255 / calc(0.09 * var(--taskmap-material-presence-progress, 1)));
 }
 
 .taskmap-quick-extensions-menu__list {
@@ -104,7 +92,8 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  clip-path: inset(0);
+  margin-inline: calc(0px - var(--taskmap-space-3));
+  padding: var(--taskmap-space-3);
   scrollbar-width: none;
 }
 
@@ -135,35 +124,4 @@
 .taskmap-quick-extensions-menu__card > .taskmap-extension-browser-card__actions,
 .taskmap-quick-extensions-menu .taskmap-extension-browser-empty {
   opacity: var(--taskmap-material-presence-progress);
-}
-
-@keyframes taskmap-quick-extensions-enter {
-  from {
-    --taskmap-material-presence-progress: 0;
-    transform: translate3d(0, 10px, 0);
-  }
-
-  to {
-    --taskmap-material-presence-progress: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes taskmap-quick-extensions-exit {
-  from {
-    --taskmap-material-presence-progress: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    --taskmap-material-presence-progress: 0;
-    transform: translate3d(0, 10px, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .taskmap-quick-extensions-menu,
-  .taskmap-quick-extensions-menu[data-presence-phase="exiting"] {
-    animation: none;
-  }
 }

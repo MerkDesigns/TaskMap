@@ -3,7 +3,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { TaskCanvas } from "../../../types";
 import { projectLegacyBackdropScene } from "../../../legacy/materials/legacyBackdropScene";
 import { CanvasFrame } from "./CanvasFrame";
-import { WorkspaceBackdropLayer, WorkspaceChromeLayer, WorkspaceRoot } from "./WorkspaceRoot";
+import {
+  WorkspaceBackdropLayer,
+  WorkspaceChromeLayer,
+  WorkspaceMaterialLayer,
+  WorkspaceRoot,
+} from "./WorkspaceRoot";
 
 afterEach(cleanup);
 
@@ -12,12 +17,14 @@ describe("Phase 4.5C2A workspace foundation", () => {
     const { getByTestId } = render(
       <WorkspaceRoot data-testid="workspace">
         <WorkspaceBackdropLayer data-testid="backdrop" />
+        <WorkspaceMaterialLayer data-testid="materials" />
         <WorkspaceChromeLayer data-testid="chrome" />
       </WorkspaceRoot>,
     );
 
     expect(getByTestId("workspace")).toHaveClass("taskmap-target-theme", "taskmap-workspace-root");
     expect(getByTestId("chrome")).toHaveClass("taskmap-workspace-chrome-layer");
+    expect(getByTestId("materials")).toHaveClass("taskmap-workspace-material-layer");
     expect(getByTestId("backdrop")).toHaveClass("taskmap-workspace-backdrop-layer");
     expect(document.documentElement).not.toHaveClass("taskmap-target-theme");
     expect(document.body).not.toHaveClass("taskmap-target-theme");

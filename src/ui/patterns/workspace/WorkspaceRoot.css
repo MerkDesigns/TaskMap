@@ -15,6 +15,19 @@
   inset: 0;
 }
 
+/* Canvas-sampling materials live below interactive chrome so toolbar and window-control pixels
+   can never become part of their native backdrop input. */
+.taskmap-workspace-material-layer {
+  position: fixed;
+  z-index: var(--taskmap-layer-workspace-material);
+  pointer-events: none;
+  inset: 0;
+}
+
+.taskmap-workspace-material-layer > * {
+  pointer-events: auto;
+}
+
 /* Only workspace chrome belongs in this intentional stacking context; the
    root and canvas remain outside it. */
 .taskmap-workspace-chrome-layer {

@@ -10,7 +10,7 @@ const minimapPath = new URL("./Minimap.tsx", import.meta.url);
 const patternPath = new URL("../ui/patterns/workspace/MinimapSurface.tsx", import.meta.url);
 const patternCssPath = new URL("../ui/patterns/workspace/MinimapSurface.css", import.meta.url);
 const motionPath = new URL(
-  "../ui/patterns/workspace/useMinimapVisibilityMotion.ts",
+  "../ui/motion/presenceController.ts",
   import.meta.url,
 );
 const themePath = new URL("../ui/theme/theme.css", import.meta.url);
@@ -23,19 +23,19 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     const layer = app.slice(start, end);
 
     expect(app.match(/<WorkspaceChromeLayer>/g)).toHaveLength(1);
-    for (const component of ["FloatingToolbar", "CanvasManager", "ExtensionsPanel", "Minimap"]) {
+    for (const component of ["FloatingToolbar", "CanvasManager", "ExtensionsPanel", "LiveMinimap"]) {
       expect(layer).toMatch(new RegExp(`<${component}\\b`));
     }
     expect(layer).not.toMatch(
       /<(?:QuickExtensionsMenu|SettingsModal|ToastStack|DevelopmentFpsCounter|\w*ContextMenu)\b/,
     );
     expect(app.indexOf("<ToastStack", end)).toBeGreaterThan(end);
-    expect(app).toContain("minimapEnabled && minimapMounted");
+    expect(app).toContain("minimapMounted &&");
     expect(app).toContain("visible={minimapVisible}");
-    expect(app).toContain("MINIMAP_VISIBILITY_DURATION_MS");
+    expect(app).toContain("onExitComplete={completeMinimapExit}");
   });
 
-  it("uses shared materials and exact shell/interior geometry without local stacking or blur", async () => {
+  it("uses one shared Large material and exact transparent viewport geometry", async () => {
     const [minimap, pattern, css, theme] = await Promise.all([
       readFile(minimapPath, "utf8"),
       readFile(patternPath, "utf8"),
@@ -48,8 +48,7 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
 
     expect(pattern).toContain('material="acrylic-large"');
     expect(pattern).toContain("radius={12}");
-    expect(pattern).toContain('material="cutout"');
-    expect(pattern).toContain("radius={6}");
+    expect(pattern).not.toContain('material="cutout"');
     expect(css).toContain("box-sizing: border-box");
     expect(shellWidth).toBe(192);
     expect(shellWidth).toBeGreaterThanOrEqual(MINIMAP_MAX_SIZE + horizontalPadding * 2);
@@ -77,7 +76,7 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     expect(minimap).toContain("MINIMAP_MAX_SIZE");
   });
 
-  it("shares opacity motion without new compositor infrastructure or animation loops", async () => {
+  it("shares material-aware presence without new compositor infrastructure or animation loops", async () => {
     const [appShell, motion, pattern, minimap] = await Promise.all([
       readFile(appShellPath, "utf8"),
       readFile(motionPath, "utf8"),
@@ -86,12 +85,16 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     ]);
     const boundary = `${motion}\n${pattern}\n${minimap}`;
 
-    expect(motion).toContain("useMotionFrameScheduler");
+    expect(pattern).toContain("useSurfacePresence");
+    expect(pattern).toContain("effects: Fade");
+    expect(pattern).not.toMatch(/lift:|slide:/);
+    expect(motion).toContain("writeMaterialPresenceProgress");
     expect(motion).not.toContain("useMaterialSurfaceMaskOpacity");
     expect(motion).not.toContain("useMaterialSurfaceGeometryInvalidation");
     expect(boundary).not.toMatch(
       /requestAnimationFrame|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider/i,
     );
+    expect(pattern).not.toMatch(/surface\.style\.opacity/);
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 

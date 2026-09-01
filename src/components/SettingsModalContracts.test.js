@@ -53,6 +53,15 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     expect(settingsCss).toContain("max-height: calc(100vh - 2rem)");
     expect(settingsCss).toContain("padding: var(--taskmap-modal-padding)");
     expect(settingsCss).toContain("overflow-x: hidden");
+    expect(settingsCss).toContain("scrollbar-width: none");
+    expect(settingsCss).toContain(".taskmap-settings-scroll::-webkit-scrollbar");
+    expect(settingsCss).toContain("display: none");
+  });
+
+  it("uses material-aware shared presence so Settings glass survives both directions", async () => {
+    const app = await readFile(appPath, "utf8");
+
+    expect(app).toContain("<ModalPresence open={settingsOpen} materialAware>");
   });
 
   it("retains the C3A Settings tree while C3B migrates only its nested dialogs", async () => {
@@ -91,6 +100,10 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     expect(modals).toContain("top: rect.top");
     expect(modals).toContain('className="taskmap-modal-portal-layer"');
     expect(modals.match(/label: "/g)?.length).toBeGreaterThanOrEqual(20);
+    expect(modals).toContain('{ label: "Open or close Canvases", keys: ["Tab"] }');
+    expect(modals).toContain(
+      '{ label: "Switch Canvases / Extensions", keys: ["Shift", "Tab"] }',
+    );
     expect(modals).toContain('{ label: "Connect mindmaps", keys: ["Hold C", "Drag point"] }');
   });
 

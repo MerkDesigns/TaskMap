@@ -24,6 +24,7 @@ import {
   useState,
 } from "react";
 import { TextBlockElement } from "../types";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 const MarkdownContent = lazy(() =>
@@ -527,18 +528,23 @@ function TextBlockNodeComponent({
         />
       </div>
       {overflowMenuPosition && (
-        <div
+        <MaterialSurface
           ref={overflowMenuRef}
-          className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+          material="opaque"
+          radius={8}
+          className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 p-1"
           style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
           onPointerDown={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
         >
-          <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
+          <span
+            className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15]"
+            style={{ background: "rgb(var(--taskmap-material-tint-rgb))" }}
+          />
           <span className="relative z-10 flex items-center gap-1">
             {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
           </span>
-        </div>
+        </MaterialSurface>
       )}
       {colorMenuPosition && (
         <ColorPickerMenu

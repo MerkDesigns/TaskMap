@@ -8,6 +8,7 @@ import "./quickExtensionsMenuPlayground.css";
 interface MenuPosition {
   readonly left: number;
   readonly top: number;
+  readonly closing: boolean;
 }
 
 export function QuickExtensionsMenuPlayground() {
@@ -46,6 +47,7 @@ export function QuickExtensionsMenuPlayground() {
       setMenuPosition({
         left: lastPointerPositionRef.current.x,
         top: lastPointerPositionRef.current.y,
+        closing: false,
       });
     };
 
@@ -96,7 +98,11 @@ export function QuickExtensionsMenuPlayground() {
           minorRadius={minorRadius}
           iconRadius={iconRadius}
           iconBackgroundOpacity={iconBackgroundOpacity}
-          onClose={() => setMenuPosition(null)}
+          open={!menuPosition.closing}
+          onRequestClose={() =>
+            setMenuPosition((current) => (current ? { ...current, closing: true } : current))
+          }
+          onExitComplete={() => setMenuPosition(null)}
           onDropExtension={recordDrop}
         />
       ) : null}

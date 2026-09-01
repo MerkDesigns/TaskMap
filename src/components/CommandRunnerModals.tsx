@@ -14,6 +14,8 @@ import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { commandErrorMessage } from "../app/commandError";
 import type { CommandRunnerCommand } from "../types";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
+import { ModalDialog } from "../ui/patterns/overlays";
 
 type CommandRunnerSettingsModalProps = {
   cardText: string;
@@ -253,12 +255,15 @@ export function CommandRunnerSettingsModal({
   };
 
   return createPortal(
-    <section
+    <MaterialSurface
+      as="section"
+      material="acrylic-large"
+      radius={12}
       role="dialog"
       aria-modal="false"
       aria-labelledby="command-runner-settings-title"
-      className={`fixed z-[1004] flex flex-col overflow-hidden rounded-xl border border-white/[0.15] bg-[#141519] text-white shadow-[0_24px_70px_rgba(0,0,0,0.62)] ${
-        closing ? "command-runner-modal-exit pointer-events-none" : "command-runner-modal-enter"
+      className={`fixed z-[1004] flex flex-col overflow-hidden text-white ${
+        closing ? "taskmap-acrylic-window-exit pointer-events-none" : "taskmap-acrylic-window-enter"
       }`}
       style={bounds}
       onPointerDown={(event) => event.stopPropagation()}
@@ -267,7 +272,7 @@ export function CommandRunnerSettingsModal({
       <header
         ref={dialogRef}
         tabIndex={-1}
-        className="flex h-12 shrink-0 cursor-grab items-center justify-between border-b border-white/[0.10] bg-[#1b1b1e] px-3 active:cursor-grabbing"
+        className="flex h-12 shrink-0 cursor-grab items-center justify-between border-b border-white/[0.10] px-3 active:cursor-grabbing"
         onPointerDown={(event) => startPointerAction(event, "move")}
         onPointerMove={movePointerAction}
         onPointerUp={finishPointerAction}
@@ -488,11 +493,13 @@ export function CommandRunnerSettingsModal({
       />
       {pendingAdminIndex !== null && (
         <div className="absolute inset-0 z-30 grid place-items-center bg-black/55 p-4">
-          <div
+          <MaterialSurface
+            material="opaque"
+            radius={12}
             role="dialog"
             aria-modal="true"
             aria-labelledby="command-runner-admin-confirm-title"
-            className="w-full max-w-[390px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.55)]"
+            className="w-full max-w-[390px] p-4"
           >
             <div className="mb-3 flex items-center gap-2 text-red-200">
               <IconShieldLock size={20} stroke={2} />
@@ -523,10 +530,10 @@ export function CommandRunnerSettingsModal({
                 Enable Admin
               </button>
             </div>
-          </div>
+          </MaterialSurface>
         </div>
       )}
-    </section>,
+    </MaterialSurface>,
     document.body,
   );
 }
@@ -563,13 +570,14 @@ export function ExtensionConflictModal({
   const plural = affectedCount === 1 ? "card" : "cards";
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/48">
-      <div
+      <ModalDialog
         ref={dialogRef}
+        width={400}
         role="dialog"
         aria-modal="true"
         aria-labelledby="extension-conflict-title"
         tabIndex={-1}
-        className="w-[400px] rounded-xl border border-white/[0.15] bg-[#202023] p-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+        className="p-4 text-white"
       >
         <div className="mb-3 flex items-center gap-2">
           <IconTerminal2 size={20} stroke={2} className="text-amber-300" />
@@ -605,7 +613,7 @@ export function ExtensionConflictModal({
             Replace with {requestedLabel}
           </button>
         </div>
-      </div>
+      </ModalDialog>
     </div>
   );
 }

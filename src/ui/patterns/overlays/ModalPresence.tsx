@@ -16,6 +16,7 @@ export type ModalPresencePhase = "entering" | "open" | "closing" | "closed";
 
 export interface ModalPresenceProps {
   readonly children: ReactNode;
+  readonly materialAware?: boolean;
   readonly open: boolean;
   readonly placement?: ModalPresencePlacement;
   readonly onExitComplete?: () => void;
@@ -23,6 +24,7 @@ export interface ModalPresenceProps {
 
 export function ModalPresence({
   children,
+  materialAware = false,
   onExitComplete,
   open,
   placement = "root",
@@ -46,10 +48,17 @@ export function ModalPresence({
       stateRef.current = state;
       const group = groupRef.current;
       if (group) {
-        group.style.opacity = `${state.opacity}`;
+        group.style.opacity = materialAware ? "1" : `${state.opacity}`;
+        if (materialAware) {
+          if (state.opacity === 1) {
+            group.style.removeProperty("--taskmap-material-presence-progress");
+          } else {
+            group.style.setProperty("--taskmap-material-presence-progress", `${state.opacity}`);
+          }
+        }
         group.style.transform = `translate3d(0, ${state.translateY}px, 0) scale(${state.scale})`;
         group.style.transformOrigin = "center";
-        group.style.willChange = active ? "opacity, transform" : "";
+        group.style.willChange = active ? (materialAware ? "transform" : "opacity, transform") : "";
       }
       const scrim = scrimRef.current;
       if (scrim) {
@@ -58,7 +67,7 @@ export function ModalPresence({
       }
       invalidateGeometry();
     },
-    [invalidateGeometry],
+    [invalidateGeometry, materialAware],
   );
 
   useLayoutEffect(() => {
@@ -113,7 +122,13 @@ export function ModalPresence({
 
   if (!present) return null;
 
-  const layerProps = { groupRef, phase, scrimRef, children: childrenRef.current };
+  const layerProps = {
+    groupRef,
+    materialAware,
+    phase,
+    scrimRef,
+    children: childrenRef.current,
+  };
   return placement === "root" ? (
     <ModalLayer {...layerProps} />
   ) : (

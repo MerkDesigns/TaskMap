@@ -115,6 +115,10 @@
   z-index: 1;
   backface-visibility: hidden;
   transform: translateZ(var(--taskmap-material-backdrop-revision, 0px));
+}
+
+.taskmap-material-surface[data-material-strategy="native-glass"]
+  .taskmap-material-native-glass__backdrop {
   -webkit-backdrop-filter: blur(
       calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
     )
@@ -260,9 +264,7 @@
 .taskmap-material-surface[data-material-strategy="css"] {
   border: var(--taskmap-material-border-width) solid
     rgb(var(--taskmap-material-border-rgb) / var(--taskmap-material-border-alpha));
-  background: rgb(
-    var(--taskmap-material-fill-rgb) / var(--taskmap-material-fill-opacity, 1)
-  );
+  background: rgb(var(--taskmap-material-fill-rgb) / var(--taskmap-material-fill-opacity, 1));
 }
 
 .taskmap-material-surface--bright-selection[data-material-strategy="native-glass"]::before {

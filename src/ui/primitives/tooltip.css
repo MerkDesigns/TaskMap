@@ -1,9 +1,5 @@
 .taskmap-tooltip {
   max-width: 220px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: var(--taskmap-radius-small);
-  background: #1b1b1e;
-  box-shadow: var(--taskmap-shadow-outer);
   padding: 5px 8px;
   color: var(--taskmap-text);
   font-family: var(--taskmap-font-family);

@@ -1,5 +1,6 @@
 import { IconAlertTriangle, IconCircleCheck, IconInfoCircle, IconX } from "@tabler/icons-react";
 import { ToastMessage, ToastTone } from "../types";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 
 type ToastStackProps = {
   toasts: ToastMessage[];
@@ -24,9 +25,11 @@ export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
         const { Icon, iconClass } = TOAST_STYLES[toast.tone];
 
         return (
-          <div
+          <MaterialSurface
             key={toast.id}
-            className={`${toast.exiting ? "toast-exit" : "toast-enter"} toast-item pointer-events-auto overflow-hidden rounded-lg border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.45)] backdrop-blur-md`}
+            material="opaque"
+            radius={8}
+            className={`${toast.exiting ? "toast-exit" : "toast-enter"} toast-item pointer-events-auto overflow-hidden p-3 text-white`}
           >
             <div className="flex items-start gap-3">
               <Icon size={19} stroke={2} className={`mt-0.5 shrink-0 ${iconClass}`} />
@@ -44,7 +47,7 @@ export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
                 <IconX size={16} stroke={2} />
               </button>
             </div>
-          </div>
+          </MaterialSurface>
         );
       })}
     </div>

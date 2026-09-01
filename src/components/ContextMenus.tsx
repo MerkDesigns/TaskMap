@@ -41,6 +41,7 @@ import {
 } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { Tooltip } from "../ui/primitives/Tooltip";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 const REMOVE_EXTENSIONS_TITLE_CLASS = "px-2 pb-1 pt-0.5 text-[11px] font-semibold text-white/45";
@@ -127,8 +128,10 @@ export function ContainerContextMenu({
   const presets = ACCENT_PRESETS;
 
   return (
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={9}
       data-context-menu
       className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
@@ -322,7 +325,7 @@ export function ContainerContextMenu({
         <IconTrash size={17} stroke={2} />
         <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
-    </div>
+    </MaterialSurface>
   );
 }
 
@@ -361,8 +364,10 @@ export function ContainerContentContextMenu({
   });
 
   return (
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={9}
       data-context-menu
       className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
@@ -392,7 +397,7 @@ export function ContainerContentContextMenu({
         <IconTextSize size={17} stroke={2} />
         <span>Create text card</span>
       </button>
-    </div>
+    </MaterialSurface>
   );
 }
 
@@ -415,8 +420,10 @@ export function CanvasContextMenu({
   });
 
   return (
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={9}
       data-context-menu
       className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
@@ -470,7 +477,7 @@ export function CanvasContextMenu({
         <IconTrash size={17} stroke={2} />
         <span>Clear canvas</span>
       </button>
-    </div>
+    </MaterialSurface>
   );
 }
 
@@ -488,8 +495,10 @@ export function MindmapConnectionContextMenu({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
   return (
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={9}
       data-context-menu
       className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter`}
       style={position}
@@ -500,7 +509,7 @@ export function MindmapConnectionContextMenu({
         <IconTrash size={17} stroke={2} />
         <span>Delete connection</span>
       </button>
-    </div>
+    </MaterialSurface>
   );
 }
 
@@ -547,8 +556,10 @@ export function TextBlockContextMenu({
   const presets = ACCENT_PRESETS;
 
   return (
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={9}
       data-context-menu
       className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
@@ -656,7 +667,7 @@ export function TextBlockContextMenu({
         <IconTrash size={17} stroke={2} />
         <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
-    </div>
+    </MaterialSurface>
   );
 }
 
@@ -757,8 +768,10 @@ export function TextCardContextMenu({
 
   return (
     <>
-      <div
+      <MaterialSurface
         ref={menuRef}
+        material="opaque"
+        radius={9}
         data-context-menu
         className={`${CONTEXT_MENU_PANEL_CLASS} ${
           closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
@@ -923,13 +936,15 @@ export function TextCardContextMenu({
           <IconTrash size={17} stroke={2} />
           <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
         </button>
-      </div>
+      </MaterialSurface>
 
       {linkMenuOpen && card.kind !== "mindmap" && !closing && (
-        <div
+        <MaterialSurface
           ref={linkMenuRef}
+          material="opaque"
+          radius={9}
           data-context-menu
-          className="context-menu-panel context-menu-enter fixed z-[201] w-[230px] rounded-[9px] border border-white/[0.15] bg-[#1b1b1e] px-[5px] py-1 text-[12px] text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] [&_svg]:scale-[1.08]"
+          className="context-menu-panel context-menu-enter fixed z-[201] w-[230px] px-[5px] py-1 text-[12px] text-white [&_svg]:scale-[1.08]"
           style={linkMenuPosition}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
@@ -968,7 +983,7 @@ export function TextCardContextMenu({
               <IconX size={17} stroke={2} />
             </button>
           </div>
-        </div>
+        </MaterialSurface>
       )}
 
       {colorPickerPosition && !closing && (
@@ -1029,8 +1044,10 @@ export function ImageContextMenu({
   const presets = ACCENT_PRESETS;
 
   return (
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={9}
       data-context-menu
       className={`${CONTEXT_MENU_PANEL_CLASS} ${
         closing ? "context-menu-exit pointer-events-none" : "context-menu-enter"
@@ -1139,6 +1156,6 @@ export function ImageContextMenu({
         <IconTrash size={17} stroke={2} />
         <span>{isMultiTarget ? "Remove selected" : "Remove"}</span>
       </button>
-    </div>
+    </MaterialSurface>
   );
 }

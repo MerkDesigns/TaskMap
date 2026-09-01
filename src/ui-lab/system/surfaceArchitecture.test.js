@@ -72,17 +72,22 @@ describe("UI Lab Surface architecture", () => {
   });
 
   it("keeps the experimental fade seam in materials and behavior on the Surface ref", async () => {
-    const [prototype, controller, hook, labCss, materialCss] = await Promise.all([
+    const [prototype, controller, hook, labController, labHook, labCss, materialCss] =
+      await Promise.all([
       read("src/ui-lab/MaterialAwarePresencePrototype.tsx"),
+      read("src/ui/motion/presenceController.ts"),
+      read("src/ui/motion/useSurfacePresence.ts"),
       read("src/ui-lab/system/presenceController.ts"),
       read("src/ui-lab/system/useSurfacePresence.ts"),
       read("src/ui-lab/materialAwarePresence.css"),
       read("src/ui/materials/MaterialSurface.css"),
-    ]);
+      ]);
 
     expect(prototype).toContain("animatedRef={surfaceRef}");
     expect(hook).toContain("useMotionFrameScheduler");
     expect(controller).not.toMatch(/requestAnimationFrame|querySelector|querySelectorAll/);
+    expect(labController).toContain('export * from "../../ui/motion/presenceController"');
+    expect(labHook).toContain('export * from "../../ui/motion/useSurfacePresence"');
     expect(labCss).not.toMatch(/(?:-webkit-)?backdrop-filter\s*:|box-shadow\s*:/);
     expect(materialCss).toContain("--taskmap-material-presence-progress");
   });

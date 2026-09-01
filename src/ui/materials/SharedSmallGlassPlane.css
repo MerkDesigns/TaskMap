@@ -18,12 +18,6 @@
   pointer-events: none;
 }
 
-.taskmap-shared-small-glass-plane__backdrop-clip {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
 .taskmap-shared-small-glass-plane__preblur,
 .taskmap-shared-small-glass-plane__backdrop {
   position: absolute;
@@ -54,19 +48,4 @@
     contrast(var(--taskmap-material-contrast));
   backface-visibility: hidden;
   transform: translateZ(0);
-}
-
-.taskmap-shared-small-glass-plane__shadow {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  left: 0;
-  display: none;
-  border-radius: var(--taskmap-material-radius);
-  box-shadow: var(--taskmap-material-shadow);
-  pointer-events: none;
-}
-
-.taskmap-shared-small-glass-plane__shadow[data-shared-small-glass-shadow-visible="true"] {
-  display: block;
 }

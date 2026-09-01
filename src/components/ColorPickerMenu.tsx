@@ -2,6 +2,7 @@ import { IconX } from "@tabler/icons-react";
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ACCENT_PRESETS } from "../constants";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 
 type Rgb = { r: number; g: number; b: number };
@@ -207,11 +208,13 @@ export function ColorPickerMenu({
   };
 
   return createPortal(
-    <div
+    <MaterialSurface
       ref={menuRef}
+      material="opaque"
+      radius={8}
       data-context-menu
       data-color-picker-menu
-      className={`context-menu-enter fixed z-[1002] w-[286px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.52)] ${className ?? ""}`}
+      className={`context-menu-enter fixed z-[1002] w-[286px] p-3 text-white ${className ?? ""}`}
       style={position}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
@@ -333,7 +336,7 @@ export function ColorPickerMenu({
           </div>
         </div>
       )}
-    </div>,
+    </MaterialSurface>,
     document.body,
   );
 }

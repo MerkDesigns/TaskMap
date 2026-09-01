@@ -1,6 +1,5 @@
 import {
   IconBox,
-  IconCheck,
   IconFilter,
   IconInfoCircle,
   IconNotes,
@@ -15,6 +14,7 @@ import {
 import {
   RefObject,
   useCallback,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -38,12 +38,15 @@ import {
 } from "../ui/patterns/workspace";
 import { IconButton } from "../ui/primitives/Button";
 import { SearchField } from "../ui/primitives/FormControls";
+import { Checkbox } from "../ui/primitives/SelectionControls";
 import { ScrollArea } from "../ui/primitives/Layout";
 import { Tooltip } from "../ui/primitives/Tooltip";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
-import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
+import { FadeLift } from "../ui/motion/presenceController";
+import { MOTION_DURATION_MS } from "../ui/motion/motionTokens";
+import { useSurfacePresence } from "../ui/motion/useSurfacePresence";
 import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
 import { useSharedSmallGlassList } from "../ui/patterns/workspace/useSharedSmallGlassList";
 import "./QuickExtensionsMenu.css";
@@ -86,7 +89,7 @@ function ExtensionInfoButton({ targets }: { targets: readonly ExtensionTargetTyp
   );
 
   return (
-    <Tooltip label={targetItems}>
+    <Tooltip label={targetItems} openDelayMs={500}>
       <button
         type="button"
         aria-label="Compatible elements"
@@ -128,7 +131,9 @@ type QuickExtensionsMenuProps = {
   minorRadius?: number;
   iconRadius?: number;
   iconBackgroundOpacity?: number;
-  onClose: () => void;
+  open: boolean;
+  onExitComplete: () => void;
+  onRequestClose: () => void;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
   onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
 };
@@ -140,7 +145,9 @@ export function QuickExtensionsMenu({
   minorRadius = 9,
   iconRadius = 7,
   iconBackgroundOpacity = 0.75,
-  onClose,
+  open,
+  onExitComplete,
+  onRequestClose,
   onDropExtension,
   onDragExtension,
 }: QuickExtensionsMenuProps) {
@@ -148,10 +155,7 @@ export function QuickExtensionsMenu({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
-  const closeTimerRef = useRef<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [closing, setClosing] = useState(false);
-  const reducedMotion = useReducedMotion();
   const favorites = loadExtensionFavorites();
   const position = useClampedFixedPosition(menuRef, { left: left + 10, top: top + 10 });
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -169,18 +173,20 @@ export function QuickExtensionsMenu({
   );
   const favoriteExtensions = filteredExtensions.filter((extension) => favorites[extension.id]);
   const otherExtensions = filteredExtensions.filter((extension) => !favorites[extension.id]);
-  const requestClose = useCallback(() => {
-    if (closeTimerRef.current !== null) return;
-    if (reducedMotion) {
-      onClose();
-      return;
-    }
-    setClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      closeTimerRef.current = null;
-      onClose();
-    }, 160);
-  }, [onClose, reducedMotion]);
+  const geometryActive = useDeferredValue(open, false);
+  const presence = useSurfacePresence(menuRef, {
+    effects: FadeLift,
+    durationMs: MOTION_DURATION_MS.normal,
+    initialProgress: open ? 0 : 1,
+    onComplete: (endpoint) => {
+      if (endpoint === "hidden") onExitComplete();
+    },
+  });
+  useLayoutEffect(() => {
+    if (open) presence.show();
+    else presence.hide();
+  }, [open, presence]);
+  const requestClose = useCallback(() => onRequestClose(), [onRequestClose]);
   const { drag, startExtensionDrag } = useExtensionDrag({
     sourceRef: menuRef,
     onDropExtension,
@@ -188,7 +194,7 @@ export function QuickExtensionsMenu({
     onDropComplete: requestClose,
   });
   useSharedSmallGlassList({
-    active: true,
+    active: geometryActive,
     cardSelector: "[data-extension-card-id]",
     planeRef: sharedSmallGlassPlaneRef,
     viewportRef: scrollAreaRef,
@@ -201,22 +207,22 @@ export function QuickExtensionsMenu({
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    },
-    [],
-  );
-
   useEffect(() => {
     const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) {
         requestClose();
       }
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") requestClose();
+    };
 
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+    window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
   }, [requestClose]);
 
   const renderCategory = (
@@ -248,7 +254,6 @@ export function QuickExtensionsMenu({
               embedded={false}
               radius={minorRadius}
               data-extension-card-id={extension.id}
-              data-shared-small-glass-shadow-item={extension.id}
               className="taskmap-quick-extensions-menu__card"
               onPointerDown={(event) => startExtensionDrag(event, extension.id)}
             >
@@ -280,7 +285,7 @@ export function QuickExtensionsMenu({
       <MaterialSurface
         ref={menuRef}
         data-quick-extensions-menu
-        data-presence-phase={closing ? "exiting" : "entering"}
+        data-closing={!open || undefined}
         material="acrylic-large"
         elevation="none"
         radius={majorRadius}
@@ -309,9 +314,7 @@ export function QuickExtensionsMenu({
           <SharedSmallGlassPlane
             ref={sharedSmallGlassPlaneRef}
             batchId="quick-extension-browser-small"
-            className="taskmap-extension-shared-small-plane"
             kind="small-extension"
-            shadowIds={filteredExtensions.map((extension) => extension.id)}
           />
           <div ref={scrollAreaRef} className="taskmap-quick-extensions-menu__content">
             {favoriteExtensions.length > 0 && renderCategory("Favorited", favoriteExtensions)}
@@ -365,7 +368,8 @@ export function ExtensionsPanel({
   const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
   const [filterPosition, setFilterPosition] = useState({ left: 0, top: 0 });
   const activePanelRef = panelRef ?? localPanelRef;
-  const workActive = useSettledPanelWork(active);
+  const deferredActive = useDeferredValue(active && !closing, false);
+  const workActive = useSettledPanelWork(deferredActive);
   useSharedSmallGlassList({
     active: workActive && !embedded,
     cardSelector: "[data-extension-card-id]",
@@ -411,15 +415,20 @@ export function ExtensionsPanel({
         setFilterOpen(false);
       }
     };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFilterOpen(false);
+    };
 
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    window.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    window.addEventListener("keydown", closeOnEscape);
     return () => {
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      window.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+      window.removeEventListener("keydown", closeOnEscape);
     };
   }, [filterOpen]);
 
@@ -459,7 +468,6 @@ export function ExtensionsPanel({
         embedded={embedded}
         geometryActive={workActive}
         data-extension-card-id={extension.id}
-        data-shared-small-glass-shadow-item={!embedded ? extension.id : undefined}
         onPointerDown={(event) => startExtensionDrag(event, extension.id)}
       >
         <ExtensionIconBox>
@@ -534,10 +542,12 @@ export function ExtensionsPanel({
 
       {filterOpen &&
         createPortal(
-          <div
+          <MaterialSurface
             ref={filterMenuRef}
+            material="opaque"
+            radius={8}
             data-extension-filter-menu
-            className="taskmap-target-theme context-menu-panel context-menu-enter fixed z-[1001] w-[190px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 text-sm text-white shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
+            className="taskmap-target-theme context-menu-panel context-menu-enter fixed z-[1001] w-[190px] p-1 text-sm text-white"
             style={filterPosition}
             onPointerDown={(event) => event.stopPropagation()}
           >
@@ -546,30 +556,27 @@ export function ExtensionsPanel({
               const TargetIcon = TARGET_META[target].Icon;
 
               return (
-                <button
+                <Checkbox
                   key={target}
-                  type="button"
-                  className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-white/76 transition-colors hover:bg-white/[0.10] hover:text-white"
-                  onClick={() =>
+                  className="taskmap-extension-filter-option"
+                  checked={selected}
+                  onChange={() =>
                     setSelectedTargets((current) =>
                       current.includes(target)
                         ? current.filter((currentTarget) => currentTarget !== target)
                         : [...current, target],
                     )
                   }
-                >
-                  <TargetIcon size={16} stroke={2} className="text-white/48" />
-                  <span className="flex-1">{TARGET_META[target].title}</span>
-                  <span
-                    className="taskmap-extension-filter-check"
-                    data-selected={selected || undefined}
-                  >
-                    <IconCheck size={12} stroke={2} />
-                  </span>
-                </button>
+                  label={
+                    <>
+                      <TargetIcon size={16} stroke={2} className="text-white/48" />
+                      <span>{TARGET_META[target].title}</span>
+                    </>
+                  }
+                />
               );
             })}
-          </div>,
+          </MaterialSurface>,
           document.body,
         )}
 
@@ -579,9 +586,7 @@ export function ExtensionsPanel({
             ref={sharedSmallGlassPlaneRef}
             batchId="extension-browser-small"
             blurPx={smallGlassBlur}
-            className="taskmap-extension-shared-small-plane"
             kind="small-extension"
-            shadowIds={filteredExtensions.map((extension) => extension.id)}
           />
         )}
         <ScrollArea

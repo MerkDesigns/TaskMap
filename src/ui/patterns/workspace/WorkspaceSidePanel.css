@@ -19,6 +19,21 @@
   color: var(--taskmap-text);
 }
 
+.taskmap-workspace-material-warmup {
+  position: absolute;
+  z-index: 0;
+  top: calc(
+    var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height) +
+      var(--taskmap-side-panel-gap, var(--taskmap-chrome-gap))
+  );
+  left: var(--taskmap-chrome-inset-inline);
+  width: var(--taskmap-panel-width);
+  height: 420px;
+  opacity: 0.001;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .taskmap-workspace-side-panel[data-closing="true"] {
   pointer-events: none;
 }
@@ -27,6 +42,17 @@
   > .taskmap-material-native-glass__clip
   > .taskmap-material-native-glass__backdrop {
   will-change: backdrop-filter;
+}
+
+.taskmap-workspace-side-panel__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .taskmap-workspace-side-panel--switching {

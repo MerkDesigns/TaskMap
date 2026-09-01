@@ -24,6 +24,10 @@ describe("Command Runner settings", () => {
     );
 
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "false");
+    expect(screen.getByRole("dialog")).toHaveClass("taskmap-acrylic-window-enter");
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-material", "acrylic-large");
+    expect(screen.getByRole("dialog")).not.toHaveClass("command-runner-modal-enter");
+    expect(screen.getByRole("dialog").querySelector("header")).not.toHaveClass("bg-[#1b1b1e]");
     expect(document.querySelector(".json-editor-scrollbar")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add command" }));

@@ -54,20 +54,20 @@
 .taskmap-canvas-browser__header-copy {
   display: flex;
   min-width: 0;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.taskmap-canvas-browser__header-icon {
+  flex: none;
+  color: rgb(255 255 255 / 55%);
 }
 
 .taskmap-canvas-browser__header-copy h2 {
   margin: 0;
   color: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
-  line-height: normal;
-}
-
-.taskmap-canvas-browser__header-copy span {
-  color: rgb(255 255 255 / 58%);
-  font-size: 10px;
   line-height: normal;
 }
 
@@ -76,17 +76,6 @@
   flex: none;
   align-items: center;
   gap: 2px;
-}
-
-.taskmap-canvas-browser__header-count {
-  display: grid;
-  min-width: 24px;
-  height: 24px;
-  margin-left: 2px;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 999px;
-  font-size: 11px;
 }
 
 .taskmap-canvas-browser__header .taskmap-workspace-panel-header__icon-toggle[aria-pressed="true"],

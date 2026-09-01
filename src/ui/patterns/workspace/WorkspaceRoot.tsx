@@ -28,6 +28,18 @@ export const WorkspaceChromeLayer = forwardRef<HTMLDivElement, HTMLAttributes<HT
   },
 );
 
+export const WorkspaceMaterialLayer = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  function WorkspaceMaterialLayer({ className, ...props }, ref) {
+    return (
+      <div
+        {...props}
+        ref={ref}
+        className={["taskmap-workspace-material-layer", className].filter(Boolean).join(" ")}
+      />
+    );
+  },
+);
+
 export const WorkspaceBackdropLayer = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   function WorkspaceBackdropLayer({ className, ...props }, ref) {
     return (

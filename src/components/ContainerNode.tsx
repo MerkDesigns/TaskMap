@@ -35,6 +35,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ContainerElement } from "../types";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 
 type ContainerHeaderExtensionKey =
@@ -722,25 +723,32 @@ function ContainerNodeComponent({
         />
       </div>
       {overflowMenuPosition && (
-        <div
+        <MaterialSurface
           ref={overflowMenuRef}
-          className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+          material="opaque"
+          radius={8}
+          className="absolute z-[60] flex -translate-x-1/2 -translate-y-full items-center gap-1 p-1"
           style={{ left: overflowMenuPosition.left, top: overflowMenuPosition.top }}
           onPointerDown={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
         >
-          <span className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15] bg-[#1b1b1e]" />
+          <span
+            className="absolute bottom-[-7px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 border-b border-r border-white/[0.15]"
+            style={{ background: "rgb(var(--taskmap-material-tint-rgb))" }}
+          />
           <span className="relative z-10 flex items-center gap-1">
             {overflowExtensionItems.map((item) => renderExtensionButton(item.key))}
           </span>
-        </div>
+        </MaterialSurface>
       )}
       {sortMenuPosition &&
         createPortal(
-          <div
+          <MaterialSurface
             ref={sortMenuRef}
+            material="opaque"
+            radius={6}
             data-context-menu
-            className="fixed z-[1002] w-[196px] rounded-md border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+            className="fixed z-[1002] w-[196px] p-1"
             style={sortMenuPosition}
             onPointerDown={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.preventDefault()}
@@ -800,15 +808,17 @@ function ContainerNodeComponent({
               <IconX size={18} stroke={2} />
               <span className="flex-1">Clear sorting</span>
             </button>
-          </div>,
+          </MaterialSurface>,
           document.body,
         )}
       {copyPasteJsonMenuPosition &&
         createPortal(
-          <div
+          <MaterialSurface
             ref={copyPasteJsonMenuRef}
+            material="opaque"
+            radius={6}
             data-context-menu
-            className="fixed z-[1002] w-[232px] rounded-md border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
+            className="fixed z-[1002] w-[232px] p-1"
             style={copyPasteJsonMenuPosition}
             onPointerDown={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.preventDefault()}
@@ -845,7 +855,7 @@ function ContainerNodeComponent({
               <IconEdit size={18} stroke={2} />
               <span>Open JSON editor</span>
             </button>
-          </div>,
+          </MaterialSurface>,
           document.body,
         )}
       {colorMenuPosition && (

@@ -26,7 +26,7 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(appSource.match(/<WorkspaceChromeLayer>/g)).toHaveLength(1);
     expect(layerContents).toMatch(/<CanvasManager\b/);
     expect(layerContents).toMatch(/<ExtensionsPanel\b/);
-    expect(layerContents).toMatch(/<Minimap\b/);
+    expect(layerContents).toMatch(/<LiveMinimap\b/);
     expect(layerContents).not.toMatch(/<(?:Settings|\w*ContextMenu)\b/);
   });
 

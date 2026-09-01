@@ -26,7 +26,7 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     expect(appSource).not.toMatch(/document(?:Element)?\.classList|document\.body\.classList/);
   });
 
-  it("keeps canvas below the compositor and defines only the chrome stacking context above it", async () => {
+  it("keeps canvas below the isolated material and chrome stacking contexts", async () => {
     const [canvasCss, compositorCss, workspaceCss] = await Promise.all([
       readFile(canvasCssPath, "utf8"),
       readFile(compositorCssPath, "utf8"),
@@ -34,6 +34,7 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     ]);
     const rootRule = cssRule(workspaceCss, ".taskmap-workspace-root");
     const backdropRule = cssRule(workspaceCss, ".taskmap-workspace-backdrop-layer");
+    const materialRule = cssRule(workspaceCss, ".taskmap-workspace-material-layer");
     const chromeRule = cssRule(workspaceCss, ".taskmap-workspace-chrome-layer");
     const canvasRule = cssRule(canvasCss, ".taskmap-canvas-frame");
     const basePlaneRule = cssRule(compositorCss, ".taskmap-compositor-plane--base");
@@ -44,6 +45,7 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     expect(canvasRule).not.toMatch(/(?:z-index|isolation|transform|filter|opacity)\s*:/);
     expect(backdropRule).toContain("z-index: 0");
     expect(basePlaneRule).toContain("z-index: 40");
+    expect(materialRule).toContain("z-index: var(--taskmap-layer-workspace-material)");
     expect(chromeRule).toContain("z-index: var(--taskmap-layer-workspace-chrome)");
   });
 
@@ -81,9 +83,7 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     ]) {
       expect(appSource).toContain(handler);
     }
-    expect(appSource).toContain(
-      "worldRef.current.style.transform = viewportTransform",
-    );
+    expect(appSource).toContain("worldRef.current.style.transform = viewportTransform");
     expect(appSource).toContain('willChange: "transform"');
   });
 

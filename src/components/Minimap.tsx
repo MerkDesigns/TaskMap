@@ -27,6 +27,7 @@ type MinimapProps = {
   canvasWidth: number;
   canvasHeight: number;
   visible: boolean;
+  onExitComplete?: () => void;
   zoom: number;
   viewportWorld: {
     x: number;
@@ -67,6 +68,7 @@ export function Minimap({
   canvasWidth,
   canvasHeight,
   visible,
+  onExitComplete,
   zoom,
   viewportWorld,
   onResetZoom,
@@ -139,6 +141,7 @@ export function Minimap({
   return (
     <MinimapSurface
       visible={visible}
+      onExitComplete={onExitComplete}
       data-minimap-render-count={import.meta.env.DEV ? renderCountRef.current : undefined}
     >
       <div className="taskmap-minimap-header">

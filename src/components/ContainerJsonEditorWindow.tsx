@@ -1,6 +1,7 @@
 import { IconBraces, IconCheck, IconRefresh, IconX } from "@tabler/icons-react";
 import { PointerEvent, WheelEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 
 type ContainerJsonEditorWindowProps = {
   containerName: string;
@@ -158,17 +159,20 @@ export function ContainerJsonEditorWindow({
   };
 
   return createPortal(
-    <section
+    <MaterialSurface
+      as="section"
+      material="acrylic-large"
+      radius={12}
       role="dialog"
       aria-modal="false"
       aria-label={`Edit JSON for ${containerName}`}
-      className="fixed z-[1004] flex flex-col overflow-hidden rounded-xl border border-white/[0.15] bg-[#141519] text-white shadow-[0_24px_70px_rgba(0,0,0,0.62)]"
+      className="fixed z-[1004] flex flex-col overflow-hidden text-white"
       style={bounds}
       onPointerDown={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}
     >
       <header
-        className="flex h-12 shrink-0 cursor-grab items-center justify-between border-b border-white/[0.10] bg-[#1b1b1e] px-3 active:cursor-grabbing"
+        className="flex h-12 shrink-0 cursor-grab items-center justify-between border-b border-white/[0.10] px-3 active:cursor-grabbing"
         onPointerDown={(event) => startPointerAction(event, "move")}
         onPointerMove={movePointerAction}
         onPointerUp={finishPointerAction}
@@ -250,7 +254,7 @@ export function ContainerJsonEditorWindow({
         className="absolute bottom-0 right-0 z-20 h-2 w-2 cursor-nwse-resize"
         {...resizeHandleProps("se")}
       />
-    </section>,
+    </MaterialSurface>,
     document.body,
   );
 }

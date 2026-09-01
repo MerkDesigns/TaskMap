@@ -10,31 +10,85 @@ import {
   type ReactNode,
 } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
-import { refreshMaterialSurfaceBackdrop } from "../../materials/materialGeometryInvalidation";
-import { useReducedMotion } from "../../motion/reducedMotionPreference";
 import {
-  useWorkspaceSidePanelMotion,
-  WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
-} from "./useWorkspaceSidePanelMotion";
+  SharedSmallGlassPlane,
+  writeSharedSmallGlassShapes,
+} from "../../materials/SharedSmallGlassPlane";
+import { refreshMaterialSurfaceBackdrop } from "../../materials/materialGeometryInvalidation";
+import { FadeSlideLeft } from "../../motion/presenceController";
+import { MOTION_DURATION_MS } from "../../motion/motionTokens";
+import { useReducedMotion } from "../../motion/reducedMotionPreference";
+import { useSurfacePresence } from "../../motion/useSurfacePresence";
 import "./WorkspaceSidePanel.css";
 import { subscribeWorkspacePanelContentSizeChanged } from "./workspacePanelContentSize";
 
-export { WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS };
+export const WORKSPACE_SIDE_PANEL_PRESENCE_DURATION_MS = MOTION_DURATION_MS.normal;
+
+export function WorkspaceChromeMaterialWarmup() {
+  const [mounted, setMounted] = useState(true);
+  const smallPlaneRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const plane = smallPlaneRef.current;
+    if (!plane) return;
+    writeSharedSmallGlassShapes(plane, [{ x: 16, y: 16, width: 240, height: 84, radius: 10 }]);
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setMounted(false);
+    }, 500);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <MaterialSurface
+      material="acrylic-large"
+      radius={19}
+      geometryActive={false}
+      aria-hidden="true"
+      className="taskmap-workspace-material-warmup"
+    >
+      <SharedSmallGlassPlane ref={smallPlaneRef} kind="small-canvas" />
+    </MaterialSurface>
+  );
+}
 
 export interface WorkspaceSidePanelProps extends HTMLAttributes<HTMLElement> {
-  readonly backdropRevision?: string;
+  readonly backdropRevision?: string | number;
   readonly closing: boolean;
   readonly label: string;
+  readonly onExitComplete?: () => void;
   readonly radius?: number;
 }
 
 export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelProps>(
   function WorkspaceSidePanel(
-    { backdropRevision, children, className, closing, label, radius, ...props },
+    { backdropRevision, children, className, closing, label, onExitComplete, radius, ...props },
     forwardedRef,
   ) {
     const motionRef = useRef<HTMLElement | null>(null);
-    useWorkspaceSidePanelMotion(motionRef, closing);
+    const presence = useSurfacePresence(motionRef, {
+      effects: FadeSlideLeft,
+      durationMs: WORKSPACE_SIDE_PANEL_PRESENCE_DURATION_MS,
+      initialProgress: closing ? 1 : 0,
+      contentTargets: () => materialContentChildren(motionRef.current),
+      onComplete: (endpoint) => {
+        if (endpoint === "hidden") onExitComplete?.();
+      },
+      onTransformWrite: (transform) => {
+        const panel = motionRef.current;
+        if (!panel) return;
+        panel.style.willChange = transform ? "transform" : "";
+        if (!transform) refreshMaterialSurfaceBackdrop(panel);
+      },
+    });
+    useLayoutEffect(() => {
+      if (closing) presence.hide();
+      else presence.show();
+    }, [closing, presence]);
     const panelRef = useCallback(
       (element: HTMLElement | null) => {
         motionRef.current = element;
@@ -57,7 +111,7 @@ export const WorkspaceSidePanel = forwardRef<HTMLDivElement, WorkspaceSidePanelP
         data-closing={closing || undefined}
         className={["taskmap-workspace-side-panel", className].filter(Boolean).join(" ")}
       >
-        {children}
+        <div className="taskmap-workspace-side-panel__content">{children}</div>
       </MaterialSurface>
     );
   },
@@ -91,6 +145,8 @@ export function WorkspaceSidePanelContentSwitcher({
   const [outgoingIndex, setOutgoingIndex] = useState<0 | 1 | null>(null);
   const previousIndexRef = useRef(activeIndex);
   const heightInitializedRef = useRef(false);
+  const renderOutgoingIndex =
+    previousIndexRef.current !== activeIndex ? previousIndexRef.current : outgoingIndex;
 
   useLayoutEffect(() => {
     const activeView = viewRefs.current[activeIndex];
@@ -101,7 +157,6 @@ export function WorkspaceSidePanelContentSwitcher({
     const nextHeight = measurePanelViewHeight(activeView);
     if (!heightInitializedRef.current) {
       heightInitializedRef.current = true;
-      setHeight(nextHeight);
       return;
     }
     setHeight(nextHeight);
@@ -142,7 +197,9 @@ export function WorkspaceSidePanelContentSwitcher({
     >
       {views.map((view, index) => {
         const active = index === activeIndex;
-        const state = active ? "active" : outgoingIndex === index ? "outgoing" : "inactive";
+        const outgoing = renderOutgoingIndex === index;
+        if (!active && !outgoing) return null;
+        const state = active ? "active" : "outgoing";
         return (
           <div
             key={index}
@@ -215,4 +272,12 @@ export const WorkspacePanelHeader = forwardRef<HTMLDivElement, WorkspacePanelHea
 function assignRef(ref: ForwardedRef<HTMLDivElement>, element: HTMLDivElement | null): void {
   if (typeof ref === "function") ref(element);
   else if (ref) ref.current = element;
+}
+
+function materialContentChildren(surface: HTMLElement | null): HTMLElement[] {
+  if (!surface) return [];
+  const content = surface.querySelector<HTMLElement>(
+    ":scope > .taskmap-workspace-side-panel__content",
+  );
+  return content ? [content] : [];
 }
