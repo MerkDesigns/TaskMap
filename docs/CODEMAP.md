@@ -506,19 +506,21 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/model.rs`                                                   |  1105 | Rust backend module                                                                                |
 | `src-tauri/src/phase2_error.rs`                                            |   178 | Rust backend module                                                                                |
 | `src-tauri/src/portable.rs`                                                |   312 | / The decrypted body of an export. Images are bundled so the file is portable                      |
-| `src-tauri/src/session/application_resource_tests.rs`                      |   312 | Check the pending path was erased, not merely protected by a rotated session ID.                   |
-| `src-tauri/src/session/database_session.rs`                                |   303 | Each unlocked key lifetime gets a new identity; old pre-lock requests stay stale.                  |
+| `src-tauri/src/session/application_resource_tests.rs`                      |   315 | Check the pending path was erased, not merely protected by a rotated session ID.                   |
+| `src-tauri/src/session/database_session.rs`                                |   304 | Each unlocked key lifetime gets a new identity; old pre-lock requests stay stale.                  |
 | `src-tauri/src/session/image_drop_authorizations.rs`                       |    84 | Only called from a native main-window drop, never from renderer-supplied paths.                    |
-| `src-tauri/src/session/mod.rs`                                             |    31 | Rust backend module                                                                                |
+| `src-tauri/src/session/mod.rs`                                             |    34 | Rust backend module                                                                                |
 | `src-tauri/src/session/phase2_concurrency_recovery_tests.rs`               |   242 | Rust backend module                                                                                |
 | `src-tauri/src/session/phase2_tests.rs`                                    |   368 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_authorization_tests.rs`                     |    64 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_image_drop.rs`                              |    35 | File intake rechecks this authority before and after processing off the renderer thread.           |
 | `src-tauri/src/session/session_key_state.rs`                               |    96 | Rust backend module                                                                                |
-| `src-tauri/src/session/session_lifecycle.rs`                               |    95 | Rust backend module                                                                                |
+| `src-tauri/src/session/session_lifecycle.rs`                               |    96 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_media_file.rs`                              |    58 | Path comes only from the native user picker, never renderer input or document content.             |
-| `src-tauri/src/session/session_media_transfer.rs`                          |   197 | Validate integrity and safe decoding once per load, never on each chunk or save.                   |
-| `src-tauri/src/session/session_opening.rs`                                 |   249 | Rust backend module                                                                                |
+| `src-tauri/src/session/session_media_reads_tests.rs`                       |    89 | Multiple chunks with valid SVG syntax, without a large decoded raster allocation.                  |
+| `src-tauri/src/session/session_media_reads.rs`                             |   113 | / At most two validated objects (64 MiB each), matching the frontend load concurrency.             |
+| `src-tauri/src/session/session_media_transfer.rs`                          |   185 | Rust backend module                                                                                |
+| `src-tauri/src/session/session_opening.rs`                                 |   251 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_state_access.rs`                            |    64 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_support.rs`                                 |    82 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_types.rs`                                   |   103 | Rust backend module                                                                                |
@@ -536,8 +538,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/appData.ts`                                                       |   299 | TypeScript application module                                                                      |
 | `src/app/appDataSchema.ts`                                                 |   274 | TypeScript application module                                                                      |
 | `src/app/AppProviders.tsx`                                                 |    28 | React component or typed UI module                                                                 |
-| `src/app/AppShell.test.tsx`                                                |    69 | Tests for the adjacent module                                                                      |
-| `src/app/AppShell.tsx`                                                     |    45 | React component or typed UI module                                                                 |
+| `src/app/AppShell.test.tsx`                                                |    71 | Tests for the adjacent module                                                                      |
+| `src/app/AppShell.tsx`                                                     |    52 | React component or typed UI module                                                                 |
 | `src/app/canvasDocument.test.ts`                                           |   122 | Tests for the adjacent module                                                                      |
 | `src/app/canvasDocument.ts`                                                |    80 | TypeScript application module                                                                      |
 | `src/app/canvasElementConstraints.ts`                                      |    16 | The retained canvas-details operation clamps stored coordinates, including locked elements.        |
@@ -628,15 +630,17 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/createWindowCloseController.test.ts`                              |   104 | @vitest-environment node                                                                           |
 | `src/app/createWindowCloseController.ts`                                   |    59 | TypeScript application module                                                                      |
 | `src/app/database/acceptRetainedDocument.ts`                               |    15 | Reuse the staged adapter's module schemas and relationship checks as one acceptance authority.     |
-| `src/app/database/createApplicationDatabaseRuntime.ts`                     |   123 | TypeScript application module                                                                      |
+| `src/app/database/createApplicationDatabaseRuntime.ts`                     |   132 | TypeScript application module                                                                      |
 | `src/app/database/createDatabaseSessionController.ts`                      |   310 | Required ownership hook for view/interaction/media caches; synchronous revocation before awaits.   |
 | `src/app/database/createDatabaseWorkspace.test.ts`                         |   210 | @vitest-environment node                                                                           |
 | `src/app/database/createDatabaseWorkspace.ts`                              |    85 | Supplied by application edition composition, never by a document or picker response.               |
 | `src/app/database/createTauriDatabaseSessionController.ts`                 |    40 | TypeScript application module                                                                      |
-| `src/app/database/DatabaseApplication.test.tsx`                            |    81 | Tests for the adjacent module                                                                      |
-| `src/app/database/DatabaseApplication.tsx`                                 |    74 | One runtime per renderer lifetime. React StrictMode must not create two native session owners.     |
+| `src/app/database/DatabaseApplication.test.tsx`                            |   109 | Tests for the adjacent module                                                                      |
+| `src/app/database/DatabaseApplication.tsx`                                 |   112 | One runtime per renderer lifetime. React StrictMode must not create two native session owners.     |
 | `src/app/database/databaseNativeRevocation.test.ts`                        |    40 | Tests for the adjacent module                                                                      |
 | `src/app/database/databaseResourceFlush.test.ts`                           |    44 | @vitest-environment node                                                                           |
+| `src/app/database/databaseRuntimeResources.test.ts`                        |    34 | Tests for the adjacent module                                                                      |
+| `src/app/database/databaseRuntimeResources.ts`                             |    39 | TypeScript application module                                                                      |
 | `src/app/database/databaseSessionLifecycle.test.ts`                        |   164 | @vitest-environment node                                                                           |
 | `src/app/database/databaseSessionRaces.test.ts`                            |   116 | @vitest-environment node                                                                           |
 | `src/app/database/databaseSessionRecovery.test.ts`                         |   109 | @vitest-environment node                                                                           |
@@ -646,7 +650,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/database/retainedDocumentAcceptance.test.ts`                      |   238 | @vitest-environment node                                                                           |
 | `src/app/defaultData.ts`                                                   |    36 | TypeScript application module                                                                      |
 | `src/app/errors/ApplicationErrorBoundary.test.tsx`                         |    62 | Tests for the adjacent module                                                                      |
-| `src/app/errors/ApplicationErrorBoundary.tsx`                              |    44 | React component or typed UI module                                                                 |
+| `src/app/errors/ApplicationErrorBoundary.tsx`                              |    46 | React component or typed UI module                                                                 |
 | `src/app/errors/applicationErrorReporter.test.ts`                          |    27 | Tests for the adjacent module                                                                      |
 | `src/app/errors/applicationErrorReporter.ts`                               |    27 | Deliberately omit the error message, stack, and component data: they may                           |
 | `src/app/history.test.ts`                                                  |   161 | Tests for the adjacent module                                                                      |
@@ -734,7 +738,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/components/ContainerJsonEditorWindow.tsx`                             |   257 | React component or typed UI module                                                                 |
 | `src/components/ContainerNode.tsx`                                         |   877 | React component or typed UI module                                                                 |
 | `src/components/ContextMenus.test.tsx`                                     |   224 | Tests for the adjacent module                                                                      |
-| `src/components/ContextMenus.tsx`                                          |  1145 | React component or typed UI module                                                                 |
+| `src/components/ContextMenus.tsx`                                          |  1143 | React component or typed UI module                                                                 |
 | `src/components/DatabaseSettingsActions.tsx`                               |    60 | React component or typed UI module                                                                 |
 | `src/components/ExtensionDropEffect.tsx`                                   |   203 | React component or typed UI module                                                                 |
 | `src/components/ExtensionsPanel.test.tsx`                                  |   352 | Tests for the adjacent module                                                                      |
@@ -963,8 +967,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/database/tauriApplicationDatabase.ts`                        |    55 | TypeScript application module                                                                      |
 | `src/platform/database/tauriDatabaseClient.test.ts`                        |   160 | Tests for the adjacent module                                                                      |
 | `src/platform/database/tauriDatabaseClient.ts`                             |     5 | Development harness only. Production composition uses the edition-checked application factory.     |
-| `src/platform/media/applicationMediaClient.test.ts`                        |   153 | @vitest-environment node                                                                           |
-| `src/platform/media/applicationMediaClient.ts`                             |   199 | TypeScript application module                                                                      |
+| `src/platform/media/applicationMediaClient.test.ts`                        |   188 | @vitest-environment node                                                                           |
+| `src/platform/media/applicationMediaClient.ts`                             |   205 | Also release on mismatch, cancellation and malformed chunks. Native lock already                   |
 | `src/platform/media/imageDropClient.ts`                                    |    17 | TypeScript application module                                                                      |
 | `src/platform/media/mediaClient.ts`                                        |    10 | TypeScript application module                                                                      |
 | `src/platform/media/mediaTypes.ts`                                         |    17 | TypeScript application module                                                                      |
@@ -982,19 +986,19 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/window/windowPrivacyClient.ts`                               |    23 | TypeScript application module                                                                      |
 | `src/platform/workflow/workflowClient.ts`                                  |    10 | TypeScript application module                                                                      |
 | `src/platform/workflow/workflowTypes.ts`                                   |    20 | TypeScript application module                                                                      |
-| `src/test/setup.ts`                                                        |     2 | TypeScript application module                                                                      |
+| `src/test/setup.ts`                                                        |    29 | jsdom has no layout/hit testing. For ordinary dispatched clicks, the event target is the           |
 | `src/types.ts`                                                             |   418 | TypeScript application module                                                                      |
 | `src/ui-lab/ContextMenuPlayground.tsx`                                     |   197 | React component or typed UI module                                                                 |
 | `src/ui-lab/DraggableTextBlockFixture.test.tsx`                            |    90 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/DraggableTextBlockFixture.tsx`                                 |   207 | React component or typed UI module                                                                 |
-| `src/ui-lab/FormControlsPrototype.test.tsx`                                |    62 | Tests for the adjacent module                                                                      |
+| `src/ui-lab/FormControlsPrototype.test.tsx`                                |    64 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/FormControlsPrototype.tsx`                                     |    98 | React component or typed UI module                                                                 |
 | `src/ui-lab/InteractiveControlsPrototype.test.tsx`                         |    61 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/InteractiveControlsPrototype.tsx`                              |   236 | React component or typed UI module                                                                 |
 | `src/ui-lab/main.tsx`                                                      |    15 | TypeScript application module                                                                      |
 | `src/ui-lab/MaterialAwarePresencePrototype.tsx`                            |   280 | React component or typed UI module                                                                 |
 | `src/ui-lab/QuickExtensionsMenuPlayground.tsx`                             |   148 | React component or typed UI module                                                                 |
-| `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                             |    58 | Tests for the adjacent module                                                                      |
+| `src/ui-lab/SurfaceMaterialPrototype.test.tsx`                             |    57 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/SurfaceMaterialPrototype.tsx`                                  |   150 | React component or typed UI module                                                                 |
 | `src/ui-lab/system/Material.test.ts`                                       |    18 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/system/Material.ts`                                            |    15 | React component or typed UI module                                                                 |
@@ -1006,7 +1010,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui-lab/TopBarControlsPrototype.tsx`                                   |    45 | React component or typed UI module                                                                 |
 | `src/ui-lab/UiLabApp.test.tsx`                                             |    67 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/UiLabApp.tsx`                                                  |   101 | React component or typed UI module                                                                 |
-| `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                          |   110 | Tests for the adjacent module                                                                      |
+| `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                          |   108 | Tests for the adjacent module                                                                      |
 | `src/ui/dev/AcrylicCompositorPlayground.tsx`                               |   246 | React component or typed UI module                                                                 |
 | `src/ui/dev/acrylicPlaygroundModel.test.ts`                                |    95 | Tests for the adjacent module                                                                      |
 | `src/ui/dev/acrylicPlaygroundModel.ts`                                     |   202 | TypeScript application module                                                                      |
@@ -1146,7 +1150,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/patterns/workspace/canvasCardPointerSession.ts`                    |    59 | Document listeners remain authoritative when pointer capture is unavailable.                       |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                                |    15 | React component or typed UI module                                                                 |
 | `src/ui/patterns/workspace/ExtensionBrowserCard.tsx`                       |    53 | React component or typed UI module                                                                 |
-| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                      |    42 | React component or typed UI module                                                                 |
+| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                      |    46 | React component or typed UI module                                                                 |
 | `src/ui/patterns/workspace/GlassListFrame.tsx`                             |    36 | React component or typed UI module                                                                 |
 | `src/ui/patterns/workspace/glassListGeometry.test.ts`                      |    30 | Tests for the adjacent module                                                                      |
 | `src/ui/patterns/workspace/glassListGeometry.ts`                           |    33 | TypeScript application module                                                                      |
@@ -1170,7 +1174,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/primitives/AnimatedCheckbox.tsx`                                   |    34 | React component or typed UI module                                                                 |
 | `src/ui/primitives/Button.tsx`                                             |   107 | React component or typed UI module                                                                 |
 | `src/ui/primitives/buttonMaterialControls.test.tsx`                        |   145 | Tests for the adjacent module                                                                      |
-| `src/ui/primitives/ContextMenu.test.tsx`                                   |   152 | Tests for the adjacent module                                                                      |
+| `src/ui/primitives/ContextMenu.test.tsx`                                   |   152 | Real user-event timers may finish the exit before this assertion on a busy runner.                 |
 | `src/ui/primitives/ContextMenu.tsx`                                        |   210 | React component or typed UI module                                                                 |
 | `src/ui/primitives/ContextMenuParts.tsx`                                   |   108 | React component or typed UI module                                                                 |
 | `src/ui/primitives/Field.tsx`                                              |    87 | React component or typed UI module                                                                 |

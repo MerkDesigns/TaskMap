@@ -70,6 +70,7 @@ pub(super) fn create_open_session(
     let confirmation_token = random_identifier();
     Ok((
         OpenSession {
+            media_reads: Default::default(),
             image_drops: Default::default(),
             media_upload: None,
             session_id,
@@ -153,6 +154,7 @@ pub(super) fn open_locked_session(
         document.document_schema_version,
     )?;
     Ok(OpenSession {
+        media_reads: Default::default(),
         image_drops: Default::default(),
         media_upload: None,
         session_id,

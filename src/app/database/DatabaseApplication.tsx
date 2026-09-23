@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createTauriDatabaseSessionController } from "./createTauriDatabaseSessionController";
 import { DatabaseSessionGate } from "../../features/database-entry/DatabaseSessionGate";
 import { DatabaseWindowChrome } from "../../features/database-entry/DatabaseWindowChrome";
@@ -7,6 +7,8 @@ import type { DatabaseApplicationRuntime } from "../../features/database-entry/d
 import type { PlatformResult } from "../../platform/platformErrors";
 import { ApplicationErrorBoundary } from "../errors/ApplicationErrorBoundary";
 import { defaultApplicationErrorReporter } from "../errors/applicationErrorReporter";
+import { createWindowCloseController } from "../createWindowCloseController";
+import { tauriWindowCloseClient } from "../../platform/window/tauriWindowCloseClient";
 
 // One runtime per renderer lifetime. React StrictMode must not create two native session owners.
 let boot: ReturnType<typeof createTauriDatabaseSessionController> | undefined;
@@ -25,6 +27,42 @@ async function prepareClose(): Promise<PlatformResult<void>> {
   return session.phase === "unlocked"
     ? controller.prepareWindowClose()
     : Promise.resolve({ ok: true, value: undefined });
+}
+
+/** The outer boundary keeps the same guarded close path after a production render failure. */
+export function DatabaseApplicationFallback() {
+  const close = useRef<ReturnType<typeof createWindowCloseController> | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const owner = createWindowCloseController({
+      client: tauriWindowCloseClient,
+      prepareClose,
+      onError: () => setFailed(true),
+    });
+    close.current = owner;
+    return () => {
+      close.current = null;
+      owner.dispose();
+    };
+  }, []);
+  return (
+    <div className="taskmap-target-theme">
+      <main role="alert">
+        <h1>TaskMap could not open this part of the application.</h1>
+        <p>Please close TaskMap and try again.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            void close.current?.requestClose();
+          }}
+        >
+          Close TaskMap
+        </button>
+        {failed && <p>The workspace could not be saved safely. Please retry closing.</p>}
+      </main>
+    </div>
+  );
 }
 
 export function DatabaseApplication() {

@@ -43,18 +43,20 @@ describe("FormControlsPrototype", () => {
     expect(search).toHaveValue("Archive");
   });
 
-  it("uses the production Select and IconButton with the native tooltip convention", async () => {
+  it("uses the production Select and IconButton with the shared tooltip", async () => {
     const user = userEvent.setup();
     render(<FormControlsPrototype />);
 
     const select = screen.getByRole("combobox", { name: "Theme" });
-    expect(select).toHaveValue("system");
-    await user.selectOptions(select, "dark");
-    expect(select).toHaveValue("dark");
+    expect(select).toHaveTextContent("System");
+    await user.click(select);
+    await user.click(screen.getByRole("option", { name: "Dark" }));
+    expect(select).toHaveTextContent("Dark");
 
     const iconButton = screen.getByRole("button", { name: "Open settings example" });
     expect(iconButton).toHaveClass("taskmap-icon-button");
-    expect(iconButton).toHaveAttribute("title", "Open settings");
+    await user.hover(iconButton);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Open settings");
     await user.click(iconButton);
     expect(screen.getByText("Settings requested")).toBeInTheDocument();
   });

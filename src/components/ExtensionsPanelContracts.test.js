@@ -21,8 +21,9 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
 
     expect(pattern).toContain('material={embedded ? "opaque" : "acrylic-small"}');
     expect(pattern).toContain('material="cutout"');
-    expect(pattern).toContain("radius={8}");
-    expect(pattern).toContain("radius={6}");
+    expect(pattern).toContain("radius = 8");
+    expect(pattern).toContain("radius = 6");
+    expect(pattern).toContain("radius={radius}");
     expect(css).toContain("min-height: 58px");
     expect(css).toContain("height: 58px");
     expect(css).toContain("width: 32px");
@@ -47,7 +48,7 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(`${main}\n${css}`).not.toMatch(/#2dd8c8|45\s*,\s*216\s*,\s*200/i);
   });
 
-  it("keeps the filter portal legacy and Quick Extensions structurally unmigrated", async () => {
+  it("keeps the filter portal boundary while Quick Extensions uses shared glass patterns", async () => {
     const source = await readFile(panelPath, "utf8");
     const quickStart = source.indexOf("export function QuickExtensionsMenu");
     const mainStart = source.indexOf("export function ExtensionsPanel");
@@ -55,11 +56,12 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     const main = source.slice(mainStart);
 
     expect(quick).toContain("data-quick-extensions-menu");
-    expect(quick).toContain("frosted-glass context-menu-enter");
-    expect(quick).toContain("<input");
-    expect(quick).toContain("h-[43px]");
+    expect(quick).toContain("<MaterialSurface");
+    expect(quick).toContain("<SearchField");
+    expect(quick).toContain("<GlassListFrame");
     expect(quick).toContain("quick-extensions-scroll");
-    expect(quick).not.toMatch(/ExtensionBrowserCard|SearchField/);
+    expect(quick).toContain("<ExtensionBrowserCard");
+    expect(quick).not.toContain("frosted-glass");
 
     expect(main).toContain("data-extension-filter-menu");
     expect(main).toContain("context-menu-panel context-menu-enter");

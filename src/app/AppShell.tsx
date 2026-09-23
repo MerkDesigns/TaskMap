@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { DatabaseApplication } from "./database/DatabaseApplication";
+import { DatabaseApplication, DatabaseApplicationFallback } from "./database/DatabaseApplication";
 import { MaterialCompositorProvider } from "../ui/materials/MaterialCompositorProvider";
 import { AppProviders } from "./AppProviders";
 import { ApplicationErrorBoundary } from "./errors/ApplicationErrorBoundary";
@@ -23,22 +23,29 @@ const DevelopmentUiLab =
 
 export default function AppShell() {
   return (
-    <MaterialCompositorProvider>
-      {DevelopmentUiLab || DevelopmentPhase2Entry ? null : <DatabaseApplication />}
-      <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
-        <AppProviders>
-          {DevelopmentPhase2Entry ? (
-            <Suspense fallback={null}>
-              <DevelopmentPhase2Entry enabled />
-            </Suspense>
-          ) : null}
-          {DevelopmentUiLab ? (
-            <Suspense fallback={null}>
-              <DevelopmentUiLab />
-            </Suspense>
-          ) : null}
-        </AppProviders>
-      </ApplicationErrorBoundary>
-    </MaterialCompositorProvider>
+    <ApplicationErrorBoundary
+      reporter={defaultApplicationErrorReporter}
+      fallback={
+        DevelopmentUiLab || DevelopmentPhase2Entry ? undefined : <DatabaseApplicationFallback />
+      }
+    >
+      <MaterialCompositorProvider>
+        {DevelopmentUiLab || DevelopmentPhase2Entry ? null : <DatabaseApplication />}
+        <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
+          <AppProviders>
+            {DevelopmentPhase2Entry ? (
+              <Suspense fallback={null}>
+                <DevelopmentPhase2Entry enabled />
+              </Suspense>
+            ) : null}
+            {DevelopmentUiLab ? (
+              <Suspense fallback={null}>
+                <DevelopmentUiLab />
+              </Suspense>
+            ) : null}
+          </AppProviders>
+        </ApplicationErrorBoundary>
+      </MaterialCompositorProvider>
+    </ApplicationErrorBoundary>
   );
 }

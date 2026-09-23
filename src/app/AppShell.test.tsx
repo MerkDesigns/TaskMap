@@ -9,6 +9,7 @@ import { createAppStore } from "./store";
 const databaseTestState = vi.hoisted(() => ({ shouldFail: false }));
 
 vi.mock("./database/DatabaseApplication", () => ({
+  DatabaseApplicationFallback: () => <div role="alert">Database failure fallback</div>,
   DatabaseApplication: () => {
     if (databaseTestState.shouldFail) throw new Error("Database render failure");
     return <div>Database application boundary</div>;
@@ -53,14 +54,15 @@ describe("AppShell", () => {
     expect(screen.getByText("legacy")).toBeInTheDocument();
   });
 
-  it("does not intercept errors from inside DatabaseApplication", () => {
+  it("contains production render failures at the top-level boundary", () => {
     databaseTestState.shouldFail = true;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const preventExpectedError = (event: ErrorEvent) => event.preventDefault();
     window.addEventListener("error", preventExpectedError);
 
     try {
-      expect(() => render(<AppShell />)).toThrow("Database render failure");
+      render(<AppShell />);
+      expect(screen.getByRole("alert")).toHaveTextContent("Database failure fallback");
     } finally {
       window.removeEventListener("error", preventExpectedError);
     }

@@ -117,7 +117,7 @@ it("loads chunked bytes but rejects truncated content and metadata mismatches", 
   invoke
     .mockResolvedValueOnce({
       ok: true,
-      value: { kind: "description", mimeType: "image/gif", byteLength: 3 },
+      value: { kind: "description", token: "read-test", mimeType: "image/gif", byteLength: 3 },
     })
     .mockResolvedValueOnce({ ok: true, value: { kind: "chunk", data: btoa("abc") } });
   const loaded = await port.load(id, { mimeType: "image/gif", byteLength: 3 });
@@ -125,15 +125,50 @@ it("loads chunked bytes but rejects truncated content and metadata mismatches", 
   invoke
     .mockResolvedValueOnce({
       ok: true,
-      value: { kind: "description", mimeType: "image/gif", byteLength: 3 },
+      value: { kind: "description", token: "read-test", mimeType: "image/gif", byteLength: 3 },
     })
     .mockResolvedValueOnce({ ok: true, value: { kind: "chunk", data: btoa("ab") } });
   expect((await port.load(id, { mimeType: "image/gif", byteLength: 3 })).ok).toBe(false);
   invoke.mockResolvedValueOnce({
     ok: true,
-    value: { kind: "description", mimeType: "image/gif", byteLength: 3 },
+    value: { kind: "description", token: "read-test", mimeType: "image/gif", byteLength: 3 },
   });
   expect((await port.load(id, { mimeType: "image/gif", byteLength: 4 })).ok).toBe(false);
+  expect(invoke).toHaveBeenLastCalledWith("app_media_transfer", {
+    ...authority,
+    operation: { action: "releaseRead", token: "read-test" },
+  });
+});
+
+it("reads using the validated token and releases it when cancelled between chunks", async () => {
+  let cancelled = false;
+  invoke.mockImplementation(async (_command, input) => {
+    const { operation } = input as { operation: { action: string; token?: string } };
+    if (operation.action === "describe")
+      return {
+        ok: true,
+        value: {
+          kind: "description",
+          token: "snapshot",
+          mimeType: "image/gif",
+          byteLength: 256 * 1024 + 1,
+        },
+      };
+    if (operation.action === "read") {
+      expect(operation).toEqual({ action: "read", token: "snapshot", offset: 0 });
+      cancelled = true;
+      return { ok: true, value: { kind: "chunk", data: btoa("a".repeat(256 * 1024)) } };
+    }
+    return { ok: true, value: { kind: "done" } };
+  });
+  const result = await createApplicationMediaClient(() => authority)
+    .capture()!
+    .load(id, { mimeType: "image/gif", byteLength: 256 * 1024 + 1 }, () => cancelled);
+  expect(result.ok).toBe(false);
+  expect(invoke).toHaveBeenLastCalledWith("app_media_transfer", {
+    ...authority,
+    operation: { action: "releaseRead", token: "snapshot" },
+  });
 });
 
 it("cancels started uploads on local cancellation without sending another body", async () => {

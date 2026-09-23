@@ -1,8 +1,6 @@
 use super::database_session::DatabaseSessionState;
 use super::session_state_access::authorized_session;
 use super::session_support::random_identifier;
-use crate::database::{connection::open_connection, media_repository::load_media};
-use crate::image_processing::{decode_raster, validate_gif_animation, validate_svg};
 use crate::phase2_error::{Phase2Failure, Phase2Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
@@ -42,8 +40,11 @@ pub(crate) enum MediaAction {
         media_id: String,
     },
     Read {
-        media_id: String,
+        token: String,
         offset: usize,
+    },
+    ReleaseRead {
+        token: String,
     },
 }
 #[derive(Serialize)]
@@ -65,6 +66,7 @@ pub(crate) enum MediaReply {
         pixel_height: u32,
     },
     Description {
+        token: String,
         mime_type: String,
         byte_length: usize,
     },
@@ -81,6 +83,7 @@ impl DatabaseSessionState {
     ) -> Phase2Result<MediaReply> {
         let mut guard = self.guard()?;
         let session = authorized_session(&mut guard, database_id, session_id)?;
+        session.media_reads.expire();
         if session
             .media_upload
             .as_ref()
@@ -157,39 +160,24 @@ impl DatabaseSessionState {
                 super::session_media_file::persist_image(session, &upload.bytes)
             }
             MediaAction::Describe { media_id } => {
-                let connection = open_connection(&session.database_path)?;
-                // Validate integrity and safe decoding once per load, never on each chunk or save.
-                let record = load_media(&connection, &media_id)?;
-                let valid = match record.mime_type.as_str() {
-                    "image/svg+xml" => validate_svg(&record.bytes).map(|_| ()),
-                    "image/gif" => validate_gif_animation(&record.bytes).map(|_| ()),
-                    "image/webp" | "image/png" | "image/jpeg" | "image/bmp" => {
-                        decode_raster(&record.bytes).and_then(|(format, _)| {
-                            if format.to_mime_type() == record.mime_type {
-                                Ok(())
-                            } else {
-                                Err("MIME mismatch".to_string())
-                            }
-                        })
-                    }
-                    _ => Err("Unsupported media".to_string()),
-                };
-                valid.map_err(|_| Phase2Failure::CorruptDatabase)?;
+                let (token, mime_type, byte_length) = session
+                    .media_reads
+                    .describe(&session.database_path, &media_id)?;
                 Ok(MediaReply::Description {
-                    mime_type: record.mime_type,
-                    byte_length: record.bytes.len(),
+                    token,
+                    mime_type,
+                    byte_length,
                 })
             }
-            MediaAction::Read { media_id, offset } => {
-                crate::database::limits::validate_media_id(&media_id)?;
-                if offset > 64 * 1024 * 1024 {
-                    return Err(Phase2Failure::InvalidInput);
-                }
-                let connection = open_connection(&session.database_path)?;
-                let bytes: Vec<u8> = connection.query_row("SELECT substr(bytes, ?2, ?3) FROM media WHERE media_id = ?1 AND byte_length = length(bytes) AND byte_length BETWEEN 1 AND 67108864 AND ?4 < byte_length", rusqlite::params![media_id, offset + 1, CHUNK_BYTES, offset], |row| row.get(0))?;
+            MediaAction::Read { token, offset } => {
+                let bytes = session.media_reads.read(&token, offset)?;
                 Ok(MediaReply::Chunk {
                     data: STANDARD.encode(bytes),
                 })
+            }
+            MediaAction::ReleaseRead { token } => {
+                session.media_reads.release(&token);
+                Ok(MediaReply::Done)
             }
         }
     }

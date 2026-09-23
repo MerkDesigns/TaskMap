@@ -13,6 +13,8 @@ export default defineConfig({
     strictPort: true,
   },
   test: {
+    // Bound concurrent jsdom instances on developer machines and Windows CI runners.
+    maxWorkers: 4,
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     css: true,

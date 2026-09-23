@@ -10,6 +10,7 @@ const storedSchema = imageMediaReferenceSchema;
 const descriptionSchema = z
   .object({
     kind: z.literal("description"),
+    token: z.string().min(1).max(128),
     mimeType: z.enum(["image/webp", "image/gif", "image/svg+xml"]),
     byteLength: z
       .number()
@@ -154,17 +155,18 @@ export function createApplicationMediaClient(authority: () => SessionAuthority |
           const described = await request({ action: "describe", mediaId: id });
           if (!described.ok) return described;
           const parsed = descriptionSchema.safeParse(described.value);
-          if (
-            !parsed.success ||
-            parsed.data.byteLength !== expected.byteLength ||
-            parsed.data.mimeType !== expected.mimeType
-          )
-            return failure();
+          if (!parsed.success) return failure();
+          const { token } = parsed.data;
           const parts: BlobPart[] = [];
           try {
+            if (
+              parsed.data.byteLength !== expected.byteLength ||
+              parsed.data.mimeType !== expected.mimeType
+            )
+              return failure();
             for (let offset = 0; offset < expected.byteLength; offset += CHUNK) {
               if (cancelled()) return failure();
-              const result = await request({ action: "read", mediaId: id, offset });
+              const result = await request({ action: "read", token, offset });
               if (!result.ok) return result;
               const reply = z
                 .object({
@@ -183,6 +185,10 @@ export function createApplicationMediaClient(authority: () => SessionAuthority |
               : failure();
           } catch {
             return failure();
+          } finally {
+            // Also release on mismatch, cancellation and malformed chunks. Native lock already
+            // revokes all reads; a failed release must not mask the original load result.
+            await request({ action: "releaseRead", token }).catch(() => undefined);
           }
         },
       };

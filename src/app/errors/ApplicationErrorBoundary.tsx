@@ -4,6 +4,7 @@ import type { ApplicationErrorReporter } from "./applicationErrorReporter";
 export interface ApplicationErrorBoundaryProps {
   readonly children: ReactNode;
   readonly reporter: ApplicationErrorReporter;
+  readonly fallback?: ReactNode;
 }
 
 interface ApplicationErrorBoundaryState {
@@ -30,6 +31,7 @@ export class ApplicationErrorBoundary extends Component<
 
   public render() {
     if (this.state.failed) {
+      if (this.props.fallback !== undefined) return this.props.fallback;
       return (
         <main role="alert">
           <h1>TaskMap could not open this part of the application.</h1>

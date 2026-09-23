@@ -77,7 +77,7 @@ describe("Phase 4.5C3A primary Settings", () => {
     const slider = screen.getByRole("slider", { name: "Grid opacity" });
     expect(slider).toHaveAttribute("min", "0");
     expect(slider).toHaveAttribute("max", "100");
-    expect(slider).toHaveAttribute("step", "5");
+    expect(slider).toHaveAttribute("step", "any");
     expect(slider).toHaveValue("50");
     fireEvent.change(slider, { target: { value: "65" } });
     expect(props.onCanvasGridOpacityChange).toHaveBeenCalledWith(65);

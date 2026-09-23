@@ -213,14 +213,17 @@ fn bounded_media_import_preserves_gif_and_revokes_uploads_on_lock() {
     };
     assert_eq!(mime_type, "image/gif");
     assert_eq!(pixel_width, 1);
-    assert!(matches!(
-        run(MediaAction::Describe {
-            media_id: media_id.clone()
-        }),
-        Ok(MediaReply::Description { .. })
-    ));
-    let MediaReply::Chunk { data } = run(MediaAction::Read {
+    let MediaReply::Description {
+        token: read_token, ..
+    } = run(MediaAction::Describe {
         media_id: media_id.clone(),
+    })
+    .unwrap()
+    else {
+        panic!()
+    };
+    let MediaReply::Chunk { data } = run(MediaAction::Read {
+        token: read_token.clone(),
         offset: 0,
     })
     .unwrap() else {
@@ -233,7 +236,7 @@ fn bounded_media_import_preserves_gif_and_revokes_uploads_on_lock() {
     };
     service.lock_database().unwrap();
     assert!(run(MediaAction::Read {
-        media_id,
+        token: read_token,
         offset: 0
     })
     .is_err());

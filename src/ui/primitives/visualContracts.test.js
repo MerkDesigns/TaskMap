@@ -121,13 +121,21 @@ describe("C1 visual-state contracts", () => {
     expect(liquidToggleCss).toContain('data-switch-state="on"');
     const liquidKnob = cssRule(liquidToggleCss, ".taskmap-liquid-toggle__knob");
     expect(liquidKnob).toContain("overflow: hidden");
-    expect(liquidKnob).toContain("clip-path: inset(0 round var(--taskmap-material-radius))");
+    expect(
+      cssRule(
+        liquidToggleCss,
+        ".taskmap-liquid-toggle__knob > .taskmap-material-native-glass__clip",
+      ),
+    ).toContain("clip-path: inset(0 round var(--taskmap-material-radius))");
     expect(liquidToggleCss).toContain("rgb(255 255 255 / 0.16)");
     expect(liquidToggleCss).toContain(
-      '.taskmap-liquid-toggle__knob[data-switch-state="on"]::before',
+      '.taskmap-liquid-toggle__knob[data-switch-state="on"] .taskmap-liquid-toggle__knob-tint',
     );
     expect(
-      cssRule(liquidToggleCss, '.taskmap-liquid-toggle__knob[data-switch-state="on"]::before'),
+      cssRule(
+        liquidToggleCss,
+        '.taskmap-liquid-toggle__knob[data-switch-state="on"] .taskmap-liquid-toggle__knob-tint',
+      ),
     ).toContain("--taskmap-liquid-toggle-tint-opacity, 0.67");
     expect(liquidToggleCss).not.toContain("rgb(0 0 0 / 0.32)");
     expect(liquidToggleCss).not.toContain(".taskmap-liquid-toggle:hover");

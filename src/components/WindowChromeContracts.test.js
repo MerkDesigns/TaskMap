@@ -64,10 +64,13 @@ describe("frameless window chrome contracts", () => {
     expect(cssSource).toMatch(
       /\.taskmap-window-drag-region\s*\{[^}]*top:\s*0;[^}]*right:\s*0;[^}]*left:\s*0;/s,
     );
-    expect(cssSource).toContain(
-      "height: calc(var(--taskmap-chrome-inset-top) + var(--taskmap-toolbar-height))",
-    );
+    expect(cssSource).toMatch(/\.taskmap-window-drag-region\s*\{[^}]*height:\s*35px/s);
+    expect(cssSource).toContain("var(--taskmap-layer-modal-overlay) + 1");
     expect(cssSource).toMatch(/\.taskmap-window-controls\s*\{[^}]*right:/s);
-    expect(cssSource).toContain("var(--taskmap-material-radius)");
+    const groupCss = await readFile(
+      new URL("../ui/patterns/workspace/ChromeControlGroup.css", import.meta.url),
+      "utf8",
+    );
+    expect(groupCss).toContain("var(--taskmap-material-radius)");
   });
 });

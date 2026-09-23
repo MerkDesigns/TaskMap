@@ -153,7 +153,7 @@ describe("database entry with the real application session controller", () => {
       expect(expectButton("Open database")).toHaveFocus();
       fireEvent.click(expectButton("New database"));
       await screen.findByLabelText("Confirm password *");
-      expect(passwordInput()).toHaveFocus();
+      await waitFor(() => expect(passwordInput()).toHaveFocus());
       await user.tab();
       expect(screen.getByLabelText("Confirm password *")).toHaveFocus();
       await user.tab();

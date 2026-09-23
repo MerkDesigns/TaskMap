@@ -2005,3 +2005,47 @@ removed. Resume exact native state rather than rebuilding earlier fixtures.
   do not blanket-stage under a database-only description. Generated Tauri permissions/schemas follow
   existing tracking convention and include the new command contracts, so were not discarded.
 - No staging, commit, push, destructive cleanup, or implementation change. Diff whitespace check passed.
+
+### 2026-09-23 — Review follow-up to ee562109: cleanup and hardening
+
+- Evaluated the supplied review against code. Accepted bounded ownership, error containment, media
+  read and validation improvements. CI already existed, but only main pushes/PRs triggered it; extended
+  it to architecture-v1/manual dispatch and default/Dev/all-feature Rust jobs, retaining prior coverage.
+- Replaced the historical REFACTOR-STATE accumulation with a short current snapshot. The detailed
+  database steps already live above in this log; prior snapshots remain in Git. Corrected mounted
+  production status in SECURITY and ADR 005 and regenerated CODEMAP. No phase gate was advanced.
+- AppShell now contains production rendering/chrome in its outer error boundary. Its minimal fallback
+  uses the existing guarded close controller and preserves failed-save retry without rendering the
+  failing material/chrome tree. Isolated development entries retain their ordinary fallback.
+- Explicitly attached runtime resource ownership replaces callbacks closing over uninitialized locals.
+  Purge/disposal attempt every resource even if one throws, then report sanitized failure. Kept the
+  session controller and retained App ownership unchanged; future independent lifecycle work belongs
+  in collaborators, with feature migration still through the planned vertical slices.
+- Native media describe validates within one SQLite snapshot and stores immutable bytes behind an
+  opaque session token. Two reads of at most 64 MiB each are bounded; final chunk/release/lock clears
+  them, and 60-second idle expiry runs on the next media request. Frontend cancellation/mismatch
+  releases tokens. Regression tests change the database row between describe/read and verify original
+  validated bytes, fresh-read corruption rejection, bounds, expiry and revoked authority.
+- Cleared the prior 15 frontend failures/14 jsdom errors by updating stale presentation assertions and
+  supplying an event-target-only jsdom hit-test fallback. Coordinate tests retain explicit geometry
+  mocks. Fixed five formatting baselines without behavior changes. No frontend tests were skipped.
+  Bounded Vitest to four workers after an overlapping build run caused timeouts; corrected real-time
+  menu exit and asynchronous form-focus assertions without widening timeouts or weakening behavior.
+- Final frontend suite: 248 files / 1,697 tests pass, no jsdom errors (49.18 s). Formatting, typecheck,
+  lint and architecture pass. Rust fmt and Clippy pass for default/Dev/all features; each Rust suite
+  reports 63 passed / one ignored child-process entry, which the parent lock test invokes explicitly.
+- Production build, capability/production-exclusion checks and code-map freshness passed. Vite still
+  reports the existing large main bundle (744.48 kB) and plugin-time advisory; neither is a test failure.
+  Broad legacy presentation splitting remains deferred to the planned vertical slices. All-feature
+  builds rewrote generated capability schemas; restored those build-only changes to the checked-in
+  configuration rather than including unrelated feature-set churn.
+- Rebuilt the MCP-enabled Tauri Dev app. Opened only the workspace disposable backup fixture, unlocked,
+  inspected the canvas screenshot and verified its GIF decoded at 64×64. Normal console errors/warnings
+  were empty. A temporary in-WebView boundary probe rendered the real fallback with an injected render
+  error; inspected its screenshot and clicked Close TaskMap. Native window listing confirmed main was
+  removed and the keeper retained. Only the expected injected React error was logged. The probe left
+  no source/debug hooks. Save-failure retry was tested in the focused component regression.
+- Database integration remains 99% (+0 acceptance gates): packaging/live stable-Dev coexistence and
+  glass/performance gates remain open. User-accepted checks need not be repeated without regression;
+  inactivity lock remains deferred. No installed stable database/keyring/benchmark was accessed.
+  No commit, push or successful GitHub workflow run is claimed; temporary fixtures/logs stay ignored.

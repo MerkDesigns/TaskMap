@@ -57,8 +57,12 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(pressedRule).toContain("color: var(--taskmap-accent)");
     expect(pressedRule).toContain("box-shadow: none");
     expect(pressedRule).not.toMatch(/gradient|filter|outline/);
-    expect(patternCss).toMatch(/border-radius:\s*min\(/);
-    expect(patternCss).toContain("var(--taskmap-material-radius)");
+    const groupCss = await readFile(
+      new URL("../ui/patterns/workspace/ChromeControlGroup.css", import.meta.url),
+      "utf8",
+    );
+    expect(groupCss).toMatch(/border-radius:\s*min\(/);
+    expect(groupCss).toContain("var(--taskmap-material-radius)");
     expect(patternCss).toContain("var(--taskmap-toolbar-group-padding-inline)");
   });
 

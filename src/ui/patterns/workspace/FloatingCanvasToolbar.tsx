@@ -33,7 +33,11 @@ export const ToolbarGroup = forwardRef<HTMLElement, ToolbarGroupProps>(function 
       radius={radius}
       role="group"
       aria-label={label}
-      className={["taskmap-chrome-control-group", "taskmap-floating-canvas-toolbar__group", className]
+      className={[
+        "taskmap-chrome-control-group",
+        "taskmap-floating-canvas-toolbar__group",
+        className,
+      ]
         .filter(Boolean)
         .join(" ")}
     />

@@ -26,5 +26,8 @@ mod phase2_tests;
 #[cfg(test)]
 mod session_authorization_tests;
 mod session_media_file;
+mod session_media_reads;
+#[cfg(test)]
+mod session_media_reads_tests;
 pub(crate) mod session_media_transfer;
 mod session_view_state;

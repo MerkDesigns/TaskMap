@@ -12,6 +12,7 @@ import type { ImageDocumentElement } from "../../elements/image/imageModel";
 import { createRetainedCanvasBinding } from "../view-projection/createRetainedCanvasBinding";
 import { createWindowPrivacy } from "../preferences/createWindowPrivacy";
 import type { WindowPrivacyClient } from "../../platform/window/windowPrivacyClient";
+import { clearDatabaseResources, createDatabaseRuntimeResources } from "./databaseRuntimeResources";
 
 type Platform = Extract<
   Awaited<ReturnType<typeof createTauriApplicationDatabase>>,
@@ -29,26 +30,14 @@ export function createApplicationDatabaseRuntime(
   options: DatabaseRuntimeOptions,
 ) {
   let canvasBinding: ReturnType<typeof createRetainedCanvasBinding> | null = null;
+  const resources = createDatabaseRuntimeResources();
   const controller = createDatabaseSessionController({
     ...options,
     ...platform,
     acceptDocument: acceptRetainedDocument,
     commandHandlers: retainedDocumentCommandHandlers,
-    async flushDocumentResources() {
-      const savedViews = await views.flush();
-      if (!savedViews.ok) return savedViews;
-      return preferences.flush();
-    },
-    purgeDocumentResources() {
-      callbacks.clear();
-      views.clear();
-      media.clear();
-      try {
-        canvasBinding?.clear();
-      } finally {
-        options.purgeDocumentResources();
-      }
-    },
+    flushDocumentResources: resources.flush,
+    purgeDocumentResources: resources.purge,
   });
   const callbacks = createRetainedActionCallbacks(controller);
   const preferences = createDevicePreferences(platform.preferencesClient);
@@ -66,6 +55,30 @@ export function createApplicationDatabaseRuntime(
     },
   );
   const disposeController = controller.dispose;
+  resources.attach({
+    async flush() {
+      const savedViews = await views.flush();
+      return savedViews.ok ? preferences.flush() : savedViews;
+    },
+    purge() {
+      clearDatabaseResources([
+        callbacks.clear,
+        views.clear,
+        media.clear,
+        () => canvasBinding?.clear(),
+        options.purgeDocumentResources,
+      ]);
+    },
+    dispose() {
+      clearDatabaseResources([
+        callbacks.dispose,
+        views.dispose,
+        media.dispose,
+        preferences.dispose,
+        privacy.dispose,
+      ]);
+    },
+  });
   return {
     ok: true as const,
     value: {
@@ -75,11 +88,7 @@ export function createApplicationDatabaseRuntime(
           try {
             return await disposeController();
           } finally {
-            callbacks.dispose();
-            views.dispose();
-            media.dispose();
-            preferences.dispose();
-            privacy.dispose();
+            resources.dispose();
           }
         },
       },

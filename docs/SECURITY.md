@@ -186,12 +186,17 @@ under that same mutex. One staged upload is capped at 50 MiB, validates token/of
 the next media request after 60 seconds of inactivity and is dropped on lock/disposal. A separate native
 image picker rechecks authority after selection; renderer-controlled raw paths are not accepted. Shared
 image validation/normalization runs on native worker tasks. Lazy reads validate hash/length/format once
-per load before bounded reads; native validation still holds bounded full-image/decode buffers.
+per load within one SQLite read transaction. Describe issues a random session-owned read token;
+subsequent chunks use its immutable validated bytes, never a fresh query of the media row. At most
+two snapshots of up to 64 MiB each are retained per session. Completion, explicit release and lock/
+close discard snapshots; abandoned reads expire on the next media request after 60 seconds idle.
+Native validation still holds bounded full-image/decode buffers. Tokens do not bypass session checks.
 Frontend leases cancel late results and revoke URLs on release/session transitions. Retained visible
 renderers now use those leases. WTS lock notifications are wired to native session revocation before
 a content-free renderer event; the retained view then synchronously unmounts its canvas and portals
-without flushing document changes. Production activation and actual Windows lock acceptance remain
-pending, so these paths are not yet a completed production guarantee.
+without flushing document changes. Production activation is implemented and the user reported
+Windows lock and screenshot exclusion working on September 23. Packaged edition coexistence remains
+an open release-validation item.
 
 ADR 005 also defines strict edition-local device preferences and an encrypted per-database camera cache.
 Only the small non-document preference allowlist is plaintext. Canvas identities/coordinates are
@@ -199,8 +204,8 @@ encrypted with the existing unlocked key and fresh nonce, using a separate authe
 No key is cloned into a preference service; Rust responses reuse zeroizing/redacted ownership. View-cache
 reads/writes require the current unlocked identity, and application purge rejects late responses. The
 device-local cache is outside database backups; missing caches use defaults and corrupt caches fail
-explicitly. No legacy keyring or settings fallback is added. These unmounted services do not yet prove
-that visible drafts, clipboard buffers, image elements and native window lifecycle are cleaned up.
+explicitly. No legacy keyring or settings fallback is added. The mounted runtime owns resource purge
+and attempts every cleanup owner even when an earlier owner fails; it reports incomplete cleanup.
 
 ## Storage-free development baseline
 

@@ -431,9 +431,7 @@ export function CanvasContextMenu({
           onClick={() => onPaste(menu.clientX, menu.clientY)}
         >
           <IconCopy size={17} stroke={2} />
-          <span className="text-[#7debe1] transition-colors group-hover:text-[#9af3eb]">
-            Paste
-          </span>
+          <span className="text-[#7debe1] transition-colors group-hover:text-[#9af3eb]">Paste</span>
         </button>
       )}
       <button

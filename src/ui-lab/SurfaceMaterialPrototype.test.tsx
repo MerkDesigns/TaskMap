@@ -31,9 +31,8 @@ describe("SurfaceMaterialPrototype", () => {
     const { container } = render(<SurfaceMaterialPrototype />);
     const interactive = container.querySelector<HTMLElement>("[data-prototype-interactive]")!;
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Prototype material" }), {
-      target: { value: "minor-glass" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Prototype material" }));
+    fireEvent.click(screen.getByRole("option", { name: "Minor glass" }));
     fireEvent.change(screen.getByRole("slider", { name: "Prototype width" }), {
       target: { value: "284" },
     });

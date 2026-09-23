@@ -81,18 +81,8 @@
   -webkit-appearance: none;
   appearance: none;
   background:
-    linear-gradient(
-      45deg,
-      transparent 43%,
-      var(--taskmap-muted) 43% 57%,
-      transparent 57%
-    ),
-    linear-gradient(
-      -45deg,
-      transparent 43%,
-      var(--taskmap-muted) 43% 57%,
-      transparent 57%
-    );
+    linear-gradient(45deg, transparent 43%, var(--taskmap-muted) 43% 57%, transparent 57%),
+    linear-gradient(-45deg, transparent 43%, var(--taskmap-muted) 43% 57%, transparent 57%);
   cursor: pointer;
 }
 

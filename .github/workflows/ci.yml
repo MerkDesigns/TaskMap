@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main
+      - architecture-v1
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
+  frontend:
     runs-on: windows-latest
 
     steps:
@@ -27,22 +29,53 @@ jobs:
           node-version: 20.19.0
           cache: npm
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
       - name: Install frontend dependencies
         run: npm ci
 
       - name: Check frontend
         run: npm run check
 
+      - name: Check code map
+        run: npm run codemap:check
+
+  rust:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [default, development, all-features]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Lint Rust
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+        shell: pwsh
+        run: |
+          $featureArgs = @()
+          if ('${{ matrix.edition }}' -eq 'development') {
+            $featureArgs = @('--features', 'phase2-development,mcp-development')
+          }
+          if ('${{ matrix.edition }}' -eq 'all-features') {
+            $featureArgs = @('--all-features')
+          }
+          cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets @featureArgs -- -D warnings
 
       - name: Test Rust
-        run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
+        shell: pwsh
+        run: |
+          $featureArgs = @()
+          if ('${{ matrix.edition }}' -eq 'development') {
+            $featureArgs = @('--features', 'phase2-development,mcp-development')
+          }
+          if ('${{ matrix.edition }}' -eq 'all-features') {
+            $featureArgs = @('--all-features')
+          }
+          cargo test --manifest-path src-tauri/Cargo.toml --all-targets @featureArgs

@@ -44,9 +44,12 @@ on the next media request after 60 seconds and are discarded on lock/disposal. N
 reuses the existing image recipe extracted into `image_processing.rs`, also used by legacy imports
 and portable validation. GIF/SVG representations and raster normalization constants are unchanged.
 
-Lazy reads validate stored hash/length/format once per load, then return bounded chunks. Native
-validation may hold one bounded full image buffer and decode off the renderer thread; this is not a
-zero-copy or streaming decoder claim. Application URL leases share in-flight reads, limit concurrency
+Lazy reads validate stored hash/length/format once per load inside a SQLite read transaction. An opaque
+session-owned token binds subsequent chunks to those immutable validated bytes, so external database
+modification cannot replace bytes between validation and delivery. At most two 64 MiB snapshots are
+retained; completion, explicit release and lock/close discard them. Idle tokens expire after 60 seconds
+on the next media request. Native validation decodes off the renderer thread; this is not a zero-copy
+or streaming decoder claim. Application URL leases share in-flight reads, limit concurrency
 to two, and revoke on last release/session transition. Media bytes/URLs never enter Redux. Import
 registers opaque metadata and inserts the image through one document transaction. Undo preserves media;
 failed/stale insertion can leave unreferenced bytes. Destructive media garbage collection is deferred.
@@ -61,12 +64,11 @@ captured transaction that preserves relationships and rejects stale media/placem
 
 ## Consequences and acceptance boundary
 
-The new application composition remains unmounted. Production capability registration does not mean
-the visible app has switched storage. Batch B must bind preferences/cameras, renderer leases, picker
-and drop/clipboard entry points, lifecycle error UI and purge hooks, and disconnect legacy startup and
-storage atomically. Native path-only drag/drop needs an authorized native intake rather than passing
-arbitrary paths to a generic command; the token intake above now supplies that support. Live
-lock/restart/security/media/visual checks remain required.
+The application composition is now mounted in production, with preferences/cameras, renderer leases,
+picker/drop/clipboard entry points, lifecycle error UI and purge hooks bound to the normalized runtime.
+Legacy startup/storage are disconnected. Disposable-database native checks and the user's manual
+round-trip acceptance are recorded in WORK-LOG.md. Packaged-build/live stable-Dev coexistence and
+the separate glass/performance gates remain open; capability registration alone does not prove them.
 
 These decisions add no material strategy, geometry observer, per-pointer persistence path, database
 format migration or general App ownership refactor. Existing user data and benchmark files remain untouched.

@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 pub(super) struct OpenSession {
+    pub(super) media_reads: super::session_media_reads::MediaReads,
     pub(super) image_drops: super::image_drop_authorizations::ImageDropAuthorizations,
     pub(super) media_upload: Option<super::session_media_transfer::MediaUpload>,
     pub(super) session_id: String,

@@ -1,5 +1,25 @@
 # TaskMap Testing Strategy
 
+## Automated validation
+
+The Windows CI workflow runs on main/architecture-v1 pushes, pull requests and manual dispatch.
+`npm run check` covers formatting, typecheck, lint, frontend tests, architecture, production build
+and capability/production-exclusion checks; CI also checks the generated code map. Separate default
+development (`phase2-development,mcp-development`) and all-feature Rust jobs run formatting, Clippy with warnings
+denied and all-target tests. Native WebView2 acceptance, packaging/coexistence and release FPS remain
+separate manual gates. A workflow definition does not prove a successful remote run.
+
+Vitest limits jsdom concurrency to four workers. The test setup supplies a dispatched-event-target
+fallback for jsdom's missing `elementFromPoint`; it does not simulate geometry. Coordinate/drag tests
+must supply explicit hit-test geometry. Animation lifetime assertions use controlled timers; ordinary
+keyboard/focus tests must tolerate an exit animation already completing on a busy runner.
+
+Database hardening regressions cover top-level render failure with guarded close/save retry, explicit
+runtime resource attachment and cleanup after a throwing owner. Native media tests mutate SQLite after
+description and require all subsequent chunks to match the validated snapshot, with two-read capacity,
+token expiry/release/completion and lock revocation. Frontend tests cover token-based reads and release
+on metadata mismatch/cancellation. These supplement, rather than replace, live import/decode acceptance.
+
 ## Test layers
 
 ### Domain unit tests

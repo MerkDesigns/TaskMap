@@ -56,14 +56,12 @@ describe("AcrylicCompositorPlayground", () => {
       container.querySelector<HTMLElement>(".taskmap-acrylic-playground__surface");
 
     expect(surface()).toHaveAttribute("data-material", "acrylic-large");
-    fireEvent.change(screen.getByRole("combobox", { name: "Test surface" }), {
-      target: { value: "compact-card" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Test surface" }));
+    fireEvent.click(screen.getByRole("option", { name: "Compact Acrylic Card" }));
     expect(surface()).toHaveAttribute("data-material", "acrylic-small");
     expect(surface()).toHaveStyle("--taskmap-material-radius: 7px");
-    fireEvent.change(screen.getByRole("combobox", { name: "Test surface" }), {
-      target: { value: "cutout" },
-    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Test surface" }));
+    fireEvent.click(screen.getByRole("option", { name: "Cutout" }));
     expect(surface()).toHaveAttribute("data-material", "cutout");
     expect(screen.getByText("Cutout does not blur.")).toBeVisible();
   });
