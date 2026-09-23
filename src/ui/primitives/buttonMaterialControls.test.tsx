@@ -62,7 +62,7 @@ describe("button material controls", () => {
     );
     act(() => driver.fire());
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalled();
+    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     act(() => driver.flush());
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     registry.dispose();

@@ -70,6 +70,8 @@ pub(super) fn create_open_session(
     let confirmation_token = random_identifier();
     Ok((
         OpenSession {
+            image_drops: Default::default(),
+            media_upload: None,
             session_id,
             database_path,
             database_id,
@@ -151,6 +153,8 @@ pub(super) fn open_locked_session(
         document.document_schema_version,
     )?;
     Ok(OpenSession {
+        image_drops: Default::default(),
+        media_upload: None,
         session_id,
         database_path: std::fs::canonicalize(database_path).map_err(Phase2Failure::from_io)?,
         database_id: format.database_id,

@@ -37,6 +37,8 @@ impl DatabaseSessionState {
             return Ok(status_from_guard(&guard));
         }
         if let Some(session) = guard.as_mut() {
+            session.media_upload = None;
+            session.image_drops = Default::default();
             session.key_state.clear();
             session.last_activity_at = timestamp();
         }

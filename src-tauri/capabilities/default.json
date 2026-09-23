@@ -18,32 +18,30 @@
     {
       "identifier": "opener:allow-default-urls",
       "allow": [
-        { "url": "http://*" },
-        { "url": "https://*" },
-        { "url": "mailto:*" },
-        { "url": "tel:*" }
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "mailto:*"
+        },
+        {
+          "url": "tel:*"
+        }
       ]
     },
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "**" }]
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
     },
     "process:allow-restart",
     "updater:allow-check",
-    "updater:allow-download-and-install",
-    "allow-load-app-data",
-    "allow-save-app-data-incremental",
-    "allow-export-app-data",
-    "allow-import-app-data",
-    "allow-reset-local-database",
-    "allow-store-image",
-    "allow-load-image",
-    "allow-store-image-path",
-    "allow-pick-image-path",
-    "allow-pick-command-working-directory",
-    "allow-run-saved-commands",
-    "allow-get-saved-command-run-status",
-    "allow-stop-saved-commands",
-    "allow-set-discord-rpc"
+    "updater:allow-download-and-install"
   ]
 }

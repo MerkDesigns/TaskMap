@@ -13,6 +13,10 @@ const themeCssPath = new URL("../../theme/theme.css", import.meta.url);
 const visualMirrorPath = new URL("../../theme/workspaceVisualValues.ts", import.meta.url);
 const workspaceCssPath = new URL("./WorkspaceRoot.css", import.meta.url);
 const workspaceSourcePath = new URL("./WorkspaceRoot.tsx", import.meta.url);
+const cameraSourcePath = new URL(
+  "../../../legacy/interactions/useLegacyCameraPresentation.ts",
+  import.meta.url,
+);
 
 describe("Phase 4.5C2A workspace architecture contracts", () => {
   it("activates the target theme through the production workspace root only", async () => {
@@ -63,7 +67,7 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
-  it("leaves all stage and world interaction ownership in App", async () => {
+  it("keeps App event bindings while presenting camera transforms from the controller", async () => {
     const appSource = await readFile(appPath, "utf8");
 
     expect(appSource).toContain("<WorkspaceBackdropLayer");
@@ -81,9 +85,10 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     ]) {
       expect(appSource).toContain(handler);
     }
-    expect(appSource).toContain(
-      "transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`",
-    );
+    expect(appSource.includes('transform: "var(--taskmap-camera-transform)"')).toBe(true);
+    const cameraSource = await readFile(cameraSourcePath, "utf8");
+    expect(cameraSource).toContain("controller.subscribe(present)");
+    expect(cameraSource).toContain("`translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`");
   });
 
   it("locks visible grid geometry and formulas to the DOM-free BackdropScene mirror", async () => {
@@ -105,8 +110,10 @@ describe("Phase 4.5C2A workspace architecture contracts", () => {
     expect(canvasCss.match(/var\(--taskmap-canvas-grid-major-spacing\)/g)).toHaveLength(4);
     expect(canvasCss.match(/var\(--taskmap-canvas-line-minor-opacity-scale\)/g)).toHaveLength(2);
     expect(canvasCss.match(/var\(--taskmap-canvas-line-major-opacity-scale\)/g)).toHaveLength(2);
-    expect(appSource).toContain("clamp((zoom - 0.55) / 0.45, 0, 1)");
-    expect(appSource).toContain('"--taskmap-canvas-dot-size": `${1.25 / zoom}px`');
+    const cameraSource = await readFile(cameraSourcePath, "utf8");
+    expect(cameraSource).toContain("Math.min(1, Math.max(0, (zoom - 0.55) / 0.45))");
+    expect(cameraSource).toContain('"--taskmap-camera-inverse-zoom", `${1 / zoom}`');
+    expect(appSource.includes("calc(1.25px * var(--taskmap-camera-inverse-zoom, 1))")).toBe(true);
     for (const mirroredValue of [
       "canvasGridSpacingWorld",
       "canvasGridMajorEvery",

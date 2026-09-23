@@ -28,6 +28,9 @@ export function updateCanvasBrowserScrollRange<Id extends string>(
   order: readonly Id[],
   records: ReadonlyMap<Id, CanvasBrowserCardRecord<Id>>,
 ): void {
+  records.forEach((record) => {
+    record.host.style.height = `${record.height}px`;
+  });
   const contentHeight = canvasCardContentHeight(order, records);
   writeCanvasBrowserContentHeight(panel, cardsLayer, contentHeight);
   scroll.setRange(viewport.height(), contentHeight);

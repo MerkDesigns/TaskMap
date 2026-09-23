@@ -9,6 +9,34 @@ import {
 } from "./SharedSmallGlassPlane";
 
 describe("SharedSmallGlassPlane", () => {
+  it("keeps full-size rounded geometry and stable SVG nodes while changing viewport intersection", () => {
+    const { container } = render(<SharedSmallGlassPlane />);
+    const plane = container.querySelector<HTMLElement>("[data-shared-small-glass-plane]")!;
+    const shape = {
+      x: 12,
+      y: -80,
+      width: 264,
+      height: 84,
+      radius: 13.5,
+      clip: { left: 12, top: 0, width: 264, height: 4 },
+    };
+    writeSharedSmallGlassShapes(plane, [shape]);
+    const rounded = plane.querySelector("[data-shared-small-glass-clip] > rect")!;
+    const viewport = plane.querySelector("[data-glass-viewport-clip] > rect")!;
+    expect(rounded).toHaveAttribute("height", "84");
+    expect(rounded).toHaveAttribute("rx", "13.5");
+    expect(viewport).toHaveAttribute("height", "4");
+    expect(rounded).toHaveAttribute("clip-path", `url(#${viewport.parentElement!.id})`);
+    writeSharedSmallGlassShapes(plane, [{ ...shape, y: -82, clip: { ...shape.clip, height: 2 } }]);
+    expect(plane.querySelector("[data-shared-small-glass-clip] > rect")).toBe(rounded);
+    expect(plane.querySelector("[data-glass-viewport-clip] > rect")).toBe(viewport);
+    expect(rounded).toHaveAttribute("height", "84");
+    expect(rounded).toHaveAttribute("rx", "13.5");
+    expect(viewport).toHaveAttribute("height", "2");
+    writeSharedSmallGlassShapes(plane, []);
+    expect(plane.querySelector("[data-glass-viewport-clip]")).toBeNull();
+  });
+
   it("updates shared-plane overscan from the live Small blur override", () => {
     const { container } = render(<SharedSmallGlassPlane />);
     const plane = container.querySelector<HTMLElement>("[data-shared-small-glass-plane]")!;

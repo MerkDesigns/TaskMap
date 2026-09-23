@@ -13,6 +13,7 @@ struct WindowState {
 }
 
 fn window_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    crate::storage_preview::require_legacy_storage()?;
     let data_dir = app
         .path()
         .app_data_dir()
@@ -89,7 +90,8 @@ pub(crate) fn restore_window_state(window: &tauri::WebviewWindow) -> Result<(), 
 
 pub(crate) fn save_window_state(window: &tauri::Window) -> Result<(), String> {
     let position = window.outer_position().map_err(|error| error.to_string())?;
-    let size = window.outer_size().map_err(|error| error.to_string())?;
+    // set_size restores client dimensions; outer_size would grow the border on every reopen.
+    let size = window.inner_size().map_err(|error| error.to_string())?;
     let state = WindowState {
         x: position.x,
         y: position.y,

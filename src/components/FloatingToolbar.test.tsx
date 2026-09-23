@@ -134,7 +134,7 @@ describe("FloatingToolbar", () => {
     expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(invalidationsAfterMount);
 
     dispatchTransitionEnd(optionalControls, "max-width");
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(invalidationsAfterMount + 1);
+    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
   });
 });
 

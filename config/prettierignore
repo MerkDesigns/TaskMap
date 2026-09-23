@@ -1,4 +1,7 @@
 # Generated output
+../.tmp-*
+**/fixtures/glass-normal-v1/
+**/fixtures/glass-smoke-v1/
 ../coverage/
 ../dist/
 ../node_modules/

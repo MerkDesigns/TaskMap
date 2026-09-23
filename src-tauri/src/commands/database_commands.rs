@@ -3,7 +3,7 @@ use super::database_command_types::{
     OpenDatabaseInput, SaveDocumentInput, UnlockDatabaseInput,
 };
 use super::database_window_commands::{
-    application_edition, destroy_session_keeper, ensure_phase2_development, ensure_session_keeper,
+    application_edition, destroy_session_keeper, ensure_database_application, ensure_session_keeper,
 };
 use super::phase2_ipc::{deserialize_limited, MAX_DOCUMENT_IPC_BYTES, MAX_SMALL_IPC_BYTES};
 use crate::files::database_path_authorization::{
@@ -20,13 +20,13 @@ use tauri::Manager;
 use zeroize::Zeroizing;
 
 #[tauri::command]
-pub(crate) async fn phase2_create_database(
+pub(crate) async fn app_create_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<PendingLoadedDocument> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: CreateDatabaseInput = deserialize_limited(&request, MAX_DOCUMENT_IPC_BYTES)?;
     let edition = application_edition(&app);
     let path = authorizations
@@ -72,13 +72,13 @@ pub(crate) async fn phase2_create_database(
 }
 
 #[tauri::command]
-pub(crate) async fn phase2_open_database(
+pub(crate) async fn app_open_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<SessionOperation> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: OpenDatabaseInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let edition = application_edition(&app);
     let path = authorizations
@@ -107,12 +107,12 @@ pub(crate) async fn phase2_open_database(
 }
 
 #[tauri::command]
-pub(crate) async fn phase2_unlock_database(
+pub(crate) async fn app_unlock_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<PendingLoadedDocument> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: UnlockDatabaseInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let service = state.inner().clone();
     let password = Zeroizing::new(input.password);
@@ -130,14 +130,16 @@ pub(crate) async fn phase2_unlock_database(
 }
 
 #[tauri::command]
-pub(crate) fn phase2_confirm_unlock(
+pub(crate) fn app_confirm_unlock(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<DatabaseSessionStatus> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: ConfirmUnlockInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
-    if input.database_purpose != "development" {
+    if input.database_purpose
+        != super::database_edition::database_purpose(&application_edition(&app))?
+    {
         let _ = state.cancel_pending_unlock(&input.confirmation_token);
         destroy_session_keeper(&app);
         return Err(command_error(Phase2Failure::DatabasePurposeMismatch));
@@ -152,12 +154,12 @@ pub(crate) fn phase2_confirm_unlock(
 }
 
 #[tauri::command]
-pub(crate) fn phase2_cancel_pending_unlock(
+pub(crate) fn app_cancel_pending_unlock(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<DatabaseSessionStatus> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: CancelPendingUnlockInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let result = state
         .cancel_pending_unlock(&input.confirmation_token)
@@ -167,11 +169,11 @@ pub(crate) fn phase2_cancel_pending_unlock(
 }
 
 #[tauri::command]
-pub(crate) async fn phase2_read_document(
+pub(crate) async fn app_read_document(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
 ) -> Phase2CommandResult<LoadedDocument> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let service = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || service.read_document())
         .await
@@ -180,25 +182,28 @@ pub(crate) async fn phase2_read_document(
 }
 
 #[tauri::command]
-pub(crate) async fn phase2_save_document(
+pub(crate) async fn app_save_document(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<SavedDocument> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: SaveDocumentInput = deserialize_limited(&request, MAX_DOCUMENT_IPC_BYTES)?;
-    if input.database_purpose != "development" {
+    if input.database_purpose
+        != super::database_edition::database_purpose(&application_edition(&app))?
+    {
         return Err(command_error(Phase2Failure::DatabasePurposeMismatch));
-    }
-    let status = state.get_status().map_err(Phase2CommandError::from)?;
-    if status.database_id.as_deref() != Some(&input.database_id) {
-        return Err(command_error(Phase2Failure::InvalidDocumentPayload));
     }
     let service = state.inner().clone();
     let serialized_document = Zeroizing::new(input.serialized_document);
     let expected_revision = input.expected_revision;
     tauri::async_runtime::spawn_blocking(move || {
-        service.save_document(serialized_document.as_str(), expected_revision)
+        service.save_document_for_session(
+            serialized_document.as_str(),
+            expected_revision,
+            &input.database_id,
+            &input.session_id,
+        )
     })
     .await
     .map_err(|_| command_error(Phase2Failure::Internal))?
@@ -206,13 +211,13 @@ pub(crate) async fn phase2_save_document(
 }
 
 #[tauri::command]
-pub(crate) async fn phase2_full_backup(
+pub(crate) async fn app_full_backup(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<()> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: FullBackupInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let destination = authorizations
         .redeem(
@@ -229,33 +234,33 @@ pub(crate) async fn phase2_full_backup(
 }
 
 #[tauri::command]
-pub(crate) fn phase2_lock_database(
+pub(crate) fn app_lock_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
 ) -> Phase2CommandResult<DatabaseSessionStatus> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let status = state.lock_database().map_err(Phase2CommandError::from)?;
     destroy_session_keeper(&app);
     Ok(status)
 }
 
 #[tauri::command]
-pub(crate) fn phase2_close_database(
+pub(crate) fn app_close_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
 ) -> Phase2CommandResult<DatabaseSessionStatus> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let status = state.close_database().map_err(Phase2CommandError::from)?;
     destroy_session_keeper(&app);
     Ok(status)
 }
 
 #[tauri::command]
-pub(crate) fn phase2_quit_application(
+pub(crate) fn app_quit_application(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
 ) -> Phase2CommandResult<()> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     state.quit_session().map_err(Phase2CommandError::from)?;
     destroy_session_keeper(&app);
     app.exit(0);
@@ -263,11 +268,11 @@ pub(crate) fn phase2_quit_application(
 }
 
 #[tauri::command]
-pub(crate) fn phase2_get_session_status(
+pub(crate) fn app_get_session_status(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
 ) -> Phase2CommandResult<DatabaseSessionStatus> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     state.get_status().map_err(Phase2CommandError::from)
 }
 

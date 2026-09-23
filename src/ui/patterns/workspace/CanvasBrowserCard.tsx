@@ -37,6 +37,7 @@ export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardPro
         material={embedded ? "opaque" : "acrylic-small"}
         backdropSource={embedded ? undefined : "shared"}
         geometryActive={geometryActive}
+        geometrySource="owner"
         radius={radius}
         data-canvas-card-mode={mode}
         data-active={active || undefined}
@@ -48,7 +49,7 @@ export const CanvasBrowserCard = forwardRef<HTMLDivElement, CanvasBrowserCardPro
           className,
         )}
       >
-        <div className="taskmap-canvas-browser-card__content-mask">
+        <div className="taskmap-glass-list__content taskmap-canvas-browser-card__content-mask">
           <div className="taskmap-canvas-browser-card__content">{children}</div>
         </div>
       </MaterialSurface>

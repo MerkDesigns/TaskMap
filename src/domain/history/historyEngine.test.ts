@@ -16,6 +16,53 @@ import {
 import type { HistoryState } from "./historyTypes";
 
 describe("Immer patch history", () => {
+  it("undoes creation after navigation to the new canvas without retaining an invalid selection", () => {
+    const created = executeTestCommand(createCommandTestDocument(), {
+      type: "document.canvas.create",
+      payload: {
+        canvas: {
+          id: COMMAND_TEST_IDS.canvasB,
+          name: "Second",
+          settings: { width: 100, height: 100 },
+        },
+      },
+    });
+    if (!created.ok || !created.transaction) throw new Error("Expected creation");
+    const navigated = executeTestCommand(created.document, {
+      type: "document.canvas.set-active",
+      payload: { canvasId: COMMAND_TEST_IDS.canvasB },
+    });
+    const result = undoDocument(
+      navigated.document,
+      recordTransaction(createEmptyHistory(), created.transaction),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.document.activeCanvasId).toBe(COMMAND_TEST_IDS.canvasA);
+    expect(result.document.canvases[COMMAND_TEST_IDS.canvasB]).toBeUndefined();
+    if (!result.ok) throw new Error("Expected undo");
+    expect(redoDocument(result.document, result.history).ok).toBe(true);
+  });
+
+  it("still rejects history patches selecting a canvas that never existed", () => {
+    const command = executeTestCommand(createCommandTestDocument(), rename("Changed"));
+    if (!command.ok || !command.transaction) throw new Error("Expected transaction");
+    for (const field of ["patches", "inversePatches"] as const) {
+      const transaction = {
+        ...command.transaction,
+        [field]: [
+          ...command.transaction[field],
+          { op: "replace" as const, path: ["activeCanvasId"], value: COMMAND_TEST_IDS.canvasB },
+        ],
+      };
+      const result = undoDocument(
+        command.document,
+        recordTransaction(createEmptyHistory(), transaction),
+      );
+      expect(result.ok).toBe(false);
+      expect(result.document).toBe(command.document);
+    }
+  });
+
   it("records, undoes, and redoes one transaction", () => {
     const initial = createCommandTestDocument();
     const command = executeTestCommand(initial, rename("First change"));

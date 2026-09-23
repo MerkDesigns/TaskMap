@@ -4,6 +4,7 @@ import {
 } from "../../materials/SharedSmallGlassPlane";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
+import { glassListShape } from "./glassListGeometry";
 
 export class CanvasBrowserSharedGlass<Id extends string> {
   constructor(
@@ -38,7 +39,7 @@ export function syncCanvasBrowserDragGlass<Id extends string>(
   writeSharedSmallGlassShapes(plane, [
     {
       x: finiteStyleNumber(record.host, "left"),
-      y: finiteStyleNumber(record.host, "top"),
+      y: finiteStyleNumber(record.host, "--taskmap-canvas-card-y"),
       width: finiteStyleNumber(record.host, "width") || CANVAS_BROWSER_LAYOUT.cardWidth,
       height: record.height,
       radius,
@@ -62,13 +63,22 @@ export function syncCanvasBrowserSharedGlass<Id extends string>(
     const radius =
       finiteStyleNumber(record.card, "--taskmap-material-radius") ||
       CANVAS_BROWSER_LAYOUT.smallRadius;
-    shapes.push({
-      x: CANVAS_BROWSER_LAYOUT.cardInset,
-      y: record.y - scrollY + clipOffset,
-      width: CANVAS_BROWSER_LAYOUT.cardWidth,
-      height: visibleHeight,
-      radius,
-    });
+    const shape = glassListShape(
+      {
+        x: CANVAS_BROWSER_LAYOUT.cardInset,
+        y: record.y - scrollY,
+        width: CANVAS_BROWSER_LAYOUT.cardWidth,
+        height: record.height,
+        radius,
+      },
+      {
+        left: CANVAS_BROWSER_LAYOUT.cardInset,
+        top: record.y - scrollY + clipOffset,
+        width: CANVAS_BROWSER_LAYOUT.cardWidth,
+        height: visibleHeight,
+      },
+    );
+    if (shape) shapes.push(shape);
   }
   writeSharedSmallGlassShapes(plane, shapes);
 }

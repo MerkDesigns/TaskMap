@@ -1,5 +1,5 @@
 import type { ElementGeometry } from "../../canvas/geometry/canvasGeometry";
-import type { ContainerElement, TaskCanvas, TextBlockElement, TextCardElement } from "../../types";
+import type { ContainerElement, TextBlockElement, TextCardElement } from "../../types";
 
 const HEADER_HEIGHT = 48;
 const SEARCH_HEIGHT = 42;
@@ -125,7 +125,10 @@ export function getLegacyTextCardPlacementDecision(
 }
 
 export function getLegacyTextCardFinalPosition(
-  canvas: TaskCanvas,
+  canvas: {
+    readonly containers: readonly ContainerElement[];
+    readonly textCards: readonly TextCardElement[];
+  },
   card: TextCardElement,
   scroll: Readonly<Record<string, number>>,
 ): { x: number; y: number } {

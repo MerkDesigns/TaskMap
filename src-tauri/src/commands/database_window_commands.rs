@@ -1,30 +1,19 @@
-#[cfg(feature = "phase2-development")]
 use super::database_command_types::{ChooseDatabasePathInput, DatabasePathMode};
-#[cfg(feature = "phase2-development")]
 use super::phase2_ipc::{deserialize_limited, MAX_SMALL_IPC_BYTES};
-#[cfg(feature = "phase2-development")]
 use crate::files::database_path_authorization::{
     AuthorizedDatabasePath, DatabasePathAuthorizationKind, DatabasePathAuthorizationState,
 };
-#[cfg(feature = "phase2-development")]
 use crate::phase2_error::{Phase2CommandError, Phase2CommandResult, Phase2Failure};
 use crate::session::database_session::DatabaseSessionState;
-#[cfg(feature = "phase2-development")]
 use crate::settings::recent_databases::load as load_recent_settings;
-#[cfg(feature = "phase2-development")]
 use serde::Serialize;
-#[cfg(feature = "phase2-development")]
 use tauri::WebviewUrl;
 use tauri::{Manager, WebviewWindowBuilder};
-#[cfg(feature = "phase2-development")]
 use tauri_plugin_dialog::DialogExt;
 
-#[cfg(feature = "phase2-development")]
 const DEVELOPMENT_IDENTIFIER: &str = "com.merkdesigns.taskmap.dev";
-#[cfg(feature = "phase2-development")]
 const STABLE_IDENTIFIER: &str = "com.merkdesigns.taskmap";
 
-#[cfg(feature = "phase2-development")]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RecentDatabaseChoices {
@@ -34,13 +23,12 @@ pub(crate) struct RecentDatabaseChoices {
 }
 
 #[tauri::command]
-#[cfg(feature = "phase2-development")]
-pub(crate) fn phase2_choose_database_path(
+pub(crate) fn app_choose_database_path(
     app: tauri::AppHandle,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
 ) -> Phase2CommandResult<Option<AuthorizedDatabasePath>> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let input: ChooseDatabasePathInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let mode = input.mode;
     let builder = app
@@ -72,12 +60,11 @@ pub(crate) fn phase2_choose_database_path(
 }
 
 #[tauri::command]
-#[cfg(feature = "phase2-development")]
-pub(crate) fn phase2_list_recent_databases(
+pub(crate) fn app_list_recent_databases(
     app: tauri::AppHandle,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
 ) -> Phase2CommandResult<RecentDatabaseChoices> {
-    ensure_phase2_development(&app)?;
+    ensure_database_application(&app)?;
     let edition = application_edition(&app);
     let directory = app
         .path()
@@ -118,7 +105,13 @@ pub(crate) fn reopen_main_window(app: &tauri::AppHandle) -> Result<(), tauri::Er
             .ok_or(tauri::Error::WindowNotFound)?;
         WebviewWindowBuilder::from_config(app, config)?
             .build()
-            .map(|_| ())
+            .and_then(|window| {
+                if let Err(error) = crate::window_state::restore_window_state(&window) {
+                    eprintln!("Failed to restore window state: {error}");
+                }
+                crate::windows_session_notifications::install(&window)
+                    .map_err(|message| tauri::Error::Io(std::io::Error::other(message)))
+            })
     };
     if reopened.is_err() {
         app.state::<DatabaseSessionState>()
@@ -129,11 +122,27 @@ pub(crate) fn reopen_main_window(app: &tauri::AppHandle) -> Result<(), tauri::Er
     reopened
 }
 
-#[cfg(feature = "phase2-development")]
+/// Called only after the frontend has completed its save-before-close guard.
+#[tauri::command]
+pub(crate) fn app_destroy_main_window(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+) -> Result<(), String> {
+    ensure_database_application(&app).map_err(|_| "Unavailable application".to_string())?;
+    if window.label() != "main" {
+        return Err("Only the main window can close through this command".into());
+    }
+    // Geometry is best effort and must not trap users in an otherwise safely saved window.
+    if let Err(error) = crate::window_state::save_window_state(&window) {
+        eprintln!("Failed to save window state: {error}");
+    }
+    window.destroy().map_err(|error| error.to_string())
+}
+
 pub(super) fn ensure_session_keeper(app: &tauri::AppHandle) -> Phase2CommandResult<()> {
-    ensure_phase2_development(app)?;
+    ensure_database_application(app)?;
     if app.get_webview_window("phase2-session-keeper").is_none() {
-        WebviewWindowBuilder::new(
+        let window = WebviewWindowBuilder::new(
             app,
             "phase2-session-keeper",
             WebviewUrl::App("phase2-keeper.html".into()),
@@ -142,6 +151,8 @@ pub(super) fn ensure_session_keeper(app: &tauri::AppHandle) -> Phase2CommandResu
         .skip_taskbar(true)
         .build()
         .map_err(|_| command_error(Phase2Failure::Internal))?;
+        crate::windows_session_notifications::install(&window)
+            .map_err(|_| command_error(Phase2Failure::Internal))?;
     }
     Ok(())
 }
@@ -152,27 +163,40 @@ pub(crate) fn destroy_session_keeper(app: &tauri::AppHandle) {
     }
 }
 
+pub(super) fn ensure_database_application(app: &tauri::AppHandle) -> Phase2CommandResult<()> {
+    super::database_edition::validate_application(
+        &app.config().identifier,
+        cfg!(feature = "ui-lab-development"),
+    )
+    .map(|_| ())
+}
+
 #[cfg(feature = "phase2-development")]
 pub(super) fn ensure_phase2_development(app: &tauri::AppHandle) -> Phase2CommandResult<()> {
-    if cfg!(feature = "phase2-development") && app.config().identifier == DEVELOPMENT_IDENTIFIER {
-        Ok(())
-    } else {
-        Err(command_error(Phase2Failure::PermissionDenied))
+    ensure_database_application(app)?;
+    if app.config().identifier != DEVELOPMENT_IDENTIFIER {
+        return Err(command_error(Phase2Failure::PermissionDenied));
     }
+    Ok(())
 }
 
-#[cfg(feature = "phase2-development")]
 pub(super) fn application_edition(app: &tauri::AppHandle) -> String {
     if app.config().identifier == DEVELOPMENT_IDENTIFIER {
-        "development".to_string()
+        "development"
     } else if app.config().identifier == STABLE_IDENTIFIER {
-        "stable".to_string()
+        "stable"
     } else {
-        "unknown".to_string()
+        "unknown"
     }
+    .to_string()
 }
 
-#[cfg(feature = "phase2-development")]
+#[tauri::command]
+pub(crate) fn app_database_edition(app: tauri::AppHandle) -> Phase2CommandResult<String> {
+    ensure_database_application(&app)?;
+    Ok(application_edition(&app))
+}
+
 fn command_error(failure: Phase2Failure) -> Phase2CommandError {
     Phase2CommandError::from(failure)
 }

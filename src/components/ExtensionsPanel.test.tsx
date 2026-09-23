@@ -69,11 +69,13 @@ describe("C2E Extensions panel", () => {
         '[data-extension-card-id][data-material-backdrop-source="shared"]',
       ),
     ).toHaveLength(EXTENSIONS.length);
-    expect(readNativeGlassDiagnostics(container)).toMatchObject({
-      localMaterialBackdropFilterCount: 0,
-      nativeBackdropFilterLayerCount: 2,
-      sharedSmallBatchCount: 1,
-    });
+    await waitFor(() =>
+      expect(readNativeGlassDiagnostics(container)).toMatchObject({
+        localMaterialBackdropFilterCount: 0,
+        nativeBackdropFilterLayerCount: 2,
+        sharedSmallBatchCount: 1,
+      }),
+    );
 
     rerender(view(false));
     await waitFor(() =>

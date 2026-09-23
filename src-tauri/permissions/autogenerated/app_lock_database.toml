@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-lock-database"
+description = "Enables the app_lock_database command without any pre-configured scope."
+commands.allow = ["app_lock_database"]
+
+[[permission]]
+identifier = "deny-app-lock-database"
+description = "Denies the app_lock_database command without any pre-configured scope."
+commands.deny = ["app_lock_database"]

@@ -42,7 +42,7 @@ import { ScrollArea } from "../ui/primitives/Layout";
 import { Tooltip } from "../ui/primitives/Tooltip";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
-import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
+import { GlassListFrame } from "../ui/patterns/workspace/GlassListFrame";
 import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
 import { useSharedSmallGlassList } from "../ui/patterns/workspace/useSharedSmallGlassList";
@@ -51,6 +51,7 @@ import "./QuickExtensionsMenu.css";
 export type { ExtensionId } from "../extensions/registry";
 
 type ExtensionsPanelProps = {
+  availableExtensions?: readonly ExtensionDefinition[];
   active?: boolean;
   closing: boolean;
   onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
@@ -122,6 +123,7 @@ export function loadExtensionFavorites(): Partial<Record<ExtensionId, boolean>> 
 }
 
 type QuickExtensionsMenuProps = {
+  availableExtensions?: readonly ExtensionDefinition[];
   left: number;
   top: number;
   majorRadius?: number;
@@ -134,6 +136,7 @@ type QuickExtensionsMenuProps = {
 };
 
 export function QuickExtensionsMenu({
+  availableExtensions = EXTENSIONS,
   left,
   top,
   majorRadius = 17,
@@ -155,7 +158,7 @@ export function QuickExtensionsMenu({
   const favorites = loadExtensionFavorites();
   const position = useClampedFixedPosition(menuRef, { left: left + 10, top: top + 10 });
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
-  const filteredExtensions = EXTENSIONS.filter(
+  const filteredExtensions = availableExtensions.filter(
     (extension) =>
       !normalizedSearchQuery ||
       [
@@ -236,7 +239,7 @@ export function QuickExtensionsMenu({
         data-shared-small-glass-viewport={scrollable || undefined}
         className={
           scrollable
-            ? "taskmap-quick-extensions-menu__list quick-extensions-scroll taskmap-quick-extensions-menu__list--scrollable"
+            ? "taskmap-glass-list__scroll taskmap-quick-extensions-menu__list quick-extensions-scroll taskmap-quick-extensions-menu__list--scrollable"
             : "taskmap-quick-extensions-menu__list"
         }
       >
@@ -304,12 +307,12 @@ export function QuickExtensionsMenu({
             prefixSlot={<IconSearch size={16} stroke={2} />}
           />
         </div>
-        <div className="taskmap-quick-extensions-menu__scroll-frame">
-          <SharedSmallGlassPlane
-            ref={sharedSmallGlassPlaneRef}
-            batchId="quick-extension-browser-small"
-            kind="small-extension"
-          />
+        <GlassListFrame
+          className="taskmap-quick-extensions-menu__scroll-frame"
+          planeRef={sharedSmallGlassPlaneRef}
+          batchId="quick-extension-browser-small"
+          kind="small-extension"
+        >
           <div ref={scrollAreaRef} className="taskmap-quick-extensions-menu__content">
             {favoriteExtensions.length > 0 && renderCategory("Favorited", favoriteExtensions)}
             {otherExtensions.length > 0 &&
@@ -322,7 +325,7 @@ export function QuickExtensionsMenu({
               <div className="taskmap-extension-browser-empty">No extensions found</div>
             )}
           </div>
-        </div>
+        </GlassListFrame>
       </MaterialSurface>
       {drag &&
         createPortal(
@@ -339,6 +342,7 @@ export function QuickExtensionsMenu({
 }
 
 export function ExtensionsPanel({
+  availableExtensions = EXTENSIONS,
   active = true,
   closing,
   onDropExtension,
@@ -423,7 +427,7 @@ export function ExtensionsPanel({
   const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconShieldLock;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const allTargetsSelected = selectedTargets.length === Object.keys(TARGET_META).length;
-  const filteredExtensions = EXTENSIONS.filter((extension) => {
+  const filteredExtensions = availableExtensions.filter((extension) => {
     const matchesTarget = extension.targets.some((target) => selectedTargets.includes(target));
     const matchesSearch =
       !normalizedSearchQuery ||
@@ -439,8 +443,8 @@ export function ExtensionsPanel({
   });
   const favoriteExtensions = filteredExtensions.filter((extension) => favorites[extension.id]);
   const otherExtensions = filteredExtensions.filter((extension) => !favorites[extension.id]);
-  const favoriteCount = EXTENSIONS.filter((extension) => favorites[extension.id]).length;
-  const renderExtensionCard = (extension: (typeof EXTENSIONS)[number]) => {
+  const favoriteCount = availableExtensions.filter((extension) => favorites[extension.id]).length;
+  const renderExtensionCard = (extension: ExtensionDefinition) => {
     const ExtensionIcon = extension.Icon;
     const favorited = Boolean(favorites[extension.id]);
     const favoriteLimitReached = !favorited && favoriteCount >= MAX_EXTENSION_FAVORITES;
@@ -569,19 +573,18 @@ export function ExtensionsPanel({
           document.body,
         )}
 
-      <div className="taskmap-extension-browser-scroll-frame min-h-0 flex-1">
-        {!embedded && (
-          <SharedSmallGlassPlane
-            ref={sharedSmallGlassPlaneRef}
-            batchId="extension-browser-small"
-            blurPx={smallGlassBlur}
-            kind="small-extension"
-          />
-        )}
+      <GlassListFrame
+        className="taskmap-extension-browser-scroll-frame min-h-0 flex-1"
+        planeRef={sharedSmallGlassPlaneRef}
+        materialEnabled={!embedded}
+        batchId="extension-browser-small"
+        blurPx={smallGlassBlur}
+        kind="small-extension"
+      >
         <ScrollArea
           ref={scrollAreaRef}
           hiddenScrollbar
-          className="taskmap-extension-browser-scroll-area space-y-2"
+          className="taskmap-glass-list__scroll taskmap-extension-browser-scroll-area space-y-2"
         >
           {favoriteExtensions.length > 0 && (
             <div className="taskmap-extension-browser-section">
@@ -603,7 +606,7 @@ export function ExtensionsPanel({
             <div className="taskmap-extension-browser-empty">No extensions found</div>
           )}
         </ScrollArea>
-      </div>
+      </GlassListFrame>
     </>
   );
 

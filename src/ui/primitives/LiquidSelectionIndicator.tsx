@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState, type HTMLAttributes } from "react";
-import { useMaterialSurfaceGeometryInvalidation } from "../materials/MaterialSurfaceRegistration";
 import { MaterialSurface } from "../materials/MaterialSurface";
 import {
   advanceLiquidIndicator,
@@ -34,7 +33,6 @@ export function LiquidSelectionIndicator({
   const [radius, setRadius] = useState(LIQUID_REST_RADIUS_PX);
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
   const orientation = "top" in target ? "vertical" : "horizontal";
   const targetOffset = "top" in target ? target.top : target.left;
   const targetSize = "height" in target ? target.height : target.width;
@@ -70,7 +68,6 @@ export function LiquidSelectionIndicator({
         ),
       );
       setRadius(Math.max(0, settledRadius + movingProgress * (movingRadius - settledRadius)));
-      invalidateGeometry();
     };
 
     if (reducedMotion) {
@@ -98,7 +95,6 @@ export function LiquidSelectionIndicator({
       cancelRef.current = null;
     };
   }, [
-    invalidateGeometry,
     movingRadius,
     orientation,
     reducedMotion,

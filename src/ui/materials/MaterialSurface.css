@@ -6,12 +6,6 @@
 }
 
 .taskmap-material-surface[data-material-strategy="native-glass"] {
-  --taskmap-material-blur-presence-progress: clamp(
-    0,
-    calc((var(--taskmap-material-presence-progress, 1) - 0.3) / 0.7),
-    1
-  );
-
   background: transparent;
 }
 
@@ -65,92 +59,6 @@
   inset: 0;
   pointer-events: none;
   transform: translateZ(0);
-}
-
-.taskmap-material-surface[data-material-strategy="native-glass"]
-  .taskmap-material-native-glass__preblur,
-.taskmap-material-surface[data-material-strategy="native-glass"]
-  .taskmap-material-native-glass__backdrop {
-  position: absolute;
-  top: calc(0px - var(--taskmap-material-overscan-top, 0px));
-  right: calc(0px - var(--taskmap-material-overscan-right, 0px));
-  bottom: calc(0px - var(--taskmap-material-overscan-bottom, 0px));
-  left: calc(0px - var(--taskmap-material-overscan-left, 0px));
-  background: rgb(0 0 0 / calc(0.001 * var(--taskmap-material-presence-progress, 1)));
-  pointer-events: none;
-}
-
-.taskmap-material-surface[data-material-strategy="native-glass"]
-  .taskmap-material-native-glass__preblur {
-  z-index: 0;
-  display: none;
-  -webkit-backdrop-filter: blur(
-    calc(
-      var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)) *
-        var(--taskmap-material-blur-presence-progress)
-    )
-  );
-  backdrop-filter: blur(
-    calc(
-      var(--taskmap-material-active-preblur, var(--taskmap-material-preblur)) *
-        var(--taskmap-material-blur-presence-progress)
-    )
-  );
-}
-
-.taskmap-material-surface[data-material-strategy="native-glass"]
-  .taskmap-material-native-glass__preblur[data-enabled="true"] {
-  display: block;
-}
-
-.taskmap-material-surface[data-material-strategy="native-glass"][data-material-backdrop-source="self"][data-material-motion="active"]
-  .taskmap-material-native-glass__preblur[data-interaction-enabled="true"] {
-  --taskmap-material-active-preblur: var(--taskmap-material-interaction-preblur);
-
-  display: block;
-}
-
-.taskmap-material-surface[data-material-strategy="native-glass"]
-  .taskmap-material-native-glass__backdrop {
-  z-index: 1;
-  backface-visibility: hidden;
-  transform: translateZ(var(--taskmap-material-backdrop-revision, 0px));
-  -webkit-backdrop-filter: blur(
-      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
-    )
-    saturate(
-      calc(
-        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
-      )
-    )
-    brightness(
-      calc(
-        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
-      )
-    )
-    contrast(
-      calc(
-        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
-      )
-    );
-  backdrop-filter: blur(
-      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
-    )
-    saturate(
-      calc(
-        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
-      )
-    )
-    brightness(
-      calc(
-        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
-      )
-    )
-    contrast(
-      calc(
-        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
-      )
-    );
 }
 
 .taskmap-material-surface[data-material-backdrop-source="shared"]
@@ -258,11 +166,11 @@
 }
 
 .taskmap-material-surface[data-material-strategy="css"] {
+  backdrop-filter: var(--taskmap-material-css-backdrop, none);
+  -webkit-backdrop-filter: var(--taskmap-material-css-backdrop, none);
   border: var(--taskmap-material-border-width) solid
     rgb(var(--taskmap-material-border-rgb) / var(--taskmap-material-border-alpha));
-  background: rgb(
-    var(--taskmap-material-fill-rgb) / var(--taskmap-material-fill-opacity, 1)
-  );
+  background: rgb(var(--taskmap-material-fill-rgb) / var(--taskmap-material-fill-opacity, 1));
 }
 
 .taskmap-material-surface--bright-selection[data-material-strategy="native-glass"]::before {

@@ -126,7 +126,11 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
     const clear = app.slice(clearStart, clearEnd);
     expect(clear).toContain("beginHistoryTransaction");
     expect(clear).toContain("finishHistoryTransaction");
-    expect(clear.indexOf("finishHistoryTransaction")).toBeLessThan(
+    const legacyClear = clear.slice(clear.indexOf("beginHistoryTransaction"));
+    expect(legacyClear.indexOf("finishHistoryTransaction")).toBeLessThan(
+      legacyClear.indexOf("setClearModalOpen(false)"),
+    );
+    expect(clear.indexOf("?.complete(true)")).toBeLessThan(
       clear.indexOf("setClearModalOpen(false)"),
     );
   });

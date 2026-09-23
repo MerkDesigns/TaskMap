@@ -1,6 +1,7 @@
 import { IconBolt, IconCheck, IconPlus, IconSearch, IconX } from "@tabler/icons-react";
 import { useState } from "react";
 import type { MaterialCompositorPresentationPublisher } from "../materials/materialCompositorPresentation";
+import { createMaterialCompositorPresentationBridge } from "../materials/materialCompositorPresentation";
 import { MotionProvider } from "../motion/MotionProvider";
 import { ReducedMotionProvider, useSystemReducedMotion } from "../motion/reducedMotionPreference";
 import {
@@ -41,10 +42,13 @@ const standardItems = [
 ] as const;
 
 export interface DevelopmentUiLabProps {
-  readonly presentation: MaterialCompositorPresentationPublisher;
+  readonly presentation?: MaterialCompositorPresentationPublisher;
 }
 
-export function DevelopmentUiLab({ presentation }: DevelopmentUiLabProps) {
+export function DevelopmentUiLab({ presentation: suppliedPresentation }: DevelopmentUiLabProps) {
+  const [presentation] = useState(
+    () => suppliedPresentation ?? createMaterialCompositorPresentationBridge(),
+  );
   const systemReducedMotion = useSystemReducedMotion();
   const [reducedMotionOverride, setReducedMotionOverride] = useState<boolean | null>(null);
   const reducedMotion = reducedMotionOverride ?? systemReducedMotion;

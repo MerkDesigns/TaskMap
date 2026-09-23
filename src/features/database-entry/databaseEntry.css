@@ -1,0 +1,60 @@
+.taskmap-database-entry {
+  display: grid;
+  place-items: center;
+  padding: var(--taskmap-space-8);
+  overflow: auto;
+}
+.taskmap-database-entry__panel {
+  width: min(100%, 480px);
+  padding: var(--taskmap-space-8);
+  display: grid;
+  gap: var(--taskmap-space-5);
+}
+.taskmap-database-entry h1 {
+  margin: 0;
+  font-size: var(--taskmap-text-heading-size);
+  line-height: var(--taskmap-text-heading-line);
+}
+.taskmap-database-entry h2 {
+  margin: 0;
+  font-size: var(--taskmap-text-section-size);
+}
+.taskmap-database-entry p {
+  margin: 0;
+}
+.taskmap-database-entry .taskmap-database-entry__eyebrow {
+  color: var(--taskmap-accent);
+  margin-bottom: var(--taskmap-space-3);
+  font-weight: 600;
+}
+.taskmap-database-entry__hint {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  line-height: var(--taskmap-text-small-line);
+}
+.taskmap-database-entry header .taskmap-database-entry__hint {
+  margin-top: var(--taskmap-space-3);
+}
+.taskmap-database-entry__privacy,
+.taskmap-database-entry__path {
+  font-size: var(--taskmap-text-small-size);
+  overflow-wrap: anywhere;
+}
+.taskmap-database-entry__error {
+  color: var(--taskmap-danger);
+}
+.taskmap-database-entry__form,
+.taskmap-database-entry__recent {
+  display: grid;
+  gap: var(--taskmap-space-3);
+}
+.taskmap-database-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--taskmap-space-2);
+}
+.taskmap-database-entry__recent .taskmap-button__label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}

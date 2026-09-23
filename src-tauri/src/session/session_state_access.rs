@@ -38,6 +38,18 @@ pub(super) fn status_from_guard(guard: &Option<OpenSession>) -> DatabaseSessionS
     }
 }
 
+pub(super) fn authorized_session<'a>(
+    guard: &'a mut Option<OpenSession>,
+    database_id: &str,
+    session_id: &str,
+) -> Phase2Result<&'a mut OpenSession> {
+    let session = unlocked_session(guard)?;
+    if session.database_id != database_id || session.session_id != session_id {
+        return Err(Phase2Failure::SessionLocked);
+    }
+    Ok(session)
+}
+
 fn closed_status() -> DatabaseSessionStatus {
     DatabaseSessionStatus {
         phase: DatabaseSessionPhase::Closed,

@@ -66,9 +66,8 @@ describe("ModalPresence", () => {
     expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot().subscriberCount).toBe(1);
 
-    const geometryAtStart = harness.notifyGeometry.mock.calls.length;
     act(() => harness.driver.fire());
-    expect(harness.notifyGeometry).toHaveBeenCalledTimes(geometryAtStart + 1);
+    expect(harness.notifyGeometry).not.toHaveBeenCalled();
     expect(Number(group.style.opacity)).toBeGreaterThan(0);
     expect(maskOpacities(harness)).toEqual([]);
     act(() => harness.driver.flush());
@@ -98,7 +97,7 @@ describe("ModalPresence", () => {
     expect(screen.queryByRole("dialog", { name: "Motion dialog" })).not.toBeInTheDocument();
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     expect(harness.driver.fire()).toBe(false);
-    expect(harness.notifyGeometry).toHaveBeenCalled();
+    expect(harness.notifyGeometry).not.toHaveBeenCalled();
     harness.dispose();
   });
 

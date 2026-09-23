@@ -167,6 +167,11 @@ describe("MaterialSurface", () => {
   });
 
   it("bounds nested Small overscan to its logical Large owner across transient classes", () => {
+    let frame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
     const registry = createMaterialSurfaceRegistry(null);
     const registrationBoundary = {
       registry,
@@ -192,11 +197,13 @@ describe("MaterialSurface", () => {
     vi.spyOn(small, "getBoundingClientRect").mockReturnValue(rectangle(105, 120, 100, 100));
 
     fireEvent(window, new Event("resize"));
+    frame?.(0);
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
     expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
 
     rerender(view("is-dragging is-snapping"));
     fireEvent(window, new Event("resize"));
+    frame?.(16);
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
     expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
     expect(registry.getSnapshot().surfaces).toEqual([]);
@@ -257,14 +264,19 @@ describe("MaterialSurface", () => {
   });
 
   it("does not schedule position refreshes for shared backdrop consumers", () => {
-    const requestFrame = vi.fn();
+    let frame: FrameRequestCallback | undefined;
+    const requestFrame = vi.fn((callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
     vi.stubGlobal("requestAnimationFrame", requestFrame);
     render(
       <MaterialSurface material="acrylic-small" backdropSource="shared">
         Shared
       </MaterialSurface>,
     );
-
+    frame?.(0);
+    requestFrame.mockClear();
     fireEvent.scroll(document.body);
 
     expect(requestFrame).not.toHaveBeenCalled();

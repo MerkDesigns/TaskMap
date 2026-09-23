@@ -16,10 +16,9 @@ pub(crate) fn deserialize_limited<T: DeserializeOwned>(
             return Err(Phase2CommandError::from(Phase2Failure::InvalidInput));
         }
     };
-    serde_json::from_slice(bytes).map_err(|_| Phase2CommandError::from(Phase2Failure::InvalidInput))
+    deserialize_slice_limited(bytes, maximum_bytes)
 }
 
-#[cfg(test)]
 pub(crate) fn deserialize_slice_limited<T: DeserializeOwned>(
     bytes: &[u8],
     maximum_bytes: usize,

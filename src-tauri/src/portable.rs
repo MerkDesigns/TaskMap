@@ -1,7 +1,8 @@
 use crate::error::{command_result, CommandResult};
+use crate::image_processing::validate_stored_media;
 use crate::images::{
     image_meta_by_hash, read_image_bytes, restore_validated_image, validate_bundled_image,
-    validate_stored_media, BundledImage,
+    BundledImage,
 };
 use crate::model::{collect_image_ids, migrate_app_data, AppData};
 use crate::storage::{
@@ -158,6 +159,7 @@ pub(crate) async fn export_app_data(
     data: AppData,
     password: String,
 ) -> CommandResult<bool> {
+    command_result(crate::storage_preview::require_legacy_storage())?;
     let result = tauri::async_runtime::spawn_blocking(move || {
         let data = migrate_app_data(data)?;
         let mut hashes = HashSet::new();
@@ -227,6 +229,7 @@ pub(crate) async fn import_app_data(
     payload: String,
     password: String,
 ) -> CommandResult<AppData> {
+    command_result(crate::storage_preview::require_legacy_storage())?;
     let result = tauri::async_runtime::spawn_blocking(move || {
         if payload.len() > IMPORT_MAX_PAYLOAD_BYTES {
             return Err(format!(

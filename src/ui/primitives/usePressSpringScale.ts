@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { useMaterialSurfaceGeometryInvalidation } from "../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../motion/MotionProvider";
 import {
   advanceScalarSpring,
@@ -18,14 +17,12 @@ export function usePressSpringScale(surfaceRef: RefObject<HTMLElement | null>) {
   const cancelRef = useRef<(() => void) | null>(null);
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
 
   const writeScale = useCallback(
     (scale: number) => {
       if (surfaceRef.current) surfaceRef.current.style.transform = `scale(${scale})`;
-      invalidateGeometry();
     },
-    [invalidateGeometry, surfaceRef],
+    [surfaceRef],
   );
 
   const animateScale = useCallback(

@@ -13,6 +13,8 @@
   "scripts": {
     "dev": "vite --config config/vite.config.ts --host 127.0.0.1 --port 6969",
     "dev:ui-lab": "vite --mode ui-lab --config config/vite.config.ts --host 127.0.0.1 --port 6970",
+    "dev:storage-preview": "vite --mode storage-preview --config config/vite.config.ts --host 127.0.0.1 --port 6971",
+    "app:preview:mcp": "tauri dev --features storage-free-preview,mcp-development --config src-tauri/tauri.storage-preview.conf.json",
     "dev:phase2": "vite --mode phase2 --config config/vite.config.ts --host 127.0.0.1 --port 6969",
     "build": "tsc --noEmit -p config/tsconfig.json && vite build --config config/vite.config.ts",
     "build:phase2": "tsc --noEmit -p config/tsconfig.json && vite build --mode phase2 --config config/vite.config.ts",
@@ -29,7 +31,7 @@
     "bundle:dev": "tauri build --features phase2-development --config src-tauri/tauri.dev.conf.json",
     "bundle:stable": "tauri build",
     "architecture:check": "node scripts/check-architecture.mjs",
-    "production:inspect": "node scripts/check-phase2-production-exclusion.mjs && node scripts/check-mcp-development-exclusion.mjs",
+    "production:inspect": "node scripts/check-phase2-production-exclusion.mjs && node scripts/check-mcp-development-exclusion.mjs && node scripts/check-application-database-boundary.mjs && node scripts/check-storage-preview.mjs && node scripts/check-database-cutover.mjs",
     "codemap": "node scripts/generate-codemap.mjs",
     "codemap:check": "node scripts/generate-codemap.mjs --check",
     "filesizes": "node scripts/report-file-sizes.mjs",

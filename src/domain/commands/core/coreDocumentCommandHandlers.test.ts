@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { coreDocumentCommandHandlers } from "./coreDocumentCommandHandlers";
 
 describe("core document command registry", () => {
-  it("declares the complete Phase 3B command inventory and history policy", () => {
+  it("declares the complete core command inventory and history policy", () => {
     expect(coreDocumentCommandHandlers.map(({ type, history }) => [type, history])).toEqual([
       ["document.canvas.create", "record"],
       ["document.canvas.rename", "record"],
@@ -16,6 +16,7 @@ describe("core document command registry", () => {
       ["document.element.replace-data", "record"],
       ["document.element.reorder", "record"],
       ["document.element.remove", "record"],
+      ["document.elements.update-geometry", "record"],
       ["document.connection.insert", "record"],
       ["document.connection.replace-data", "record"],
       ["document.connection.remove", "record"],

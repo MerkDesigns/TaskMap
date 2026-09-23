@@ -58,12 +58,7 @@ export function calculateMaterialOverscan(
   });
 }
 
-export function writeMaterialOverscan(
-  surface: HTMLElement,
-  boundary: MaterialRectangle,
-  requestedPx: number,
-): void {
-  const insets = calculateMaterialOverscan(surface.getBoundingClientRect(), boundary, requestedPx);
+export function writeMaterialOverscan(surface: HTMLElement, insets: MaterialOverscanInsets): void {
   surface.style.setProperty("--taskmap-material-overscan-left", pixels(insets.left));
   surface.style.setProperty("--taskmap-material-overscan-top", pixels(insets.top));
   surface.style.setProperty("--taskmap-material-overscan-right", pixels(insets.right));

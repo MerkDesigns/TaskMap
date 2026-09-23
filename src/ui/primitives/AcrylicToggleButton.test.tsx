@@ -65,7 +65,7 @@ describe("AcrylicToggleButton", () => {
     fireEvent.pointerDown(button, { button: 0, pointerId: 1 });
     act(() => driver.fire());
     expect(Number.parseFloat(surface?.style.transform.match(/[\d.]+/)?.[0] ?? "1")).toBeLessThan(1);
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalled();
+    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     fireEvent.pointerUp(button, { button: 0, pointerId: 1 });
     act(() => driver.flush());
     expect(surface).toHaveStyle("transform: scale(1)");

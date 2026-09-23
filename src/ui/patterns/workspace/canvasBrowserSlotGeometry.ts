@@ -76,7 +76,6 @@ export class CanvasBrowserSlotGeometry<Id extends string> {
   private write(record: CanvasBrowserCardRecord<Id>, y: number) {
     if (record.y === y) return;
     record.y = y;
-    record.host.style.transform = `translate3d(0, ${y}px, 0)`;
   }
 }
 

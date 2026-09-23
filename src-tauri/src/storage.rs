@@ -52,12 +52,14 @@ pub(crate) fn with_storage<T>(
     app: &tauri::AppHandle,
     operation: impl FnOnce(&mut StorageSession) -> Result<T, String>,
 ) -> Result<T, String> {
+    crate::storage_preview::require_legacy_storage()?;
     let storage = app.state::<StorageState>();
     let mut session = lock_storage(&storage);
     operation(&mut session)
 }
 
 fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    crate::storage_preview::require_legacy_storage()?;
     let data_dir = app
         .path()
         .app_data_dir()
@@ -67,6 +69,7 @@ fn database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 fn backup_database_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    crate::storage_preview::require_legacy_storage()?;
     let data_dir = app
         .path()
         .app_data_dir()
@@ -126,6 +129,7 @@ fn decode_database_key(encoded: String) -> Result<[u8; 32], String> {
 }
 
 fn keyring_entry() -> Result<keyring::Entry, String> {
+    crate::storage_preview::require_legacy_storage()?;
     keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
         .map_err(|error| format!("Could not open keyring: {error}"))
 }
@@ -524,6 +528,10 @@ pub(crate) fn load_app_data_from_database(
 
 #[tauri::command]
 pub(crate) fn load_app_data(app: tauri::AppHandle) -> CommandResult<Option<AppData>> {
+    if crate::storage_preview::ENABLED {
+        // Only the built-in empty UI baseline. This is not a successful load from any database.
+        return Ok(None);
+    }
     command_result(with_storage(&app, |session| {
         load_app_data_from_database(&app, session)
     }))

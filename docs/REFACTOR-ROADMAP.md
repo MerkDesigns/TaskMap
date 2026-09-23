@@ -297,6 +297,60 @@ Completion and visual acceptance for 4.5C remain open.
   historical regression coverage and does not gate production unless that strategy is reactivated.
 - Manual visual acceptance and documented release-mode performance measurement pass.
 
+## Database integration intermission — explicitly requested 2026-09-06
+
+Pause the glass acceptance follow-up and execute `docs/DATABASE-INTEGRATION-PLAN.md` under ADR 004.
+This brings forward the database-activation portions of later phases: confirmed-load/workspace
+composition, session lifecycle, narrowly scoped application IPC, retained-view/command integration,
+media access and production startup cutover. It does not authorize unrelated element ownership,
+glass redesign, old-format conversion in the main app, or general Phase 5 migration.
+
+Phase 4.5 remains incomplete. Existing files/keyring stay untouched. Resume its glass acceptance work
+after the intermission's actual application, security, media and parity checks pass. Benchmark loading
+still requires separate permission; the user selected files-only preparation.
+
+Local intermission progress: steps 1 and 2a/2b implement confirmed-load composition, guarded lifecycle
+and scoped native commands/client. The commands are permitted in product builds, but the application
+composition is unmounted. Step 3a records the retained-view inventory and adds atomic group geometry
+commands. Step 3b1 adds unmounted typed card/container payloads and read-only projections with strict
+relationship checks and camera-independent caching. Step 3b2 extends that same unmounted projection
+to text blocks/mind-map nodes and typed connections, including retained endpoint/pair rules. Step 3b3
+adds image/opaque-media metadata projections, shared card/image ordering and image endpoints without
+byte access. Step 3b4 completes staged read-only coverage with nine explicit retained-extension
+definitions, strict configuration/target checks and per-target cached projections. Step 3c1 now wires
+feature-data acceptance into the unmounted transport and workspace candidate-publication boundaries.
+Step 3c2a adds atomic selection deletion and shared single-remove/deletion-lock rules to that product
+composition. Step 3c2b adds shared product geometry lock/resize-capability checks while retaining the
+generic atomic group transaction. Step 3c2c adds atomic placement/reparent/detach and shared card/image
+sibling ordering with captured preconditions and a generic-data bypass guard. At the user's request,
+step 3c2d/e combines typed field-scoped content and captured root-group layer commands; both are complete
+locally, including single-API guards and retained lock semantics. Step 3c3 adds bounded, revocable captured
+callbacks and editor-value finalizers to the unmounted product factory. Step 3d1 composes the existing
+interaction controller with those callbacks, including eligible target capture and revocation cleanup.
+Step 3d2 adds normalized geometry/drop mapping through the existing compatibility calculations and
+captured shared child order. At the user's request, 3d3a follows with captured edge actions and atomic
+node-plus-edge creation. Step 3d3b adds atomic captured extension install/remove/configuration/activation
+and primary-directed toggles through the same callback owner and registered definitions. Step 3d3c1 adds
+atomic internal-copy insertion with same-workspace cross-canvas lifetime and session revocation. Step 3d3c2
+adds captured container insertion/companions and atomic AI JSON replacement while retaining image/media
+and clipboard/presentation boundaries. Step 3d3d is split: 3d3d1 completes captured document-settings and
+guarded existing undo/redo callbacks. Batch A now completes remaining supporting preferences/view-state,
+canvas routing and media integration: strict edition-local preferences, encrypted device camera cache,
+captured canvas/creation commands, native picker/chunk imports and shared lazy URL leases with session
+flush/purge. ADR 005 records device-resource and media boundaries. This is not visible activation.
+Execution regrouped at the user's request on 2026-09-12: **Batch A** completes remaining step 3 plus
+step 4 (preferences/view state/canvas routing and media); **Batch B** combines step 5 with database
+acceptance/cleanup from step 6; **Batch C** resumes glass acceptance. Old substeps are internal
+checklists, not separate session boundaries. Focused validation during implementation, consolidated
+full validation/docs per batch; no acceptance/security/user-data permissions are relaxed.
+Batch A is complete locally with automated fixture/build checks; next is Batch B. Supporting code
+does not close retained feature wiring. Startup, visible media/control binding, native lifecycle and
+live acceptance remain open; the visible app still uses legacy storage. See DATABASE-VIEW-INTEGRATION
+for the coherent cutover checklist rather than restarting the small historical substeps.
+
+- [ ] Complete intermission steps 1–6 and verify the real app exclusively uses the new database path.
+- [ ] Resume the paused glass acceptance plan without treating database work as FPS/visual acceptance.
+
 ## Phase 5 — Element modules
 
 Port one complete element at a time:
@@ -370,7 +424,8 @@ Preserve the useful Command Runner workflow without its unsafe raw-shell archite
 - AI JSON editor workflow
 - Tray UX
 - Config import/export
-- Database picker and recent files
+- Database picker and recent files (activation subset brought forward by the database intermission;
+  completion is tracked there, not assumed here)
 - Error recovery and backup restoration
 - Remaining product-shell production activation after element/document ownership has migrated
 

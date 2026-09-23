@@ -345,6 +345,138 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the app_cancel_pending_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-cancel-pending-unlock",
+          "markdownDescription": "Enables the app_cancel_pending_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_choose_database_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-choose-database-path",
+          "markdownDescription": "Enables the app_choose_database_path command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_choose_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-choose-image",
+          "markdownDescription": "Enables the app_choose_image command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_close_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-close-database",
+          "markdownDescription": "Enables the app_close_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_confirm_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-confirm-unlock",
+          "markdownDescription": "Enables the app_confirm_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_create_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-create-database",
+          "markdownDescription": "Enables the app_create_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_database_edition command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-database-edition",
+          "markdownDescription": "Enables the app_database_edition command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_destroy_main_window command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-destroy-main-window",
+          "markdownDescription": "Enables the app_destroy_main_window command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_full_backup command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-full-backup",
+          "markdownDescription": "Enables the app_full_backup command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_get_session_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-get-session-status",
+          "markdownDescription": "Enables the app_get_session_status command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_import_dropped_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-import-dropped-image",
+          "markdownDescription": "Enables the app_import_dropped_image command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_list_recent_databases command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-list-recent-databases",
+          "markdownDescription": "Enables the app_list_recent_databases command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_load_preferences command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-load-preferences",
+          "markdownDescription": "Enables the app_load_preferences command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_lock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-lock-database",
+          "markdownDescription": "Enables the app_lock_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_media_transfer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-media-transfer",
+          "markdownDescription": "Enables the app_media_transfer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_open_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-open-database",
+          "markdownDescription": "Enables the app_open_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_quit_application command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-quit-application",
+          "markdownDescription": "Enables the app_quit_application command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_read_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-read-document",
+          "markdownDescription": "Enables the app_read_document command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_save_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-save-document",
+          "markdownDescription": "Enables the app_save_document command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_save_preferences command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-save-preferences",
+          "markdownDescription": "Enables the app_save_preferences command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_unlock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-unlock-database",
+          "markdownDescription": "Enables the app_unlock_database command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the app_view_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-view-state",
+          "markdownDescription": "Enables the app_view_state command without any pre-configured scope."
+        },
+        {
           "description": "Enables the export_app_data command without any pre-configured scope.",
           "type": "string",
           "const": "allow-export-app-data",
@@ -511,6 +643,138 @@
           "type": "string",
           "const": "allow-store-image-path",
           "markdownDescription": "Enables the store_image_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_cancel_pending_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-cancel-pending-unlock",
+          "markdownDescription": "Denies the app_cancel_pending_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_choose_database_path command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-choose-database-path",
+          "markdownDescription": "Denies the app_choose_database_path command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_choose_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-choose-image",
+          "markdownDescription": "Denies the app_choose_image command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_close_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-close-database",
+          "markdownDescription": "Denies the app_close_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_confirm_unlock command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-confirm-unlock",
+          "markdownDescription": "Denies the app_confirm_unlock command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_create_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-create-database",
+          "markdownDescription": "Denies the app_create_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_database_edition command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-database-edition",
+          "markdownDescription": "Denies the app_database_edition command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_destroy_main_window command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-destroy-main-window",
+          "markdownDescription": "Denies the app_destroy_main_window command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_full_backup command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-full-backup",
+          "markdownDescription": "Denies the app_full_backup command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_get_session_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-get-session-status",
+          "markdownDescription": "Denies the app_get_session_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_import_dropped_image command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-import-dropped-image",
+          "markdownDescription": "Denies the app_import_dropped_image command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_list_recent_databases command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-list-recent-databases",
+          "markdownDescription": "Denies the app_list_recent_databases command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_load_preferences command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-load-preferences",
+          "markdownDescription": "Denies the app_load_preferences command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_lock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-lock-database",
+          "markdownDescription": "Denies the app_lock_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_media_transfer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-media-transfer",
+          "markdownDescription": "Denies the app_media_transfer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_open_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-open-database",
+          "markdownDescription": "Denies the app_open_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_quit_application command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-quit-application",
+          "markdownDescription": "Denies the app_quit_application command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_read_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-read-document",
+          "markdownDescription": "Denies the app_read_document command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_save_document command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-save-document",
+          "markdownDescription": "Denies the app_save_document command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_save_preferences command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-save-preferences",
+          "markdownDescription": "Denies the app_save_preferences command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_unlock_database command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-unlock-database",
+          "markdownDescription": "Denies the app_unlock_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_view_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-view-state",
+          "markdownDescription": "Denies the app_view_state command without any pre-configured scope."
         },
         {
           "description": "Denies the export_app_data command without any pre-configured scope.",

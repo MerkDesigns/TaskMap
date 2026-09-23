@@ -150,7 +150,7 @@ for (const file of targetFiles) {
     const allowedImports = new Set([
       "react",
       "../features/phase2-database/DevelopmentPhase2Entry",
-      "../legacy/LegacyApplication",
+      "./database/DatabaseApplication",
       "../ui/dev/DevelopmentUiLab",
       "../ui/materials/MaterialCompositorProvider",
       "../ui/materials/materialCompositorPresentation",

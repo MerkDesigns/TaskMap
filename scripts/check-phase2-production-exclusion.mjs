@@ -62,7 +62,10 @@ for (const path of stableAssets.filter((item) => /\.(?:js|html|css)$/.test(item)
     content.includes("Phase 2 encrypted database harness") ||
     content.includes("TaskMap UI Lab") ||
     content.includes("Acrylic compositor playground") ||
-    content.includes("data-taskmap-ui-lab")
+    content.includes("data-taskmap-ui-lab") ||
+    content.includes("Workspace admitted (preview)") ||
+    content.includes("recovered-preview-token") ||
+    content.includes("Entry preview — simulated files")
   ) {
     throw new Error(`stable frontend bundle contains Phase 2 harness content: ${path}`);
   }

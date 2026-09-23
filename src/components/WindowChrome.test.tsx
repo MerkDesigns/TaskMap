@@ -22,10 +22,11 @@ describe("WindowChrome", () => {
         maximized = !maximized;
       }),
     };
-    const { container } = render(<WindowChrome actions={actions} radius={17} />);
-    const dragRegion = container.querySelector<HTMLElement>(".taskmap-window-drag-region");
+    render(<WindowChrome actions={actions} radius={17} />);
+    const dragRegion = document.querySelector<HTMLElement>(".taskmap-window-drag-region");
 
     expect(dragRegion).not.toBeNull();
+    expect(document.body.querySelector(":scope > .taskmap-window-chrome-layer")).not.toBeNull();
     expect(
       screen
         .getByRole("group", { name: "Window controls" })
@@ -55,8 +56,8 @@ describe("WindowChrome", () => {
 
   it("ignores non-primary pointer presses in the drag region", () => {
     const actions = createActions();
-    const { container } = render(<WindowChrome actions={actions} />);
-    const dragRegion = container.querySelector<HTMLElement>(".taskmap-window-drag-region");
+    render(<WindowChrome actions={actions} />);
+    const dragRegion = document.querySelector<HTMLElement>(".taskmap-window-drag-region");
 
     fireEvent(dragRegion!, pointerDownEvent(2, 1));
     fireEvent(dragRegion!, pointerDownEvent(0, 2));

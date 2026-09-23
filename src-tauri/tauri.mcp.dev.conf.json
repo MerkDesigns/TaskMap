@@ -3,13 +3,13 @@
   "productName": "TaskMap Dev",
   "identifier": "com.merkdesigns.taskmap.dev",
   "build": {
-    "beforeDevCommand": "npm run dev:phase2",
-    "beforeBuildCommand": "npm run build:phase2"
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "capabilities": ["default", "phase2-development", "mcp-development"]
+      "capabilities": ["default", "application-database", "phase2-development", "mcp-development"]
     },
     "windows": [
       {
@@ -19,6 +19,7 @@
       }
     ]
   },
+  "plugins": { "updater": { "endpoints": [] } },
   "bundle": {
     "createUpdaterArtifacts": false
   }

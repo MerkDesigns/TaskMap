@@ -5,7 +5,7 @@ import {
 } from "./materialGeometryInvalidation";
 
 describe("local material invalidation", () => {
-  it("changes the compositor revision while refreshing only the target surface", () => {
+  it("refreshes only target sampling bounds without perturbing material or transform styles", () => {
     const surface = document.createElement("div");
     const unrelated = document.createElement("div");
     const refresh = vi.fn();
@@ -14,10 +14,10 @@ describe("local material invalidation", () => {
     subscribeMaterialSurfaceGeometryInvalidation(unrelated, unrelatedRefresh);
 
     refreshMaterialSurfaceBackdrop(surface);
-    expect(surface.style.getPropertyValue("--taskmap-material-backdrop-revision")).toBe("0.01px");
+    expect(surface.style.cssText).toBe("");
     refreshMaterialSurfaceBackdrop(surface);
 
-    expect(surface.style.getPropertyValue("--taskmap-material-backdrop-revision")).toBe("0px");
+    expect(surface.style.cssText).toBe("");
     expect(refresh).toHaveBeenCalledTimes(2);
     expect(unrelatedRefresh).not.toHaveBeenCalled();
   });

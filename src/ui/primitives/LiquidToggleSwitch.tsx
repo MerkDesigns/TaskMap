@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties } from "react";
 import { MaterialSurface } from "../materials/MaterialSurface";
-import { useMaterialSurfaceGeometryInvalidation } from "../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../motion/MotionProvider";
 import {
   advanceLiquidToggle,
@@ -36,7 +35,6 @@ export function LiquidToggleSwitch({
   const cancelRef = useRef<(() => void) | null>(null);
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
   const [frame, setFrame] = useState<LiquidToggleFrame>(() => settledFrame(checked));
   const sizeAdjustment = size === undefined ? 0 : size - 30;
 
@@ -48,7 +46,6 @@ export function LiquidToggleSwitch({
       const settled = settledFrame(checked);
       stateRef.current = settled.state;
       setFrame(settled);
-      invalidateGeometry();
       return;
     }
     if (cancelRef.current) return;
@@ -56,12 +53,11 @@ export function LiquidToggleSwitch({
       const next = advanceLiquidToggle(stateRef.current, checkedRef.current, deltaMs);
       stateRef.current = next.state;
       setFrame(next);
-      invalidateGeometry();
       if (!next.settled) return true;
       cancelRef.current = null;
       return false;
     });
-  }, [checked, invalidateGeometry, reducedMotion, scheduler]);
+  }, [checked, reducedMotion, scheduler]);
 
   useEffect(
     () => () => {

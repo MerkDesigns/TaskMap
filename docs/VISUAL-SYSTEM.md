@@ -126,6 +126,10 @@ currently contains:
 - `acrylic-small`, strategy `native-glass`
 - `opaque`, strategy `opaque`
 - `cutout`, strategy `css`
+- `frosted-popup`, strategy `css` — frozen New Canvas compatibility finish only: 4px blur,
+  `27 27 30 / 0.94` fill, 1px white/0.15 border, 12px radius, and `0 18px 48px / 0.48` shadow.
+  This preserves the existing popup through the material boundary; it is not a replacement for
+  the approved Large/Small recipe or permission to add feature-owned filter utilities.
 
 Large and Small use live native CSS backdrop sampling. Content, including images and GIFs behind a
 surface, remains live DOM/canvas content; no screenshot or reconstructed BackdropScene is used by
@@ -135,7 +139,9 @@ Materials are internal and statically registered; this is not a runtime plugin A
 The cached Canvas2D compositor and its 45px `shared-acrylic` profile are the previous candidate. Its
 source remains temporarily under `src/ui/materials/compositor/` for rollback and comparison, but the
 production provider does not create its runtime or output canvases, and native Large/Small surfaces
-do not register with its surface registry. Removal is intentionally deferred until native-glass
+do not register with its surface registry. Production composition allocates no empty cached registry
+or presentation bridge, and App performs no unused BackdropScene preparation. The bridge is created
+only by the gated development Lab. Removal of parked reference source is intentionally deferred until native-glass
 visual and performance acceptance.
 
 ### Acrylic Large
@@ -182,6 +188,16 @@ surface inherits the nearest logical Large sampling boundary through React conte
 backdrop overscan is clamped per side to that boundary, including while UI classes or physical DOM
 placement change. Standalone Small and Large surfaces clamp to the application viewport.
 
+`nativeGlassRecipe.css` is the single native preblur/main-filter formula for standalone and batched
+surfaces, including presence, saturation, brightness, contrast, and seed fill. Shared planes must not
+override these filters with a separate CSS or imperative recipe. Tint/rim/shadow still belong to the
+original MaterialSurface card, never a duplicate batch overlay.
+
+Native backdrop repaint follows actual browser scene/style invalidation. There is no synthetic
+transform revision or optical toggle. Panel settlement and canvas switching request only bounded,
+coalesced target-surface sampling geometry refreshes. Motion/presence updates DOM presentation and
+does not call the parked material registry. Native size changes remain observed centrally.
+
 Canvas Browser and primary Extensions Browser cards use bounded shared Small batches. Their private
 pre-blur/backdrop spans remain disabled in every motion state. One shared 5px + 23.5px Small stack is clipped by live
 rounded SVG rectangles while every card retains the same Small tint, tone, rim, shadow, radius, and
@@ -210,6 +226,12 @@ DPR, or material changes; there is no permanent rim animation loop. The native b
 overscan beneath their rounded clip while content remains ordinary DOM. The rim is a separately
 clipped material overlay above feature content, so content cannot cover the visible material edge.
 Radius overrides and `elevation="none"` remain supported semantic controls.
+
+Native geometry observation is shared within the material system, with frame-local measurement
+caches and reads before writes. Each list supplies the geometry it already owns instead of adding
+per-card material observers. Rim keys use local border-box dimensions, radius, DPR, and optical
+settings, not translated screen coordinates. Owner-supplied size changes apply measurement-free
+rim writes in the same presentation update; translation alone does not redraw the rim.
 
 ### Opaque
 
@@ -342,7 +364,8 @@ All visible non-embedded cards reuse the one bounded Small backdrop batch descri
 `N` settled cards, Canvas Browser backdrop ownership changes from `N` card stacks to one shared
 two-layer stack. The owning panel retains its own exact two-pass Large surface. Drag removes only the actual
 card from the settled mask and activates one bounded 5px + 23.5px shared-style backdrop batch behind
-the live card in the drag layer. Slot motion continues to update only shared rounded-mask geometry. The Small subsystem thus
+the live card in its original list ancestry. Both batch planes remain mounted. Slot motion continues
+to update only shared rounded-mask geometry. The Small subsystem thus
 adds exactly two filter layers during drag, never one filter per slot-moving card.
 
 The Renderer V2-derived Canvas Browser runtime owns one on-demand frame loop for authoritative
@@ -351,15 +374,15 @@ auto-scroll. Wheel input is normalized by `0.45`; drag activates at `6px`; slot 
 use `190ms` `easeOutQuart`. Transient order is committed once after a completed snap, never per
 pointer frame.
 
-Cards render once into stable React portal hosts. Active drag reparents the same host into a
-temporary unclipped layer owned by the Large Canvas Browser; there is no clone, hidden duplicate,
-or placeholder. React material context therefore keeps the same logical Large sampling boundary
-through activation, drag, snap, and reattachment. Active frames use DOM transforms and local
+Cards render once into stable React portal hosts. Activation, drag, snap, and settlement retain the
+same DOM parent and logical Large sampling boundary; there is no temporary drag wrapper, clone,
+hidden duplicate, or placeholder. Drag changes stacking and viewport effect clipping, not the
+card's material topology or optics. Active frames use DOM transforms and local
 shared-mask writes; they do not invoke global material geometry. Card-count changes emit a local
 content-size signal so the retained side-panel shell remeasures immediately. Panel motion settling
 and canvas switches refresh only that shell's native overscan. Fully offscreen preview contents
 use browser visibility containment. A settled inactive Canvas view destroys its runtime, wheel
-router, shared batch, mask observer, card rim observers, and preview contents. Reduced motion
+router, shared batch, geometry subscriptions, and preview contents. Reduced motion
 settles immediately.
 
 The development FPS counter is fully opaque and has no backdrop filter. It reports FPS/frame time,
@@ -381,8 +404,14 @@ retained.
 
 Non-embedded Extension cards share one bounded Small batch clipped to the visible scroll viewport.
 Scroll events coalesce one local mask update per frame and never invalidate toolbar or window glass.
+Canvas Browser, primary Extensions, and Quick Extensions share `GlassListFrame` framing and clipping:
+the backdrop mask intersects the original full rounded card with rectangular viewport boundaries;
+partially visible slices never acquire new rounded corners. Content clips inside the material rim,
+while external effects use viewport clipping with horizontal shadow gutters. Scrolling never changes
+card material dimensions. Native list layout and nested clipping rectangles are cached on layout
+invalidation; scroll-only updates project scroll offsets without rectangle measurements or rim redraws.
 After the Canvas/Extensions crossfade settles, the inactive view has no active Small batch, scroll
-listener, batch `ResizeObserver`, card rim observer, or painted card subtree.
+subscription, geometry observer subscription, or painted card subtree.
 
 The shared info tooltip, coordinate-positioned filter portal shell, Quick Extensions menu, and
 body-owned drag preview remain on their existing overlay/presentation paths. The filter portal gets

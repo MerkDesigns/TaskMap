@@ -11,7 +11,8 @@ import {
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { CanvasBrowserFrameClock, CanvasBrowserScrollState } from "./canvasBrowserScrollState";
 import {
-  createCanvasBrowserDragLayer,
+  canvasBrowserCardRectangle,
+  readCanvasBrowserDragFrame,
   measureCanvasBrowserCard,
   reorderCanvasBrowserHosts,
   restoreSettledCardHost,
@@ -35,6 +36,7 @@ import {
   updateCanvasBrowserScrollRange,
 } from "./canvasBrowserRuntimeState";
 import { CanvasBrowserViewportController } from "./canvasBrowserViewport";
+import { MaterialGeometryFrame } from "../../materials/materialGeometryScheduler";
 
 export class CanvasBrowserRuntime<Id extends string> {
   private readonly records = new Map<Id, CanvasBrowserCardRecord<Id>>();
@@ -45,11 +47,10 @@ export class CanvasBrowserRuntime<Id extends string> {
   private readonly viewport: CanvasBrowserViewportController<Id>;
   private readonly sharedGlass: CanvasBrowserSharedGlass<Id>;
   private readonly frameDriver: CanvasBrowserFrameDriver;
-  private readonly resizeObserver: ResizeObserver | null;
+  private readonly resizeGeometry: ReturnType<CanvasBrowserViewportController<Id>["observeResize"]>;
   private readonly detachWheelRouter: () => void;
   private displayOrder: readonly Id[] = [];
   private drag: CanvasCardDragState<Id> | null = null;
-  private dragLayer: HTMLDivElement | null = null;
   private suppressedClickId: Id | null = null;
   private frameHandle: number | null = null;
   private reducedMotion: boolean;
@@ -69,10 +70,7 @@ export class CanvasBrowserRuntime<Id extends string> {
       options.dragSmallGlassPlane,
       this.records,
     );
-    this.resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => this.resize());
-    this.resizeObserver?.observe(options.viewport);
-    window.addEventListener("resize", this.resize);
+    this.resizeGeometry = this.viewport.observeResize(this.resize);
     this.detachWheelRouter = this.viewport.attachWheel((deltaY, deltaMode) =>
       this.scrollByWheel(deltaY, deltaMode),
     );
@@ -90,6 +88,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     const existing = this.records.get(id);
     const record = existing ?? { id, host, card, height: 0, y: 0 };
     record.card = card;
+    host.classList.add("taskmap-glass-list__effects");
     measureCanvasBrowserCard(record);
     this.records.set(id, record);
   }
@@ -122,7 +121,6 @@ export class CanvasBrowserRuntime<Id extends string> {
   }
 
   resize = () => {
-    this.records.forEach(measureCanvasBrowserCard);
     this.updateScrollRange();
     this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
     this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
@@ -145,7 +143,8 @@ export class CanvasBrowserRuntime<Id extends string> {
     if (event.button !== 0 || this.drag || index < 0 || !record) return false;
     event.preventDefault();
     this.suppressedClickId = null;
-    const rectangle = measureCanvasBrowserCard(record);
+    measureCanvasBrowserCard(record);
+    const rectangle = canvasBrowserCardRectangle(record);
     this.drag = {
       id,
       pointerId: event.pointerId,
@@ -182,8 +181,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     if (this.frameHandle !== null) this.frameDriver.cancel(this.frameHandle);
     this.frameHandle = null;
     this.finishDragImmediately();
-    this.resizeObserver?.disconnect();
-    window.removeEventListener("resize", this.resize);
+    this.resizeGeometry.dispose();
     this.detachWheelRouter();
     this.sharedGlass.clear();
   }
@@ -212,18 +210,24 @@ export class CanvasBrowserRuntime<Id extends string> {
   private readonly tick = (now: number) => {
     this.frameHandle = null;
     const deltaTime = this.frameClock.tick(now);
-    this.prepareDrag();
-    const autoScroll = this.dragAutoScroll();
+    const frame = this.drag
+      ? readCanvasBrowserDragFrame(
+          this.options.viewport,
+          !this.drag.active ? this.records.get(this.drag.id)?.card : undefined,
+        )
+      : new MaterialGeometryFrame();
+    this.prepareDrag(frame);
+    const autoScroll = this.dragAutoScroll(frame);
     const scrollFrame = this.scroll.tick(deltaTime, autoScroll);
     let changed = scrollFrame.changed;
     if (scrollFrame.changed) {
       this.viewport.applyScroll(this.options.cardsLayer, this.drag?.active ? this.drag.id : null);
     }
     if (this.geometry.tick(now, this.records, this.reducedMotion)) {
-      this.viewport.sync();
+      this.viewport.sync(this.drag?.active ? this.drag.id : null);
       changed = true;
     }
-    changed = this.tickDrag(now) || changed;
+    changed = this.tickDrag(now, frame) || changed;
     if (changed) {
       this.sharedGlass.sync(this.scroll.currentScrollY, this.drag?.active ? this.drag.id : null);
     }
@@ -234,27 +238,24 @@ export class CanvasBrowserRuntime<Id extends string> {
     }
   };
 
-  private prepareDrag() {
+  private prepareDrag(frame: MaterialGeometryFrame) {
     if (
       this.drag &&
       !this.drag.active &&
       Math.abs(this.drag.pointerY - this.drag.startY) >= CANVAS_CARD_DRAG_THRESHOLD
     ) {
-      this.activateDrag();
+      this.activateDrag(frame);
     }
   }
 
-  private activateDrag() {
+  private activateDrag(frame: MaterialGeometryFrame) {
     const drag = this.drag;
     const record = drag ? this.records.get(drag.id) : null;
     if (!drag || !record || drag.active) return;
-    const rectangle = record.card.getBoundingClientRect();
+    const rectangle = frame.rectangle(record.card);
     this.geometry.cancel(drag.id);
     delete record.host.dataset.slotMotion;
-    const panelRectangle = this.options.panel.getBoundingClientRect();
-    this.dragLayer = createCanvasBrowserDragLayer(this.options.panel);
-    this.dragLayer.append(record.host);
-    writeDraggingCardHost(record, rectangle, panelRectangle);
+    writeDraggingCardHost(record, rectangle, frame.rectangle(this.options.viewport));
     this.viewport.sync(drag.id);
     this.sharedGlass.sync(this.scroll.currentScrollY, drag.id);
     drag.active = true;
@@ -263,14 +264,13 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.suppressedClickId = drag.id;
   }
 
-  private tickDrag(now: number) {
+  private tickDrag(now: number, frame: MaterialGeometryFrame) {
     const drag = this.drag;
     const record = drag ? this.records.get(drag.id) : null;
     if (!drag?.active || !record) return false;
     if (drag.snapStartedAt !== null) return this.tickSnap(now, drag, record);
 
-    const top =
-      drag.pointerY - drag.pointerOffsetY - this.options.panel.getBoundingClientRect().top;
+    const top = drag.pointerY - drag.pointerOffsetY - frame.rectangle(this.options.viewport).top;
     writeDraggingCardTop(record, top);
     if (drag.finish) {
       if (drag.finish === "cancel") {
@@ -284,7 +284,7 @@ export class CanvasBrowserRuntime<Id extends string> {
       return true;
     }
 
-    const { top: listTop, bottom: listBottom } = this.options.viewport.getBoundingClientRect();
+    const { top: listTop, bottom: listBottom } = frame.rectangle(this.options.viewport);
     const center = calculateCanvasCardInteractionCenter(
       drag.pointerY,
       drag.pointerOffsetY,
@@ -315,11 +315,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     record: CanvasBrowserCardRecord<Id>,
   ) {
     const index = drag.order.indexOf(drag.id);
-    const target =
-      this.options.viewport.getBoundingClientRect().top +
-      canvasCardSlotTop(drag.order, index, this.records) -
-      this.scroll.currentScrollY -
-      this.options.panel.getBoundingClientRect().top;
+    const target = canvasCardSlotTop(drag.order, index, this.records) - this.scroll.currentScrollY;
     const progress = this.reducedMotion
       ? 1
       : Math.min(1, (now - (drag.snapStartedAt ?? now)) / CANVAS_CARD_SLOT_TRANSITION_MS);
@@ -338,11 +334,8 @@ export class CanvasBrowserRuntime<Id extends string> {
     const shouldCommit = drag.finish === "commit" && changed;
     this.displayOrder = finalOrder;
     this.geometry.settle(finalOrder, this.records);
-    this.options.cardsLayer.append(record.host);
     restoreSettledCardHost(record);
     reorderCanvasBrowserHosts(finalOrder, this.records, this.options.cardsLayer);
-    this.dragLayer?.remove();
-    this.dragLayer = null;
     this.scroll.synchronizeTarget();
     this.drag = null;
     this.suppressedClickId = null;
@@ -359,11 +352,8 @@ export class CanvasBrowserRuntime<Id extends string> {
     if (!drag) return;
     this.geometry.settle(this.displayOrder, this.records);
     if (record) {
-      this.options.cardsLayer.append(record.host);
       restoreSettledCardHost(record);
     }
-    this.dragLayer?.remove();
-    this.dragLayer = null;
     this.drag = null;
     this.suppressedClickId = null;
     this.scroll.synchronizeTarget();
@@ -372,10 +362,10 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.sharedGlass.sync(this.scroll.currentScrollY, null);
   }
 
-  private dragAutoScroll() {
+  private dragAutoScroll(frame: MaterialGeometryFrame) {
     if (!this.drag?.active || this.drag.finish || this.drag.snapStartedAt !== null)
       return undefined;
-    const { top, bottom } = this.options.viewport.getBoundingClientRect();
+    const { top, bottom } = frame.rectangle(this.options.viewport);
     return calculateCanvasCardAutoScroll(this.drag.pointerY, top, bottom);
   }
 

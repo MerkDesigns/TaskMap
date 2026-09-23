@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CANVAS_CARD_SLOT_TRANSITION_MS, easeOutQuart } from "./canvasBrowserInteraction";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
-import { CanvasBrowserRuntime } from "./CanvasBrowserRuntime";
-import type { CanvasBrowserFrameDriver } from "./canvasBrowserRuntimeTypes";
+import { dispatchPointer, runtimeFixture, wheel } from "./canvasBrowserRuntimeTestFixture";
+import { readSuppliedMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -10,6 +10,62 @@ afterEach(() => {
 });
 
 describe("production Canvas Browser runtime", () => {
+  it("settles reduced-motion cancellation with the same card and material ancestry", () => {
+    const fixture = runtimeFixture(["a", "b", "c"]);
+    fixture.runtime.setReducedMotion(true);
+    const { host, card } = fixture.cards.get("a")!;
+    fixture.begin("a", 100);
+    dispatchPointer("pointermove", 300);
+    fixture.frames.fire(16);
+    expect(host.parentElement).toBe(fixture.cardsLayer);
+    dispatchPointer("pointercancel", 300);
+    fixture.frames.fire(32);
+    fixture.frames.fire(48);
+    expect(fixture.runtime.getSnapshot()).toMatchObject({
+      dragActive: false,
+      order: ["a", "b", "c"],
+    });
+    expect(host.parentElement).toBe(fixture.cardsLayer);
+    expect(host.firstElementChild).toBe(card);
+    expect(fixture.commitOrder).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it("does not measure cards while reconciling or scrolling and reads drag spaces once per frame", () => {
+    const fixture = runtimeFixture(["a", "b", "c", "d", "e"], 180);
+    const cards = [...fixture.cards.values()].map(({ card }) =>
+      vi.spyOn(card, "getBoundingClientRect"),
+    );
+    const viewport = vi.spyOn(fixture.viewport, "getBoundingClientRect");
+    const panel = vi.spyOn(fixture.panel, "getBoundingClientRect");
+    fixture.runtime.reconcile(["a", "b", "c", "d", "e"]);
+    fixture.runtime.scrollByWheel(100, 0);
+    fixture.frames.flush(30);
+    cards.forEach((measure) => expect(measure).not.toHaveBeenCalled());
+    expect(viewport).not.toHaveBeenCalled();
+    fixture.begin("b", 140);
+    dispatchPointer("pointermove", 260);
+    fixture.frames.fire(600);
+    expect(viewport).toHaveBeenCalledOnce();
+    expect(panel).not.toHaveBeenCalled();
+    viewport.mockClear();
+    panel.mockClear();
+    cards.forEach((measure) => measure.mockClear());
+    dispatchPointer("pointermove", 280);
+    fixture.frames.fire(616);
+    expect(viewport).toHaveBeenCalledOnce();
+    expect(panel).not.toHaveBeenCalled();
+    cards.forEach((measure) => expect(measure).not.toHaveBeenCalled());
+    dispatchPointer("pointercancel", 280);
+    fixture.frames.fire(632);
+    viewport.mockClear();
+    panel.mockClear();
+    fixture.frames.fire(700);
+    expect(viewport).toHaveBeenCalledOnce();
+    expect(panel).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
   it("uses the finalized Renderer V2 layout and presentation constants", () => {
     expect(CANVAS_BROWSER_LAYOUT).toMatchObject({
       x: 16,
@@ -72,7 +128,7 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 
-  it("shortens top and bottom card shells continuously while preserving full content geometry", () => {
+  it("updates viewport intersections without shortening material or content geometry", () => {
     const fixture = runtimeFixture(["a", "b", "c"], 100);
     const firstHost = fixture.cards.get("a")!.host;
     const secondHost = fixture.cards.get("b")!.host;
@@ -80,6 +136,10 @@ describe("production Canvas Browser runtime", () => {
     expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("84px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("6px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset")).toBe("0px");
+    expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("b")!.card)).toEqual({
+      width: 264,
+      height: 84,
+    });
 
     fixture.viewport.dispatchEvent(wheel(100));
     fixture.frames.fire(16);
@@ -94,13 +154,17 @@ describe("production Canvas Browser runtime", () => {
     expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-full-height")).toBe("84px");
 
     fixture.frames.fire(32);
+    expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("a")!.card)).toEqual({
+      width: 264,
+      height: 84,
+    });
     expect(
       Number.parseFloat(firstHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset")),
     ).toBeGreaterThan(firstOffset);
     fixture.destroy();
   });
 
-  it("restores a partial rounded shell after the actual card leaves and rejoins the list", () => {
+  it("restores the viewport clip without moving the full-size card to another parent", () => {
     const fixture = runtimeFixture(["a", "b", "c"], 100);
     const secondHost = fixture.cards.get("b")!.host;
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("6px");
@@ -108,7 +172,7 @@ describe("production Canvas Browser runtime", () => {
     fixture.begin("b", 171);
     dispatchPointer("pointermove", 177);
     fixture.frames.fire(16);
-    expect(secondHost.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
+    expect(secondHost.parentElement).toBe(fixture.cardsLayer);
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("84px");
 
     dispatchPointer("pointercancel", 177);
@@ -140,7 +204,7 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 
-  it("reparents the actual card, performs multi-slot reorder, and commits once after 190ms", () => {
+  it("keeps the actual card in place, performs multi-slot reorder, and commits once after 190ms", () => {
     const fixture = runtimeFixture(["a", "b", "c", "d", "e"]);
     const record = fixture.cards.get("a")!;
     const originalCard = record.card;
@@ -150,29 +214,41 @@ describe("production Canvas Browser runtime", () => {
     fixture.frames.fire(16);
 
     expect(record.card).toBe(originalCard);
-    expect(record.host.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
+    expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
-    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(4);
-    expect(fixture.dragGlassPlane.querySelectorAll("rect")).toHaveLength(1);
+    expect(
+      fixture.sharedGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
+    ).toHaveLength(4);
+    expect(
+      fixture.dragGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
+    ).toHaveLength(1);
     expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
     expect(fixture.runtime.getSnapshot().order).toEqual(["b", "c", "d", "e", "a"]);
     expect(fixture.commitOrder).not.toHaveBeenCalled();
 
     dispatchPointer("pointerup", 650);
     fixture.frames.fire(32);
-    const snapFrom = Number.parseFloat(record.host.style.top);
-    const target = 74 + 4 * 94 - fixture.runtime.getSnapshot().scroll.currentScrollY;
+    const snapFrom = Number.parseFloat(
+      record.host.style.getPropertyValue("--taskmap-canvas-card-y"),
+    );
+    const target = 4 * 94 - fixture.runtime.getSnapshot().scroll.currentScrollY;
     fixture.frames.fire(32 + CANVAS_CARD_SLOT_TRANSITION_MS / 2);
-    const halfway = Number.parseFloat(record.host.style.top);
+    const halfway = Number.parseFloat(
+      record.host.style.getPropertyValue("--taskmap-canvas-card-y"),
+    );
     expect(halfway).toBeCloseTo(snapFrom + (target - snapFrom) * easeOutQuart(0.5));
-    expect(record.host.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
+    expect(record.host.parentElement).toBe(fixture.cardsLayer);
 
     fixture.frames.fire(32 + CANVAS_CARD_SLOT_TRANSITION_MS);
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
-    expect(fixture.sharedGlassPlane.querySelectorAll("rect")).toHaveLength(5);
-    expect(fixture.dragGlassPlane.querySelectorAll("rect")).toHaveLength(0);
+    expect(
+      fixture.sharedGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
+    ).toHaveLength(5);
+    expect(
+      fixture.dragGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
+    ).toHaveLength(0);
     expect(fixture.commitOrder).toHaveBeenCalledTimes(1);
     expect(fixture.commitOrder).toHaveBeenCalledWith(["b", "c", "d", "e", "a"]);
     fixture.destroy();
@@ -212,143 +288,3 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 });
-
-function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
-  const panel = document.createElement("aside");
-  const viewport = document.createElement("div");
-  const sharedGlassPlane = document.createElement("div");
-  const dragGlassPlane = document.createElement("div");
-  const definitions = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const clip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
-  clip.dataset.sharedSmallGlassClip = "true";
-  definitions.append(clip);
-  sharedGlassPlane.append(definitions);
-  const dragDefinitions = definitions.cloneNode(true) as SVGSVGElement;
-  dragGlassPlane.append(dragDefinitions);
-  const cardsLayer = document.createElement("div");
-  panel.append(viewport, dragGlassPlane);
-  viewport.append(sharedGlassPlane, cardsLayer);
-  document.body.append(panel);
-  Object.defineProperty(viewport, "clientHeight", { configurable: true, value: viewportHeight });
-  viewport.getBoundingClientRect = () => rectangle(74, viewportHeight, 288, 16);
-  const frames = new ControlledFrameDriver();
-  const commitOrder = vi.fn();
-  const runtime = new CanvasBrowserRuntime<string>({
-    panel,
-    viewport,
-    cardsLayer,
-    sharedSmallGlassPlane: sharedGlassPlane,
-    dragSmallGlassPlane: dragGlassPlane,
-    commitOrder,
-    frameDriver: frames,
-  });
-  const cards = new Map<string, { host: HTMLDivElement; card: HTMLElement }>();
-  ids.forEach((id, index) => {
-    const host = document.createElement("div");
-    const card = document.createElement("article");
-    card.dataset.canvasCardId = id;
-    card.dataset.materialBackdropSource = "shared";
-    card.style.setProperty("--taskmap-material-radius", "13.5px");
-    Object.assign(card, {
-      setPointerCapture: vi.fn(),
-      hasPointerCapture: vi.fn(() => true),
-      releasePointerCapture: vi.fn(),
-    });
-    card.getBoundingClientRect = () => {
-      const dragging = host.dataset.dragging === "true";
-      const top = dragging ? Number.parseFloat(host.style.top) : 74 + index * 94;
-      return rectangle(top, 84, 264, 28);
-    };
-    host.append(card);
-    cardsLayer.append(host);
-    cards.set(id, { host, card });
-    runtime.register(id, host, card);
-  });
-  runtime.reconcile(ids);
-
-  return {
-    runtime,
-    frames,
-    commitOrder,
-    cards,
-    cardsLayer,
-    sharedGlassPlane,
-    dragGlassPlane,
-    panel,
-    viewport,
-    begin(id: string, clientY: number) {
-      const card = cards.get(id)!.card;
-      runtime.beginDrag(id, pointer("pointerdown", clientY), card);
-    },
-    destroy() {
-      runtime.destroy();
-    },
-  };
-}
-
-function wheel(deltaY: number) {
-  return new WheelEvent("wheel", {
-    bubbles: true,
-    cancelable: true,
-    deltaY,
-    deltaMode: WheelEvent.DOM_DELTA_PIXEL,
-  });
-}
-
-function dispatchPointer(type: string, clientY: number) {
-  document.dispatchEvent(pointer(type, clientY));
-}
-
-function pointer(type: string, clientY: number) {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent;
-  Object.defineProperties(event, {
-    pointerId: { value: 7 },
-    button: { value: 0 },
-    clientY: { value: clientY },
-  });
-  return event;
-}
-
-function rectangle(top: number, height: number, width: number, left: number): DOMRect {
-  return {
-    x: left,
-    y: top,
-    left,
-    top,
-    right: left + width,
-    bottom: top + height,
-    width,
-    height,
-    toJSON: () => ({}),
-  };
-}
-
-class ControlledFrameDriver implements CanvasBrowserFrameDriver {
-  private callbacks = new Map<number, FrameRequestCallback>();
-  private nextHandle = 1;
-
-  request(callback: FrameRequestCallback) {
-    const handle = this.nextHandle++;
-    this.callbacks.set(handle, callback);
-    return handle;
-  }
-
-  cancel(handle: number) {
-    this.callbacks.delete(handle);
-  }
-
-  fire(timestamp: number) {
-    const entry = this.callbacks.entries().next().value as
-      [number, FrameRequestCallback] | undefined;
-    if (!entry) return false;
-    this.callbacks.delete(entry[0]);
-    entry[1](timestamp);
-    return true;
-  }
-
-  flush(limit: number) {
-    for (let frame = 1; frame <= limit && this.fire(frame * 16); frame += 1) {
-      // The production runtime owns one pending frame at a time.
-    }
-  }
-}

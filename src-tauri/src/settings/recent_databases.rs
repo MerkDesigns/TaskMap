@@ -108,7 +108,7 @@ pub(crate) fn save(config_directory: &Path, settings: &RecentDatabaseSettings) -
 }
 
 #[cfg(windows)]
-fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
+pub(super) fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{
         MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
@@ -136,7 +136,7 @@ fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
 }
 
 #[cfg(not(windows))]
-fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
+pub(super) fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
     std::fs::rename(source, destination).map_err(Phase2Failure::from_io)
 }
 

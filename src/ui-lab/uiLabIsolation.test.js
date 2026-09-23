@@ -121,16 +121,19 @@ describe("isolated UI Lab entry", () => {
     expect(config.plugins.updater).toBeNull();
     expect(cargo).toContain("ui-lab-development = []");
     expect(rust).toContain('cfg!(feature = "ui-lab-development")');
-    expect(rust).toContain('#[cfg(not(feature = "ui-lab-development"))]');
+    expect(rust).toContain(
+      '#[cfg(not(any(feature = "ui-lab-development", feature = "storage-free-preview")))]',
+    );
     expect(rust).toContain("TaskMap UI Lab: product storage and session lifecycle disabled");
 
     const setupGuard = rust.indexOf('if cfg!(feature = "ui-lab-development")');
-    const storageStartup = rust.indexOf("initialize_storage(app.handle())");
+    const sessionStartup = rust.indexOf("windows_session_notifications::install(&window)");
+    expect(rust).not.toContain("initialize_storage(app.handle())");
     const windowEvents = rust.indexOf(".on_window_event");
     const closeGuard = rust.indexOf('if cfg!(feature = "ui-lab-development")', windowEvents);
     const savedWindow = rust.indexOf("save_window_state(window)", windowEvents);
     expect(setupGuard).toBeGreaterThan(-1);
-    expect(setupGuard).toBeLessThan(storageStartup);
+    expect(setupGuard).toBeLessThan(sessionStartup);
     expect(closeGuard).toBeGreaterThan(windowEvents);
     expect(closeGuard).toBeLessThan(savedWindow);
   });

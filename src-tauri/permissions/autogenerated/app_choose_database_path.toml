@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-choose-database-path"
+description = "Enables the app_choose_database_path command without any pre-configured scope."
+commands.allow = ["app_choose_database_path"]
+
+[[permission]]
+identifier = "deny-app-choose-database-path"
+description = "Denies the app_choose_database_path command without any pre-configured scope."
+commands.deny = ["app_choose_database_path"]

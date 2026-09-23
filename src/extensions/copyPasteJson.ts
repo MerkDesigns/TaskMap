@@ -81,8 +81,8 @@ export const parseCopyPasteJson = (value: string): CopyPasteJsonParseResult => {
 };
 
 export const serializeContainerForAi = (
-  container: ContainerElement,
-  orderedCards: TextCardElement[],
+  container: Readonly<Pick<ContainerElement, "name" | "accent">>,
+  orderedCards: readonly Readonly<Pick<TextCardElement, "text" | "accent" | "link">>[],
 ) =>
   JSON.stringify(
     {

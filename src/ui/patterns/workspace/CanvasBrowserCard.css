@@ -1,13 +1,12 @@
 .taskmap-canvas-browser-card {
   position: relative;
   width: 100%;
-  height: var(--taskmap-canvas-card-visible-height, var(--taskmap-canvas-card-full-height, 84px));
-  overflow: hidden;
+  height: var(--taskmap-canvas-card-full-height, 84px);
+  overflow: visible;
   color: rgb(255 255 255 / 88%);
   cursor: grab;
   font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: none;
-  transform: translate3d(0, var(--taskmap-canvas-card-clip-offset, 0px), 0);
   user-select: none;
 }
 
@@ -40,7 +39,6 @@
       var(--taskmap-material-content-clip-inset, 0px)
   );
   height: var(--taskmap-canvas-card-full-height, 84px);
-  transform: translate3d(0, calc(0px - var(--taskmap-canvas-card-clip-offset, 0px)), 0);
 }
 
 .taskmap-canvas-browser-card--full .taskmap-canvas-browser-card__content {

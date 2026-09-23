@@ -75,7 +75,7 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
       /backdrop-filter|z-index|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
     );
     expect(patternCss).toContain("var(--taskmap-motion-fast)");
-    expect(toolbarSource).toContain("useMaterialSurfaceGeometryInvalidation");
+    expect(toolbarSource).not.toContain("useMaterialSurfaceGeometryInvalidation");
     expect(appShellSource.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 

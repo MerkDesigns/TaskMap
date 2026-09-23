@@ -36,7 +36,9 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(css).toContain('font-family: "Segoe UI", system-ui, sans-serif');
     expect(css).toContain("padding: var(--taskmap-canvas-preview-gap, 9px)");
     expect(css).not.toContain("overflow-clip-margin");
-    expect(pattern).toContain('className="taskmap-canvas-browser-card__content-mask"');
+    expect(pattern).toContain(
+      "taskmap-glass-list__content taskmap-canvas-browser-card__content-mask",
+    );
     expect(css).toMatch(
       /\.taskmap-canvas-browser-card__content-mask\s*\{[^}]*overflow:\s*hidden;[^}]*border-radius:\s*calc\(/s,
     );
@@ -119,9 +121,9 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
 
     expect(manager).toContain("cardPortalHostsRef");
     expect(manager).toContain("return createPortal(");
-    expect(runtime).toContain("this.dragLayer.append(record.host)");
-    expect(runtime).toContain("this.options.cardsLayer.append(record.host)");
-    expect(browserCss).toContain(".taskmap-canvas-browser-drag-layer");
+    expect(runtime).not.toContain("this.dragLayer");
+    expect(runtime).not.toContain("this.options.cardsLayer.append(record.host)");
+    expect(browserCss).not.toContain(".taskmap-canvas-browser-drag-layer");
     expect(boundary).not.toMatch(/cloneNode|drag-preview|canvas-card-placeholder/);
     expect(boundary).not.toMatch(
       /backdrop-filter|createBrowserAcrylicRuntime|createMaterialSurfaceRegistry|MaterialCompositorProvider|acrylicCache/i,
@@ -135,7 +137,7 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
       readFile(extensionsPanelPath, "utf8"),
     ]);
 
-    expect(manager).toContain("frosted-glass context-menu-panel");
+    expect(manager).toContain('material="frosted-popup"');
     expect(manager).toContain("MENU_ITEM_CLASS");
     expect(extensions).toContain('placeholder="Search extensions"');
     expect(extensions).toContain("data-quick-extensions-menu");

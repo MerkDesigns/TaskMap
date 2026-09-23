@@ -94,7 +94,6 @@ pub(crate) struct SavedDocument {
     pub(crate) session: DatabaseSessionStatus,
 }
 
-#[cfg(feature = "phase2-development")]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SessionOperation {

@@ -1,0 +1,31 @@
+.taskmap-glass-list {
+  position: relative;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Content follows the real card radius, never the viewport's visible slice. */
+.taskmap-glass-list__content {
+  overflow: hidden;
+  border-radius: calc(
+    var(--taskmap-material-radius) - var(--taskmap-material-content-clip-inset, 0px)
+  );
+}
+
+/* The gutter belongs to external shadows, not backdrop sampling or content clipping. */
+.taskmap-glass-list__effects {
+  clip-path: inset(
+    var(--taskmap-glass-list-clip-top, 0px) -20px var(--taskmap-glass-list-clip-bottom, 0px) -20px
+  );
+}
+
+.taskmap-glass-list__effects[data-dragging="true"] {
+  clip-path: none;
+}
+
+/* Native scrolling needs room for side shadows inside its own overflow clip. */
+.taskmap-glass-list__scroll {
+  width: calc(100% + 24px);
+  margin-inline: -12px;
+  padding-inline: 12px;
+}

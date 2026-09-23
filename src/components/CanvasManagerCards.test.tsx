@@ -316,7 +316,7 @@ describe("C2D Canvas Browser cards", () => {
     expect(nestedEvent.defaultPrevented).toBe(true);
   });
 
-  it("reparents the same live Small card without a clone, duplicate, or placeholder", () => {
+  it("keeps the same live Small card ancestry without a clone, duplicate, or placeholder", () => {
     const interactionFrames: FrameRequestCallback[] = [];
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       interactionFrames.push(callback);
@@ -345,14 +345,14 @@ describe("C2D Canvas Browser cards", () => {
     fireEvent(card, canvasPointerEvent("pointerdown", 7, 90));
     fireEvent(document, canvasPointerEvent("pointermove", 7, 96));
     act(() => {
-      interactionFrames.shift()?.(16);
+      interactionFrames.splice(0).forEach((frame) => frame(16));
     });
 
     expect(card.style.opacity).toBe("");
     expect(card).toBe(originalCard);
     expect(card.parentElement).toBe(settledHost);
-    expect(settledHost?.parentElement).not.toBe(settledOwner);
-    expect(settledHost?.parentElement).toHaveAttribute("data-canvas-browser-drag-layer");
+    expect(settledHost?.parentElement).toBe(settledOwner);
+    expect(settledHost).toHaveAttribute("data-dragging", "true");
     expect(card).toHaveAttribute("data-material", "acrylic-small");
     expect(card).not.toHaveAttribute("data-material-motion");
     expect(card).toHaveAttribute("data-material-sampling-boundary", "inherited");
@@ -373,8 +373,8 @@ describe("C2D Canvas Browser cards", () => {
     expect(document.querySelectorAll('[data-canvas-card-id="canvas-a"]')).toHaveLength(1);
 
     fireEvent(document, canvasPointerEvent("pointerup", 7, 96));
-    act(() => interactionFrames.shift()?.(32));
-    act(() => interactionFrames.shift()?.(222));
+    act(() => interactionFrames.splice(0).forEach((frame) => frame(32)));
+    act(() => interactionFrames.splice(0).forEach((frame) => frame(222)));
 
     expect(card).toBe(originalCard);
     expect(card.parentElement).toBe(settledHost);

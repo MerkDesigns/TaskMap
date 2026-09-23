@@ -102,9 +102,23 @@ export const CUTOUT = Object.freeze({
   insetShadow: Object.freeze({ xPx: 0, yPx: 8, blurPx: 30, opacity: 0.1 }),
 } satisfies CssMaterialDefinition);
 
+/** Frozen compatibility recipe for the retained New Canvas popup, not another glass renderer. */
+export const FROSTED_POPUP = Object.freeze({
+  id: "frosted-popup",
+  strategy: "css",
+  defaultRadiusPx: 12,
+  fillRgb: Object.freeze([27, 27, 30] as const),
+  fillOpacity: 0.94,
+  backdropBlurPx: 4,
+  border: Object.freeze({ widthPx: 1, rgb: Object.freeze([255, 255, 255] as const), alpha: 0.15 }),
+  insetShadow: Object.freeze({ xPx: 0, yPx: 0, blurPx: 0, opacity: 0 }),
+  outerShadow: Object.freeze({ xPx: 0, yPx: 18, blurPx: 48, opacity: 0.48 }),
+} satisfies CssMaterialDefinition);
+
 export const MATERIAL_DEFINITIONS = Object.freeze([
   ACRYLIC_LARGE,
   ACRYLIC_SMALL,
   OPAQUE,
   CUTOUT,
+  FROSTED_POPUP,
 ] satisfies readonly MaterialDefinition[]);

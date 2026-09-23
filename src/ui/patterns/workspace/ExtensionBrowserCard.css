@@ -62,7 +62,7 @@
 
 .taskmap-extension-browser-scroll-frame {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .taskmap-extension-browser-scroll-frame > .taskmap-shared-small-glass-plane {
@@ -72,7 +72,6 @@
 .taskmap-extension-browser-scroll-area {
   position: relative;
   z-index: 1;
-  width: 100%;
   height: 100%;
 }
 
@@ -91,20 +90,14 @@
 
 .taskmap-extension-browser-card {
   position: relative;
-  display: flex;
   width: 100%;
   height: 58px;
   min-height: 58px;
-  align-items: center;
-  gap: 10px;
-  overflow: clip;
-  padding: 10px 56px 10px 10px;
+  overflow: visible;
   color: var(--taskmap-text);
   cursor: grab;
   touch-action: none;
   user-select: none;
-  content-visibility: auto;
-  contain-intrinsic-size: 58px;
 }
 
 .taskmap-extension-browser-card::before {
@@ -123,9 +116,19 @@
   opacity: 0.5;
 }
 
-.taskmap-extension-browser-card > * {
-  position: relative;
+.taskmap-extension-browser-card__content-mask {
+  position: absolute;
   z-index: 2;
+  inset: var(--taskmap-material-content-clip-inset, 0px);
+}
+
+.taskmap-extension-browser-card__content {
+  position: absolute;
+  inset: calc(0px - var(--taskmap-material-content-clip-inset, 0px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 56px 10px 10px;
 }
 
 .taskmap-extension-browser-icon {
@@ -158,7 +161,7 @@
   white-space: nowrap;
 }
 
-.taskmap-extension-browser-card > .taskmap-extension-browser-card__actions {
+.taskmap-extension-browser-card__content > .taskmap-extension-browser-card__actions {
   position: absolute;
   z-index: 3;
   top: 50%;

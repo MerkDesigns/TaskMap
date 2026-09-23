@@ -60,12 +60,20 @@ export function createMaterialSurfaceStyle(
   }
 
   materialStyle["--taskmap-material-fill-rgb"] = definition.fillRgb.join(" ");
+  materialStyle["--taskmap-material-fill-opacity"] = definition.fillOpacity ?? 1;
+  materialStyle["--taskmap-material-css-backdrop"] =
+    definition.backdropBlurPx === undefined ? "none" : `blur(${definition.backdropBlurPx}px)`;
   materialStyle["--taskmap-material-border-width"] = `${definition.border.widthPx}px`;
   materialStyle["--taskmap-material-border-rgb"] = definition.border.rgb.join(" ");
   materialStyle["--taskmap-material-border-alpha"] = definition.border.alpha;
   materialStyle["--taskmap-material-content-clip-inset"] = `${definition.border.widthPx}px`;
   materialStyle["--taskmap-material-shadow"] =
     `${definition.insetShadow.xPx}px ${definition.insetShadow.yPx}px ${definition.insetShadow.blurPx}px rgb(0 0 0 / ${definition.insetShadow.opacity}) inset`;
+  if (definition.outerShadow) {
+    const shadow = definition.outerShadow;
+    materialStyle["--taskmap-material-shadow"] =
+      `${shadow.xPx}px ${shadow.yPx}px ${shadow.blurPx}px rgb(0 0 0 / ${shadow.opacity})`;
+  }
   return materialStyle;
 }
 

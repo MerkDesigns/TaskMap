@@ -48,7 +48,7 @@ export type WorkspaceCommandResult =
     }
   | {
       readonly ok: false;
-      readonly code: "workspace-not-loaded" | "command-failed";
+      readonly code: "workspace-not-loaded" | "workspace-not-editable" | "command-failed";
       readonly issues: readonly CommandIssue[];
     };
 
@@ -61,6 +61,6 @@ export type WorkspaceHistoryResult =
     }
   | {
       readonly ok: false;
-      readonly code: "workspace-not-loaded" | "history-failed";
+      readonly code: "workspace-not-loaded" | "workspace-not-editable" | "history-failed";
       readonly issues: readonly HistoryIssue[];
     };

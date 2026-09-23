@@ -1,5 +1,4 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { useMaterialSurfaceGeometryInvalidation } from "../../materials/MaterialSurfaceRegistration";
 import { useMotionFrameScheduler } from "../../motion/MotionProvider";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
 import { ModalLayer, NestedModalLayer } from "./ModalLayer";
@@ -39,27 +38,22 @@ export function ModalPresence({
   exitCompleteRef.current = onExitComplete;
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
 
-  const write = useCallback(
-    (state: ModalMotionState, active: boolean) => {
-      stateRef.current = state;
-      const group = groupRef.current;
-      if (group) {
-        group.style.opacity = `${state.opacity}`;
-        group.style.transform = `translate3d(0, ${state.translateY}px, 0) scale(${state.scale})`;
-        group.style.transformOrigin = "center";
-        group.style.willChange = active ? "opacity, transform" : "";
-      }
-      const scrim = scrimRef.current;
-      if (scrim) {
-        scrim.style.opacity = `${state.scrimOpacity}`;
-        scrim.style.willChange = active ? "opacity" : "";
-      }
-      invalidateGeometry();
-    },
-    [invalidateGeometry],
-  );
+  const write = useCallback((state: ModalMotionState, active: boolean) => {
+    stateRef.current = state;
+    const group = groupRef.current;
+    if (group) {
+      group.style.opacity = `${state.opacity}`;
+      group.style.transform = `translate3d(0, ${state.translateY}px, 0) scale(${state.scale})`;
+      group.style.transformOrigin = "center";
+      group.style.willChange = active ? "opacity, transform" : "";
+    }
+    const scrim = scrimRef.current;
+    if (scrim) {
+      scrim.style.opacity = `${state.scrimOpacity}`;
+      scrim.style.willChange = active ? "opacity" : "";
+    }
+  }, []);
 
   useLayoutEffect(() => {
     if (open && !present) {

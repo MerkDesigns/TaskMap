@@ -2,12 +2,11 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
   directBackdropFilter: Object.freeze({
     "src/index.css": 4,
     "src/ui/materials/FrostedSurface.css": 2,
-    "src/ui/materials/MaterialSurface.css": 4,
-    "src/ui/materials/SharedSmallGlassPlane.css": 4,
+    "src/ui/materials/MaterialSurface.css": 2,
+    "src/ui/materials/nativeGlassRecipe.css": 4,
   }),
   tailwindBackdropBlur: Object.freeze({
     "src/App.tsx": 1,
-    "src/components/CanvasManager.tsx": 2,
     "src/components/ExtensionsPanel.tsx": 1,
     "src/components/FloatingToolbar.tsx": 2,
     "src/components/FrostedGlassTuner.tsx": 1,
@@ -16,7 +15,6 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
   }),
   legacyFrostedClass: Object.freeze({
     "src/App.tsx": 1,
-    "src/components/CanvasManager.tsx": 2,
     "src/components/ExtensionsPanel.tsx": 2,
     "src/components/FloatingToolbar.tsx": 2,
     "src/components/FrostedGlassTuner.tsx": 1,

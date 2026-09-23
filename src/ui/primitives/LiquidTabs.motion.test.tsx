@@ -122,13 +122,12 @@ describe("LiquidTabs material motion", () => {
     act(() => driver.flush());
     expect(indicator?.style.width).toBe("72px");
     expect(indicator).toHaveStyle("--taskmap-material-radius: 7px");
-    const invalidationsAtRest = notifySurfaceGeometryChanged.mock.calls.length;
 
     fireEvent.click(screen.getByRole("tab", { name: "Keyboard Shortcuts" }));
     act(() => {
       expect(driver.fire()).toBe(true);
     });
-    expect(notifySurfaceGeometryChanged.mock.calls.length).toBeGreaterThan(invalidationsAtRest);
+    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     expect(Number.parseFloat(indicator?.style.width ?? "0")).toBeGreaterThan(0);
     expect(
       Number.parseFloat(indicator?.style.getPropertyValue("--taskmap-material-radius") ?? "0"),

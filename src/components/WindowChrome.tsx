@@ -1,5 +1,6 @@
 import { IconCopy, IconMinus, IconSquare, IconX } from "@tabler/icons-react";
 import { useCallback, useEffect, useState, type MouseEvent, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { windowChromeActions, type WindowChromeActions } from "../app/windowChrome";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { IconButton } from "../ui/primitives/Button";
@@ -60,8 +61,8 @@ export function WindowChrome({ actions = windowChromeActions, radius }: WindowCh
 
   const maximizeLabel = maximized ? "Restore window" : "Maximize window";
 
-  return (
-    <>
+  return createPortal(
+    <div className="taskmap-target-theme taskmap-window-chrome-layer">
       <div
         className="taskmap-window-drag-region"
         aria-hidden="true"
@@ -106,6 +107,7 @@ export function WindowChrome({ actions = windowChromeActions, radius }: WindowCh
           onClick={() => void actions.close()}
         />
       </MaterialSurface>
-    </>
+    </div>,
+    document.body,
   );
 }

@@ -3,6 +3,7 @@ import {
   ACRYLIC_LARGE,
   ACRYLIC_SMALL,
   CUTOUT,
+  FROSTED_POPUP,
   MATERIAL_DEFINITIONS,
   OPAQUE,
   OPAQUE_HIGHLIGHT_STOPS,
@@ -16,8 +17,20 @@ import { createMaterialRegistry, materialRegistry } from "./materialRegistry";
 
 describe("material definitions", () => {
   it("registers only the production material IDs", () => {
-    expect(materialRegistry.ids).toEqual(["acrylic-large", "acrylic-small", "opaque", "cutout"]);
-    expect(MATERIAL_DEFINITIONS).toEqual([ACRYLIC_LARGE, ACRYLIC_SMALL, OPAQUE, CUTOUT]);
+    expect(materialRegistry.ids).toEqual([
+      "acrylic-large",
+      "acrylic-small",
+      "opaque",
+      "cutout",
+      "frosted-popup",
+    ]);
+    expect(MATERIAL_DEFINITIONS).toEqual([
+      ACRYLIC_LARGE,
+      ACRYLIC_SMALL,
+      OPAQUE,
+      CUTOUT,
+      FROSTED_POPUP,
+    ]);
   });
 
   it("locks the accepted permanent two-pass native Large material", () => {

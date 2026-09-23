@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export type MaterialId = "acrylic-large" | "acrylic-small" | "opaque" | "cutout";
+export type MaterialId = "acrylic-large" | "acrylic-small" | "opaque" | "cutout" | "frosted-popup";
 export type MaterialStrategy = "native-glass" | "opaque" | "css";
 export type MaterialPlane = "base" | "modal";
 export type MaterialElevation = "default" | "none";
@@ -81,6 +81,9 @@ export interface NativeGlassMaterialDefinition extends MaterialDefinitionBase {
 export interface CssMaterialDefinition extends MaterialDefinitionBase {
   readonly strategy: "css";
   readonly fillRgb: MaterialRgb;
+  readonly fillOpacity?: number;
+  readonly backdropBlurPx?: number;
+  readonly outerShadow?: MaterialShadowDefinition;
   readonly border: {
     readonly widthPx: number;
     readonly rgb: MaterialRgb;

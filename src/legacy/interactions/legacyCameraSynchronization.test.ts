@@ -31,6 +31,29 @@ function setup() {
 }
 
 describe("legacy camera synchronization", () => {
+  it("restarts the settlement delay and writes only the final camera in a wheel burst", () => {
+    const { synchronization, writeLegacyCamera, flush, callbacks } = setup();
+    synchronization.queueControllerCamera("a", { pan: { x: 10, y: 20 }, zoom: 1.1 });
+    const firstHandle = [...callbacks.keys()][0];
+    synchronization.queueControllerCamera("a", { pan: { x: 30, y: 40 }, zoom: 1.2 });
+    expect(callbacks.size).toBe(1);
+    expect(callbacks.has(firstHandle)).toBe(false);
+    expect(writeLegacyCamera).not.toHaveBeenCalled();
+    flush();
+    expect(writeLegacyCamera).toHaveBeenCalledExactlyOnceWith("a", {
+      pan: { x: 30, y: 40 },
+      zoom: 1.2,
+    });
+  });
+
+  it("discards pending work when cancellation returns to the already stored camera", () => {
+    const { synchronization, writeLegacyCamera, flush } = setup();
+    synchronization.queueControllerCamera("a", { pan: { x: 10, y: 20 }, zoom: 1.1 });
+    synchronization.queueControllerCamera("a", { pan: { x: 0, y: 0 }, zoom: 1 });
+    flush();
+    expect(writeLegacyCamera).not.toHaveBeenCalled();
+  });
+
   it("discards an A write when B replaces it and adopts B's viewport", () => {
     const { synchronization, writeLegacyCamera, adoptLegacyCamera, flush } = setup();
     synchronization.queueControllerCamera("a", { pan: { x: 20, y: 30 }, zoom: 1.5 });

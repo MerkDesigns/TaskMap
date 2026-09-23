@@ -1,13 +1,16 @@
 import { CANVAS_BROWSER_LAYOUT, canvasBrowserPanelHeight } from "./canvasBrowserLayout";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 import { notifyWorkspacePanelContentSizeChanged } from "./workspacePanelContentSize";
+import { supplyMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
+import { MaterialGeometryFrame } from "../../materials/materialGeometryScheduler";
+import { writeGlassListEffectsClip } from "./glassListGeometry";
 
-export function createCanvasBrowserDragLayer(owner: HTMLElement) {
-  const layer = document.createElement("div");
-  layer.className = "taskmap-canvas-browser-drag-layer";
-  layer.dataset.canvasBrowserDragLayer = "true";
-  owner.append(layer);
-  return layer;
+export function readCanvasBrowserDragFrame(viewport: HTMLElement, card?: HTMLElement) {
+  const frame = new MaterialGeometryFrame();
+  // Read shared coordinate spaces before presentation writes, including activation's card rect.
+  frame.rectangle(viewport);
+  if (card) frame.rectangle(card);
+  return frame;
 }
 
 export function writeCanvasBrowserContentHeight(
@@ -26,25 +29,18 @@ export function writeCanvasBrowserContentHeight(
 }
 
 export function measureCanvasBrowserCard<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
-  const rectangle = record.card.getBoundingClientRect();
   const mode = record.card.dataset.canvasCardMode;
   const fallback =
     mode === "minimal" ? CANVAS_BROWSER_LAYOUT.compactCardHeight : CANVAS_BROWSER_LAYOUT.cardHeight;
   const content = record.card.querySelector<HTMLElement>(".taskmap-canvas-browser-card__content");
   const editorHeight =
-    mode === "editor"
-      ? Math.max(
-          content?.scrollHeight ?? 0,
-          content?.offsetHeight ?? 0,
-          content?.getBoundingClientRect().height ?? 0,
-        )
-      : 0;
+    mode === "editor" ? Math.max(content?.scrollHeight ?? 0, content?.offsetHeight ?? 0) : 0;
   record.height = Math.max(1, editorHeight || fallback);
-  record.host.style.height = `${record.height}px`;
-  const clipOffset = Number.parseFloat(
-    record.host.style.getPropertyValue("--taskmap-canvas-card-clip-offset") || "0",
-  );
-  const top = rectangle.top - clipOffset;
+}
+
+export function canvasBrowserCardRectangle<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
+  const rectangle = record.card.getBoundingClientRect();
+  const top = rectangle.top;
   return {
     x: rectangle.x,
     y: top,
@@ -66,10 +62,13 @@ export function writeDraggingCardHost<Id extends string>(
   writeCanvasBrowserCardViewport(record, 0, record.height, true);
   record.host.classList.add("taskmap-canvas-browser-card-host--dragging");
   record.host.style.left = `${rectangle.left - ownerRectangle.left}px`;
-  record.host.style.top = `${rectangle.top - ownerRectangle.top}px`;
   record.host.style.width = `${rectangle.width || CANVAS_BROWSER_LAYOUT.cardWidth}px`;
   record.host.style.height = `${record.height}px`;
-  record.host.style.transform = "none";
+  record.host.style.setProperty(
+    "--taskmap-canvas-card-y",
+    `${rectangle.top - ownerRectangle.top}px`,
+  );
+  record.host.style.top = "0px";
   record.host.dataset.dragging = "true";
 }
 
@@ -77,7 +76,7 @@ export function writeDraggingCardTop<Id extends string>(
   record: CanvasBrowserCardRecord<Id>,
   top: number,
 ) {
-  record.host.style.top = `${top}px`;
+  record.host.style.setProperty("--taskmap-canvas-card-y", `${top}px`);
 }
 
 export function restoreSettledCardHost<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
@@ -86,7 +85,6 @@ export function restoreSettledCardHost<Id extends string>(record: CanvasBrowserC
   record.host.style.top = "";
   record.host.style.width = "";
   record.host.style.height = `${record.height}px`;
-  record.host.style.transform = `translate3d(0, ${record.y}px, 0)`;
   delete record.host.dataset.dragging;
 }
 
@@ -100,6 +98,8 @@ export function syncCanvasBrowserCardViewport<Id extends string>(
   const clippedBottom = Math.min(top + record.height, viewportHeight);
   const visibleHeight = Math.max(0, clippedBottom - clippedTop);
   const clipOffset = visibleHeight > 0 ? clippedTop - top : 0;
+  record.host.style.setProperty("--taskmap-canvas-card-y", `${top}px`);
+  writeGlassListEffectsClip(record.host, top, record.height, viewportHeight);
   writeCanvasBrowserCardViewport(record, clipOffset, visibleHeight, visibleHeight > 0);
 }
 
@@ -113,6 +113,10 @@ export function writeCanvasBrowserCardViewport<Id extends string>(
   record.host.style.setProperty("--taskmap-canvas-card-visible-height", `${visibleHeight}px`);
   record.host.style.setProperty("--taskmap-canvas-card-full-height", `${record.height}px`);
   record.host.dataset.canvasCardVisible = String(visible);
+  supplyMaterialSurfaceSize(record.card, {
+    width: CANVAS_BROWSER_LAYOUT.cardWidth,
+    height: record.height,
+  })?.();
 }
 
 export function reorderCanvasBrowserHosts<Id extends string>(

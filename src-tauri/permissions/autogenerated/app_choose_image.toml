@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-choose-image"
+description = "Enables the app_choose_image command without any pre-configured scope."
+commands.allow = ["app_choose_image"]
+
+[[permission]]
+identifier = "deny-app-choose-image"
+description = "Denies the app_choose_image command without any pre-configured scope."
+commands.deny = ["app_choose_image"]

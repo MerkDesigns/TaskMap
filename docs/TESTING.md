@@ -73,6 +73,190 @@ Cover command dispatch, history, autosave coordination, database lifecycle, medi
 
 Cover database schema, encryption envelope, password verification, key zeroization boundaries, backups, file locking, media streaming, process ownership, and structured workflow launching.
 
+### Database activation intermission coverage
+
+Staged card/container tests cover exact typed payloads, empty/Unicode fields, string/order bounds,
+unknown-field and embedded-workflow rejection, frozen retained-view projections, canonical layer vs
+child order, missing/wrong-type/cross-canvas parents and duplicate order. Unsupported content in any
+canvas returns sanitized issues without a partial view. Real-controller pan/zoom samples prove zero
+schema parsing/JSON serialization and identical cached results; completed entity/layer changes,
+parent invalidation, cache clearing and same-ID document replacement have separate regression tests.
+These tests do not establish live UI parity, actual session purge or full typed command admission.
+
+Step 3b2 adds typed block/root node and connection coverage: exact payloads, field/string/geometry
+limits, retained frozen props, four ports, unknown edge data/type rejection, missing/cross-canvas
+capabilities, ordinary-card endpoint rejection, self edges and duplicate unordered pairs independent
+of direction/ports. Inactive-canvas failures return no partial view. Identity tests cover zero parsing/
+serialization for unchanged documents, moving a connected node without rebuilding its edge/block,
+edited ports, capability changes with cached edges, and clearing all projected caches together.
+
+Step 3b3 adds strict image/opaque-ID/metadata tests, explicit empty vs missing media, paired unknown
+intrinsic dimensions, retained stored MIME support, unsupported/unused-reference rejection, mixed
+card/image child order, parent locality and image endpoints. Cache tests cover shared references,
+geometry-only edits, referenced vs unrelated metadata updates, removed/invalid references and clearing.
+100 real pan and 100 zoom samples reuse image/media views without schema parsing or serialization.
+These tests neither read bytes nor establish image/GIF/SVG decoding, safety or live renderer parity.
+
+Step 3b4 tests cover all nine strict extension schemas/defaults and the canonical target matrix,
+including unsupported scope/IDs, removed/raw-workflow entries, disabled-invalid entries and duplicates.
+Installed-but-off state is distinct from a disabled installation, without losing configuration.
+Frozen metadata/props, per-target configure/disable/remove invalidation, unrelated-view reuse,
+geometry-only reuse, cached target revalidation and clearing are tested. Real controller tests run
+100 pan plus 100 zoom samples with no extension parsing or serialization. These are unmounted data
+tests, not evidence of feature command enforcement or visible control parity.
+
+Step 3c1 checks the actual configured workspace and mocked native transport: reject before create
+IPC/pending confirmation, cancel/close fallback, resumed-read relock/close, invalid-save rejection,
+and product composition's required policy wiring. Workspace tests cover invalid load/command/history
+candidate rejection with state/history/scheduled-save preservation, policy exceptions, valid edits/
+undo/redo/save, confirmed-rejection cleanup and fresh empty creation. Actual 100-pan/100-zoom samples
+invoke no acceptance or serialization. These are feature-data gates, not proof of lock/action rules,
+callback epochs, native security delivery or large-document completed-edit latency.
+
+Step 3c2a tests atomic selection deletion, parent/child/edge/installation cascade and whole-group
+undo/redo with one save. Cover locked parent/child protection, mixed allowed/protected selection,
+disabled/configured-off lock state, the deletion preference and the single-remove bypass. Invalid
+target groups and force fields reject; empty/protected sets are no-ops. Media and survivor ordering/
+geometry are retained. A 1,000-child fixture asserts one non-serialized transaction and camera-frame
+isolation; the mocked product factory test proves it uses the retained handler list. Real deletion
+animation, selection/editor cleanup and stale callback rejection remain later acceptance work.
+
+Step 3c2b tests both product geometry entry points across all retained types, effective lock state,
+deletion-preference independence, non-resizable cards/mind-map nodes, parent/child lock distinction,
+atomic invalid/stale/duplicate target rejection and no-op identity. Real controller integration covers
+initial-lock filtering, mid-drag lock rejection, 100 transient previews, canonical-vs-measured card
+dimensions, one group transaction/save, full undo/redo, cancellation and constrained resize. Mocked
+product transport confirms the actual composition uses these handlers. Placement and callback epochs
+are not supplied by these tests; no native or release-latency acceptance is implied.
+
+Step 3c2c tests atomic placement with mixed card/image sibling order, caller-ordered bundles, root
+detachment, same-parent reorder, multiple sources and canonical geometry in one undo/save operation.
+Cover direct/effective locks, allowed locked parents/indirectly shifted siblings, numeric-gap no-ops,
+generic-data placement bypass, malformed/stale/missing/duplicate preconditions, mid-gesture locks/order
+changes and unrelated-content preservation. Real controller tests keep 100 previews and cancellation
+off the document/history/save path, preserve canonical extents and dispatch once at completion. A
+1,000-sibling fixture asserts localized patches and no serialization, not release latency. Mocked native
+composition exercises placement and undo. Production filtered/scroll drop mapping and callback epochs
+remain later work; no native UI, profile/keyring access, benchmark loading or live parity claim.
+
+Step 3c2d/e covers all five types' committed content fields, effective locked content controls,
+field-scoped stale checks, unrelated concurrent-field preservation, full replacement guards, equal/
+empty edits, canonical empty text/link removal, and atomic multi-type edits/undo/redo/save. Layer tests
+cover all four directions, contiguous/noncontiguous and reversed selections, allowed locked targets,
+root-only slots, retained children/data/media, stale/malformed groups, boundary no-ops and single-API
+child protection. Real-controller 100-pan/100-zoom samples invoke neither command; completed layer and
+content actions remain separately undoable but share one debounced save. A 1,000-element fixture checks
+field-local content patches and root-slot-only layer patches without serialization. Mocked product
+composition exercises both commands. These are unmounted command tests, not actual editor draft,
+clipboard/extension, callback epoch, native UI or release-performance acceptance.
+
+Step 3c3 tests revocable callbacks against the real mocked lifecycle/workspace: same-ID reload, clear,
+canvas A/B/A, synchronous lock-start revocation, unlock, failed save-before-lock, cancellation,
+supersession and reentrant replay. Cover typed captures, stale content/sibling snapshots, canonical
+move/resize components, explicit placement decisions, initial child layer filtering and current locks.
+Editor tests cover trimmed/blank/Unicode text/title writes and retained URL/Windows-path normalization
+without opening resources. Actual controller tests run 100 previews with no dispatch/history/save/
+serialization or session reads, then one save on completion; cancellation stays transient. Repeating
+1,000 captures retains one subscription pair and disposal unsubscribes once. Mocked product composition
+checks stale callbacks after lock. This does not establish actual visual editor/gesture wiring, complete
+extension/clipboard routes, native purge acceptance or release performance.
+
+Step 3d1 exercises the unmounted real-controller/callback composition: effective-lock group filtering,
+canonical content-sized geometry, constrained resize, root-layer filtering, undo/redo/save and stale
+command failures. Cover cancelled/no-op/below-threshold gestures, rejected starts, wrong pointer IDs,
+canvas replacement/round trips, lock and failed save-before-lock, disposal and reentrant listeners.
+Assert synchronous preview/guide/selection cleanup and pan rollback on invalidation. 200 move/resize/pan
+samples must not read workspace/session state, subscribe, dispatch, serialize, create history or save;
+completed edits use one existing transaction/save. Placement must fail closed until resolved drop mapping
+exists. Test-supplied view bounds are not production size/hit-test or native visual acceptance.
+
+Step 3d2 tests the normalized compatibility geometry bridge plus actual placement service/controller:
+measured/fallback root and contained bounds, filtered/scrolled positions, root groups, source-order bundle
+pickup, locks, visibility/type-specific snaps, text-block/topmost-container hit tests and directional
+insertion. Check card-only-to-shared-child slot mapping, exact bundle/loose-position validation, explicit
+detachment, missing/throwing resolvers, stale siblings, threshold/cancel/lock cleanup, undo/redo and one
+save. 200 placement samples must not read workspace/session state, resolve completion, dispatch, serialize
+or create history/save work. The visible release path must still update the placement service first.
+
+Step 3d3a tests four typed connectable endpoints/ports, permitted locked endpoints, edge deletion and
+atomic new-root-node+opposite-port-edge completion. Reject missing/self/duplicate/reversed pairs, bad ports,
+ordinary cards, non-node grow sources, duplicate node/edge IDs and invalid node values with no partial
+node, history or save. Captured retargeted-edge deletion and lock/reload/canvas round trips reject stale
+completion. Null/cancel/supersession remain transient with no additional subscriptions/serialization.
+Check whole-transaction undo/redo and one debounced save. This is unmounted action support, not live
+port hit-testing, new-node default/clamp/focus/animation acceptance or clipboard/extension completion.
+
+Step 3d3b tests all nine extension definitions/defaults and compatible element types, mixed existing/new
+installation, exact search text, activation versus configured flags, primary-directed group locks and
+single privacy/checkbox toggles. Check equal-value/absent no-ops, untouched reference preservation, atomic
+undo/redo and one deferred save. Reject malformed/colliding/duplicate/wrong-canvas/retargeted/stale updates
+without partial publication. Every callback must expire on lock, failed-lock recovery, reload, canvas round
+trip, clear and disposal; completion is consumed before reentrant replay. Two hundred cancelled captures
+must add no observers, dispatch or serialization. A 1,000-target install records only installation patches
+in one transaction. This does not accept live extension-drop effects/scroll reset or creation/paste companions.
+
+Step 3d3c1 tests typed copies of all five elements, mixed graphs and parent/edge/extension ID remapping,
+opaque-media reuse and placeholder images, copy-time values after source edits/deletion, source/reference
+preservation, name suffixes and whole-transaction undo/redo/save. Preserve current text-card-only container
+expansion; do not claim contained-image copying parity beyond current behavior. Reject incomplete/duplicate/
+reused IDs, invalid positions/data, foreign targets, changed media and partial insertion. Copy alone adds
+no history/save. Cross-canvas Copy must survive while gesture/edit captures expire; lock/failed-lock,
+reload/clear/dispose/cancel/supersession revoke it and reentrant completion cannot replay. Two hundred
+cancelled copies add no observers or serialization; a 1,000-member paste produces only insertion/order
+patches in one transaction with a deferred save. Live geometry/menu/clipboard and AI JSON remain pending.
+
+Step 3d3c2 tests fresh and copied container insertion at shared card/image slots, active-configured-off versus
+inactive/missing companion installations, inherited versus supplied colors and copied checkbox preservation.
+AI replacement covers zero/one/many cards, old-card extension removal, retained image geometry/media/control
+references, slot replacement/renumbering, HTTP(S)/null links, exact export shape and empty-to-empty no-op.
+Reject stale container/child/extension snapshots, bad JSON/color/link/extra fields, invalid/colliding IDs,
+geometry and checkbox IDs without partial state. New-card/AI captures must expire on session/canvas/clear/
+dispose/cancel/supersession, including failed lock-save; replay is consumed before subscribers run. Two
+hundred cancelled captures must not parse/serialize/dispatch/add observers; a 1,000-card AI replacement
+uses one history transaction/deferred save without rewriting media. Existing AI JSON tests remain required.
+No passing command test establishes native clipboard/editor, scroll/focus/animation or full visual parity.
+
+Step 3d3d1 tests all six existing document settings leaves, grouped edits, exact expected/proposed leaf
+sets, invalid bounds/types/foreign device fields, stale rejection, unrelated concurrent changes and
+cancel/equal no-op semantics. Captures must expire on canvas/session/reload/cancel/supersession/disposal.
+Local slider previews do not dispatch/serialize/save; one completion creates one history entry/deferred
+save and retains element/media/canvas references. Undo/redo callbacks must cancel real controller move,
+resize, pan and selection without committing unfinished samples, revoke captures even when undo restores
+their expected values, block reentrant history/captures and reject workspace changes during invalidation.
+Cover no-entry no-op, rejected/thrown history, lock/dispose, redo revocation, one debounce and document-wide
+undo without navigation history or active-canvas reversal. These are unmounted fixture checks, not native
+keyboard/menu/editor/settings-control acceptance or a preferences/camera persistence implementation.
+
+Batch A resource tests additionally cover queued preference load/updates and failed revision writes,
+strict edition/UTF-8/control-character validation, encrypted camera cache round trips/tampering/AAD,
+session revocation and late-load rejection. Exercise settled-only camera persistence with 100 real pan
+samples without serialization/history/document saves and the exact 256-canvas limit. Canvas commands
+cover activation, last-canvas removal guards, clear/resize atomicity, stale confirmation and undo.
+Media fixtures cover native-selected-file and chunk import with shared GIF/SVG validation, malformed
+and incomplete data, offsets/lengths, pending/locked/obsolete authority, bounded concurrent lazy reads,
+shared URL leases, release/purge/late-result cancellation and atomic metadata-plus-image insertion.
+Resource save failures before ordinary lock must preserve the unlocked workspace. All fixtures use
+test-owned paths/mock IPC; live renderer visibility/decode, picker/drop/clipboard, native locks and
+storage cutover remain Batch B acceptance. Run Rust default/all-feature suites and the scoped resource
+capability/guard checks. Do not load the user's database or benchmark to satisfy fixture tests.
+
+Group geometry command tests cover all-or-nothing duplicate/missing/wrong-canvas/stale/invalid
+rejection, no-op suppression, immutable source data and localized patches. Workspace tests exercise
+100 real-controller preview samples with no serialization/history/save, one completed group save,
+whole-group undo/redo and cancellation. The 10,000-element command fixture covers both single and
+two-element edits; it asserts patch locality and no JSON serialization, not a fragile timing target.
+
+Mocked native transport tests cover edition-selected purpose policy, validation before pending
+confirmation, mismatched confirmation/recovery rejection, session-bound saves and the unmounted
+application lifecycle-to-transport composition. Rust tests check save identity under the write mutex,
+including delayed requests after reopen and lock/unlock at the same revision, strict request fields,
+edition/UI Lab policy and existing path-token/input-limit cases. Run both default and all-feature
+Rust suites and Clippy when changing the shared application/harness command implementation.
+
+`npm run production:inspect` includes the explicit application capability whitelist/config/handler
+check alongside Phase 2 and MCP exclusion. These are code/build checks, not proof of live native
+picker, window-close or OS-lock delivery; packaged cutover acceptance remains mandatory.
+
 ### End-to-end tests
 
 Cover complete user workflows in packaged or near-packaged Tauri builds.
@@ -615,6 +799,48 @@ Measure release-mode rendered pan, zoom, drag, and resize on the normal fixture 
 Windows/WebView2 versions, display scaling, refresh rate, window size, build/commit, traces, and
 compositor diagnostics. The acceptance target remains 60 FPS. Stress-fixture behavior is recorded
 separately. CI deterministic tests do not claim FPS or a `<16.67 ms` wall-clock threshold.
+
+## Storage-free preview preservation checks
+
+`node scripts/check-storage-preview.mjs` (included in production inspection) checks the dedicated
+identifier/config/feature, debug-only restriction, exact capability allowlist, early startup/close guards,
+native legacy session/path/keyring and media/portable guards, and preview-only frontend suppression.
+Rust tests check mode/identity mismatch and denial before resource access. Normal builds retain their
+existing frontend output. Check actual Tauri backend identity before invoking any live test operation.
+The live preview must show built-in defaults and its no-save notice, return null for legacy load and
+deny reset/save/import/export/media-path/app-database/runner/updater commands. Inspect initial canvas,
+Canvas Browser, screenshots, console and close behavior without opening either installed app's data.
+This validates isolation/baseline usability only, not editable database or full retained-feature parity.
+
+## Database entry UI (Batch B checkpoint, not native database acceptance)
+
+`src/features/database-entry/` tests mount the real application session controller with in-memory
+transport. Cover StrictMode resume, cancelled/late pickers, password confirmation and UTF-8 limits,
+immediate field clearing, duplicate suppression, wrong-password retry, recent edition/token handling,
+resource readiness/retry/cancellation, lock/unlock revocation, blocked cleanup and recovery acknowledgement
+without a write. Keyboard tests cover opt-in Tab/Shift+Tab while preserving canvas defaults.
+
+For visual checks, first verify the native storage-free identity using `npm run app:preview:mcp`, then
+navigate its WebView to `http://127.0.0.1:6971/database-entry-preview.html`. This page has a simulated
+transport only and explicitly labels its admitted placeholder; it does not exercise real encryption,
+filesystem persistence, media or the retained canvas binding. Use throwaway text as passwords (`wrong`
+simulates rejection); the recovered recent-file fixture checks acknowledgement. Never substitute a normal
+dev/stable launch while legacy storage remains active. Production inspection excludes fixture markers.
+Native OS/session lock, close/save-failure behavior, real file restart and complete retained parity still
+require the coherent cutover and separate disposable-file acceptance.
+
+### Retained canvas binding lifetime
+
+`retainedCanvasBinding.test.ts` and `retainedCanvasBindingTransport.test.ts` exercise the existing
+session/command/projection/controller composition using disposable in-memory transport. Cover
+resource-ready admission, one binding per runtime, named edits/undo, canvas camera restoration using
+current viewport dimensions, ordinary save failure retention, and permanent revocation on lock,
+cancellation, replacement and disposal. Reentrant observers cannot resurrect a revoked snapshot;
+failed UI purge hooks remain retryable and observer failures cannot skip controller disposal.
+The performance case checks 200 real-controller pan/zoom samples without view notifications,
+serialization, document/history mutation or database saves; remembered cameras flush separately.
+These are supporting integration tests. They do not establish mounted UI, native locks, real media
+rendering, filesystem persistence or release FPS acceptance.
 
 ## Phase gates
 

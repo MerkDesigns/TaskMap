@@ -6,6 +6,8 @@ type ImageNodeProps = {
   image: ImageElement;
   url: string | null;
   loading?: boolean;
+  unavailable?: boolean;
+  hasMedia?: boolean;
   entering?: boolean;
   deleting?: boolean;
   dragging?: boolean;
@@ -23,6 +25,8 @@ function ImageNodeComponent({
   image,
   url,
   loading = false,
+  unavailable = false,
+  hasMedia,
   entering = false,
   deleting = false,
   dragging = false,
@@ -35,7 +39,7 @@ function ImageNodeComponent({
   onOpenMenu,
   onPick,
 }: ImageNodeProps) {
-  const empty = !image.imageId;
+  const empty = !(hasMedia ?? Boolean(image.imageId));
   const loaded = !empty && !loading;
   const lastEmptyClickRef = useRef<{ time: number; x: number; y: number } | null>(null);
   // Background extension off: only show the image, no frame/border/shell, so a
@@ -100,7 +104,7 @@ function ImageNodeComponent({
       }}
       onContextMenu={(event) => onOpenMenu(event, image)}
     >
-      {empty ? (
+      {empty && !loading ? (
         <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-2 text-white/45">
           <IconPhotoPlus size={28} stroke={2} />
           <span className="text-[13px] font-medium">Double-click to add image</span>
@@ -109,6 +113,13 @@ function ImageNodeComponent({
       ) : loading ? (
         <div className="pointer-events-none flex h-full w-full items-center justify-center text-white/55">
           <IconLoader2 size={30} stroke={2} className="animate-spin" />
+        </div>
+      ) : unavailable ? (
+        <div
+          role="status"
+          className="pointer-events-none flex h-full w-full items-center justify-center text-white/55"
+        >
+          Image unavailable
         </div>
       ) : (
         <img

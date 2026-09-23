@@ -1,3 +1,14 @@
+.taskmap-window-chrome-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--taskmap-layer-modal-overlay) + 1);
+  pointer-events: none;
+}
+
+.taskmap-window-chrome-layer > * {
+  pointer-events: auto;
+}
+
 .taskmap-window-drag-region {
   position: absolute;
   z-index: 0;

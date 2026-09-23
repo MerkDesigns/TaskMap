@@ -10,7 +10,7 @@ const gridUpdateSchema = z
   })
   .strict();
 
-const settingsUpdateSchema = z
+export const settingsUpdateSchema = z
   .object({
     grid: gridUpdateSchema.optional(),
     showElementShadows: z.boolean().optional(),

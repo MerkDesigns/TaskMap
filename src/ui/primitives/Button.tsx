@@ -18,6 +18,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     className,
     leadingIcon,
     size = "normal",
+    tabIndex = -1,
     trailingIcon,
     type = "button",
     variant = "secondary",
@@ -30,7 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...props}
       ref={ref}
       type={type}
-      tabIndex={-1}
+      tabIndex={tabIndex}
       className={primitiveClassNames(
         "taskmap-control taskmap-button",
         `taskmap-button--${variant}`,

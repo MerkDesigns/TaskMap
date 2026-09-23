@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-full-backup"
+description = "Enables the app_full_backup command without any pre-configured scope."
+commands.allow = ["app_full_backup"]
+
+[[permission]]
+identifier = "deny-app-full-backup"
+description = "Denies the app_full_backup command without any pre-configured scope."
+commands.deny = ["app_full_backup"]

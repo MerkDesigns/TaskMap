@@ -19,6 +19,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 pub(super) struct OpenSession {
+    pub(super) image_drops: super::image_drop_authorizations::ImageDropAuthorizations,
+    pub(super) media_upload: Option<super::session_media_transfer::MediaUpload>,
     pub(super) session_id: String,
     pub(super) database_path: PathBuf,
     pub(super) database_id: String,
@@ -84,6 +86,8 @@ impl DatabaseSessionState {
         }
         let candidate = unlock_open_session(session, password)?;
         let confirmation_token = random_identifier();
+        // Each unlocked key lifetime gets a new identity; old pre-lock requests stay stale.
+        session.session_id = random_identifier();
         session.revision = candidate.revision;
         session.last_activity_at = timestamp();
         session.key_state = SessionKeyState::pending(candidate.key, confirmation_token.clone());
@@ -210,14 +214,44 @@ impl DatabaseSessionState {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn save_document(
         &self,
         serialized_document: &str,
         expected_revision: i64,
     ) -> Phase2Result<SavedDocument> {
+        self.save_document_checked(serialized_document, expected_revision, None)
+    }
+
+    pub(crate) fn save_document_for_session(
+        &self,
+        serialized_document: &str,
+        expected_revision: i64,
+        database_id: &str,
+        session_id: &str,
+    ) -> Phase2Result<SavedDocument> {
+        self.save_document_checked(
+            serialized_document,
+            expected_revision,
+            Some((database_id, session_id)),
+        )
+    }
+
+    fn save_document_checked(
+        &self,
+        serialized_document: &str,
+        expected_revision: i64,
+        identity: Option<(&str, &str)>,
+    ) -> Phase2Result<SavedDocument> {
         validate_document_size(serialized_document.len())?;
         let mut guard = self.guard()?;
         let session = unlocked_session(&mut guard)?;
+        // Check the request's captured identity under the same mutex as the write, not before it.
+        if identity.is_some_and(|(database_id, session_id)| {
+            session.database_id != database_id || session.session_id != session_id
+        }) {
+            return Err(Phase2Failure::SessionNotOpen);
+        }
         if session.revision != expected_revision {
             return Err(Phase2Failure::RevisionConflict);
         }

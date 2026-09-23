@@ -1,0 +1,81 @@
+.taskmap-native-glass-recipe {
+  --taskmap-material-blur-presence-progress: clamp(
+    0,
+    calc((var(--taskmap-material-presence-progress, 1) - 0.3) / 0.7),
+    1
+  );
+}
+
+.taskmap-native-glass-recipe .taskmap-native-glass-preblur,
+.taskmap-native-glass-recipe .taskmap-native-glass-backdrop {
+  position: absolute;
+  top: calc(0px - var(--taskmap-material-overscan-top, 0px));
+  right: calc(0px - var(--taskmap-material-overscan-right, 0px));
+  bottom: calc(0px - var(--taskmap-material-overscan-bottom, 0px));
+  left: calc(0px - var(--taskmap-material-overscan-left, 0px));
+  background: rgb(0 0 0 / calc(0.001 * var(--taskmap-material-presence-progress, 1)));
+  pointer-events: none;
+}
+
+.taskmap-native-glass-recipe .taskmap-native-glass-preblur {
+  z-index: 0;
+  display: none;
+  -webkit-backdrop-filter: blur(
+    calc(var(--taskmap-material-preblur) * var(--taskmap-material-blur-presence-progress))
+  );
+  backdrop-filter: blur(
+    calc(var(--taskmap-material-preblur) * var(--taskmap-material-blur-presence-progress))
+  );
+}
+
+.taskmap-native-glass-recipe .taskmap-native-glass-preblur[data-enabled="true"] {
+  display: block;
+}
+
+.taskmap-native-glass-recipe[data-material-backdrop-source="shared"] .taskmap-native-glass-preblur,
+.taskmap-native-glass-recipe[data-material-backdrop-source="shared"]
+  .taskmap-native-glass-backdrop {
+  display: none;
+}
+
+.taskmap-native-glass-recipe .taskmap-native-glass-backdrop {
+  z-index: 1;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-backdrop-filter: blur(
+      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
+    )
+    saturate(
+      calc(
+        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    brightness(
+      calc(
+        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    contrast(
+      calc(
+        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    );
+  backdrop-filter: blur(
+      calc(var(--taskmap-material-effective-blur) * var(--taskmap-material-blur-presence-progress))
+    )
+    saturate(
+      calc(
+        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    brightness(
+      calc(
+        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    )
+    contrast(
+      calc(
+        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
+      )
+    );
+}

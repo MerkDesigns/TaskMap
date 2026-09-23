@@ -10,6 +10,16 @@ import { Checkbox, RadioGroup, Slider, Switch } from "./SelectionControls";
 afterEach(cleanup);
 
 describe("UI primitives", () => {
+  it("preserves the canvas button default while allowing explicit keyboard traversal", () => {
+    render(
+      <>
+        <Button>Canvas</Button>
+        <Button tabIndex={0}>Form</Button>
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "Canvas" })).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("button", { name: "Form" })).toHaveAttribute("tabindex", "0");
+  });
   it("keeps button variants on native button semantics", async () => {
     const user = userEvent.setup();
     const clicked = vi.fn();

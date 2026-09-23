@@ -8,6 +8,8 @@ import {
 import { createWorkspaceOperations } from "./workspace/workspaceOperations";
 import { documentWorkspaceSlice } from "./workspace/workspaceSlice";
 import type { HistoryCapacity } from "../domain/history/historyTypes";
+import type { DocumentAcceptance } from "../domain/document/documentAcceptance";
+import type { DomainCommandHandler } from "../domain/commands/commandHandler";
 
 export interface ApplicationState {
   readonly activeBoundary: "legacy";
@@ -24,6 +26,9 @@ const applicationSlice = createSlice({
 });
 
 export interface CreateAppStoreOptions {
+  readonly commandHandlers?: readonly DomainCommandHandler[];
+  readonly acceptDocument?: DocumentAcceptance;
+  readonly canEditDocument?: () => boolean;
   readonly transactionDependencies?: TransactionDependencies;
   readonly persistence?: DocumentPersistenceDependencies;
   readonly historyCapacity?: HistoryCapacity;
@@ -50,6 +55,9 @@ export function createAppStore(options: CreateAppStoreOptions = {}) {
     options.transactionDependencies ?? defaultTransactionDependencies,
     persistence,
     options.historyCapacity,
+    options.canEditDocument,
+    options.acceptDocument,
+    options.commandHandlers,
   );
   return Object.assign(store, {
     workspace,

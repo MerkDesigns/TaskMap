@@ -1,14 +1,21 @@
-import { syncCanvasBrowserCardViewport } from "./canvasBrowserDom";
+import { measureCanvasBrowserCard, syncCanvasBrowserCardViewport } from "./canvasBrowserDom";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 import type { CanvasBrowserScrollState } from "./canvasBrowserScrollState";
 import { canvasCardSlotTop } from "./canvasBrowserSlotGeometry";
+import {
+  MaterialGeometryFrame,
+  registerMaterialGeometryWork,
+} from "../../materials/materialGeometryScheduler";
 
 export class CanvasBrowserViewportController<Id extends string> {
+  private measuredHeight = 0;
   constructor(
     private readonly viewport: HTMLElement,
     private readonly records: ReadonlyMap<Id, CanvasBrowserCardRecord<Id>>,
     private readonly scroll: CanvasBrowserScrollState,
-  ) {}
+  ) {
+    this.measure();
+  }
 
   attachWheel(onWheel: (deltaY: number, deltaMode: number) => void) {
     const handleWheel = (event: WheelEvent) => {
@@ -21,11 +28,30 @@ export class CanvasBrowserViewportController<Id extends string> {
   }
 
   height() {
-    return this.viewport.clientHeight || this.viewport.getBoundingClientRect().height;
+    return this.measuredHeight;
+  }
+
+  measure(frame = new MaterialGeometryFrame()) {
+    this.measuredHeight = this.viewport.clientHeight || frame.rectangle(this.viewport).height;
+  }
+
+  observeResize(write: () => void) {
+    return registerMaterialGeometryWork(
+      {
+        owner: true,
+        read: (frame) => {
+          this.measure(frame);
+          this.records.forEach(measureCanvasBrowserCard);
+          return write;
+        },
+      },
+      [this.viewport],
+    );
   }
 
   applyScroll(cardsLayer: HTMLElement, excludedId: Id | null) {
-    cardsLayer.style.transform = `translate3d(0, ${-this.scroll.currentScrollY}px, 0)`;
+    // Every host keeps the same untransformed ancestor; scroll is part of its own translation.
+    cardsLayer.style.transform = "";
     this.sync(excludedId);
   }
 

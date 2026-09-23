@@ -1,6 +1,13 @@
 import { useLayoutEffect, type RefObject } from "react";
 import { writeSharedSmallGlassShapes } from "../../materials/SharedSmallGlassPlane";
 import { recordMaterialGeometryRefresh } from "../../materials/materialPerformanceDiagnostics";
+import {
+  registerMaterialGeometryWork,
+  type MaterialGeometryFrame,
+  type MaterialGeometryReason,
+} from "../../materials/materialGeometryScheduler";
+import { supplyMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
+import { readGlassListLayout, projectGlassListScroll } from "./glassListScrollGeometry";
 
 interface SharedSmallGlassListOptions {
   readonly active: boolean;
@@ -22,70 +29,43 @@ export function useSharedSmallGlassList({
       if (plane) writeSharedSmallGlassShapes(plane, []);
       return;
     }
-    let frame: number | null = null;
-    const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => schedule());
-    const observeCards = () => {
-      resizeObserver?.disconnect();
-      resizeObserver?.observe(viewport);
-      viewport.querySelectorAll<HTMLElement>(cardSelector).forEach((card) => {
-        resizeObserver?.observe(card);
-      });
-    };
-    const sync = () => {
-      frame = null;
+    let layout: ReturnType<typeof readGlassListLayout> | undefined;
+    const sync = (frame: MaterialGeometryFrame, reason: MaterialGeometryReason) => {
       recordMaterialGeometryRefresh();
-      const viewportRectangle = viewport.getBoundingClientRect();
-      const shapes = [...viewport.querySelectorAll<HTMLElement>(cardSelector)].flatMap((card) => {
-        const rectangle = card.getBoundingClientRect();
-        const localViewport = card.closest<HTMLElement>("[data-shared-small-glass-viewport]");
-        const localRectangle = localViewport?.getBoundingClientRect();
-        const left = Math.max(rectangle.left, viewportRectangle.left, localRectangle?.left ?? -Infinity);
-        const top = Math.max(rectangle.top, viewportRectangle.top, localRectangle?.top ?? -Infinity);
-        const right = Math.min(
-          rectangle.right,
-          viewportRectangle.right,
-          localRectangle?.right ?? Infinity,
-        );
-        const bottom = Math.min(
-          rectangle.bottom,
-          viewportRectangle.bottom,
-          localRectangle?.bottom ?? Infinity,
-        );
-        if (right <= left || bottom <= top) return [];
-        return [
-          {
-            x: left - viewportRectangle.left,
-            y: top - viewportRectangle.top,
-            width: right - left,
-            height: bottom - top,
-            radius:
-              Number.parseFloat(card.style.getPropertyValue("--taskmap-material-radius")) || 0,
-          },
-        ];
-      });
-      writeSharedSmallGlassShapes(plane, shapes);
+      const rimWrites: (() => void)[] = [];
+      if (!layout || reason === "layout") {
+        layout = readGlassListLayout(frame, viewport, plane, cardSelector);
+        for (const card of layout) {
+          const writeRim = supplyMaterialSurfaceSize(card.element, card.size);
+          if (writeRim) rimWrites.push(writeRim);
+        }
+      }
+      const shapes = projectGlassListScroll(layout);
+      return () => {
+        rimWrites.forEach((write) => write());
+        writeSharedSmallGlassShapes(plane, shapes);
+      };
     };
-    const schedule = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(sync);
+    const geometry = registerMaterialGeometryWork(
+      { owner: true, scrollRoot: viewport, descendantScroll: true, read: sync },
+      [],
+    );
+    const observeCards = () => {
+      const cards = [...viewport.querySelectorAll<HTMLElement>(cardSelector)];
+      const clips = [
+        ...viewport.querySelectorAll<HTMLElement>("[data-shared-small-glass-viewport]"),
+      ];
+      geometry.observe([viewport, ...cards, ...clips]);
     };
     const mutationObserver = new MutationObserver(() => {
       observeCards();
-      schedule();
+      geometry.invalidate();
     });
-
     observeCards();
-    sync();
-    viewport.addEventListener("scroll", schedule, { capture: true, passive: true });
-    window.addEventListener("resize", schedule);
     mutationObserver.observe(viewport, { childList: true, subtree: true });
     return () => {
-      if (frame !== null) cancelAnimationFrame(frame);
-      resizeObserver?.disconnect();
+      geometry.dispose();
       mutationObserver.disconnect();
-      viewport.removeEventListener("scroll", schedule, true);
-      window.removeEventListener("resize", schedule);
       writeSharedSmallGlassShapes(plane, []);
     };
   }, [active, cardSelector, planeRef, viewportRef]);

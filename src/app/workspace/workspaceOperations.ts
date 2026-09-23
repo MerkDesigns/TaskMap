@@ -1,10 +1,12 @@
 import type { TransactionDependencies } from "../../domain/commands/executeDocumentCommand";
+import type { DomainCommandHandler } from "../../domain/commands/commandHandler";
 import { coreDocumentCommandHandlers } from "../../domain/commands/core/coreDocumentCommandHandlers";
 import { validateTaskMapDocument } from "../../domain/document/validateDocument";
 import { recordTransaction, redoDocument, undoDocument } from "../../domain/history/historyEngine";
 import type { HistoryCapacity, HistoryIssue } from "../../domain/history/historyTypes";
 import type { CommandIssue } from "../../domain/commands/commandResult";
 import type { TaskMapDocument } from "../../domain/document/documentTypes";
+import { acceptsDocument, type DocumentAcceptance } from "../../domain/document/documentAcceptance";
 import type { DocumentPersistenceCoordinator } from "../persistence/documentPersistenceCoordinator";
 import { createCommandDispatcher } from "../commands/commandDispatcher";
 import { workspaceActions } from "./workspaceSlice";
@@ -44,11 +46,11 @@ export function createWorkspaceOperations(
   transactionDependencies: TransactionDependencies,
   persistence: DocumentPersistenceCoordinator | null,
   historyCapacity: HistoryCapacity = {},
+  canEditDocument: () => boolean = () => true,
+  acceptDocument?: DocumentAcceptance,
+  commandHandlers: readonly DomainCommandHandler[] = coreDocumentCommandHandlers,
 ): WorkspaceOperations {
-  const commandDispatcher = createCommandDispatcher(
-    coreDocumentCommandHandlers,
-    transactionDependencies,
-  );
+  const commandDispatcher = createCommandDispatcher(commandHandlers, transactionDependencies);
 
   const commitDocumentChange = (
     document: TaskMapDocument,
@@ -59,6 +61,18 @@ export function createWorkspaceOperations(
   };
 
   const runHistory = (operation: "undo" | "redo"): WorkspaceHistoryResult => {
+    if (!canEditDocument())
+      return {
+        ok: false,
+        code: "workspace-not-editable",
+        issues: [
+          {
+            code: "history-document-invalid",
+            operation,
+            message: "The workspace is transitioning sessions.",
+          },
+        ],
+      };
     const current = store.getState().documentWorkspace;
     if (current.document === null) return historyUnavailable(operation);
     const result =
@@ -66,6 +80,18 @@ export function createWorkspaceOperations(
         ? undoDocument(current.document, current.history)
         : redoDocument(current.document, current.history);
     if (!result.ok) return { ok: false, code: "history-failed", issues: result.issues };
+    if (!acceptsDocument(result.document, acceptDocument))
+      return {
+        ok: false,
+        code: "history-failed",
+        issues: [
+          {
+            code: "history-document-invalid",
+            operation,
+            message: "The history result contains unsupported or invalid feature data.",
+          },
+        ],
+      };
     if (result.changed) commitDocumentChange(result.document, result.history);
     return result;
   };
@@ -73,7 +99,7 @@ export function createWorkspaceOperations(
   return {
     load(document, backendRevision, options = {}) {
       const validation = validateTaskMapDocument(document);
-      if (!validation.ok) {
+      if (!validation.ok || !acceptsDocument(validation.document, acceptDocument)) {
         return {
           ok: false,
           code: "invalid-document",
@@ -104,10 +130,34 @@ export function createWorkspaceOperations(
       store.dispatch(workspaceActions.workspaceCleared());
     },
     dispatchCommand(command) {
+      if (!canEditDocument())
+        return {
+          ok: false,
+          code: "workspace-not-editable",
+          issues: [
+            {
+              code: "command-rejected",
+              path: "workspace",
+              message: "The workspace is transitioning sessions.",
+            },
+          ],
+        };
       const current = store.getState().documentWorkspace;
       if (current.document === null) return commandUnavailable();
       const result = commandDispatcher.dispatch(command, current.document);
       if (!result.ok) return { ok: false, code: "command-failed", issues: result.issues };
+      if (!acceptsDocument(result.document, acceptDocument))
+        return {
+          ok: false,
+          code: "command-failed",
+          issues: [
+            {
+              code: "command-rejected",
+              path: "document",
+              message: "The command result contains unsupported or invalid feature data.",
+            },
+          ],
+        };
       if (result.document === current.document) {
         return { ok: true, changed: false, document: current.document };
       }

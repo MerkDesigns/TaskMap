@@ -1,0 +1,30 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "application-database",
+  "description": "Current-format database, bounded session media and edition-local preferences for the local product main window; no raw paths",
+  "windows": ["main"],
+  "permissions": [
+    "allow-app-create-database",
+    "allow-app-open-database",
+    "allow-app-unlock-database",
+    "allow-app-confirm-unlock",
+    "allow-app-cancel-pending-unlock",
+    "allow-app-read-document",
+    "allow-app-save-document",
+    "allow-app-full-backup",
+    "allow-app-lock-database",
+    "allow-app-close-database",
+    "allow-app-quit-application",
+    "allow-app-get-session-status",
+    "allow-app-choose-database-path",
+    "allow-app-list-recent-databases",
+    "allow-app-database-edition",
+    "allow-app-destroy-main-window",
+    "allow-app-media-transfer",
+    "allow-app-choose-image",
+    "allow-app-import-dropped-image",
+    "allow-app-view-state",
+    "allow-app-load-preferences",
+    "allow-app-save-preferences"
+  ]
+}

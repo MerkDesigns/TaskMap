@@ -39,8 +39,9 @@ describe("development UI Lab gate", () => {
       readFile(playgroundPath, "utf8"),
       readFile(playgroundCssPath, "utf8"),
     ]);
-    expect(appShell).toContain("<DevelopmentUiLab presentation={materialPresentation}");
-    expect(appShell).toContain("DevelopmentUiLab ? null");
+    expect(appShell).toContain("<DevelopmentUiLab />");
+    expect(appShell).not.toContain("createMaterialCompositorPresentationBridge");
+    expect(appShell).toContain("DevelopmentUiLab || DevelopmentPhase2Entry ? null");
     expect(uiLab).toContain("<AcrylicCompositorPlayground presentation={presentation}");
     expect(playground).toContain("MaterialCompositorPresentationPublisher");
     expect(playground).toContain("<MaterialSurface");

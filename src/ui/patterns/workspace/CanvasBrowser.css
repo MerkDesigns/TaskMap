@@ -112,21 +112,19 @@
 
 .taskmap-canvas-browser__cards-layer {
   position: relative;
-  z-index: 1;
   width: 100%;
   pointer-events: none;
-  transform: translate3d(0, 0, 0);
-  will-change: transform;
 }
 
 .taskmap-canvas-browser-card-host {
   position: absolute;
-  z-index: 0;
+  z-index: 1;
   top: 0;
   left: 12px;
   width: 264px;
   height: 84px;
   pointer-events: none;
+  transform: translate3d(0, var(--taskmap-canvas-card-y, 0px), 0);
 }
 
 .taskmap-canvas-browser-card-host[data-slot-motion="true"] {
@@ -143,7 +141,7 @@
 }
 
 .taskmap-canvas-browser-card-host--dragging {
-  z-index: 1;
+  z-index: calc(var(--taskmap-layer-workspace-chrome) + 20);
   pointer-events: none;
 }
 
@@ -151,14 +149,7 @@
   pointer-events: none;
 }
 
-.taskmap-canvas-browser-drag-layer {
-  position: absolute;
-  z-index: calc(var(--taskmap-layer-workspace-chrome) + 20);
-  inset: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
 .taskmap-shared-small-glass-plane--canvas-drag {
   z-index: calc(var(--taskmap-layer-workspace-chrome) + 19);
+  overflow: visible;
 }

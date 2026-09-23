@@ -105,6 +105,20 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 | Legacy import in app       | Remove            | Main app rejects old format and points to migrator          | Removed by decision |
 | Old import/export workflow | Remove            | Database and config replace it                              | Removed by decision |
 
+## Database integration evidence (2026-09-23)
+
+The current product route uses the encrypted database runtime. Agent checks covered create/open,
+wrong password, save/restart/unlock, explicit lock, save-failure retry, generation recovery,
+full-backup restore, GIF/PNG import/reload and normal window geometry persistence. The user reported
+native GIF drop/persistence, Windows lock, screenshot privacy and maximized reopening working.
+See WORK-LOG for fixtures and conditions. Optional multi-monitor coverage was not separately stated.
+
+The user subsequently reported the requested retained-feature round-trip checklist working, including
+canvas/element edits, retained tools, history/copy operations and reopen persistence. This is
+user-reported acceptance of that integration checklist, not Phase 5 ownership migration.
+Scheduled full backups, config import/export and configurable inactivity locking are not claimed.
+The integration-wide parity/release checklist remains open; baseline test failures remain recorded.
+
 ## Acceptance procedure
 
 For each retained feature:

@@ -30,11 +30,17 @@ import {
 } from "../ui/patterns/overlays";
 import { SettingsIsland, SettingsShell, SettingsToggleRow } from "../ui/patterns/settings";
 import { ColorPickerMenu } from "./ColorPickerMenu";
+import {
+  DatabaseSettingsActions,
+  type DatabaseSettingsActionsProps,
+} from "./DatabaseSettingsActions";
 import { SettingsPasswordDialog, UpdateAvailableModal } from "./ProductionDialogs";
 
 export { ClearCanvasModal, UpdateAvailableModal } from "./ProductionDialogs";
 
 type SettingsModalProps = {
+  databaseActions?: DatabaseSettingsActionsProps;
+  gridOpacityEdit?: { begin(): void; commit(): void; cancel(): void };
   canvasGridStyle: CanvasGridStyle;
   onCanvasGridStyleChange: (style: CanvasGridStyle) => void;
   canvasGridOpacity: number;
@@ -122,6 +128,8 @@ const GRID_SEGMENTS = GRID_OPTIONS.map(({ Icon, label, value }) => ({
 }));
 
 export function SettingsModal({
+  databaseActions,
+  gridOpacityEdit,
   canvasGridStyle,
   onCanvasGridStyleChange,
   canvasGridOpacity,
@@ -153,6 +161,7 @@ export function SettingsModal({
   onClose,
 }: SettingsModalProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
+  const opacityCancelled = useRef(false);
   const [passwordModal, setPasswordModal] = useState<"export" | "import" | null>(null);
   const [passwordDraft, setPasswordDraft] = useState("");
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
@@ -312,9 +321,18 @@ export function SettingsModal({
           <LiquidTabs
             className="taskmap-settings-navigation"
             label="Settings categories"
-            items={SETTINGS_TAB_ITEMS}
+            items={
+              databaseActions
+                ? SETTINGS_TAB_ITEMS.map((item) =>
+                    item.value === "data" ? { ...item, label: "database" } : item,
+                  )
+                : SETTINGS_TAB_ITEMS
+            }
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={(tab) => {
+              gridOpacityEdit?.cancel();
+              setActiveTab(tab);
+            }}
           />
           <ScrollArea key={activeTab} className="taskmap-settings-scroll">
             <div className="taskmap-settings-content-stack">
@@ -338,14 +356,40 @@ export function SettingsModal({
                           </span>
                         </div>
                         <Slider
+                          onPointerDown={(event) => {
+                            opacityCancelled.current = false;
+                            if (gridOpacityEdit) {
+                              event.currentTarget.setPointerCapture(event.pointerId);
+                              gridOpacityEdit.begin();
+                            }
+                          }}
+                          onPointerUp={() => {
+                            gridOpacityEdit?.commit();
+                            opacityCancelled.current = false;
+                          }}
+                          onPointerCancel={() => {
+                            gridOpacityEdit?.cancel();
+                            opacityCancelled.current = true;
+                          }}
+                          onLostPointerCapture={() => gridOpacityEdit?.cancel()}
+                          onBlur={() => gridOpacityEdit?.commit()}
+                          onKeyDown={(event) => {
+                            opacityCancelled.current = false;
+                            if (event.key === "Escape" && gridOpacityEdit) {
+                              opacityCancelled.current = true;
+                              event.stopPropagation();
+                              gridOpacityEdit.cancel();
+                            }
+                          }}
                           className="taskmap-settings-slider"
                           min={0}
                           max={100}
                           value={canvasGridOpacity}
                           spellCheck={false}
-                          onChange={(event) =>
-                            onCanvasGridOpacityChange(Number(event.currentTarget.value))
-                          }
+                          onChange={(event) => {
+                            if (!opacityCancelled.current)
+                              onCanvasGridOpacityChange(Number(event.currentTarget.value));
+                          }}
                           title="Grid opacity"
                         />
                       </div>
@@ -410,7 +454,10 @@ export function SettingsModal({
                   />
                 </>
               )}
-              {activeTab === "data" && (
+              {activeTab === "data" && databaseActions && (
+                <DatabaseSettingsActions {...databaseActions} />
+              )}
+              {activeTab === "data" && !databaseActions && (
                 <div className="taskmap-settings-data-grid">
                   <input
                     ref={importInputRef}
@@ -449,19 +496,23 @@ export function SettingsModal({
                     checked={allowLockedElementDeletion}
                     onCheckedChange={onAllowLockedElementDeletionChange}
                   />
-                  <SettingsToggleRow
-                    label="Discord status"
-                    description="Show time spent in TaskMap on your Discord profile."
-                    checked={discordRpcEnabled}
-                    onCheckedChange={onDiscordRpcEnabledChange}
-                  />
-                  <SettingsToggleRow
-                    label="Show active canvas"
-                    description="Include the current canvas name in your Discord status."
-                    checked={discordRpcShowCanvas}
-                    disabled={!discordRpcEnabled}
-                    onCheckedChange={onDiscordRpcShowCanvasChange}
-                  />
+                  {!databaseActions && (
+                    <>
+                      <SettingsToggleRow
+                        label="Discord status"
+                        description="Show time spent in TaskMap on your Discord profile."
+                        checked={discordRpcEnabled}
+                        onCheckedChange={onDiscordRpcEnabledChange}
+                      />
+                      <SettingsToggleRow
+                        label="Show active canvas"
+                        description="Include the current canvas name in your Discord status."
+                        checked={discordRpcShowCanvas}
+                        disabled={!discordRpcEnabled}
+                        onCheckedChange={onDiscordRpcShowCanvasChange}
+                      />
+                    </>
+                  )}
                   <Button
                     className="taskmap-settings-update-button"
                     leadingIcon={<IconRefresh size={17} stroke={2} />}

@@ -23,6 +23,7 @@
   pointer-events: none;
 }
 
+/* Retained WebView2 stability hint for this one large retained layer; never per list card. */
 .taskmap-workspace-side-panel
   > .taskmap-material-native-glass__clip
   > .taskmap-material-native-glass__backdrop {

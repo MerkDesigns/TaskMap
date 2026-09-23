@@ -1,4 +1,3 @@
-#[cfg(feature = "phase2-development")]
 use serde::Serialize;
 use std::io;
 use thiserror::Error;
@@ -23,7 +22,6 @@ pub(crate) enum Phase2Failure {
     InvalidDocumentPayload,
     #[error("command input is invalid")]
     InvalidInput,
-    #[cfg(feature = "phase2-development")]
     #[error("database purpose is not allowed for this edition")]
     DatabasePurposeMismatch,
     #[error("database session is locked")]
@@ -60,7 +58,6 @@ impl Phase2Failure {
     }
 }
 
-#[cfg(feature = "phase2-development")]
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Phase2ErrorCode {
@@ -83,7 +80,6 @@ pub(crate) enum Phase2ErrorCode {
     Unexpected,
 }
 
-#[cfg(feature = "phase2-development")]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Phase2CommandError {
@@ -92,7 +88,6 @@ pub(crate) struct Phase2CommandError {
     retryable: bool,
 }
 
-#[cfg(feature = "phase2-development")]
 impl From<Phase2Failure> for Phase2CommandError {
     fn from(failure: Phase2Failure) -> Self {
         use Phase2ErrorCode as Code;
@@ -179,5 +174,4 @@ impl From<Phase2Failure> for Phase2CommandError {
 }
 
 pub(crate) type Phase2Result<T> = Result<T, Phase2Failure>;
-#[cfg(feature = "phase2-development")]
 pub(crate) type Phase2CommandResult<T> = Result<T, Phase2CommandError>;

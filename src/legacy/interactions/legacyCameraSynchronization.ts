@@ -33,8 +33,12 @@ export function createLegacyCameraSynchronization(options: {
 
   const queueControllerCamera = (canvasId: string, camera: LegacyCamera) => {
     if (canvasId !== observed.canvasId) return;
+    if (equal(camera, observed.camera)) {
+      cancelPending();
+      return;
+    }
     pending = { canvasId, camera };
-    if (frame !== null) return;
+    if (frame !== null) options.scheduler.cancel(frame);
     frame = options.scheduler.schedule(() => {
       frame = null;
       const next = pending;

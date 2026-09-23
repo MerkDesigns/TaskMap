@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { createCanvasInteractionController } from "../app/interactions/canvasInteractionController";
+import { createViewport } from "../canvas/geometry/viewportMath";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "../types";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
@@ -9,6 +11,37 @@ import { Minimap } from "./Minimap";
 afterEach(cleanup);
 
 describe("C2F Minimap", () => {
+  it("updates only camera presentation without rebuilding document projection on pan/zoom", () => {
+    const registry = createMaterialSurfaceRegistry(null);
+    const controller = createCanvasInteractionController({
+      canvasKey: "a",
+      viewport: createViewport({ x: 0, y: 0 }, 1, { width: 800, height: 600 }),
+      commitPort: { commitMove: vi.fn(), commitResize: vi.fn(), commitLayerOrder: vi.fn() },
+    });
+    const projectionReads = vi.spyOn(containers, "map");
+    renderMinimap({ registry, controller });
+    projectionReads.mockClear();
+    const originalElement = element("container-a");
+    act(() => controller.beginPan(1, { x: 0, y: 0 }));
+    act(() =>
+      controller.updatePointer({ pointerId: 1, screen: { x: -200, y: -100 }, snapping: false }),
+    );
+    expect(document.querySelector("[data-minimap-viewport-indicator]")).toHaveStyle({
+      left: "8.8px",
+      top: "4.4px",
+      width: "35.2px",
+      height: "26.4px",
+    });
+    act(() => controller.wheelZoom({ x: 200, y: 200 }, -100));
+    expect(document.querySelector(".taskmap-minimap-zoom")).toHaveTextContent(
+      `${Math.round(controller.getSnapshot().viewport.zoom * 100)}%`,
+    );
+    expect(element("container-a")).toBe(originalElement);
+    expect(projectionReads).not.toHaveBeenCalled();
+    projectionReads.mockRestore();
+    registry.dispose();
+  });
+
   it("uses one Acrylic Large shell, one unregistered Cutout interior, and the reset primitive", () => {
     const registry = createMaterialSurfaceRegistry(null);
     const onResetZoom = vi.fn();
@@ -77,10 +110,12 @@ describe("C2F Minimap", () => {
 
 function renderMinimap({
   registry,
+  controller,
   onResetZoom = vi.fn(),
   zoom = 1,
 }: {
   registry: ReturnType<typeof createMaterialSurfaceRegistry>;
+  controller?: ReturnType<typeof createCanvasInteractionController>;
   onResetZoom?: () => void;
   zoom?: number;
 }) {
@@ -90,6 +125,7 @@ function renderMinimap({
     >
       <ReducedMotionProvider override>
         <Minimap
+          controller={controller}
           elements={containers}
           textBlocks={textBlocks}
           textCards={textCards}

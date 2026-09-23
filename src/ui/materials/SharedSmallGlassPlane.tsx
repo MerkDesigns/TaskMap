@@ -13,6 +13,8 @@ import { createMaterialSurfaceStyle } from "./materialSurfaceStyle";
 import { subscribeMaterialTuningChanged } from "./materialGeometryInvalidation";
 import { readMaterialGeometryRefreshesPerSecond } from "./materialPerformanceDiagnostics";
 import "./SharedSmallGlassPlane.css";
+import "./nativeGlassRecipe.css";
+import type { MaterialRectangle } from "./materialSamplingBoundary";
 
 export interface SharedSmallGlassShape {
   readonly x: number;
@@ -20,6 +22,7 @@ export interface SharedSmallGlassShape {
   readonly width: number;
   readonly height: number;
   readonly radius: number;
+  readonly clip?: MaterialRectangle;
 }
 
 export interface NativeGlassDiagnostics {
@@ -76,7 +79,9 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
       <div
         {...props}
         ref={composedRef}
-        className={["taskmap-shared-small-glass-plane", className].filter(Boolean).join(" ")}
+        className={["taskmap-shared-small-glass-plane", "taskmap-native-glass-recipe", className]
+          .filter(Boolean)
+          .join(" ")}
         data-glass-batch-id={batchId}
         data-glass-batch-kind={kind}
         data-glass-batch-material="acrylic-small"
@@ -93,8 +98,15 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
             <clipPath id={clipId} clipPathUnits="userSpaceOnUse" data-shared-small-glass-clip />
           </defs>
         </svg>
-        <span className="taskmap-shared-small-glass-plane__preblur" data-native-filter-layer />
-        <span className="taskmap-shared-small-glass-plane__backdrop" data-native-filter-layer />
+        <span
+          className="taskmap-shared-small-glass-plane__preblur taskmap-native-glass-preblur"
+          data-enabled="true"
+          data-native-filter-layer
+        />
+        <span
+          className="taskmap-shared-small-glass-plane__backdrop taskmap-native-glass-backdrop"
+          data-native-filter-layer
+        />
       </div>
     );
   },
@@ -115,12 +127,6 @@ export function refreshSharedSmallGlassTuning(
       : Number.isFinite(tunedBlur)
         ? Math.max(0, tunedBlur)
         : ACRYLIC_SMALL.blurPx;
-  const backdrop = plane.querySelector<HTMLElement>(".taskmap-shared-small-glass-plane__backdrop");
-  const progress = "var(--taskmap-material-presence-progress, 1)";
-  const blurProgress = "var(--taskmap-material-blur-presence-progress, 1)";
-  const filter = `blur(calc(${blur}px * ${blurProgress})) saturate(calc(1 + (var(--taskmap-material-saturation) - 1) * ${progress})) brightness(calc(1 + (var(--taskmap-material-brightness) - 1) * ${progress})) contrast(calc(1 + (var(--taskmap-material-contrast) - 1) * ${progress}))`;
-  backdrop?.style.setProperty("-webkit-backdrop-filter", filter);
-  backdrop?.style.setProperty("backdrop-filter", filter);
   plane.style.setProperty(
     "--taskmap-shared-small-overscan",
     `${(blur + (ACRYLIC_SMALL.preblurPx ?? 0)) * ACRYLIC_SMALL.overscanRatio}px`,
@@ -146,8 +152,36 @@ export function writeSharedSmallGlassShapes(
     rectangle.setAttribute("height", `${shape.height}`);
     rectangle.setAttribute("rx", `${radius}`);
     rectangle.setAttribute("ry", `${radius}`);
+    const clipId = `${clip.id}-viewport-${index}`;
+    let viewportClip = plane.querySelector<SVGClipPathElement>(
+      `[data-glass-viewport-clip="${index}"]`,
+    );
+    if (shape.clip) {
+      if (!viewportClip) {
+        viewportClip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
+        viewportClip.id = clipId;
+        viewportClip.dataset.glassViewportClip = `${index}`;
+        viewportClip.setAttribute("clipPathUnits", "userSpaceOnUse");
+        viewportClip.append(document.createElementNS("http://www.w3.org/2000/svg", "rect"));
+        clip.parentElement?.append(viewportClip);
+      }
+      const bounds = viewportClip.firstElementChild!;
+      bounds.setAttribute("x", `${shape.clip.left}`);
+      bounds.setAttribute("y", `${shape.clip.top}`);
+      bounds.setAttribute("width", `${shape.clip.width}`);
+      bounds.setAttribute("height", `${shape.clip.height}`);
+      rectangle.setAttribute("clip-path", `url(#${clipId})`);
+    } else {
+      rectangle.removeAttribute("clip-path");
+      viewportClip?.remove();
+    }
   });
   rectangles.slice(shapes.length).forEach((rectangle) => rectangle.remove());
+  plane
+    .querySelectorAll<SVGClipPathElement>("[data-glass-viewport-clip]")
+    .forEach((viewportClip) => {
+      if (Number(viewportClip.dataset.glassViewportClip) >= shapes.length) viewportClip.remove();
+    });
   const state = shapes.length > 0 ? "active" : "inactive";
   plane.dataset.glassBatchState = state;
   plane.dataset.sharedSmallGlassPlane = state;
@@ -199,9 +233,7 @@ export function readNativeGlassDiagnostics(root?: ParentNode): NativeGlassDiagno
 function individualFilterLayerCount(surface: HTMLElement): number {
   const preblur = surface.querySelector<HTMLElement>(".taskmap-material-native-glass__preblur");
   const hasSteadyPreblur = preblur?.dataset.enabled === "true";
-  const hasInteractionPreblur =
-    surface.dataset.materialMotion === "active" && preblur?.dataset.interactionEnabled === "true";
-  return 1 + (hasSteadyPreblur || hasInteractionPreblur ? 1 : 0);
+  return 1 + (hasSteadyPreblur ? 1 : 0);
 }
 
 function emptyDiagnostics(): NativeGlassDiagnostics {

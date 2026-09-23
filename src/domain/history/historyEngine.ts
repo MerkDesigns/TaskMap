@@ -1,4 +1,4 @@
-import { applyPatches } from "immer";
+import { applyPatches, type Patch } from "immer";
 import { areJsonValuesDeepEqual } from "../document/jsonDeepEqual";
 import type { TaskMapDocument } from "../document/documentTypes";
 import { validateTaskMapDocument } from "../document/validateDocument";
@@ -86,6 +86,7 @@ function applyHistoryTransaction(
   let candidate: TaskMapDocument;
   try {
     candidate = applyPatches(document, patches);
+    candidate = reconcileCanvasSelection(document, candidate, reversePatches);
   } catch {
     return failed(document, history, operation, "history-patch-failed");
   }
@@ -99,10 +100,37 @@ function applyHistoryTransaction(
   } catch {
     return failed(document, history, operation, "history-transaction-incompatible");
   }
+  // Canvas navigation is a non-history command. Compare every persistent content field while
+  // allowing selection to have changed since the transaction (including a now-removed canvas).
+  if (roundTrip.activeCanvasId !== null && !roundTrip.canvases[roundTrip.activeCanvasId])
+    return failed(document, history, operation, "history-transaction-incompatible");
+  roundTrip = { ...roundTrip, activeCanvasId: document.activeCanvasId };
   if (!validateTaskMapDocument(roundTrip).ok || !areJsonValuesDeepEqual(roundTrip, document)) {
     return failed(document, history, operation, "history-transaction-incompatible");
   }
   return { ok: true, changed: true, document: candidate, history: nextHistory };
+}
+
+function reconcileCanvasSelection(
+  before: TaskMapDocument,
+  candidate: TaskMapDocument,
+  reversePatches: readonly Patch[],
+): TaskMapDocument {
+  const recordedSelection = reversePatches.find(
+    ({ path }) => path.length === 1 && path[0] === "activeCanvasId",
+  );
+  const navigated =
+    recordedSelection &&
+    "value" in recordedSelection &&
+    recordedSelection.value !== before.activeCanvasId;
+  let activeCanvasId = navigated ? before.activeCanvasId : candidate.activeCanvasId;
+  if (
+    activeCanvasId !== null &&
+    before.canvases[activeCanvasId] &&
+    !candidate.canvases[activeCanvasId]
+  )
+    activeCanvasId = candidate.canvasOrder[0] ?? null;
+  return activeCanvasId === candidate.activeCanvasId ? candidate : { ...candidate, activeCanvasId };
 }
 
 function unchanged(document: TaskMapDocument, history: HistoryState): HistoryOperationResult {

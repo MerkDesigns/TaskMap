@@ -13,3 +13,9 @@ AGENTS.md
 CLAUDE.md
 
 fixtures/baseline/*.json
+fixtures/glass-normal-v1/
+fixtures/glass-smoke-v1/
+scripts/__pycache__/
+
+# Local acceptance fixtures, disposable databases, and validation logs
+/.tmp-*

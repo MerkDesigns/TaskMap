@@ -1,3 +1,4 @@
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import {
   IconArrowsHorizontal,
   IconArrowsVertical,
@@ -30,6 +31,7 @@ import {
 import { TaskCanvas } from "../types";
 import { CanvasBrowserCard, CanvasPreview, WorkspaceSidePanel } from "../ui/patterns/workspace";
 import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
+import { GlassListFrame } from "../ui/patterns/workspace/GlassListFrame";
 import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
@@ -369,15 +371,6 @@ export function CanvasManager({
         }
       }}
     >
-      {!embedded && (
-        <SharedSmallGlassPlane
-          ref={dragSmallGlassPlaneRef}
-          batchId="canvas-browser-small-drag"
-          blurPx={smallGlassBlur}
-          kind="small-drag"
-          className="taskmap-shared-small-glass-plane--canvas-drag"
-        />
-      )}
       <header className="taskmap-canvas-browser__header">
         <div className="taskmap-canvas-browser__header-copy">
           <h2>Canvas Browser</h2>
@@ -419,20 +412,26 @@ export function CanvasManager({
         </div>
       </header>
 
-      <div
+      <GlassListFrame
         ref={viewportRef}
         className="taskmap-canvas-browser__viewport"
         data-canvas-browser-viewport
+        planeRef={sharedSmallGlassPlaneRef}
+        materialEnabled={!embedded}
+        batchId="canvas-browser-small"
+        blurPx={smallGlassBlur}
       >
         {!embedded && (
           <SharedSmallGlassPlane
-            ref={sharedSmallGlassPlaneRef}
-            batchId="canvas-browser-small"
+            ref={dragSmallGlassPlaneRef}
+            batchId="canvas-browser-small-drag"
             blurPx={smallGlassBlur}
+            kind="small-drag"
+            className="taskmap-shared-small-glass-plane--canvas-drag"
           />
         )}
         <div ref={cardsLayerRef} className="taskmap-canvas-browser__cards-layer" />
-      </div>
+      </GlassListFrame>
 
       {canvases.map((canvas) => {
         const cardHost = getCardPortalHost(canvas.id);
@@ -795,9 +794,10 @@ export function CanvasManager({
 
       {modalMode &&
         createPortal(
-          <div
+          <MaterialSurface
+            material="frosted-popup"
             data-new-canvas-menu
-            className={`frosted-glass context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] rounded-xl border border-white/[0.15] bg-[#1b1b1e]/94 p-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.48)] backdrop-blur-sm ${
+            className={`context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] p-4 text-white ${
               createMenuClosing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
             }`}
             onPointerDown={(event) => event.stopPropagation()}
@@ -876,7 +876,7 @@ export function CanvasManager({
                 <span>Create</span>
               </button>
             </div>
-          </div>,
+          </MaterialSurface>,
           document.body,
         )}
     </CanvasManagerShell>

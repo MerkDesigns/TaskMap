@@ -11,8 +11,7 @@ import {
   IconPuzzle,
   IconSettings,
 } from "@tabler/icons-react";
-import { useLayoutEffect, type ReactNode, type TransitionEvent } from "react";
-import { useMaterialSurfaceGeometryInvalidation } from "../ui/materials/MaterialSurfaceRegistration";
+import type { ReactNode } from "react";
 import {
   FloatingCanvasToolbar,
   ToolbarGroup,
@@ -56,18 +55,9 @@ export function FloatingToolbar({
   onUndo,
   onOpenSettings,
 }: FloatingToolbarProps) {
-  const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
-  // The material registry's shared ResizeObserver follows intermediate width frames. These
-  // notifications cover the transition boundaries without introducing a toolbar-owned rAF.
-  useLayoutEffect(invalidateGeometry, [invalidateGeometry, toolbarButtonsVisible]);
-
   const privacyTitle = privacyModeEnabled ? "Disable privacy mode" : "Enable privacy mode";
   const minimapTitle = minimapEnabled ? "Disable minimap" : "Enable minimap";
   const visibilityTitle = toolbarButtonsVisible ? "Hide toolbar buttons" : "Show toolbar buttons";
-  const handleOptionalControlsTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget || event.propertyName !== "max-width") return;
-    invalidateGeometry();
-  };
 
   return (
     <FloatingCanvasToolbar aria-label="Canvas toolbar">
@@ -110,7 +100,6 @@ export function FloatingToolbar({
         <div
           className="taskmap-floating-canvas-toolbar__optional-controls"
           aria-hidden={!toolbarButtonsVisible}
-          onTransitionEnd={handleOptionalControlsTransitionEnd}
         >
           <ToolbarToggleButton
             pressed={privacyModeEnabled}

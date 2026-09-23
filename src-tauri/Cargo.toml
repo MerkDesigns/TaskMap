@@ -10,6 +10,7 @@ default = []
 phase2-development = []
 mcp-development = ["dep:tauri-plugin-mcp-bridge"]
 ui-lab-development = []
+storage-free-preview = []
 
 [build-dependencies]
 tauri-build = { version = "2.2.0", features = [] }
@@ -60,6 +61,7 @@ windows-sys = { version = "0.61.2", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
     "Win32_System_Registry",
+    "Win32_System_RemoteDesktop",
     "Win32_System_Threading",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",

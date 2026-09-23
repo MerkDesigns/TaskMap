@@ -6,12 +6,12 @@ import AppShell from "./AppShell";
 import { selectActiveApplicationBoundary } from "./selectors/applicationSelectors";
 import { createAppStore } from "./store";
 
-const legacyTestState = vi.hoisted(() => ({ shouldFail: false }));
+const databaseTestState = vi.hoisted(() => ({ shouldFail: false }));
 
-vi.mock("../legacy/LegacyApplication", () => ({
-  LegacyApplication: () => {
-    if (legacyTestState.shouldFail) throw new Error("Legacy render failure");
-    return <div>Legacy application boundary</div>;
+vi.mock("./database/DatabaseApplication", () => ({
+  DatabaseApplication: () => {
+    if (databaseTestState.shouldFail) throw new Error("Database render failure");
+    return <div>Database application boundary</div>;
   },
 }));
 
@@ -25,15 +25,15 @@ vi.mock("../features/phase2-database/DevelopmentPhase2Entry", () => ({
 
 afterEach(() => {
   cleanup();
-  legacyTestState.shouldFail = false;
+  databaseTestState.shouldFail = false;
   vi.restoreAllMocks();
 });
 
 describe("AppShell", () => {
-  it("renders the temporary legacy application boundary", () => {
+  it("renders the database application boundary", () => {
     render(<AppShell />);
 
-    expect(screen.getByText("Legacy application boundary")).toBeInTheDocument();
+    expect(screen.getByText("Database application boundary")).toBeInTheDocument();
   });
 
   it("initializes the Redux provider", () => {
@@ -53,14 +53,14 @@ describe("AppShell", () => {
     expect(screen.getByText("legacy")).toBeInTheDocument();
   });
 
-  it("does not intercept errors from inside LegacyApplication", () => {
-    legacyTestState.shouldFail = true;
+  it("does not intercept errors from inside DatabaseApplication", () => {
+    databaseTestState.shouldFail = true;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const preventExpectedError = (event: ErrorEvent) => event.preventDefault();
     window.addEventListener("error", preventExpectedError);
 
     try {
-      expect(() => render(<AppShell />)).toThrow("Legacy render failure");
+      expect(() => render(<AppShell />)).toThrow("Database render failure");
     } finally {
       window.removeEventListener("error", preventExpectedError);
     }

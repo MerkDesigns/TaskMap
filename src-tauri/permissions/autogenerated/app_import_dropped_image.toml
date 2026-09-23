@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-import-dropped-image"
+description = "Enables the app_import_dropped_image command without any pre-configured scope."
+commands.allow = ["app_import_dropped_image"]
+
+[[permission]]
+identifier = "deny-app-import-dropped-image"
+description = "Denies the app_import_dropped_image command without any pre-configured scope."
+commands.deny = ["app_import_dropped_image"]

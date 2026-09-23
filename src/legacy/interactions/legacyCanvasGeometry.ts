@@ -5,7 +5,6 @@ import type {
 import type {
   ContainerElement,
   ImageElement,
-  TaskCanvas,
   TextBlockElement,
   TextCardElement,
 } from "../../types";
@@ -14,11 +13,21 @@ export const LEGACY_LOOSE_CARD_CULLING_WIDTH = 540;
 export const LEGACY_LOOSE_CARD_CULLING_HEIGHT = 320;
 export const LEGACY_TEXT_CARD_ROW_HEIGHT = 43;
 
-type LegacyGeometryElement = ContainerElement | TextBlockElement | TextCardElement | ImageElement;
+type GeometryImage = Pick<
+  ImageElement,
+  "id" | "x" | "y" | "width" | "height" | "containerId" | "extensions"
+>;
+type LegacyGeometryElement = ContainerElement | TextBlockElement | TextCardElement | GeometryImage;
+interface GeometryCanvas {
+  readonly containers: readonly ContainerElement[];
+  readonly textBlocks: readonly TextBlockElement[];
+  readonly textCards: readonly TextCardElement[];
+  readonly images: readonly GeometryImage[];
+}
 export type LegacyResizeKind = "container" | "text-block" | "image";
 
 export function getLegacyInteractionElements(
-  canvas: TaskCanvas,
+  canvas: GeometryCanvas,
   measuredCardSizes: ReadonlyMap<string, { width: number; height: number }> = new Map(),
 ): InteractionElement[] {
   return [
