@@ -6,8 +6,8 @@
 ## Current HEAD and phase
 
 - Branch: `architecture-v1`.
-- Audited HEAD: `ee562109d1a50de753c0346c9c777de37f5face2` — database system reworked.
-- Current work: cleanup/hardening follow-up to that commit, not yet committed.
+- Audited HEAD: `6c9c914d5a383e63fbcd83fc60f45f6506a5f8fa` — database hardening and CI.
+- Current work: uncommitted CI scheduling/close-path follow-up; remote validation still pending.
 - Phase 4.5C/D remains open. Database activation interrupted the glass acceptance plan.
 - Database implementation and requested manual checks are accepted; integration estimate remains
   99% pending packaged-build/live edition-coexistence validation. This is not whole-refactor progress.
@@ -41,7 +41,7 @@
   and the requested retained-feature round-trip checklist working. Do not repeat these checks
   without a relevant regression. Optional multi-monitor coverage was not separately confirmed.
 - Inactivity locking is explicitly deferred by the user. Keep the implemented Windows WTS locking.
-- Hardening checks: 1,697 frontend tests pass without jsdom errors. Rust default, Dev and all-feature
+- Current local checks: 1,702 frontend tests pass without jsdom errors. Rust default, Dev and all-feature
   suites each pass 63 tests; the ignored child-process entry is exercised by its parent lock test.
   Formatting, typecheck, lint, architecture, code map, build and production-exclusion checks pass.
   Vite's existing bundle-size/plugin-time advisories remain; details are in WORK-LOG.
@@ -49,10 +49,13 @@
   probe with working guarded close. Normal flow had no console errors/warnings; the injected error
   produced the expected React diagnostic. Save-failure close retry is covered by unit tests.
 - CI now covers architecture-v1 pushes and default/Dev/all-feature Rust configurations separately.
-  A workflow definition is not evidence of a successful GitHub run.
+  GitHub run 35903807853 for 6c9c914 passed all three Rust jobs but failed four frontend tests.
+  Local fixes address actions on disabled controls and one structural-test timeout; a new remote
+  green run is required after commit/push. Do not describe the current GitHub commit as green.
 
 ## Open blockers
 
+- Commit/push the CI follow-up and confirm its GitHub run is green before new architecture work.
 - Packaged-build/live stable-Dev coexistence remains unverified; preserve installed stable data.
 - Phase 4.5 native-glass visual/animation/stacking acceptance and release-mode pan FPS remain open.
   Remaining consumers, Quick Extensions polish, cross-display checks and obsolete rendering cleanup
@@ -61,7 +64,7 @@
 
 ## Immediate next task
 
-Review/commit this bounded hardening follow-up, then finish the outstanding isolated database
+Commit/push this bounded CI follow-up and verify GitHub, then finish the outstanding isolated database
 packaging/coexistence check before returning to glass acceptance. Benchmark authorization remains
 files only; do not load the benchmark without fresh permission. Keep future commits coherent by
 concern; do not rewrite ee562109 history. Root .tmp-* acceptance artifacts stay local and ignored.

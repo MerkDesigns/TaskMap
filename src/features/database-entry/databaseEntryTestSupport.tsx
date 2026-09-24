@@ -59,6 +59,7 @@ export function submitPassword(value = "test-only", confirmation?: string) {
 export async function openEntry() {
   fireEvent.click(expectButton("Open database"));
   await screen.findByLabelText("Password *");
+  await waitFor(() => expect(passwordInput()).toBeEnabled());
 }
 export function deferred<T>() {
   let resolve!: (value: T) => void;

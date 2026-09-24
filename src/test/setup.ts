@@ -21,7 +21,11 @@ if (typeof document !== "undefined" && !document.elementFromPoint) {
       true,
     );
   }
-  document.elementFromPoint = () => (target?.isConnected ? target : null);
+  document.elementFromPoint = (x, y) => {
+    if (x !== 0 || y !== 0)
+      throw new Error("Coordinate hit testing requires an explicit geometry-aware mock.");
+    return target?.isConnected ? target : null;
+  };
   afterEach(() => {
     target = null;
   });

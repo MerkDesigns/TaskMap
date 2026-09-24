@@ -2049,3 +2049,40 @@ removed. Resume exact native state rather than rebuilding earlier fixtures.
   glass/performance gates remain open. User-accepted checks need not be repeated without regression;
   inactivity lock remains deferred. No installed stable database/keyring/benchmark was accessed.
   No commit, push or successful GitHub workflow run is claimed; temporary fixtures/logs stay ignored.
+
+### 2026-09-23 — CI follow-up to 6c9c914
+
+- Read GitHub Actions run 35903807853: default, Dev and all-feature Rust jobs passed; frontend failed
+  four tests. Two entry failures were at the first unlock (lines 29/143), not subsequent recovery or
+  resource reloading. Their DOM stayed locked; cleanup retry stayed blocked. Phase publication precedes
+  busy/view-operation settlement, so `findBy` could observe a disabled form/button and synthetic input
+  was intentionally ignored. Local initial focused reproduction passed all 11 tests.
+- Inspected controller serialization, epoch publication, resource-effect cleanup/generation and view
+  operation guards. Kept those production semantics unchanged. Entry helpers now wait for enabled
+  password input and cleanup retry waits for an enabled button. Two controlled delayed-open tests
+  expose locked/blocked while the view operation is still pending, prove actions are rejected, then
+  settle and prove successful admission/cleanup. No evidence required a lifecycle ownership rewrite.
+- CI's 1,000-member structural copy test took 5.97 seconds against the default five-second timeout.
+  Kept all count/locality/no-serialization/undo/redo/save assertions and gave only this case a documented
+  15-second ceiling; no global timeout change. This is not release-performance acceptance.
+- Fallback close now uses only an existing boot promise; absent runtime means direct guarded renderer
+  close. Tests cover no construction before boot, existing-runtime flush/retry, and pending admission.
+  Added fake-timer Tab exit assertions before/at expiry while retaining ordinary focus navigation.
+  The event-target-only jsdom shim now rejects nonzero coordinate queries without an explicit mock.
+- Considered constructor rollback. Current collaborators allocate local state/subscriptions, and no
+  concrete constructor failure explains CI; transactional construction remains a small future hardening
+  candidate rather than expanding this fix into a lifecycle framework. Native subscription failure
+  already disposes the successfully constructed runtime in createTauriDatabaseSessionController.
+- Focused regressions: 40 passed. Full frontend: 249 files / 1,702 tests passed, zero jsdom errors.
+  Formatting/typecheck/lint/architecture passed. No Rust changes; the actual three successful GitHub
+  Rust jobs on this HEAD remain applicable. Full `npm run check` passed, including production build
+  and capability/exclusion checks; code-map freshness and diff whitespace checks passed. The existing
+  Vite large-bundle advisory remains outside this bounded CI correction.
+- Reopened the existing Dev process on its workspace-owned acceptance fixture. Inspected its canvas
+  screenshot, then mounted the actual fallback from a fresh unstarted module in a temporary WebView
+  probe. Inspected fallback screenshot, observed no console warnings/errors, clicked Close TaskMap;
+  window listing confirmed only the keeper remained. The no-runtime-construction assertion is in the
+  unit regression; no test hooks were left in production source.
+- Current remote commit still has failed frontend CI. No commit/push was performed; user must publish
+  the fix and obtain a fresh successful run before claiming green GitHub CI. Database estimate remains
+  99% (+0 acceptance gates); isolated packaging/coexistence follows green CI, then glass acceptance.

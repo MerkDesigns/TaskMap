@@ -44,6 +44,21 @@ describe("ContextMenu", () => {
     expect(screen.queryByRole("menu", { name: "Example menu" })).not.toBeInTheDocument();
   });
 
+  it("keeps the normal Tab exit mounted until its duration elapses", () => {
+    vi.useFakeTimers();
+    render(<MenuHarness />);
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: "Edit" }), { key: "Tab" });
+    expect(screen.getByRole("menu", { name: "Example menu" })).toHaveAttribute(
+      "data-motion-state",
+      "closing",
+    );
+    act(() => vi.advanceTimersByTime(MOTION_DURATION_MS.menuExit - 1));
+    expect(screen.getByRole("menu", { name: "Example menu" })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByRole("menu", { name: "Example menu" })).not.toBeInTheDocument();
+  });
+
   it("closes on Escape and restores focus to the anchor", () => {
     vi.useFakeTimers();
     render(<MenuHarness />);

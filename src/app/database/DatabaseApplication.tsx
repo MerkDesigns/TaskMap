@@ -16,7 +16,9 @@ const start = () =>
   (boot ??= createTauriDatabaseSessionController({ purgeDocumentResources() {} }));
 
 async function prepareClose(): Promise<PlatformResult<void>> {
-  const result = await start().catch(() => null);
+  // Closing after a pre-boot render failure must not create a database/session owner.
+  if (!boot) return { ok: true, value: undefined };
+  const result = await boot.catch(() => null);
   if (!result) return { ok: true, value: undefined };
   if (!result.ok) return { ok: true, value: undefined };
   const { controller } = result.value;

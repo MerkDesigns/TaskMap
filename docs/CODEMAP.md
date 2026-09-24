@@ -579,7 +579,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/commands/retainedContentContract.ts`                              |    45 | Module-owned scalar fields, explicitly composed here; placement/media/geometry/extensions are      |
 | `src/app/commands/retainedContentLayers.performance.test.ts`               |   152 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedContentRejection.test.ts`                        |    91 | @vitest-environment node                                                                           |
-| `src/app/commands/retainedCopy.performance.test.ts`                        |    81 | @vitest-environment node                                                                           |
+| `src/app/commands/retainedCopy.performance.test.ts`                        |    83 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedCopyCallbacks.ts`                                |    37 | Call on explicit Copy, not pointer samples. The opaque handle owns no copied plaintext.            |
 | `src/app/commands/retainedCopyCompletion.test.ts`                          |   126 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedCopyContract.ts`                                 |    60 | Internal, session-local copy data; not a portable/import format or a second document schema.       |
@@ -635,8 +635,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/database/createDatabaseWorkspace.test.ts`                         |   210 | @vitest-environment node                                                                           |
 | `src/app/database/createDatabaseWorkspace.ts`                              |    85 | Supplied by application edition composition, never by a document or picker response.               |
 | `src/app/database/createTauriDatabaseSessionController.ts`                 |    40 | TypeScript application module                                                                      |
-| `src/app/database/DatabaseApplication.test.tsx`                            |   109 | Tests for the adjacent module                                                                      |
-| `src/app/database/DatabaseApplication.tsx`                                 |   112 | One runtime per renderer lifetime. React StrictMode must not create two native session owners.     |
+| `src/app/database/DatabaseApplication.test.tsx`                            |   121 | Tests for the adjacent module                                                                      |
+| `src/app/database/DatabaseApplication.tsx`                                 |   114 | One runtime per renderer lifetime. React StrictMode must not create two native session owners.     |
 | `src/app/database/databaseNativeRevocation.test.ts`                        |    40 | Tests for the adjacent module                                                                      |
 | `src/app/database/databaseResourceFlush.test.ts`                           |    44 | @vitest-environment node                                                                           |
 | `src/app/database/databaseRuntimeResources.test.ts`                        |    34 | Tests for the adjacent module                                                                      |
@@ -866,8 +866,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/extensions/search/searchDefinition.ts`                                |    21 | TypeScript application module                                                                      |
 | `src/extensions/useExtensionDrag.ts`                                       |   117 | TypeScript application module                                                                      |
 | `src/features/database-entry/databaseEntryErrors.ts`                       |    32 | TypeScript application module                                                                      |
-| `src/features/database-entry/DatabaseEntryRaces.test.tsx`                  |   167 | Tests for the adjacent module                                                                      |
-| `src/features/database-entry/databaseEntryTestSupport.tsx`                 |    76 | TypeScript application module                                                                      |
+| `src/features/database-entry/DatabaseEntryRaces.test.tsx`                  |   217 | Tests for the adjacent module                                                                      |
+| `src/features/database-entry/databaseEntryTestSupport.tsx`                 |    77 | TypeScript application module                                                                      |
 | `src/features/database-entry/databaseEntryTypes.ts`                        |     9 | TypeScript application module                                                                      |
 | `src/features/database-entry/DatabasePasswordForm.tsx`                     |    88 | React component or typed UI module                                                                 |
 | `src/features/database-entry/DatabaseSessionGate.test.tsx`                 |   168 | Tests for the adjacent module                                                                      |
@@ -986,7 +986,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/platform/window/windowPrivacyClient.ts`                               |    23 | TypeScript application module                                                                      |
 | `src/platform/workflow/workflowClient.ts`                                  |    10 | TypeScript application module                                                                      |
 | `src/platform/workflow/workflowTypes.ts`                                   |    20 | TypeScript application module                                                                      |
-| `src/test/setup.ts`                                                        |    29 | jsdom has no layout/hit testing. For ordinary dispatched clicks, the event target is the           |
+| `src/test/domHitTesting.test.ts`                                           |     6 | Tests for the adjacent module                                                                      |
+| `src/test/setup.ts`                                                        |    33 | jsdom has no layout/hit testing. For ordinary dispatched clicks, the event target is the           |
 | `src/types.ts`                                                             |   418 | TypeScript application module                                                                      |
 | `src/ui-lab/ContextMenuPlayground.tsx`                                     |   197 | React component or typed UI module                                                                 |
 | `src/ui-lab/DraggableTextBlockFixture.test.tsx`                            |    90 | Tests for the adjacent module                                                                      |
@@ -1174,7 +1175,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/primitives/AnimatedCheckbox.tsx`                                   |    34 | React component or typed UI module                                                                 |
 | `src/ui/primitives/Button.tsx`                                             |   107 | React component or typed UI module                                                                 |
 | `src/ui/primitives/buttonMaterialControls.test.tsx`                        |   145 | Tests for the adjacent module                                                                      |
-| `src/ui/primitives/ContextMenu.test.tsx`                                   |   152 | Real user-event timers may finish the exit before this assertion on a busy runner.                 |
+| `src/ui/primitives/ContextMenu.test.tsx`                                   |   167 | Real user-event timers may finish the exit before this assertion on a busy runner.                 |
 | `src/ui/primitives/ContextMenu.tsx`                                        |   210 | React component or typed UI module                                                                 |
 | `src/ui/primitives/ContextMenuParts.tsx`                                   |   108 | React component or typed UI module                                                                 |
 | `src/ui/primitives/Field.tsx`                                              |    87 | React component or typed UI module                                                                 |

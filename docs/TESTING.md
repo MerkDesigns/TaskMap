@@ -11,8 +11,15 @@ separate manual gates. A workflow definition does not prove a successful remote 
 
 Vitest limits jsdom concurrency to four workers. The test setup supplies a dispatched-event-target
 fallback for jsdom's missing `elementFromPoint`; it does not simulate geometry. Coordinate/drag tests
-must supply explicit hit-test geometry. Animation lifetime assertions use controlled timers; ordinary
+must supply explicit hit-test geometry; the fallback throws on nonzero coordinates. Animation lifetime assertions use controlled timers; ordinary
 keyboard/focus tests must tolerate an exit animation already completing on a busy runner.
+
+Database entry tests must wait for controls to be enabled, not merely mounted: phase publication can
+precede controller/view-operation completion. Delayed-open regressions prove disabled submissions and
+cleanup clicks cannot bypass this guard, then proceed after settlement. The 1,000-member copy test is
+a deterministic transaction/count gate (including fixture creation, equality, undo/redo and save), not
+a five-second performance budget. Its explicit 15-second timeout accommodates the observed 5.97-second
+Windows CI run; the global Vitest timeout is unchanged. Real timing acceptance remains separate.
 
 Database hardening regressions cover top-level render failure with guarded close/save retry, explicit
 runtime resource attachment and cleanup after a throwing owner. Native media tests mutate SQLite after

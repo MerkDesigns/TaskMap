@@ -77,4 +77,6 @@ it("pastes a thousand members with one localized history transaction and one def
   await setup.store.workspace.flushSave();
   expect(setup.client.saveDocument).toHaveBeenCalledTimes(1);
   await setup.dispose();
-});
+  // This checks transaction/serialization counts, not a wall-clock budget. Shared Windows CI
+  // took 5.97s for setup + paste + deep equality + undo/redo + save; allow bounded runner variance.
+}, 15_000);

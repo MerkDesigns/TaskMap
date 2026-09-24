@@ -18,6 +18,55 @@ import {
 afterEach(cleanup);
 
 describe("database entry cancellation and resource admission", () => {
+  it.each([false, true])(
+    "waits for the view operation to settle before its next action (failure=%s)",
+    async (fails) => {
+      const setup = entrySetup();
+      if (fails) {
+        setup.client.openDatabase.mockResolvedValueOnce(failure());
+        setup.client.closeDatabase.mockResolvedValueOnce(failure());
+      }
+      const settled = deferred<void>();
+      const open = setup.controller.open;
+      setup.controller.open = async (token) => {
+        const result = await open(token);
+        await settled.promise;
+        return result;
+      };
+      await mountEntry(setup);
+      fireEvent.click(expectButton("Open database"));
+      const control = fails
+        ? await screen.findByRole("button", { name: "Retry session cleanup" })
+        : await screen.findByLabelText("Password *");
+      await waitFor(() =>
+        expect(setup.controller.getSnapshot()).toMatchObject({
+          phase: fails ? "blocked" : "locked",
+          busy: false,
+        }),
+      );
+      expect(control).toBeDisabled();
+      if (fails) fireEvent.click(control);
+      else submitPassword();
+      expect(setup.client.unlockDatabase).not.toHaveBeenCalled();
+      expect(setup.client.closeDatabase).toHaveBeenCalledTimes(fails ? 1 : 0);
+      await act(async () => settled.resolve());
+      await waitFor(() => expect(control).toBeEnabled());
+      if (fails) {
+        fireEvent.click(control);
+        await waitFor(() =>
+          expect(setup.controller.getSnapshot()).toMatchObject({ phase: "closed", busy: false }),
+        );
+        expect(setup.client.closeDatabase).toHaveBeenCalledTimes(2);
+      } else {
+        submitPassword();
+        await screen.findByTestId("workspace");
+        expect(setup.initializeResources).toHaveBeenCalledOnce();
+      }
+      cleanup();
+      await setup.controller.dispose();
+    },
+  );
+
   it("requires recovery acknowledgement before mounting and does not write on acknowledgement", async () => {
     const setup = entrySetup();
     setup.client.unlockDatabase.mockResolvedValue(
@@ -158,6 +207,7 @@ describe("database entry cancellation and resource admission", () => {
     await mountEntry(setup);
     fireEvent.click(expectButton("Open database"));
     await screen.findByRole("button", { name: "Retry session cleanup" });
+    await waitFor(() => expect(expectButton("Retry session cleanup")).toBeEnabled());
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
     fireEvent.click(expectButton("Retry session cleanup"));
     await screen.findByRole("button", { name: "Open database" });

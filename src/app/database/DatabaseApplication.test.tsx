@@ -98,11 +98,23 @@ it("the outer fallback preserves save failure and permits an explicit close retr
       },
     },
   });
-  const { DatabaseApplicationFallback } = await import("./DatabaseApplication");
+  const { DatabaseApplication, DatabaseApplicationFallback } =
+    await import("./DatabaseApplication");
+  const view = render(<DatabaseApplication />);
+  await screen.findByText("Admitted session");
+  view.unmount();
   render(<DatabaseApplicationFallback />);
   fireEvent.click(screen.getByRole("button", { name: "Close TaskMap" }));
   await screen.findByText(/could not be saved safely/);
   expect(fixture.destroy).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Close TaskMap" }));
   await waitFor(() => expect(fixture.destroy).toHaveBeenCalledOnce());
+});
+
+it("closes the fallback before boot without initializing a database runtime", async () => {
+  const { DatabaseApplicationFallback } = await import("./DatabaseApplication");
+  render(<DatabaseApplicationFallback />);
+  fireEvent.click(screen.getByRole("button", { name: "Close TaskMap" }));
+  await waitFor(() => expect(fixture.destroy).toHaveBeenCalledOnce());
+  expect(fixture.create).not.toHaveBeenCalled();
 });
