@@ -1,8 +1,9 @@
 # Feature Parity Checklist
 
-The refactor preserves the user-facing appearance and behavior of every retained feature unless this document explicitly approves a change. Internal implementation parity is not required.
+The refactor preserves retained user-facing behavior unless a newer accepted contract explicitly
+approves a change. Internal implementation parity is not required.
 
-Before porting a feature, attach screenshots or short recordings from the legacy application and document exact input behavior.
+Before porting a feature, use existing evidence or capture the relevant interaction where necessary.
 
 ## Status values
 
@@ -15,125 +16,137 @@ Before porting a feature, attach screenshots or short recordings from the legacy
 
 ## Application shell and navigation
 
-| Feature                | Decision        | Required behavior                                            | Status              |
-| ---------------------- | --------------- | ------------------------------------------------------------ | ------------------- |
-| Main window layout     | Keep            | Preserve current layout and visual identity                  | Not documented      |
-| Canvas manager         | Keep            | Preserve current canvas selection and management workflow    | Not documented      |
-| Settings               | Keep and rewire | Preserve retained settings; remove obsolete feature settings | Not documented      |
-| Recent databases       | New             | Select default, recent, or existing `.tmapdb`                | Not documented      |
-| Stable/dev coexistence | New             | Both editions run simultaneously with isolated data          | Not documented      |
-| Tray session           | New             | Close, reopen, lock, and quit behave per security spec       | Not documented      |
-| Discord Rich Presence  | Remove          | No code, settings, schema, or UI remains                     | Removed by decision |
-| Automatic updater      | Keep            | Preserve normal update workflow; implement after core        | Not documented      |
+| Feature                | Decision        | Required behavior                                                        | Status                           |
+| ---------------------- | --------------- | ------------------------------------------------------------------------ | -------------------------------- |
+| Main window layout     | Keep            | Preserve product workflow while allowing the approved UI-system redesign | In progress                      |
+| Canvas manager         | Keep            | Preserve canvas selection and management workflow                        | In progress                      |
+| Settings               | Keep and rewire | Preserve retained settings; remove obsolete settings                     | In progress                      |
+| Recent databases       | New             | Select default, recent, or existing `.tmapdb`                            | Implemented                      |
+| Stable/dev coexistence | New             | Both editions run simultaneously with isolated data                      | Packaged/live acceptance pending |
+| Tray session           | New             | Close, reopen, lock, and quit follow the session/security contract       | Implemented                      |
+| Discord Rich Presence  | Remove          | No code, settings, schema, or UI remains                                 | Removed by decision              |
+| Automatic updater      | Keep            | Preserve normal update workflow                                          | Not documented                   |
 
 ## Canvas
 
-| Feature             | Decision          | Required behavior                                                        | Status                                                               |
-| ------------------- | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| Multiple canvases   | Keep              | Preserve creation, switching, editing, deletion, and previews            | Not documented                                                       |
-| Pan and zoom        | Keep              | Middle/Ctrl-left pan; 0.5–2.5 anchored wheel zoom; centered reset        | Phase 4 automated + manual interaction accepted                      |
-| Selection rectangle | Keep              | Shift adds; partial intersection; <4 world-unit clear; locked selectable | Phase 4 automated + manual interaction accepted                      |
-| Move and resize     | Keep              | Preview-only frames; one completion; retained constraints                | Phase 4 automated + manual interaction accepted                      |
-| Snapping and guides | Keep              | Shift enables; 8 world units; retained edge/center guides                | Phase 4 automated + manual interaction accepted                      |
-| Layers              | Keep              | Ordered selected group; lock allowed; drag does not reorder              | Phase 4 automated + manual interaction accepted                      |
-| Minimap             | Keep and rewire   | Top-level bounds/connections, world viewport, reset zoom only            | Phase 4 projection + manual interaction accepted; 4.5 visual pending |
-| Grid styles         | Keep              | Preserve retained grid appearance and settings                           | Not documented                                                       |
-| Shadows             | Keep              | Preserve retained visual setting                                         | Not documented                                                       |
-| Undo and redo       | Keep and redesign | Equivalent user-visible results using transaction history                | Not documented                                                       |
+| Feature             | Decision                     | Required behavior                                                    | Status                               |
+| ------------------- | ---------------------------- | -------------------------------------------------------------------- | ------------------------------------ |
+| Multiple canvases   | Keep                         | Preserve creation, switching, editing, deletion and previews         | Implemented; final UI polish pending |
+| Pan and zoom        | Keep                         | Middle/Ctrl-left pan; 0.5–2.5 anchored wheel zoom; centered reset    | Accepted                             |
+| Selection rectangle | Keep                         | Shift adds; retained intersection/clear/lock rules                   | Accepted                             |
+| Move and resize     | Keep                         | Preview-only frames; one persistent completion; retained constraints | Accepted                             |
+| Snapping and guides | Keep                         | Retained Shift/snapping behavior                                     | Accepted                             |
+| Layers              | Keep                         | Preserve retained layer operations and drag behavior                 | Accepted                             |
+| Minimap             | Keep and rewire              | Preserve projection/reset workflow under the new UI system           | UI/glass acceptance pending          |
+| Grid styles         | Keep                         | Preserve retained grid choices/settings                              | Implemented                          |
+| Shadows             | Keep                         | Preserve retained setting semantics                                  | Implemented                          |
+| Undo and redo       | Keep and redesign internally | Equivalent visible results through transaction history               | Implemented                          |
 
 ## Elements
 
-| Feature              | Decision                     | Required behavior                                                                                                                          | Status                                                              |
-| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| Containers           | Keep                         | Preserve rendering, header, card content, scrolling, resizing, and menus                                                                   | Not documented                                                      |
-| Text cards           | Keep                         | Preserve inline editing, links, bundle pickup/sway, insertion/reparent/detach previews, settle behavior, contained/loose states, and menus | Phase 4 transient placement automated + manual interaction accepted |
-| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors, and menus                                                                                      | Not documented                                                      |
-| Images               | Keep                         | Preserve import, display, move, resize, background option, and menus                                                                       | Not documented                                                      |
-| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                                                                          | Not documented                                                      |
-| Mind-map nodes       | Keep and redesign internally | Preserve current user workflow and appearance                                                                                              | Not documented                                                      |
-| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion, and rendering                                                                                          | Not documented                                                      |
+| Feature              | Decision                     | Required behavior                                                                   | Status                                                            |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Containers           | Keep                         | Preserve rendering, header, child content, scrolling, resizing and menus            | Retained presentation; Phase 5 ownership migration pending        |
+| Text cards           | Keep                         | Preserve editing, links, bundle pickup, insertion/reparent/detach, settle and menus | Retained behavior accepted; Phase 5 ownership migration pending   |
+| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors and menus                                | Retained presentation; Phase 5 ownership migration pending        |
+| Images               | Keep                         | Preserve import, display, move, resize, background option and menus                 | Database/media integration accepted; Phase 5 presentation pending |
+| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                   | Accepted for database/media integration                           |
+| Mind-map nodes       | Keep and redesign internally | Preserve user workflow and visible semantics                                        | Phase 5 ownership migration pending                               |
+| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion and rendering                                    | Phase 5 ownership migration pending                               |
 
 ## Extensions
 
-| Extension          | Decision | Required behavior                                             | Status              |
-| ------------------ | -------- | ------------------------------------------------------------- | ------------------- |
-| Lock               | Keep     | Preserve move/resize protection and deletion preference       | Not documented      |
-| Checkbox           | Keep     | Preserve check state and control appearance                   | Not documented      |
-| Search             | Keep     | Preserve container filtering behavior and UI                  | Not documented      |
-| Privacy            | Keep     | Preserve current blur/hide behavior                           | Not documented      |
-| Color picker/tools | Keep     | Preserve retained color controls and recent colors            | Not documented      |
-| AI JSON copy/paste | Keep     | Preserve copy, paste, editor, validation, and visible results | Not documented      |
-| Daily reset        | Remove   | No code, schema, or menu contribution remains                 | Removed by decision |
-| Sorting            | Remove   | No code, schema, or menu contribution remains                 | Removed by decision |
-| Pick-a-card        | Remove   | No code, schema, or menu contribution remains                 | Removed by decision |
+| Extension          | Decision | Required behavior                                       | Status                           |
+| ------------------ | -------- | ------------------------------------------------------- | -------------------------------- |
+| Lock               | Keep     | Preserve move/resize protection and deletion preference | Retained integration accepted    |
+| Checkbox           | Keep     | Preserve check state/control behavior                   | Retained integration accepted    |
+| Search             | Keep     | Preserve container filtering behavior/UI                | Retained integration accepted    |
+| Privacy            | Keep     | Preserve capture/privacy behavior                       | Accepted for current integration |
+| Color picker/tools | Keep     | Preserve retained color controls/recent colors          | Retained integration accepted    |
+| AI JSON copy/paste | Keep     | Preserve copy/paste/editor/validation/visible results   | Retained integration accepted    |
+| Daily reset        | Remove   | No code/schema/menu contribution remains                | Removed by decision              |
+| Sorting            | Remove   | No code/schema/menu contribution remains                | Removed by decision              |
+| Pick-a-card        | Remove   | No code/schema/menu contribution remains                | Removed by decision              |
 
 ## Workflow Runner
 
-| Feature                 | Decision               | Required behavior                                     | Status              |
-| ----------------------- | ---------------------- | ----------------------------------------------------- | ------------------- |
-| Start development tools | Preserve purpose       | Represent through structured executable and arguments | Not documented      |
-| Working directory       | Keep                   | Per-step working directory                            | Not documented      |
-| Sequential execution    | Keep                   | Explicit sequence groups                              | Not documented      |
-| Parallel execution      | Keep                   | Explicit parallel groups                              | Not documented      |
-| Visible terminal        | Keep                   | Launch visibly when configured                        | Not documented      |
-| Background process      | Keep with restrictions | No hidden elevation; logs and ownership tracking      | Not documented      |
-| Stop launched process   | Keep and redesign      | Stop only TaskMap-owned processes                     | Not documented      |
-| Raw shell string        | Remove                 | Not supported in first version                        | Removed by decision |
-| Administrator elevation | Remove                 | Not supported                                         | Removed by decision |
+| Feature                 | Decision               | Required behavior                      | Status              |
+| ----------------------- | ---------------------- | -------------------------------------- | ------------------- |
+| Start development tools | Preserve purpose       | Structured executable + arguments      | Not documented      |
+| Working directory       | Keep                   | Per-step working directory             | Not documented      |
+| Sequential execution    | Keep                   | Explicit sequence groups               | Not documented      |
+| Parallel execution      | Keep                   | Explicit parallel groups               | Not documented      |
+| Visible terminal        | Keep                   | Launch visibly when configured         | Not documented      |
+| Background process      | Keep with restrictions | No hidden elevation; tracked ownership | Not documented      |
+| Stop launched process   | Keep and redesign      | Stop only TaskMap-owned processes      | Not documented      |
+| Raw shell string        | Remove                 | Not supported in first version         | Removed by decision |
+| Administrator elevation | Remove                 | Not supported                          | Removed by decision |
 
-## Visual system
+## Final UI and glass system
 
-| Feature                           | Decision                         | Required behavior                                                                        | Status                                 |
-| --------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------- |
-| Adaptive acrylic visual system    | Redesign approved                | Match `docs/VISUAL-SYSTEM.md` and the approved local reference while preserving behavior | Phase 4.5A contract; migration pending |
-| Existing frosted-glass appearance | Supersede by decision            | Retain only as historical baseline evidence until migration                              | Phase 4.5C migration pending           |
-| Frosted-glass tuner               | Remove                           | No production or development tuner remains                                               | Removed by decision                    |
-| Menus and modals                  | Keep behavior; redesign material | Preserve motion, placement, semantics, and workflow; use approved materials              | Phase 4.5C visual migration pending    |
-| Element animations                | Keep                             | Preserve useful entry, delete, drag, and settle behavior                                 | Not documented                         |
-| Toasts and feedback               | Keep                             | Preserve clear operation and error feedback                                              | Not documented                         |
+The current UI/material authority is:
+
+- `docs/UI-SYSTEM-CONTRACT.md`
+- `docs/GLASS-SYSTEM-CONTRACT.md`
+- `docs/UI-QUALITY-GUARDRAILS.md`
+
+These contracts intentionally supersede conflicting visual/presence/list/material rules from older
+UI/glass plans.
+
+| Feature                                        | Decision                                     | Required behavior                                                                                               | Status              |
+| ---------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Final UI/glass system                          | Redesign approved                            | Follow the current UI/glass/quality contracts while preserving non-superseded workflows                         | Phase 4.5 active    |
+| Historical frosted/native-glass implementation | Superseded as design authority               | Keep only as implementation/history evidence until obsolete code is removed                                     | Historical          |
+| Production visual tuner                        | Remove                                       | No material/visual tuner ships as product UI                                                                    | Removed by decision |
+| Development UI-Lab tuning                      | Development tooling                          | Live development-only material/motion tuning shared between UI Lab and real App; never document data/product UI | Phase 4.5 planned   |
+| Menus/modals/dialogs                           | Keep workflow; redesign presentation allowed | Preserve semantics/workflow while using current surface/material/layout contracts                               | Phase 4.5 active    |
+| Scrollable glass lists                         | Intentional redesign                         | Settled material can shrink at viewport edge; content remains unscaled/rounded-masked; held item stays full     | Phase 4.5 planned   |
+| Glass presence/motion                          | Intentional redesign                         | Composable Fade/Material Fade/Slide/Lift/Scale/Geometry Morph; no ancestor-opacity glass fade                   | Phase 4.5 planned   |
+| Element animations                             | Keep concept                                 | Preserve useful entry/delete/drag/settle behavior through the final motion system                               | Phase 4.5/5         |
+| Toasts and feedback                            | Keep                                         | Preserve clear operation/error feedback                                                                         | Not documented      |
 
 ## Persistence and configuration
 
-| Feature                    | Decision          | Required behavior                                           | Status              |
-| -------------------------- | ----------------- | ----------------------------------------------------------- | ------------------- |
-| User-selected database     | New               | Create default or chosen `.tmapdb`                          | Not documented      |
-| Password encryption        | New               | Password required; background session remembers derived key | Not documented      |
-| Explicit lock              | New               | Purge key and decrypted state                               | Not documented      |
-| Autosave                   | Keep and redesign | Non-blocking debounced save                                 | Not documented      |
-| Backups                    | New               | Five rotating consistent database backups                   | Not documented      |
-| Config export/import       | New               | Export/import app preferences without secrets               | Not documented      |
-| Legacy import in app       | Remove            | Main app rejects old format and points to migrator          | Removed by decision |
-| Old import/export workflow | Remove            | Database and config replace it                              | Removed by decision |
+| Feature                      | Decision          | Required behavior                                               | Status               |
+| ---------------------------- | ----------------- | --------------------------------------------------------------- | -------------------- |
+| User-selected database       | New               | Create/open chosen `.tmapdb`                                    | Implemented          |
+| Password encryption          | New               | Password required; unlocked process retains derived session key | Implemented          |
+| Explicit lock                | New               | Purge sensitive session/workspace state                         | Implemented          |
+| Windows session lock         | New               | Revoke/purge according to security contract                     | Accepted             |
+| Configurable inactivity lock | Deferred          | Not required for current database activation                    | Deferred by decision |
+| Autosave                     | Keep and redesign | Non-blocking revision-aware deferred save                       | Implemented          |
+| Backups/recovery             | New               | Preserve current generation/full-backup behavior                | Implemented          |
+| Config export/import         | New               | Export/import app preferences without secrets                   | Later product work   |
+| Legacy import in app         | Remove            | Main app does not convert old format                            | Removed by decision  |
+| Old import/export workflow   | Remove            | Database/config workflows replace it                            | Removed by decision  |
 
-## Database integration evidence (2026-09-23)
+## Database integration evidence
 
-The current product route uses the encrypted database runtime. Agent checks covered create/open,
-wrong password, save/restart/unlock, explicit lock, save-failure retry, generation recovery,
-full-backup restore, GIF/PNG import/reload and normal window geometry persistence. The user reported
-native GIF drop/persistence, Windows lock, screenshot privacy and maximized reopening working.
-See WORK-LOG for fixtures and conditions. Optional multi-monitor coverage was not separately stated.
+The product route uses the encrypted database runtime and normalized workspace/command/history/
+persistence system.
 
-The user subsequently reported the requested retained-feature round-trip checklist working, including
-canvas/element edits, retained tools, history/copy operations and reopen persistence. This is
-user-reported acceptance of that integration checklist, not Phase 5 ownership migration.
-Scheduled full backups, config import/export and configurable inactivity locking are not claimed.
-The integration-wide parity/release checklist remains open; baseline test failures remain recorded.
+Recorded native/user acceptance covers create/open/unlock, wrong-password rejection, save/restart,
+explicit lock, save-failure retry, generation recovery, full-backup restore, image/GIF import and
+reload, Windows lock, screenshot privacy, window reopen behavior and the requested retained-feature
+round trip.
+
+This does not imply Phase 5 renderer ownership migration is complete.
+
+Remaining database/release gate:
+
+- packaged/live stable + development coexistence validation.
 
 ## Acceptance procedure
 
-For each retained feature:
+For a retained feature:
 
-1. Record the legacy appearance and interaction.
-2. Describe input, output, edge cases, history behavior, and persistence behavior.
-3. Implement through the new module contract.
-4. Add automated domain and integration tests.
-5. Compare visually and behaviorally against evidence.
-6. Mark `Accepted` only after direct manual verification.
+1. identify the relevant retained behavior;
+2. define intentional changes from current subsystem contracts;
+3. implement through the current ownership boundary;
+4. add appropriate automated tests;
+5. validate real UI/interaction where automated tests cannot prove it;
+6. mark accepted only after the applicable direct/manual gate.
 
-Compilation or unit tests alone are insufficient for parity acceptance.
+Compilation alone is not visual, performance or parity acceptance.
 
-The Phase 4 production interaction checklist was manually completed by the user after commit
-`9a34a23`. This accepts the retained interaction behavior recorded above; it is not a rendered FPS
-measurement and does not mark Phase 4.5 visual migration complete. Future material acceptance uses
-`docs/VISUAL-SYSTEM.md` plus the approved local/reference capture. Historical Phase 0 frosted
-evidence remains useful for behavior and regression context but is no longer the target appearance.
+Final UI/material acceptance uses the current UI/glass contracts, not removed historical visual docs.

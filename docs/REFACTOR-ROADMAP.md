@@ -2,479 +2,248 @@
 
 ## Operating rules
 
-- `main` remains the usable legacy application.
+- `main` remains the legacy/stable reference until the refactor is ready for release.
 - `architecture-v1` contains the replacement architecture.
-- Only critical legacy fixes are made on `main` during the refactor.
-- Retained behavior is accepted against `docs/FEATURE-PARITY.md`.
-- Every phase must leave the branch buildable and testable.
-- Do not port a feature by copying its old orchestration code.
-- `docs/REFACTOR-STATE.md` summarizes the current implementation position and
-  `docs/WORK-LOG.md` preserves chronological working context. Neither overrides this roadmap,
-  `ARCHITECTURE.md`, or accepted ADRs.
-
-## Phase 0 — Baseline and evidence
-
-### Goals
-
-- Record current behavior before changing implementation.
-- Establish architecture enforcement and performance fixtures.
+- The branch must stay buildable/testable.
+- Retained product behavior follows `FEATURE-PARITY.md` unless a newer accepted contract explicitly
+  approves a change.
+- Historical implementation experiments belong in Git/WORK-LOG, not the active roadmap.
 
-### Work
+## Phase 0 — Baseline/evidence
 
-- Capture screenshots and short recordings for retained UI and interactions.
-- Create representative legacy documents: small, normal, and stress.
-- Record current keyboard shortcuts and context-menu behavior.
-- Add dependency-boundary checks.
-- Add file-size reporting and generated code-map tooling.
-- Add stable and development build configurations.
-
-### Exit criteria
-
-- Every retained feature has a parity entry.
-- Removed features are explicitly listed.
-- Stable and development editions install and run independently.
-- Architecture checks fail on forbidden imports.
-
-## Phase 1 — New application skeleton
+Status: complete enough for the refactor.
 
-### Goals
-
-- Establish the final module boundaries without porting broad behavior.
-
-### Work
-
-- [x] Create the composition-only `AppShell` around a temporary legacy adapter.
-- [x] Create typed database, media, settings, and workflow platform client contracts without backend adapters.
-- [x] Create the Redux store, typed provider/hooks, command-dispatch contract, and selector convention.
-- [x] Create the pure current-version domain document, command, history, transaction, and ID foundations.
-- [x] Implement `FrostedSurface` using fixed values from the existing production visual treatment.
-- [x] Create explicit, initially empty element and architecture extension registries.
-- [x] Add structured platform errors.
-- [x] Add the transient interaction service interface; no pointer behavior is moved in this skeleton change.
-- [x] Add application error boundaries without changing the active legacy error behavior.
+Purpose:
 
-### Exit criteria
+- capture retained behavior;
+- establish dependency/performance fixtures;
+- record removed features and stable/dev separation.
 
-- [x] Shell contains no business logic.
-- [x] Domain packages have no React, Tauri, UI, element, extension, platform, DOM, or browser dependencies.
-- [x] Architecture checks prevent new Tauri imports outside `src/platform/`; named legacy imports remain temporarily allow-listed.
-- [x] The new shell builds under the existing stable and development identities while rendering the unchanged legacy application boundary.
+## Phase 1 — Application skeleton
 
-Phase 1 is complete. The skeleton establishes the provider, command, selector, domain, platform, registry, transient-interaction, presentation, and error-reporting boundaries without porting features or replacing the legacy UI. Focused tests prove the new error boundary does not deliberately intercept errors inside `LegacyApplication`.
-
-## Phase 2 — Database, encryption, and session vertical slice
-
-### Goals
-
-Prove the complete secure persistence lifecycle before porting features.
-
-### Work
-
-- [x] Implement the current-version SQLite `.tmapdb` envelope and unencrypted media table.
-- [x] Implement Argon2id key derivation and XChaCha20-Poly1305 document encryption.
-- [x] Implement pending create/unlock, TypeScript confirmation, read, transactional save with encrypted generations, explicit full backup, lock, close, and quit.
-- [x] Implement Windows file-identity writer ownership and pre-derivation structural-corruption versus non-oracular authentication-failure handling.
-- [x] Implement edition-specific recent/default-database configuration storage.
-- [x] Preserve an unlocked process session when the visible legacy window closes, with single-instance reopen behavior.
-- [x] Exclude the Phase 2 harness, command registration, and sensitive capability from stable production builds.
-- [x] Replace renderer-supplied database paths with expiring, one-use backend authorization tokens.
-- [ ] Add the production tray controls and Windows session-lock event integration. Only an internal Rust lock method exists; no renderer command or Windows event source is wired in Phase 2.
-- [ ] Add config import/export UI. Phase 2 keeps the versioned settings schema and edition isolation only.
-
-### Vertical slice
-
-```text
-Create database
--> enter password
--> create one canvas
--> create one text card
--> edit text
--> save encrypted document
--> close window
--> reopen without password during session
--> lock
--> reopen with password
--> quit and require password next launch
-```
-
-### Exit criteria
-
-- [x] Version-1 algorithms, KDF parameters, singleton counts, storage classes, fixed lengths, and conservative input sizes are rejected before expensive work or large reads.
-- [x] Raw passwords are never persisted or logged; application-controlled password, derivation, key, and decrypted Rust buffers use zeroizing ownership where practical and documented limitations remain explicit.
-- [x] A candidate session cannot become unlocked until the TypeScript document, database ID, schema version, and development purpose are confirmed.
-- [x] Explicit lock, close, quit, pending rejection/timeout, and keeper failure purge backend keys, release writer ownership, and remove the harness plaintext.
-- [x] Media bytes remain outside Redux and are stored unencrypted under opaque IDs without original filenames.
-- [x] Routine save transactionally retains five encrypted document generations and remains independent of total media size; full SQLite backup is explicit only.
-- [x] Stable production builds contain no Phase 2 plaintext IPC commands or harness chunk.
-- [x] Real Windows path-alias and child-process tests prove file-identity writer exclusion and stale-metadata recovery.
-- [x] The full Phase 2 automated validation matrix passes after the final implementation changes.
-- [x] The disposable-database native window/keeper lifecycle is manually exercised and recorded.
-
-Phase 2 exit criteria are complete. Production tray UX, native Windows session-lock event delivery, inactivity locking, config import/export UI, streaming media transport, scheduled full backups, and production autosave remain accurately deferred.
-
-## Phase 3 — Document core and history
-
-### Goals
-
-- Establish the normalized document model and transaction semantics.
-
-### Work
-
-- [x] Implement canvases, normalized element entities, connections, media references, extension
-      installations, document settings, conservative limits, and current-version validation (Phase
-      3A).
-- [x] Implement named application commands (Phase 3B).
-- [x] Implement atomic Immer patch transactions, undo, and redo (Phase 3B).
-- [x] Implement Redux workspace orchestration, sequence-based dirty tracking, and revision-aware
-      debounced persistence (Phase 3C).
-
-Phases 3A, 3B, and 3C are complete. Phase 3C activates the normalized document, command, history,
-dirty, revision, and save lifecycle only through dependency-injected application operations used by
-tests and future features. Production feature UI remains on `LegacyApplication` until Phase 4 and
-later parity slices; the Phase 2 development harness and legacy autosave remain unchanged.
-
-### Exit criteria
-
-- [x] Domain tests cover current-version invariants and Phase 3B generic command behavior.
-- [x] One committed geometry command creates one history entry; interaction wiring remains Phase 4.
-- [x] Pan, zoom, selection, and menus are excluded from the document command/history API.
-- [x] Saving does not block synthetic rapid-command tests; debounce, encoding, and unresolved
-      database work remain outside synchronous command execution.
-
-## Phase 4 — Canvas and interaction engine
-
-### Goals
-
-- Replace the god-component interaction logic with explicit controllers.
-- Keep controllers document-model agnostic behind a narrow semantic commit port.
-
-### Work
-
-- [x] Implement canonical viewport transforms, pan, anchored wheel zoom, and reset zoom.
-- [x] Implement click/additive/box selection and single-primary interaction arbitration.
-- [x] Implement transient single/multi movement, bottom-right resize, lock rules, and Shift-enabled snapping.
-- [x] Commit changed move/resize/layer operations only once at interaction completion.
-- [x] Fix `pointercancel` so it discards preview and makes no persistent commit.
-- [x] Implement 480-screen-pixel overscan culling with selected/edited/active pinning.
-- [x] Add a pure minimap data pipeline; preserve reset-only behavior without inventing navigation.
-- [x] Integrate production through the temporary legacy commit adapter and delete superseded pointer algorithms from `App.tsx`.
-
-Production document ownership is still legacy during Phase 4. The narrow adapter may replace the
-active `TaskCanvas` once per completed operation, allowing current legacy history/autosave to observe
-one mutation. This does not require normalized production workspace activation and does not create a
-legacy-format conversion or shadow `TaskMapDocument`. The controller architecture and commit port
-are final; the legacy adapter is temporary. Canvas-correlated camera writeback and bounded legacy
-text-card placement presentation live beside the adapter. They preserve current production parity
-without frame-time collection mutation and are deleted progressively as Phase 5 transfers the
-corresponding ownership to normalized feature slices.
-
-### Exit criteria
-
-- [ ] 60 FPS target receives a release-mode visual/manual measurement. Deterministic hot-path and
-      10,000-element culling fixtures pass, but they do not by themselves prove rendered FPS. Phase
-      4.5 changes the rendering path, so the final measurement is intentionally performed once after
-      Phase 4.5D against the accepted production material path.
-- [x] Pointer frames perform no serialization, cloning, persistence, database calls, or history commits.
-- [x] Multi-selection and locked-element rules match characterized parity in deterministic tests.
-- [x] Production manual parity checklist passed after commit `9a34a23`; the user directly verified
-      retained Phase 4 interaction behavior.
-
-Phase 4 implementation and manual interaction parity are accepted. Formal release performance
-acceptance remains open and is deferred to the final Phase 4.5 rendering path rather than measured
-twice.
-
-## Phase 4.5 — Visual System + Adaptive Acrylic Compositor
-
-This phase establishes the final application material/theme boundary before element migration so
-Phase 5 renderers target it once. Exact values and runtime invariants live in
-`docs/VISUAL-SYSTEM.md`; ADR 003 records the foundational decision.
-
-Phase 4.5B originally implemented and proved the cached Canvas2D adaptive compositor. ADR 003 later
-superseded that production strategy with live native CSS glass behind the same `MaterialSurface`
-boundary. The cached compositor, worker, fallback, `BackdropScene`, and cache code remain parked for
-rollback/reference until Phase 4.5D cleanup. Phase 4.5C and 4.5D production acceptance applies to
-the native-glass path unless the accepted ADR is deliberately revised.
-
-### 4.5A — Contract / foundation
-
-- [x] Add the normative visual specification and adaptive-compositor ADR.
-- [x] Define inactive target theme tokens, typed material definitions, shared acrylic profile, and
-      explicit static registry.
-- [x] Add `MaterialSurface` with `base`/`modal` plane inheritance and no compositor tuning API.
-- [x] Freeze exact legacy blur/frosted occurrences in transitional architecture checks.
-- [x] Update agent, architecture, wiring, parity, testing, baseline, and code-map guidance.
-
-This slice does not activate the target theme, migrate a production consumer, or implement a
-Canvas2D compositor, worker, or `OffscreenCanvas` runtime.
-
-### 4.5B — Adaptive compositor
-
-- [x] Prove the generic `BackdropScene`, adaptive-quality, invalidation, culling, cache-scheduler,
-      surface-registry, `base`/`modal` compositor, worker, fallback, and stale-result contracts.
-- [x] Integrate with the authoritative Phase 4 interaction controller without per-sample scene
-      building, blur, or persistent work; coalesce coverage-required rebuilds during long gestures.
-- [ ] Historical cached-compositor image/GIF fidelity validation remains incomplete. After ADR 003
-      supersession it is not a production acceptance gate unless the cached path is reconsidered.
-- [x] Add deterministic compositor tests and development-only diagnostics.
-
-The completed 4.5B work remains valid as a historical proof and rollback/reference implementation.
-Its worker/fallback/cache runtime is not the active production acrylic path.
-
-### 4.5C — Production visual migration
-
-- [x] **C1 foundation:** add scoped semantic geometry/state/typography tokens, reusable semantic UI
-      primitives, deterministic shared motion/spring/FLIP infrastructure, accessible LiquidTabs,
-      the permanent UI capability catalog, and a doubly gated development UI Lab.
-- [x] Apply the first C1 visual-review correction: keyboard-focus demonstration, Lab-only motion
-      simulation, real shared-compositor playground, bounded rounded-rectangle liquid selection,
-      and reduced acrylic radial highlights.
-- [x] **C2A workspace foundation:** activate the target theme on the production workspace root,
-      establish the base-compositor/workspace-chrome stacking contract, and synchronize the visible
-      canvas frame/grid with the legacy BackdropScene projection without changing interactions.
-- [x] **C2B floating toolbar:** mount only the production toolbar in the shared workspace-chrome
-      layer and migrate its two groups to Acrylic Large plus the C1 icon/toggle primitives without
-      changing callbacks, state ownership, or collapse behavior.
-- [x] **C2C side-panel shells:** mount the non-embedded Canvas Manager and Extensions panel in the
-      existing workspace-chrome layer; migrate only their shared Acrylic Large shell, header,
-      hidden-scroll framing, and scheduled entry/exit presentation while preserving embedded modes,
-      cards, search/filter controls, portals, and App-owned lifecycles.
-- [x] **C2D Canvas Browser presentation:** migrate non-embedded full/minimal/editor cards to Acrylic
-      Small, preview shells to Cutout, inline controls to C1 primitives, and reorder/drag visuals to
-      compositor-aware shared motion while preserving Canvas Manager projection, interaction,
-      callbacks, ordering, portals, and embedded zero-acrylic behavior.
-- [x] **C2E primary Extensions Browser presentation:** migrate only the main panel search/filter
-      controls, extension cards/icon boxes, favorites, sections, and empty state to C1 primitives
-      plus Acrylic Small/Cutout patterns while preserving filtering, localStorage, ordering,
-      drag/drop, embedded zero-acrylic behavior, and legacy Quick/tooltip/filter overlay ownership.
-- [x] **C2F production Minimap presentation:** move only the reset-only Minimap into the shared
-      workspace-chrome layer; migrate its shell/interior/reset control to Acrylic Large, Cutout,
-      and IconButton; synchronize DOM and compositor mask opacity while preserving projection,
-      semantic spatial colors, App lifecycle ownership, and zero navigation behavior.
-- [x] **C3A primary Settings presentation:** establish the existing modal-plane scrim/compositor/DOM
-      layer contract and migrate only the primary Settings shell, navigation, islands, rows, and
-      controls to Acrylic Large/Small plus C1 primitives while preserving feature state, focus,
-      callbacks, data/update flows, and deferred nested overlay ownership.
-- [x] **C3B production dialogs and modal presence:** add shared scheduler-driven root/nested modal
-      presence with compositor-group mask synchronization, then migrate Settings presence,
-      standalone/nested Update Available, Clear Canvas, and the Settings password dialog while
-      preserving feature callbacks, focus, mutation timing, and the existing two-plane runtime.
-- [ ] Migrate production application chrome to the target accent.
-- [ ] Migrate toolbar, panels, cards, settings, minimap, menus, dialogs, toasts, cutouts, and every
-      frozen legacy frosted consumer through `MaterialSurface` without changing feature behavior.
-- [ ] Preserve user-selected element colors and semantic/spatial colors.
-- [ ] Complete production visual, native-glass media-under-acrylic, animation, stacking, and Windows
-      WebView2 acceptance. Parked cached-compositor worker/fallback checks remain regression/reference
-      coverage rather than production acceptance gates unless that strategy is reactivated.
-
-C1 deliberately leaves the production root and production consumers unchanged. C2A migrates the
-scoped root and canvas frame/grid presentation, C2B migrates the floating toolbar, C2C migrates the
-outer side-panel shells/header/scroll framing, C2D migrates only Canvas Browser card, preview,
-editor, and reorder/drag presentation, C2E migrates only the primary Extensions panel internals,
-and C2F migrates only the production Minimap presentation. C3A migrates only the primary Settings
-presentation, and C3B migrates shared modal presence plus Update Available, Clear Canvas, and the
-Settings password dialog. Quick Extensions, shared info/filter overlays, the Settings color picker,
-creation UI, menus, command-runner/conflict/other dialogs, toasts, and canvas elements remain
-unchanged for later C3/Phase 5 slices.
-Completion and visual acceptance for 4.5C remain open.
-
-### 4.5D — Cleanup / acceptance
-
-- [ ] Delete `FrostedSurface`, legacy frosted CSS/tuner paths, and the transitional allowlist.
-- [ ] Run the full automated matrix and final architecture/material scan.
-- [ ] Complete manual visual acceptance and the release-mode rendered 60 FPS measurement on the
-      normal fixture against the final active `MaterialSurface`/native-glass production path.
-- [ ] Regenerate the final code map and close Phase 4.5 documentation gates.
-
-### Exit criteria
-
-- All production chrome surfaces use the static material system; no feature-owned or legacy direct
-  backdrop-filter implementation and no second active acrylic renderer remains outside the material
-  boundary.
-- Pan, zoom, drag, and resize preserve the Phase 4 high-frequency contract and pass deterministic
-  interaction/culling tests plus applicable native-material hot-path checks.
-- Stable and development Tauri/WebView2 builds pass native-glass visual, lifecycle, and
-  material-boundary checks. Parked cached-compositor worker/fallback/disposal coverage remains
-  historical regression coverage and does not gate production unless that strategy is reactivated.
-- Manual visual acceptance and documented release-mode performance measurement pass.
-
-## Database integration intermission — explicitly requested 2026-09-06
-
-Pause the glass acceptance follow-up and execute `docs/DATABASE-INTEGRATION-PLAN.md` under ADR 004.
-This brings forward the database-activation portions of later phases: confirmed-load/workspace
-composition, session lifecycle, narrowly scoped application IPC, retained-view/command integration,
-media access and production startup cutover. It does not authorize unrelated element ownership,
-glass redesign, old-format conversion in the main app, or general Phase 5 migration.
-
-Phase 4.5 remains incomplete. Existing files/keyring stay untouched. Resume its glass acceptance work
-after the intermission's actual application, security, media and parity checks pass. Benchmark loading
-still requires separate permission; the user selected files-only preparation.
-
-Local intermission progress: steps 1 and 2a/2b implement confirmed-load composition, guarded lifecycle
-and scoped native commands/client. The commands are permitted in product builds, but the application
-composition is unmounted. Step 3a records the retained-view inventory and adds atomic group geometry
-commands. Step 3b1 adds unmounted typed card/container payloads and read-only projections with strict
-relationship checks and camera-independent caching. Step 3b2 extends that same unmounted projection
-to text blocks/mind-map nodes and typed connections, including retained endpoint/pair rules. Step 3b3
-adds image/opaque-media metadata projections, shared card/image ordering and image endpoints without
-byte access. Step 3b4 completes staged read-only coverage with nine explicit retained-extension
-definitions, strict configuration/target checks and per-target cached projections. Step 3c1 now wires
-feature-data acceptance into the unmounted transport and workspace candidate-publication boundaries.
-Step 3c2a adds atomic selection deletion and shared single-remove/deletion-lock rules to that product
-composition. Step 3c2b adds shared product geometry lock/resize-capability checks while retaining the
-generic atomic group transaction. Step 3c2c adds atomic placement/reparent/detach and shared card/image
-sibling ordering with captured preconditions and a generic-data bypass guard. At the user's request,
-step 3c2d/e combines typed field-scoped content and captured root-group layer commands; both are complete
-locally, including single-API guards and retained lock semantics. Step 3c3 adds bounded, revocable captured
-callbacks and editor-value finalizers to the unmounted product factory. Step 3d1 composes the existing
-interaction controller with those callbacks, including eligible target capture and revocation cleanup.
-Step 3d2 adds normalized geometry/drop mapping through the existing compatibility calculations and
-captured shared child order. At the user's request, 3d3a follows with captured edge actions and atomic
-node-plus-edge creation. Step 3d3b adds atomic captured extension install/remove/configuration/activation
-and primary-directed toggles through the same callback owner and registered definitions. Step 3d3c1 adds
-atomic internal-copy insertion with same-workspace cross-canvas lifetime and session revocation. Step 3d3c2
-adds captured container insertion/companions and atomic AI JSON replacement while retaining image/media
-and clipboard/presentation boundaries. Step 3d3d is split: 3d3d1 completes captured document-settings and
-guarded existing undo/redo callbacks. Batch A now completes remaining supporting preferences/view-state,
-canvas routing and media integration: strict edition-local preferences, encrypted device camera cache,
-captured canvas/creation commands, native picker/chunk imports and shared lazy URL leases with session
-flush/purge. ADR 005 records device-resource and media boundaries. This is not visible activation.
-Execution regrouped at the user's request on 2026-09-12: **Batch A** completes remaining step 3 plus
-step 4 (preferences/view state/canvas routing and media); **Batch B** combines step 5 with database
-acceptance/cleanup from step 6; **Batch C** resumes glass acceptance. Old substeps are internal
-checklists, not separate session boundaries. Focused validation during implementation, consolidated
-full validation/docs per batch; no acceptance/security/user-data permissions are relaxed.
-Batch A is complete locally with automated fixture/build checks; next is Batch B. Supporting code
-does not close retained feature wiring. Startup, visible media/control binding, native lifecycle and
-live acceptance remain open; the visible app still uses legacy storage. See DATABASE-VIEW-INTEGRATION
-for the coherent cutover checklist rather than restarting the small historical substeps.
-
-- [ ] Complete intermission steps 1–6 and verify the real app exclusively uses the new database path.
-- [ ] Resume the paused glass acceptance plan without treating database work as FPS/visual acceptance.
-
-## Phase 5 — Element modules
-
-Port one complete element at a time:
-
-1. Text card
+Status: complete.
+
+Purpose:
+
+- composition-only AppShell;
+- domain/platform/store boundaries;
+- transient interaction contracts;
+- architecture enforcement.
+
+## Phase 2 — Database/encryption/session foundation
+
+Status: backend/session foundation complete and now integrated into the product runtime.
+
+The later database activation intermission brought the production lifecycle, resource ownership,
+media transport and remembered-device/view state forward.
+
+Remaining release-specific database item:
+
+- packaged/live stable + development coexistence acceptance.
+
+## Phase 3 — Normalized document core/history
+
+Status: complete.
+
+Includes:
+
+- normalized current document;
+- named commands;
+- atomic patch history;
+- workspace orchestration;
+- revision-aware persistence.
+
+## Phase 4 — Canvas/interaction engine
+
+Status: implementation and retained interaction parity accepted.
+
+Includes:
+
+- viewport/camera;
+- selection;
+- move/resize;
+- snapping;
+- culling;
+- minimap projection;
+- one semantic completion per persistent interaction.
+
+Final rendered performance acceptance is folded into the final Phase 4.5 rendering path.
+
+# Phase 4.5 — Final UI + Glass System
+
+This phase is currently active.
+
+The old cached-compositor/native-glass C1/C2/C3 implementation history is preserved in Git and
+`WORK-LOG.md`. It no longer defines the active plan.
+
+The active contracts are:
+
+- `UI-SYSTEM-CONTRACT.md`
+- `GLASS-SYSTEM-CONTRACT.md`
+- `UI-QUALITY-GUARDRAILS.md`
+
+## 4.5A — Contract/documentation reset
+
+- [x] Install the final UI/glass/quality contracts.
+- [x] Remove superseded UI/visual/glass implementation-plan docs.
+- [x] Update architecture/agent/workflow/wiring/testing/parity references.
+- [x] Record the new foundational decision in an ADR.
+- [x] Keep historical evidence in Git/WORK-LOG rather than competing normative docs.
+
+Exit:
+
+- a new session has one unambiguous answer for current UI/glass intent.
+
+## 4.5B — Database-backed development workbench
+
+- [x] Replace the separate UI-Lab app entry with one development workbench inside the real
+      `DatabaseApplication` runtime.
+- [x] Provide App ↔ UI Lab switching without reopening/replacing the active database session.
+- [x] Share material/theme/motion implementation and dev tuning across both views.
+- [x] Add material/hitbox/geometry/performance diagnostics.
+- [x] Keep tooling development-only and out of product UI.
+
+Exit:
+
+- controlled fixtures and real app can be compared with the same runtime/tuning.
+
+## 4.5C — Rendering proof
+
+Build the smallest proof scene before redesigning the full renderer.
+
+Prove:
+
+- [ ] same-layer persistent Major isolation;
+- [x] higher overlay Major sampling of completed lower UI;
+- [x] promoted Minor-over-Minor blur ordering;
+- [x] continuously live moving bright backdrop;
+- [x] continuously live animated backdrop;
+- [ ] overscan appearance without stale/cross-layer contamination.
+
+Current native candidate: four checks have positive fixture evidence. Rounded output clipping is
+fixed, but logical isolation/cross-layer contamination still fail. Revalidate these fixture checks after any
+backend revision. Evidence and limitations: `GLASS-RENDERING-PROOF.md`.
+
+If the candidate WebView2/native CSS topology fails, revise the private material backend before
+continuing. Do not weaken the visual contract.
+
+Exit:
+
+- one rendering approach demonstrably satisfies the core glass topology.
+
+## 4.5D — Final material/depth architecture
+
+- [ ] Implement logical glass layer contexts.
+- [ ] Implement canonical Major/Minor recipe ownership.
+- [ ] Implement settled Minor batching.
+- [ ] Implement promotion/demotion for overlap/drag.
+- [ ] Separate geometry invalidation from backdrop damage.
+- [ ] Keep browser-specific refresh behavior private to the material backend.
+- [ ] Retain intended overscan/ambient response.
+
+Exit:
+
+- core glass topology is deterministic in UI Lab and real app.
+
+## 4.5E — Scroll + motion
+
+- [ ] Implement settled scroll-edge material shrinking.
+- [ ] Keep ordinary content unscaled and rounded-masked.
+- [ ] Keep rim/shadow independent from content clipping.
+- [ ] Implement held-item exemption during auto-scroll.
+- [ ] Implement liquid pickup/drop geometry morph.
+- [ ] Implement composable Fade / Material Fade / Slide / Lift / Scale / Geometry Morph.
+- [ ] Tune material-fade blur timing after structural behavior works.
+
+Exit:
+
+- list/motion behavior satisfies the glass contract.
+
+## 4.5F — UI-system cleanup
+
+- [ ] Standardize major dialog/overlay shell.
+- [ ] Migrate Create Canvas to Major Glass.
+- [ ] Standardize ScrollArea/scrollbar presentation.
+- [ ] Remove Settings scrollbar bleed/gutter.
+- [ ] Audit shared button/IconButton variants and remove stale local rims.
+- [ ] Fix common icon-action hit targets (including Canvas Browser overflow).
+- [ ] Remove feature-local visual forks that should be reusable primitives/patterns.
+
+Exit:
+
+- core chrome/dialog/control inconsistencies no longer require one-off fixes.
+
+## 4.5G — Acceptance
+
+- [ ] Run the Glass System hard acceptance matrix.
+- [ ] Validate the same tuning in controlled Lab and real App.
+- [ ] Run deterministic round-trip/stale-backdrop checks.
+- [ ] Run release-mode performance benchmark with recorded environment.
+- [ ] Compare median/p95/p99 frame times and hot-path diagnostic invariants.
+- [ ] Verify no accumulating observers/schedulers/filter layers/promoted surfaces.
+- [ ] Verify packaged stable/dev database/application coexistence.
+
+Exit:
+
+- final UI/material path is visually accepted and does not materially regress performance.
+
+## 4.5H — Cleanup
+
+- [ ] Delete obsolete cached renderer/worker/backdrop paths once rollback is no longer needed.
+- [ ] Delete obsolete compatibility material paths.
+- [ ] Remove old UI-Lab architecture.
+- [ ] Remove obsolete motion/material invalidation APIs.
+- [ ] regenerate CODEMAP;
+- [ ] refresh final state/docs.
+
+Exit:
+
+- one active UI/material architecture remains.
+
+## Phase 5 — Element renderer migration
+
+Order:
+
+1. Text Card
 2. Container
-3. Text block
+3. Text Block
 4. Image/GIF
-5. Mind-map node and connections
+5. Mind-map node/connections
 
-Each port includes model, schema, commands, selectors, renderer, context menu, tests, history behavior, persistence behavior, and parity acceptance.
+Each slice transfers presentation ownership to the normalized architecture without reopening
+persistence ownership.
 
-Each Phase 5 slice also replaces its corresponding legacy geometry mapping/commit behavior with a
-normalized command/workspace-backed implementation of the Phase 4 commit contract. Text-card
-ownership removes legacy bundle/reparent adaptation; container/text-block/image ownership removes
-their geometry/resize mapping; the final element slice removes the adapter itself. No new persistent
-feature may be added to legacy collections.
+## Phase 6 — Extensions
 
-### Exit criteria
+Migrate retained extensions:
 
-- Every retained element is independently registered.
-- No element-specific branches accumulate in `AppShell` or generic canvas orchestration.
-- Images and GIFs are lazy-loaded and media bytes never enter Redux.
+- Lock
+- Checkbox
+- Search
+- Privacy
+- Color
+- AI JSON copy/paste
 
-## Phase 6 — Extension modules
-
-Port retained extensions:
-
-1. Lock
-2. Checkbox
-3. Search
-4. Privacy
-5. Color tools
-6. AI JSON copy/paste
-
-Do not port daily reset, sorting, or pick-a-card.
-
-### Exit criteria
-
-- Generic installation/removal commands work for every extension.
-- Extension menus are generated from module contributions.
-- Extension conflicts and target compatibility are schema-validated.
-- No unrelated file contains one callback per extension.
+Removed legacy features remain removed.
 
 ## Phase 7 — Workflow Runner
 
-### Goals
-
-Preserve the useful Command Runner workflow without its unsafe raw-shell architecture.
-
-### Work
-
-- Define versioned structured workflow schema.
-- Support executable, argument array, working directory, sequential/parallel groups, visible/background mode, wait behavior, and process stop.
-- Track only TaskMap-launched processes.
-- Disable imported workflows until trusted.
-- Add execution logs without recording secrets.
-
-### Exit criteria
-
-- No raw shell string, admin elevation, hidden elevated execution, or `taskkill` orchestration exists.
-- Existing user workflows can be represented through structured steps or are documented as unsupported.
-- Security and process-lifecycle tests pass.
+Complete the structured Workflow Runner UX/runtime.
 
 ## Phase 8 — Remaining product features
 
-- Canvas manager
-- Minimap final parity
-- Settings
-- Update flow
-- AI JSON editor workflow
-- Tray UX
-- Config import/export
-- Database picker and recent files (activation subset brought forward by the database intermission;
-  completion is tracked there, not assumed here)
-- Error recovery and backup restoration
-- Remaining product-shell production activation after element/document ownership has migrated
+Finish retained features not covered by element/extension slices, including updater/tray/settings
+work that remains genuinely incomplete.
 
-### Exit criteria
+## Phase 9 — Standalone migrator
 
-- Feature parity checklist is complete for retained behavior.
-- Removed features have no dead code, schema fields, settings, or migration branches.
+Complete/ship the separate legacy-data migrator as needed.
 
-## Phase 9 — Legacy migrator
+Legacy conversion remains outside the main product.
 
-### Goals
+## Phase 10 — Hardening/release
 
-- Convert existing user data without putting legacy code in the main app.
-
-### Work
-
-- Build standalone graphical migrator.
-- Read old database and keyring format.
-- Convert supported elements and retained extensions.
-- Report removed features and unsupported records.
-- Write new `.tmapdb` with user-selected password.
-
-Phase 9 exclusively owns old database-format conversion. The temporary Phase 4 production commit
-adapter neither reads old formats nor belongs to the migrator.
-
-### Exit criteria
-
-- Migration fixtures cover real legacy versions.
-- Conversion report lists converted, transformed, removed, and skipped data.
-- Main TaskMap binary contains no legacy migration implementation.
-
-## Phase 10 — Hardening and release
-
-- Full parity regression pass
-- Stress tests at 10,000 elements and 2 GB media
-- Recovery tests for crash, full disk, corrupted backup, wrong password, and lock contention
-- Windows Defender submission/testing
-- Installer and updater signing work
-- Documentation review
-- Stable-release migration guide
-
-## Definition of done
-
-The refactor is complete only when:
-
-- All retained features pass parity acceptance.
-- Removed features and legacy branches are absent.
-- Architecture checks pass.
-- Stable and development editions run simultaneously with separate data.
-- Database security and recovery tests pass.
-- Performance targets pass on the documented reference hardware.
-- The standalone migrator successfully converts the user's production legacy database.
+- packaged release validation;
+- security/performance/manual acceptance;
+- migration cleanup;
+- final architecture/documentation scan.

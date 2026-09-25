@@ -13,6 +13,12 @@ export function createMaterialSurfaceStyle(
   };
 
   if (definition.strategy === "native-glass") {
+    // A filter-output mask avoids making an ancestor a new backdrop root. The SVG viewport
+    // follows mask-size; vmin clamps both corner axes together like CSS border-radius.
+    const corner = `min(${radius}px,50vmin)`;
+    const mask = `<svg xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" rx="${radius}" fill="white" style="rx:${corner};ry:${corner}"/></svg>`;
+    materialStyle["--taskmap-material-output-mask"] =
+      `url("data:image/svg+xml,${encodeURIComponent(mask)}")`;
     materialStyle["--taskmap-material-blur"] = `${definition.blurPx}px`;
     materialStyle["--taskmap-material-preblur"] = `${definition.preblurPx ?? 0}px`;
     materialStyle["--taskmap-material-interaction-preblur"] =

@@ -15,6 +15,13 @@ afterAll(() => vi.unstubAllGlobals());
 afterEach(cleanup);
 
 describe("UiLabApp", () => {
+  it("leaves window controls to the database application when embedded", () => {
+    const { container } = render(<UiLabApp embedded />);
+    expect(
+      container.querySelector('[data-taskmap-ui-lab="workbench-baseline"]'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Window controls" })).not.toBeInTheDocument();
+  });
   it("renders the isolated current-material baseline through MaterialSurface", () => {
     const { container } = render(<UiLabApp />);
 

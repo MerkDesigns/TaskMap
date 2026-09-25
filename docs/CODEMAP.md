@@ -1,454 +1,116 @@
 # TaskMap Code Map
 
-This file is the high-level navigation entrypoint for Codex and human contributors. Read it before opening broad parts of the repository. Update it whenever files or subsystem ownership change.
+Current ownership and navigation only. Source-level inventory is generated below; implementation
+history is preserved in Git and WORK-LOG.md. This map does not override subsystem contracts.
 
 ## Governing documents
 
-`docs/VISUAL-SYSTEM.md` is the normative target theme, material-definition, compositor-constant,
-invalidation, fallback, and performance contract. Read it before changing application chrome or
-materials.
+- `AGENTS.md` and `ARCHITECTURE.md` — global boundaries and implementation rules.
+- `docs/AI-WORKFLOW.md` — scoped authority and cross-session workflow.
+- `docs/REFACTOR-STATE.md` and `docs/REFACTOR-ROADMAP.md` — current status and next gates.
+- `docs/UI-SYSTEM-CONTRACT.md` — Surface/Material/Content architecture and development workbench.
+- `docs/GLASS-SYSTEM-CONTRACT.md` — material behavior, rendering proof and acceptance.
+- `docs/UI-QUALITY-GUARDRAILS.md` — shared controls, dialogs, scrollbars and hit targets.
+- `docs/decisions/006-final-ui-glass-contract-reset.md` — explicit UI/glass supersession.
+- `docs/FEATURE-PARITY.md` and `docs/FEATURE-WIRING.md` — retained behavior and feature integration.
+- `docs/SECURITY.md` and `docs/DATA-FORMAT.md` — security and persisted format.
+- `docs/TESTING.md` — automated/native/visual/performance gates.
+- `docs/BASELINE-CAPTURE.md` and `docs/WORK-LOG.md` — baseline evidence and chronological history.
+
+## Production application ownership
+
+- `src/app/AppShell.tsx` — composition, error boundaries and current development-entry gates.
+- `src/app/database/DatabaseApplication.tsx` — one renderer-lifetime runtime, session gate and
+  guarded window close/fallback.
+- `src/app/database/createTauriDatabaseSessionController.ts` — native factory and revocation wiring.
+- `src/app/database/createApplicationDatabaseRuntime.ts` and `databaseRuntimeResources.ts` —
+  workspace/session, callbacks, preferences, remembered views, privacy and media resource ownership.
+- `src/app/database/createDatabaseSessionController.ts` — serialized lifecycle operations, epoch
+  cancellation, admission, save flushing, revocation and disposal. Keep independent future
+  responsibilities in collaborators.
+- `src/app/database/createDatabaseWorkspace.ts` and `acceptRetainedDocument.ts` — confirmed-load
+  composition and fail-closed feature-data admission.
+- `src/app/workspace/`, `src/app/commands/`, `src/app/selectors/` and `src/app/persistence/` —
+  normalized store, named transactions/history, selectors and revision-aware deferred saves.
+- `src/domain/` — pure document/schema/invariant/command/history/ID contracts.
+- `src/app/preferences/` — separate device preferences, encrypted remembered views and privacy.
+- `src/app/media/createSessionMediaResources.ts` — bounded lazy loads, URL leases, cancellation
+  and session cleanup; media bytes never enter Redux.
+
+The database runtime is mounted in production. ADRs 004/005 document current ownership, not a pending
+cutover. Packaged stable/Dev coexistence remains an acceptance gate.
+
+## Interaction and retained presentation
+
+- `src/app/interactions/` — transient pointer/camera controllers and semantic completion ports.
+- `src/canvas/` — pure geometry and viewport/culling calculations.
+- `src/app/view-projection/createRetainedCanvasBinding.ts` — mounted retained-view/interaction binding.
+- `src/app/view-projection/createRetainedCanvasProjection.ts` and adjacent projectors — cached
+  immutable projections, cleared by the runtime on revocation.
+- `src/legacy/RetainedCanvasApplication.tsx`, `src/App.tsx` and `src/components/` — retained
+  presentation bridge and current feature views. They are not the production persistence owner.
+- `src/elements/` — typed models, schemas and retained projections. Full renderer ownership moves
+  in Phase 5: Text Card, Container, Text Block, Image/GIF, Mind-map.
+- `src/extensions/architectureRegistry.ts` and adjacent extension modules — explicit retained
+  definitions/configuration/compatibility. Legacy `src/extensions/registry.ts` is reference code.
+
+## UI/material implementation and next boundary
+
+- `src/ui/materials/MaterialSurface.tsx` — current public material boundary.
+- `materialDefinitions.ts`, `materialRegistry.ts`, `nativeGlassRecipe.css` — current shared recipes.
+- `nativeGlassGeometry.ts`, `materialGeometryScheduler.ts`, `materialGeometryInvalidation.ts` —
+  current geometry/rim measurement and scheduling.
+- `SharedSmallGlassPlane.tsx` and `src/ui/patterns/workspace/` — current shared Minor batches,
+  list geometry and chrome patterns. Existing flat clipping is not the final shrinking-material rule.
+- `src/ui/motion/` — shared frame scheduling and current motion controllers.
+- `src/ui/primitives/`, `src/ui/patterns/`, `src/ui/theme/` — reusable controls, compositions and tokens.
+- `src/app/development/` — DEV-only App/UI Lab view switch inside the admitted database runtime;
+  session-local blur tuning, diagnostic outlines and opt-in frame/material counters.
+- `src/ui-lab/` — synthetic UI fixtures embedded by the workbench without a second window chrome
+  or database owner. The isolated entry and `src/ui/dev/` remain reference tooling pending cleanup.
+- `src/ui-lab/glass-proof/` — isolated current-backend proof composition and synthetic changing
+  backdrop; native screenshots/results are recorded in `docs/GLASS-RENDERING-PROOF.md`.
+- `src/ui/materials/compositor/` and related cached-compositor/provider code — parked/reference
+  implementation. ADR 003 is historical; it does not freeze the final rendering topology.
+- `src/ui/materials/FrostedSurface.tsx` — compatibility/reference material, pending final cleanup.
+
+The active native CSS implementation must pass the new WebView2 proof before its topology is accepted.
+Logical Major isolation, higher overlays, promoted Minor overlap and continuously live backdrops are
+proof gates. Existing batching, overscan and motion mechanisms are implementation candidates.
+Do not remove rollback/reference code before acceptance or leak renderer internals into features.
+
+## Platform and Rust
+
+- `src/platform/` — the only TypeScript Tauri imports; typed database/media/settings/window/workflow clients.
+- `src-tauri/src/commands/` — narrow commands and capabilities; application commands use session authority.
+- `src-tauri/src/session/` — native session/key ownership, lock/revocation, media read tokens and uploads.
+- `src-tauri/src/database/` — SQLite envelope, generations, media and backup/recovery.
+- `src-tauri/src/crypto/` — password derivation and authenticated encryption.
+- `src-tauri/src/files/` — writer/file ownership and atomic filesystem operations.
+- `src-tauri/src/settings/` — edition-local configuration and remembered resources.
+- Legacy storage/model/raw-runner files remain historical source; production boot excludes their
+  authority. Structured Workflow Runner completion and standalone migration remain roadmap work.
+
+## Development and validation tooling
+
+- `src/features/database-entry/` — product entry/admission/resource UI.
+- `src/features/phase2-database/` — gated development database harness.
+- `src-tauri/tauri.dev.conf.json` and adjacent development/preview/Lab configs — current isolated entries.
+- `scripts/check-architecture.mjs` — dependency/material boundaries, including transitional allowances.
+- `scripts/check-*-exclusion.mjs` and other production-inspection scripts — build/capability isolation.
+- `scripts/generate-codemap.mjs` — regenerates only the inventory below, not this overview.
+- `scripts/report-file-sizes.mjs` — module-size review support.
+- `scripts/generate-baseline-fixtures.mjs` and `fixtures/baseline/` — deterministic baseline fixtures.
+- `scripts/generate-glass-benchmark.py` — offline synthetic-media fixture generation/verification;
+  `scripts/test_glass_benchmark.py` and `scripts/glass-benchmark.test.mjs` validate artifacts.
+- `scripts/glass-pan-probe.mjs` — manual development pan/idle diagnostic, never product code.
+  Callback pacing is not rendered FPS. Current methodology and fixture boundaries are in TESTING.md.
+
+## Navigation
 
-- `AGENTS.md` — Mandatory implementation, dependency, security, performance, and file-size rules.
-- `ARCHITECTURE.md` — Normative target architecture and runtime boundaries.
-- `docs/REFACTOR-ROADMAP.md` — Ordered implementation phases and exit criteria.
-- `docs/FEATURE-PARITY.md` — Retained, redesigned, and removed user-facing behavior.
-- `docs/FEATURE-WIRING.md` — Exact process for adding elements, extensions, features, and platform operations.
-- `docs/DATA-FORMAT.md` — New `.tmapdb` SQLite envelope and encrypted document model.
-- `docs/SECURITY.md` — Password, key, lock, media privacy, logging, and workflow security.
-- `docs/TESTING.md` — Test layers, fixtures, performance budgets, and phase gates.
-- `docs/UI-SYSTEM.md` — Reusable UI capability catalog, status, ownership, motion, and UI Lab guide.
-- `docs/BASELINE-CAPTURE.md` — Required screenshots, recordings, behavior descriptions, and performance evidence for retained legacy behavior.
-- `docs/AI-WORKFLOW.md` — Cross-session workflow for determining current refactor state, selecting
-  work, reviewing actual changes, and maintaining documentation.
-- `docs/REFACTOR-STATE.md` — Concise current snapshot of the active phase, migration boundary,
-  blockers, and immediate next work. It is descriptive and does not override normative docs.
-- `docs/WORK-LOG.md` — Chronological implementation/debugging history including experiments,
-  measurements, reversions, decisions, and follow-ups.
-
-## Current legacy implementation
-
-These paths describe the existing app on the starting branch. They are reference material for parity, not the target architecture.
-
-- `src/App.tsx` — Legacy god component containing application state, interactions, history coordination, persistence, feature orchestration, and rendering. Do not extend it on `architecture-v1`.
-- `src/types.ts` — Legacy shared domain and interaction types.
-- `src/hooks/useCanvasDocument.ts` — Legacy canonical active-canvas reducer; useful behavior reference.
-- `src/app/history.ts` — Legacy snapshot history algorithms; behavior reference only.
-- `src/app/appData.ts` — Legacy frontend migration and normalization.
-- `src/app/appDataSchema.ts` — Legacy Zod document validation.
-- `src/extensions/registry.ts` — Legacy extension metadata registry; concept reference.
-- `src/components/ContainerNode.tsx` — Legacy container rendering and extension controls.
-- `src/components/TextCardNode.tsx` — Legacy text-card rendering, links, checkbox, and Command Runner controls.
-- `src/components/ContextMenus.tsx` — Legacy centralized menus and extension-specific removal branches.
-- `src-tauri/src/storage.rs` — Legacy SQLite, encryption, keyring, migration, and split-persistence implementation.
-- `src-tauri/src/model.rs` — Legacy duplicated Rust document validation and migrations.
-- `src-tauri/src/commands.rs` — Legacy raw Command Runner implementation.
-
-## Target frontend ownership
-
-These paths are created during the roadmap and become the only approved ownership locations.
-
-### `src/app/`
-
-`src/app/database/createDatabaseWorkspace.ts` composes the existing workspace/autosave core with a
-database client and validates confirmed loads before admission. It has no startup or IPC side effects
-and is not yet mounted in production. Integration steps are in `docs/DATABASE-INTEGRATION-PLAN.md`
-under ADR 004; the glass acceptance plan is paused for this explicit intermission.
-
-`src/app/database/createDatabaseSessionController.ts` owns unmounted session lifecycle coordination,
-operation epochs, transition edit guards, flush/cleanup and cancellation. `databaseSessionRequests.ts`
-creates canonical new-document requests and sanitized operation results. The existing workspace
-command/history boundary accepts the controller's edit guard; persistence remains the same coordinator.
-`createTauriDatabaseSessionController.ts` connects it to native edition-checked clients on explicit
-construction, still unmounted. Real view/media purge-hook wiring remains a later plan step.
-
-`app/database/acceptRetainedDocument.ts` uses a short-lived cleared retained projection as the staged
-feature-data acceptance authority. The Tauri session factory supplies it to platform transport and
-workspace load/command/history publication boundaries. `domain/document/documentAcceptance.ts` defines
-only the neutral callback contract and fail-closed invocation; generic core/harness remain generic.
-The application platform factory requires a policy without importing feature/application modules.
-No retained renderer or long-lived validation cache is mounted by this seam.
-
-`app/commands/retainedDocumentCommandHandlers.ts` supplies an explicit product handler list to the
-existing workspace dispatcher (generic/harness defaults unchanged). `retainedSelectionDeletion.ts`
-owns application-level atomic selection/parent cascade coordination and retained deletion protection;
-single-element removal delegates to the same command policy. Adjacent behavior/performance tests cover
-one transaction, media retention, lock semantics, product composition and a 1,000-child cascade.
-
-`retainedGeometryCommands.ts` adds product lock/resize-capability guards for both geometry entry points,
-delegating writes/stale checks to the generic group command and its exported schema. Adjacent behavior,
-controller-completion/performance tests and `retainedGeometryTestSupport.ts` cover all retained types,
-canonical-vs-measured bounds, current locks and preview/history/save isolation. Placement remains separate.
-
-`docs/DATABASE-VIEW-INTEGRATION.md` records the current field/action integration map. The generic
-`src/domain/commands/core/elementGeometryCommands.ts` provides one atomic group-geometry transaction;
-`src/app/workspace/workspaceGroupGeometry.test.ts` exercises test-only controller completion wiring
-through existing history/autosave. This is not a production view or interaction adapter.
-
-`src/app/view-projection/createRetainedCanvasProjection.ts` composes staged module-owned read-only
-projectors over the immutable normalized document. It caches by document/entity identity, validates
-container relationships, and returns no partial view for unsupported content. It is unmounted; its
-explicit cache clearing must join lifecycle cleanup before cutover. No renderer or second store.
-`createMindMapConnectionsProjection.ts` indexes/cache-projects edges once per document traversal and
-rechecks current endpoint capabilities and duplicate pairs; `retainedCanvasProjectionTypes.ts` owns
-the frozen-view/result contracts. Card/container-specific test filenames retain their coverage focus.
-
-`createImageMediaProjection.ts` caches validated frozen metadata separately; image view caches depend
-on referenced metadata as well as element/layer identity. No legacy loader, bytes, URL or second store.
-
-`createRetainedExtensionsProjection.ts` validates registered extension configurations/targets and
-caches frozen effective props per element. The canvas adapter includes extension identity in its
-element cache dependencies; full metadata retains disabled installations. This is not command/admission
-enforcement, and cache clearing must still connect to the real session lifecycle.
-
-Application composition, Redux store setup, transient interaction access, command dispatch, selectors, error reporting, and lifecycle coordination. `AppShell.tsx` remains thin. Phase 1 keeps the temporary `src/legacy/LegacyApplication.tsx` adapter outside the new-architecture error boundary, while `AppProviders.tsx` composes Redux and transient interaction providers for new features; the older files already under `src/app/` remain legacy behavior references.
-
-### `src/domain/`
-
-Pure TypeScript document model, schemas, invariants, commands, history types, and workflow model. No React, Tauri, or DOM imports.
-
-### `src/canvas/`
-
-Pure canvas geometry and viewport-culling calculations. Phase 4 interaction controllers live at the
-application boundary under `src/app/interactions/`.
-
-### `src/elements/`
-
-One self-contained module per element type. Phase 1 defines the module contract in `elementDefinition.ts` and an explicit, initially empty registry in `registry.ts`; no element types are ported yet.
-
-Database intermission 3b1 adds staged `text-card/` and `container/` model schemas and presentation-only
-retained-view projectors, with model tests and shared `cardContainerTestFixtures.ts`. Complete renderer,
-command and registry definitions are still pending; no placeholder registrations are introduced.
-
-Step 3b2 adds `text-block/` model/retained-view projection and `mind-map/` node/edge schemas, same-canvas
-capability/pair validation and retained node/edge projectors. No feature renderer or callback is
-mounted yet; ordinary cards are not connectable, and image capabilities follow the media payload slice.
-
-Step 3b3 adds `image/` model/metadata schema, read-only view projection and fixtures/tests. It preserves
-empty placeholders and backgrounds, shares card/image placement/order and adds image connectability.
-Views expose opaque metadata rather than legacy hash fields; renderer/media binding remains unmounted.
-`src/domain/document/elementPlacement.ts` owns the shared nullable child-placement schema used by card
-and image modules, without changing the generic document envelope or importing element modules.
-
-### `src/extensions/`
-
-One self-contained module per retained extension. The target contract is in `extensionDefinition.ts`.
-Step 3b4 populates `architectureRegistry.ts` with data-only definitions for `privacy/`, `lock/`,
-`color-picker/`, `checkbox/`, `search/`, `auto-checkbox/`, `counter/`, `inherit-card-color/` and
-`copy-paste-json/`. Each owns a strict configuration schema, defaults and canonical compatibility.
-`retainedExtensionDefinition.ts` supplies the typed optional-prop compatibility projection attached
-to those definitions; `retainedDefinitions.test.ts` covers defaults/schema/target contracts.
-No dummy controls or active commands are registered. Existing `registry.ts` remains the active legacy
-registry until coherent feature wiring/cutover; the structured Workflow Runner is not implemented here.
-
-### `src/features/`
-
-Product features not represented as element or extension modules: canvas manager, minimap, database picker, Workflow Runner, settings, and updates.
-
-Phase 2 adds `src/features/phase2-database/`, a development-only persistence harness. It owns only ephemeral manual-test state and a minimal test document editor; it is not a production database picker and does not connect the legacy application to the new database.
-
-### `src/platform/`
-
-Typed frontend boundary for database, media, settings, and structured workflow operations.
-`database/createValidatedDatabaseClient.ts` holds the shared current-document validation/confirmation
-and captured-session save transport. `tauriDatabaseClient.ts` selects development harness aliases;
-`tauriApplicationDatabase.ts` selects the scoped application commands after resolving native edition,
-with tokenized picker/recent settings access. The Rust media repository is tested directly; streaming
-frontend transport remains intermission step 4. Only this area may import new Tauri APIs.
-
-### `src/ui/`
-
-Shared presentation primitives. `src/ui/theme/` owns scoped target theme tokens;
-`src/ui/materials/` owns `MaterialSurface`, the static typed material registry, exact native-glass
-definitions, logical sampling boundaries, the opt-in material-presence seam, and the parked
-compositor boundary; `src/ui/motion/` owns deterministic math, the one shared UI animation
-frame, reduced-motion state, and local FLIP utilities; `src/ui/primitives/` owns generic semantic
-controls; and `src/ui/dev/` owns the doubly gated UI Lab. The old `FrostedSurface` remains frozen
-migration debt until Phase 4.5C/4.5D.
-
-### `src/ui-lab/`
-
-Permanent isolated development entry for material and UI-system baselines. It composes only shared
-UI presentation boundaries and never mounts product application, state, persistence, or platform
-modules. `ui-lab.html` and `src-tauri/tauri.ui-lab.conf.json` are its dedicated web and Tauri
-entrypoints; `src/ui-lab/system/` owns the experimental Surface and Material boundary plus the
-UI-Lab-only Surface-attached presence controller and shared-scheduler hook. The older
-`src/ui/dev/DevelopmentUiLab.tsx` remains unchanged.
-
-## Phase 1 architecture foundation
-
-- `src/app/interactions/` - read-only transient interaction consumer contract, idle default, provider,
-  typed hooks, and the document-model-agnostic Phase 4 controller/selection/snapping implementation.
-- `src/app/errors/` - typed new-architecture render-failure reporting and deterministic error boundary; legacy errors remain outside it.
-
-- `src/app/AppShell.tsx`, `AppProviders.tsx`, `store.ts`, and `hooks.ts` — composition-only shell and typed Redux access.
-- `src/app/commands/` and `src/app/selectors/` — named command dispatch and selector boundaries.
-- `src/domain/document/`, `commands/`, `history/`, and `ids/` — pure current-version contracts, schema entrypoint, invariants, and transaction types.
-- `src/platform/database/`, `media/`, `settings/`, and `workflow/` — dependency-injected frontend client contracts without implementations.
-- `src/elements/registry.ts` and `src/extensions/architectureRegistry.ts` — explicit target registries, initially empty.
-- `src/legacy/LegacyApplication.tsx` — temporary behavior-preserving adapter to the existing `App.tsx`.
-- `src/ui/materials/FrostedSurface.tsx` — historical Phase 1 primitive, superseded by ADR 003 and
-  retained temporarily for its existing development-harness consumer.
-- `docs/decisions/001-application-state-and-boundaries.md` — application-state and boundary rationale.
-
-## Phase 4 canvas and interaction engine
-
-- `src/canvas/geometry/` — canonical typed screen/world transforms, anchored zoom, translation, and
-  rectangle geometry.
-- `src/app/interactions/canvasInteractionController.ts` — single-primary-gesture arbitration and
-  transient pan/selection/move/resize ownership behind `CanvasInteractionCommitPort`.
-- `src/app/interactions/panGestureFrameQueue.ts` — injected requestAnimationFrame-compatible
-  latest-pan coalescing and exact viewport projection; raw samples never schedule more than one
-  pending frame.
-- `src/app/interactions/selectionEngine.ts` and `snappingEngine.ts` — pure box-selection and retained
-  eight-world-unit alignment behavior.
-- `src/canvas/virtualization/viewportCulling.ts` — pure 480-screen-pixel overscan and pinned-element
-  candidate selection plus the half-overscan active-pan refresh guard.
-- `src/features/minimap/minimapProjection.ts` — pure canvas/element/world-viewport minimap data.
-- `src/legacy/interactions/` — temporary production-only TaskCanvas geometry mapping, render preview,
-  and semantic commit adapter. New feature/domain modules must not import it; Phase 5 deletes it as
-  normalized element ownership migrates.
-- `src/components/Minimap.tsx` — retained reset-only minimap feature presentation consuming the
-  unchanged projection and the C2F workspace pattern.
-- `src/App.tsx` — still the legacy feature/render composition boundary, but no longer owns generic
-  pan, zoom, box selection, movement, resize, snapping, layer, culling, or minimap projection
-  algorithms.
-
-## Phase 4.5 visual-system foundation and compositor runtime proof
-
-- `src/ui/theme/theme.css` — exact target foundation, application-chrome, semantic, and spatial
-  tokens, scoped and intentionally inactive until Phase 4.5C.
-- `src/ui/motion/` — C1 semantic motion tokens, analytical springs/interpolation, shared frame
-  scheduler, reduced-motion preference, liquid-edge model, and local FLIP utilities.
-- `src/ui/primitives/` — C1 semantic button, selection, form, navigation, layout, status, and liquid
-  indicator/tab primitives with scoped shared styling.
-- `src/ui/patterns/workspace/MinimapSurface.tsx` and `useMinimapVisibilityMotion.ts` — C2F native
-  Acrylic Large/Cutout presentation plus shared-scheduler DOM-opacity fidelity; no
-  projection, persistence, or navigation ownership.
-- `src/ui/patterns/workspace/CanvasBrowserRuntime.ts` and adjacent `canvasBrowser*` modules —
-  generic `Id extends string` Renderer V2-derived layout, wheel/scroll, actual-card portal drag,
-  reorder, slot/snap, and auto-scroll runtime. It owns transient DOM motion only; Canvas Manager
-  retains production callbacks and commits final order once. `canvasBrowserSharedGlass.ts` maps its
-  full card geometry plus viewport intersections to bounded Small material planes without React
-  frame updates or drag reparenting.
-- `src/ui/patterns/workspace/GlassListFrame.tsx` / `.css` and `glassListGeometry.ts` — shared Canvas
-  Browser/Extensions/Quick Extensions framing, full rounded material intersections, content clipping,
-  and external shadow gutters. Existing list owners retain interaction and scroll state.
-- `src/ui/patterns/workspace/glassListScrollGeometry.ts` and `useSharedSmallGlassList.ts` — native
-  list layout snapshots and nested scroll-offset projection through the central material scheduler;
-  translation-only scrolling does not remeasure cards or redraw rims.
-- `src/ui/patterns/overlays/ModalLayer.tsx`, `ModalPresence.tsx`, and `ModalDialog.tsx` — C3A/C3B
-  semantic root/nested modal stacking, shared-scheduler retained presence, DOM-group opacity,
-  and Acrylic Large dialog presentation over the existing modal plane; feature state remains in its
-  production owner.
-- `src/components/ProductionDialogs.tsx` — C3B presentation/behavior adapters for standalone or
-  nested Update Available, Clear Canvas, and the Settings password dialog.
-- `src/ui/patterns/settings/` — C3A presentation-only primary Settings shell, island, row, and
-  single-action toggle-row patterns. Settings behavior remains in `src/components/Modals.tsx`.
-- `src/ui/dev/DevelopmentUiLab.tsx` — opt-in development catalog using real materials and motion;
-  dynamically excluded unless both the development build and explicit environment flag are active.
-- `src/ui/materials/materialTypes.ts` and `materialDefinitions.ts` — minimal discriminated material
-  contract and exact native Large/Small plus Opaque/Cutout surfaces.
-- `src/ui/materials/materialRegistry.ts` — explicit internal registry with duplicate rejection and
-  safe unknown lookup/require behavior.
-- `src/ui/materials/MaterialSurface.tsx`, `MaterialSurface.css`, and `MaterialPlane.tsx` —
-  feature-facing material, live native backdrop layers, geometry/elevation, semantic element, ref,
-  and base/modal inheritance boundary.
-- `src/ui/materials/SharedSmallGlassPlane.tsx` — bounded shared settled-card backdrop, rounded SVG
-  clip writer, and DEV depth/filter/drag diagnostics.
-- `src/ui/materials/nativeGlassRecipe.css` — one permanent preblur/main-filter and presence formula
-  shared by standalone and batched native glass; no imperative duplicate filter recipe.
-- `src/ui/materials/MaterialCompositorProvider.tsx` — compatibility composition boundary only;
-  allocates no cached registry/runtime. `DevelopmentUiLab.tsx` alone creates the parked presentation
-  bridge for its gated comparison UI; App no longer prepares BackdropScene data.
-- `frosted-popup` in `materialDefinitions.ts` — frozen New Canvas popup finish through the existing
-  CSS material strategy, preserving the former appearance without feature-owned filter classes.
-- `src/ui/materials/materialGeometryInvalidation.ts` — local geometry invalidation and list-owned
-  size delivery; returns measurement-free rim writes for the owner's write phase.
-- `src/ui/materials/materialGeometryScheduler.ts` — shared native geometry observation, dirty-frame
-  scheduling, read/write phases, and per-frame rectangle/style caches; no compositor rendering.
-- `src/ui/materials/nativeGlassGeometry.ts` — MaterialSurface overscan/rim geometry, local-size
-  keys, lazy sampling-boundary resolution, and cached-optics writes for list-owned sizes.
-- `src/ui/patterns/workspace/useSharedSmallGlassList.ts` and `useSettledPanelWork.ts` — local
-  Extensions mask synchronization and post-transition inactive-view workload suspension.
-- `src/ui/materials/materialSamplingBoundary.tsx`, `materialSurfaceStyle.ts`, and
-  `nativeGlassRim.ts` — logical Large-to-Small backdrop ownership, centralized accepted optics, and
-  geometry/DPR-driven rounded-perimeter rim drawing without a permanent animation loop.
-- `src/ui/materials/legacyCachedAcrylicDefinitions.ts` and `src/ui/materials/compositor/` — the
-  superseded cached Canvas2D candidate retained temporarily for rollback/reference; production does
-  not instantiate its runtime, output canvases, or surface registration.
-- `scripts/material-architecture-rules.mjs` — narrow count-sensitive frozen allowlist for exact
-  legacy blur/frosted occurrences and ownership check for future acrylic Canvas2D code.
-- `src/ui/materials/compositor/adaptiveQuality.ts` and `cacheCoverage.ts` — pure normative quality
-  sizing and canonical Phase 4 viewport-to-accepted-cache coverage math.
-- `src/ui/materials/compositor/compositorTypes.ts`, `cacheScheduler.ts`, and
-  `cacheResourceOwner.ts` — immutable build identity, one-active/one-newest scheduling, stale-result
-  acceptance, and generic disposable-resource ownership without browser resource types.
-- `src/ui/materials/compositor/compositorInvalidation.ts` and `frameCoalescing.ts` — pure semantic
-  work classification and one-pending-frame/latest-state coalescing for the later runtime.
-- `src/ui/materials/compositor/backdropScene.ts`, `backdropSceneValidation.ts`, and
-  `sceneRasterizer.ts` — bounded structured-clone-safe generic presentation snapshots, deliberate
-  worker-boundary validation, cache-rectangle culling, and the shared world-space Canvas2D
-  rasterizer.
-- `src/ui/materials/compositor/sharedAcrylicProfile.ts`, `sharedAcrylicCacheBuilder.ts`, and the
-  Canvas backends — retained legacy 45 CSS-pixel blur/saturation-1/brightness-1 cache pass, with
-  scale conversion shared by OffscreenCanvas and deferred main-thread execution.
-- `src/ui/materials/compositor/acrylicCache.worker.ts`, `acrylicWorkerProtocol.ts`,
-  `acrylicWorkerRuntime.ts`, and `acrylicWorkerExecutor.ts` — Vite module worker, plain bounded
-  protocol, transferable bitmap handoff, fail-closed message execution, and one-active B1 scheduler
-  bridge.
-- `src/ui/materials/compositor/compositorCapabilities.ts`, `browserAcrylicRuntime.ts`, and
-  `acrylicCacheRuntime.ts` — injected capability probes, lazy browser construction, Worker failure
-  downgrade, interaction-aware fallback deferral, overlay-only availability, and deterministic
-  bitmap ownership. Phase 4.5B2 does not register surfaces or activate a production compositor.
-- `docs/VISUAL-SYSTEM.md` and `docs/decisions/003-adaptive-acrylic-compositor.md` — normative values
-  and decision rationale.
-
-## Phase 2 encrypted database vertical slice
-
-- `src/features/phase2-database/` - development-only create/open/unlock/read/edit/save/lock/close/quit harness and local session-state reducer.
-- `src/platform/tauriInvoke.ts` and database/settings adapters - the only Phase 2 frontend Tauri transport implementation; raw request limits and structured Rust failures become discriminated platform errors.
-- `src-tauri/src/commands/database_commands.rs` and `database_window_commands.rs` - scoped application database/picker/keeper handlers, reused by the development-only aliases in `phase2_database_commands.rs`.
-- `src-tauri/src/commands/database_edition.rs` - known application identity, purpose and UI Lab denial policy. `phase2_ipc.rs` retains its historical name but now owns shared bounded raw-body decoding.
-- `src-tauri/src/crypto/` - Argon2id derivation, XChaCha20-Poly1305 document encryption, and zeroizing key ownership.
-- `src-tauri/src/database/` - strict format preflight, SQLite connections, encrypted active/recovery document repositories, explicit online backup, and plaintext media repository.
-- `src-tauri/src/session/` - process-local pending/unlocked/locked/closed lifecycle. It retains candidate and active keys but no document plaintext after response serialization.
-- `src-tauri/src/files/database_lock.rs` - Windows file-identity writer ownership plus an authoritative OS lock and non-authoritative diagnostic metadata.
-- `src-tauri/src/files/database_path_authorization.rs` - process-, edition-, operation-, and time-scoped one-use `.tmapdb` path authorization.
-- `src-tauri/src/settings/recent_databases.rs` - edition-specific recent/default database settings.
-- `src-tauri/build.rs`, `src-tauri/capabilities/application-database.json`, `phase2-development.json`, and generated permissions - explicit application commands in product builds; separate development-feature-only harness aliases. `scripts/check-application-database-boundary.mjs` checks the whitelist/config/handler scope as part of production inspection.
-- `public/phase2-keeper.html` - existing empty hidden webview, now shared by the scoped commands and harness, with no command permissions.
-- `docs/decisions/002-encrypted-database-and-session.md` - exact format, cryptography, session, writer-lock, backup, dependency, and deferral decisions.
-
-## Opt-in development tooling
-
-- `ui-lab.html`, `src/ui-lab/`, and `src-tauri/tauri.ui-lab.conf.json` — isolated baseline Lab on
-  Vite port 6970 with its own application identifier, the development MCP capability, and no
-  product storage/session startup or updater behavior. Only `npm run app:ui-lab` enables the
-  `ui-lab-development` Cargo feature.
-- `src-tauri/capabilities/mcp-development/mcp-development.json` and
-  `src-tauri/tauri.mcp.dev.conf.json` — isolated localhost-only Tauri MCP Bridge capability and
-  global-Tauri configuration. `src-tauri/build.rs` excludes the nested capability unless the MCP
-  feature is active. Only `npm run app:dev:mcp` enables the optional `mcp-development` Cargo
-  feature; stable, ordinary development, and packaged commands exclude the bridge.
-- `scripts/check-mcp-development-exclusion.mjs` — static contract that keeps the optional bridge,
-  its capability, and `withGlobalTauri` out of ordinary stable/development configurations and
-  commands.
-
-## Phase 3A normalized document foundation
-
-- `src/domain/document/documentTypes.ts`, `documentVersion.ts`, and `documentLimits.ts` - the single
-  current-version normalized JSON document contract, exact version, and conservative bounds.
-- `src/domain/document/documentSchema.ts` and `jsonSafety.ts` - strict structural parsing, branded ID
-  boundary validation, and rejection of non-JSON values.
-- `src/domain/document/documentInvariants.ts` and `invariants/` - composed semantic checks for entity
-  keys, canvas and layer order, ownership, connection locality, and extension targets.
-- `src/domain/document/validateDocument.ts` - combined current-version boundary with distinct
-  structural and semantic failure stages.
-- `src/domain/document/createDocument.ts` - minimal valid document creation with an injected UUID
-  source; it does not own commands or persistence.
-
-## Phase 3B command and history foundation
-
-- `src/domain/commands/commandHandler.ts`, `commandRegistry.ts`, and
-  `executeDocumentCommand.ts` own typed handler definitions, duplicate-safe explicit registration,
-  runtime command/payload validation, atomic Immer patch capture, invariant validation, and injected
-  transaction construction.
-- `src/domain/commands/core/` owns the generic current-version canvas, element, connection, media,
-  extension-installation, and document-settings command handlers. It contains no concrete element
-  or extension feature behavior.
-- `src/domain/history/historyEngine.ts` owns session-only record, undo, redo, clear, optional
-  capacity, branch invalidation, and fail-closed patch application. History remains separate from
-  the serialized document and Redux.
-- `src/app/commands/commandDispatcher.ts` is the narrow composition adapter from explicit handlers
-  and deterministic transaction dependencies to the pure domain executor. It is not activated in
-  the production UI during Phase 3B.
-- `src/domain/ids/entityIds.ts` - opaque branded IDs, canonical external formats, and injectable
-  prefixed-ID creation.
-
-## Phase 3C Redux workspace and persistence orchestration
-
-- `src/app/workspace/workspaceSlice.ts` and `workspaceTypes.ts` own the serializable normalized
-  document, session-only history, revision, epoch, local/persisted sequences, save phase, sanitized
-  error, conflict, scheduling, and in-flight state.
-- `src/app/workspace/workspaceOperations.ts` is the narrow synchronous load/clear/command/undo/redo
-  boundary. It composes the Phase 3B dispatcher and history engine and notifies persistence only for
-  actual document changes.
-- `src/app/persistence/documentPersistenceCoordinator.ts` owns the dependency-injected debounce,
-  just-in-time codec call, one-current-workspace-save rule, expected revisions, follow-up saves,
-  retry, conflict blocking, epoch correlation, and disposal.
-- `src/app/persistence/persistenceScheduler.ts` owns the named 350 ms parity default and injectable
-  timer contract; timers never enter Redux.
-- `src/app/selectors/workspaceSelectors.ts` exposes document, history, dirty/sequence, revision,
-  conflict, and save lifecycle state without serialization or deep comparison.
-- `src/app/store.ts` composes these pieces. Its exported singleton has no database dependency, so
-  production remains on the unchanged legacy boundary and importing the store starts no save work.
-
-## Target Rust ownership
-
-### `src-tauri/src/commands/`
-
-Thin Tauri command adapters. Validate transport shape and delegate immediately.
-
-### `src-tauri/src/database/`
-
-SQLite schema, document repository, media repository, backups, and database connection behavior.
-
-### `src-tauri/src/crypto/`
-
-Argon2id derivation, authenticated envelope encryption, secure random values, and zeroizing key storage helpers.
-
-### `src-tauri/src/session/`
-
-Derived-key session lifetime, explicit lock, inactivity behavior, tray persistence, and Windows lock integration.
-
-### `src-tauri/src/workflow/`
-
-Structured workflow validation, process launching, ownership tracking, stopping, and safe logs.
-
-### `src-tauri/src/files/`
-
-Database writer locks and transactionally safe file operations.
-
-### `src-tauri/src/settings/`
-
-Edition-specific external application configuration import/export and persistence.
-
-## Phase 0 tooling
-
-- `src-tauri/tauri.dev.conf.json` — Development-edition identity override for running beside the stable app.
-- `scripts/check-architecture.mjs` — Enforces dependency boundaries for new architecture directories.
-- `scripts/report-file-sizes.mjs` — Reports source files above the 250-line target and 400-line review threshold.
-- `scripts/generate-codemap.mjs` — Generates the detailed repository inventory below.
-- `scripts/generate-baseline-fixtures.mjs` — Produces deterministic 40, 2,000, and 10,000-element documents.
-- `scripts/generate-glass-benchmark.py` — Offline seeded WebP/GIF media and multi-canvas fixture
-  generator/verifier. No TaskMap launch or storage access. Python tests in
-  `scripts/test_glass_benchmark.py`; production-schema checks in `scripts/glass-benchmark.test.mjs`.
-  Prepared-file instructions and isolation constraints: `docs/GLASS-BENCHMARK-FILES.md`.
-- `scripts/glass-pan-probe.mjs` — Manually invoked development-WebView pan/idle diagnostic; bounded
-  synthetic gestures cancel and restore instrumentation. Never imported by the application.
-  Tests in `scripts/glass-pan-probe.test.mjs`; methodology and partial acceptance evidence in
-  `docs/GLASS-PERFORMANCE-ACCEPTANCE.md`. Callback pacing is not rendered FPS.
-- `fixtures/baseline/` — Generated performance and behavior fixtures; regenerate rather than editing manually.
-
-## Tools
-
-### `tools/taskmap-migrator/`
-
-Standalone graphical converter from the legacy database/keyring format to the new `.tmapdb`. Legacy migrations must stay here and out of the main application.
-
-## Navigation procedure for Codex
-
-1. Read `AGENTS.md`.
-2. Read the relevant section of `ARCHITECTURE.md`.
-3. Read the current roadmap phase.
-4. Use this code map to open only the owning subsystem.
-5. Read that subsystem's local public entrypoints and tests.
-6. Do not scan all components or all domain files unless the task genuinely crosses their contracts.
-7. Update this file when ownership or paths change.
-
-## Generated inventory
-
-Run `npm run codemap` after adding, moving, or deleting source files. CI can verify the generated section with `npm run codemap:check` after the first inventory has been committed.
+Start with current state and the governing subsystem contract. Locate the ownership boundary above,
+then use the inventory and adjacent tests to inspect implementation. Generated summaries come from
+source comments and may retain historical phase wording; they are navigation hints, not status gates.
 
 <!-- GENERATED-INVENTORY:START -->
 
@@ -462,7 +124,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `scripts/check-architecture.mjs`                                           |   270 | Repository maintenance script                                                                      |
 | `scripts/check-database-cutover.mjs`                                       |    28 | Repository maintenance script                                                                      |
 | `scripts/check-mcp-development-exclusion.mjs`                              |    89 | Repository maintenance script                                                                      |
-| `scripts/check-phase2-production-exclusion.mjs`                            |    75 | Repository maintenance script                                                                      |
+| `scripts/check-phase2-production-exclusion.mjs`                            |    81 | Repository maintenance script                                                                      |
 | `scripts/check-storage-preview.mjs`                                        |    69 | Repository maintenance script                                                                      |
 | `scripts/check-version.mjs`                                                |    56 | Repository maintenance script                                                                      |
 | `scripts/generate-baseline-fixtures.mjs`                                   |   115 | Repository maintenance script                                                                      |
@@ -533,13 +195,13 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src-tauri/src/storage.rs`                                                 |   730 | Only the built-in empty UI baseline. This is not a successful load from any database.              |
 | `src-tauri/src/window_state.rs`                                            |   107 | Clamp the saved geometry so the window can never restore off-screen or                             |
 | `src-tauri/src/windows_session_notifications.rs`                           |    99 | WTS notifications belong to native window lifetime, including the hidden session keeper.           |
-| `src/App.tsx`                                                              |  8328 | Latest image drop/paste handlers, refreshed each render so the once-mounted                        |
+| `src/App.tsx`                                                              |  8336 | Latest image drop/paste handlers, refreshed each render so the once-mounted                        |
 | `src/app/appData.test.ts`                                                  |   355 | Tests for the adjacent module                                                                      |
 | `src/app/appData.ts`                                                       |   299 | TypeScript application module                                                                      |
 | `src/app/appDataSchema.ts`                                                 |   274 | TypeScript application module                                                                      |
 | `src/app/AppProviders.tsx`                                                 |    28 | React component or typed UI module                                                                 |
 | `src/app/AppShell.test.tsx`                                                |    71 | Tests for the adjacent module                                                                      |
-| `src/app/AppShell.tsx`                                                     |    52 | React component or typed UI module                                                                 |
+| `src/app/AppShell.tsx`                                                     |    37 | React component or typed UI module                                                                 |
 | `src/app/canvasDocument.test.ts`                                           |   122 | Tests for the adjacent module                                                                      |
 | `src/app/canvasDocument.ts`                                                |    80 | TypeScript application module                                                                      |
 | `src/app/canvasElementConstraints.ts`                                      |    16 | The retained canvas-details operation clamps stored coordinates, including locked elements.        |
@@ -636,7 +298,7 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/database/createDatabaseWorkspace.ts`                              |    85 | Supplied by application edition composition, never by a document or picker response.               |
 | `src/app/database/createTauriDatabaseSessionController.ts`                 |    40 | TypeScript application module                                                                      |
 | `src/app/database/DatabaseApplication.test.tsx`                            |   121 | Tests for the adjacent module                                                                      |
-| `src/app/database/DatabaseApplication.tsx`                                 |   114 | One runtime per renderer lifetime. React StrictMode must not create two native session owners.     |
+| `src/app/database/DatabaseApplication.tsx`                                 |   124 | One runtime per renderer lifetime. React StrictMode must not create two native session owners.     |
 | `src/app/database/databaseNativeRevocation.test.ts`                        |    40 | Tests for the adjacent module                                                                      |
 | `src/app/database/databaseResourceFlush.test.ts`                           |    44 | @vitest-environment node                                                                           |
 | `src/app/database/databaseRuntimeResources.test.ts`                        |    34 | Tests for the adjacent module                                                                      |
@@ -649,6 +311,10 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/app/database/retainedAcceptanceLifecycle.performance.test.ts`         |    60 | @vitest-environment node                                                                           |
 | `src/app/database/retainedDocumentAcceptance.test.ts`                      |   238 | @vitest-environment node                                                                           |
 | `src/app/defaultData.ts`                                                   |    36 | TypeScript application module                                                                      |
+| `src/app/development/DevelopmentVisualWorkbench.test.tsx`                  |   119 | Keep the real session, gate and canvas-binding lifetime; only replace the large presentation tree. |
+| `src/app/development/DevelopmentVisualWorkbench.tsx`                       |    43 | React component or typed UI module                                                                 |
+| `src/app/development/WorkbenchDiagnostics.tsx`                             |    46 | React component or typed UI module                                                                 |
+| `src/app/development/WorkbenchTools.tsx`                                   |   101 | Root ownership includes portals and window chrome. Restore inherited values on lock/unmount.       |
 | `src/app/errors/ApplicationErrorBoundary.test.tsx`                         |    62 | Tests for the adjacent module                                                                      |
 | `src/app/errors/ApplicationErrorBoundary.tsx`                              |    46 | React component or typed UI module                                                                 |
 | `src/app/errors/applicationErrorReporter.test.ts`                          |    27 | Tests for the adjacent module                                                                      |
@@ -994,6 +660,9 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui-lab/DraggableTextBlockFixture.tsx`                                 |   207 | React component or typed UI module                                                                 |
 | `src/ui-lab/FormControlsPrototype.test.tsx`                                |    64 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/FormControlsPrototype.tsx`                                     |    98 | React component or typed UI module                                                                 |
+| `src/ui-lab/glass-proof/GlassRenderingProof.test.tsx`                      |    69 | Geometry/pixels are verified in WebView2, not simulated by this structural test.                   |
+| `src/ui-lab/glass-proof/GlassRenderingProof.tsx`                           |   185 | React component or typed UI module                                                                 |
+| `src/ui-lab/glass-proof/useProofBackdrop.ts`                               |    84 | TypeScript application module                                                                      |
 | `src/ui-lab/InteractiveControlsPrototype.test.tsx`                         |    61 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/InteractiveControlsPrototype.tsx`                              |   236 | React component or typed UI module                                                                 |
 | `src/ui-lab/main.tsx`                                                      |    15 | TypeScript application module                                                                      |
@@ -1009,8 +678,8 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui-lab/system/Surface.tsx`                                            |    39 | React component or typed UI module                                                                 |
 | `src/ui-lab/system/useSurfacePresence.ts`                                  |    70 | TypeScript application module                                                                      |
 | `src/ui-lab/TopBarControlsPrototype.tsx`                                   |    45 | React component or typed UI module                                                                 |
-| `src/ui-lab/UiLabApp.test.tsx`                                             |    67 | Tests for the adjacent module                                                                      |
-| `src/ui-lab/UiLabApp.tsx`                                                  |   101 | React component or typed UI module                                                                 |
+| `src/ui-lab/UiLabApp.test.tsx`                                             |    74 | Tests for the adjacent module                                                                      |
+| `src/ui-lab/UiLabApp.tsx`                                                  |   122 | React component or typed UI module                                                                 |
 | `src/ui/dev/AcrylicCompositorPlayground.test.tsx`                          |   108 | Tests for the adjacent module                                                                      |
 | `src/ui/dev/AcrylicCompositorPlayground.tsx`                               |   246 | React component or typed UI module                                                                 |
 | `src/ui/dev/acrylicPlaygroundModel.test.ts`                                |    95 | Tests for the adjacent module                                                                      |
@@ -1094,12 +763,12 @@ Run `npm run codemap` after adding, moving, or deleting source files. CI can ver
 | `src/ui/materials/materialRegistry.ts`                                     |    38 | TypeScript application module                                                                      |
 | `src/ui/materials/materialSamplingBoundary.test.ts`                        |    27 | @vitest-environment node                                                                           |
 | `src/ui/materials/materialSamplingBoundary.tsx`                            |    84 | TypeScript application module                                                                      |
-| `src/ui/materials/MaterialSurface.test.tsx`                                |   309 | Tests for the adjacent module                                                                      |
+| `src/ui/materials/MaterialSurface.test.tsx`                                |   331 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/MaterialSurface.tsx`                                     |   189 | React component or typed UI module                                                                 |
 | `src/ui/materials/MaterialSurfaceRegistration.tsx`                         |   131 | React component or typed UI module                                                                 |
 | `src/ui/materials/materialSurfaceRegistry.test.ts`                         |   151 | @vitest-environment node                                                                           |
 | `src/ui/materials/materialSurfaceRegistry.ts`                              |   260 | TypeScript application module                                                                      |
-| `src/ui/materials/materialSurfaceStyle.ts`                                 |    92 | TypeScript application module                                                                      |
+| `src/ui/materials/materialSurfaceStyle.ts`                                 |    98 | A filter-output mask avoids making an ancestor a new backdrop root. The SVG viewport               |
 | `src/ui/materials/materialTypes.ts`                                        |   112 | TypeScript application module                                                                      |
 | `src/ui/materials/nativeGlassGeometry.ts`                                  |    93 | TypeScript application module                                                                      |
 | `src/ui/materials/nativeGlassProduction.test.tsx`                          |    75 | Tests for the adjacent module                                                                      |

@@ -1,347 +1,239 @@
-# Feature Wiring Guide
+# TaskMap Feature Wiring Guide
 
-This guide defines how new features enter TaskMap without recreating a central god component.
+## Purpose
 
-## General rule
+This guide describes how new/refactored features enter the current architecture without recreating
+central god components or bypassing subsystem contracts.
 
-A feature is complete only when its domain behavior, history behavior, persistence behavior, rendering, tests, parity documentation, and code-map entry are wired intentionally.
+## 1. General rule
 
-Do not begin by editing `AppShell.tsx`.
+A feature owns its feature-specific behavior and composes shared infrastructure.
 
-## Adding an element type
+It does not own:
 
-Create a dedicated module:
+- database/session internals;
+- history infrastructure;
+- generic interaction engines;
+- UI primitive identity;
+- glass renderer internals.
 
-```text
-src/elements/<element-name>/
-├── definition.ts
-├── model.ts
-├── schema.ts
-├── commands.ts
-├── selectors.ts
-├── <ElementName>View.tsx
-├── <ElementName>Menu.tsx
-└── <elementName>.test.ts
-```
+## 2. Adding an element type
 
-### Required responsibilities
-
-`model.ts`
-
-- Element-specific fields and discriminant
-- No React or Tauri imports
-
-`schema.ts`
-
-- Runtime validation fragment
-- Defaults and current-version constraints
-
-`commands.ts`
-
-- Element-specific document mutations
-- No component state or DOM access
-
-`selectors.ts`
-
-- Narrow selectors for rendering and derived behavior
-
-`definition.ts`
-
-- Registry metadata
-- Default creation
-- Schema reference
-- Renderer and optional menu contribution
-- Geometry adapter and capability declarations
-
-`View.tsx`
-
-- Rendering and local presentation behavior only
-- Dispatches named commands or interaction intents
-- Does not directly mutate document collections
-
-`Menu.tsx`
-
-- Element-specific menu contributions only
-- Shared actions such as delete, layer movement, lock, and copy remain generic
-
-`test.ts`
-
-- Creation defaults
-- Validation
-- Commands
-- History transaction behavior
-- Registry integration
-
-### Registration
-
-Add one explicit entry to `src/elements/registry.ts`. Do not add new element-specific switches to the application shell or generic canvas scene.
-
-### Shared behavior checklist
-
-Confirm how the element participates in:
-
-- Selection
-- Movement
-- Resize
-- Layers
-- Locking
-- Deletion
-- Copy/paste
-- Undo/redo
-- Serialization
-- Viewport culling
-- Minimap
-- Mind-map connection endpoints, when applicable
-- Privacy behavior, when applicable
-
-Use capabilities in the element definition rather than scattered type checks.
-
-## Adding an extension
-
-Create:
+Create a dedicated element module with the responsibilities it actually needs, typically:
 
 ```text
-src/extensions/<extension-name>/
-├── definition.ts
-├── model.ts
-├── schema.ts
-├── commands.ts
-├── selectors.ts
-├── controls.tsx
-└── <extensionName>.test.ts
+src/elements/<type>/
+├─ definition/model/schema
+├─ commands/selectors
+├─ renderer
+├─ menu/control contributions
+└─ tests
 ```
 
-### Required responsibilities
+Domain/model/schema code remains React/Tauri independent.
 
-`definition.ts`
+Register the type explicitly.
 
-- ID, label, description
-- Compatible element types
-- Conflicts
-- Default state
-- Control and menu contributions
+Do not add unrelated `switch(type)` branches across the application when the registry/module can own
+the behavior.
 
-`model.ts`
+## 3. Adding an extension
 
-- Extension state type
+An extension module owns:
 
-`schema.ts`
+- definition/compatibility;
+- configuration/state schema;
+- commands/selectors;
+- UI contributions;
+- tests.
 
-- Runtime validation
+Register explicitly.
 
-`commands.ts`
+Do not add one extension-specific callback to unrelated central UI for every extension.
 
-- Extension-specific mutations beyond generic install/remove
+## 4. Adding an application feature
 
-`selectors.ts`
+Determine first whether state is:
 
-- Derived extension behavior
+- persistent document state;
+- device preference;
+- session/runtime state;
+- transient interaction state;
+- local component presentation state.
 
-`controls.tsx`
+Put it in the correct owner before wiring UI.
 
-- Header, inline, context-menu, or settings contribution
+## 5. Persistent mutation
 
-### Registration
+Persistent document changes go through named application/domain commands.
 
-Add one explicit entry to `src/extensions/registry.ts`.
+Components do not:
 
-Generic extension infrastructure owns:
+- mutate normalized collections directly;
+- create history entries directly;
+- call persistence directly.
 
-- Installation
-- Removal
-- Compatibility checks
-- Conflict handling
-- Serialization
-- Menu grouping
-- History labels
+A successful completed interaction normally creates one semantic transaction.
 
-Do not add one removal callback per extension to a generic context menu.
+## 6. Transient interaction
 
-## Adding an application feature
+Pointer-frame state remains in interaction controllers/services.
 
-Features such as minimap, database picker, settings, updates, or Workflow Runner live under `src/features/<feature>/`.
+Do not dispatch persistent document actions, serialize or save on every pointer sample.
 
-A feature may depend on application commands, selectors, UI primitives, and platform interfaces. It may not bypass the platform layer or mutate the document outside the command pipeline.
+Completion crosses the narrow semantic command/completion boundary once.
 
-## Selecting and adding materials
+## 7. Platform/native work
 
-Feature UI selects an existing internal material with `MaterialSurface`:
+1. define/extend a typed client under `src/platform/`;
+2. add the narrow Tauri command;
+3. delegate immediately to a Rust service;
+4. preserve capability/session/edition checks;
+5. add frontend contract mocks/tests and Rust service tests.
 
-```tsx
-<MaterialSurface material="acrylic-large">...</MaterialSurface>
-<MaterialSurface material="acrylic-small" radius={8}>...</MaterialSurface>
-<MaterialSurface material="cutout" radius={6}>...</MaterialSurface>
-```
+React components do not call `invoke()` directly.
 
-The surface defaults to the inherited `base` plane. Modal roots establish `modal` through
-`MaterialPlaneProvider`, including when content renders through a portal. Use `elevation="none"` only
-for a geometry whose contract suppresses the material's external shadow, such as the toolbar. Keep
-accessibility roles, labels, events, and content in the feature; keep blur/pre-blur, overscan,
-sampling boundaries, shared-glass batching, tint, border, shadow, rim, and material rendering
-implementation in `src/ui/materials/`.
+## 8. UI selection
 
-To add an internal material using an existing strategy:
+Before creating UI, read:
 
-1. Add one typed definition to the static registry boundary.
-2. Add exact definition, registry, presentation, and visual tests.
-3. Update `docs/VISUAL-SYSTEM.md` and the code map.
-4. Update generic material implementation only when the existing strategy cannot render the new
-   definition; never branch on the requesting feature or element type.
+- `UI-SYSTEM-CONTRACT.md`
+- `UI-QUALITY-GUARDRAILS.md`
+- `GLASS-SYSTEM-CONTRACT.md` when glass is involved.
 
-Add an ADR when changing material rendering strategy, dependency direction, plane/sampling
-semantics, shared native-glass batching, or performance invariants. Re-activating or replacing the
-parked cached compositor is a foundational strategy change and requires an ADR. A routine variant
-using the accepted native-glass strategy does not need one.
+Compose an existing primitive/pattern when one fits.
 
-Production Acrylic Large and Acrylic Small use live native CSS backdrop sampling through
-`MaterialSurface`. Plane membership and logical sampling boundaries are explicit or inherited;
-never infer them from feature classes or incidental DOM ancestry. Native surfaces own their bounded
-geometry, blur-derived overscan, and rim refresh. Shared Small browser-card batches remain inside the
-material/pattern boundary so feature code does not create independent backdrop-filter stacks.
+Do not reproduce its appearance with local CSS.
 
-Transform-driven material motion calls `useMaterialSurfaceGeometryInvalidation` from the public
-material boundary. Notifications must remain bounded/coalesced and may refresh geometry, overscan,
-or rim state; they must not create a second animation loop or perform persistent application work.
+## 9. Materials
 
-Phase 4.5B's cached Canvas2D compositor, `BackdropScene`, worker, fallback, and cache scheduler remain
-parked under `src/ui/materials/compositor/` for rollback/reference and regression coverage. They are
-not the active production material path, and native Large/Small surfaces do not register with or
-rebuild that cache. New features and Phase 5 renderers must not build against the parked compositor
-unless ADR 003 is deliberately revised.
+Feature code chooses semantic surface/material roles.
 
-Material work preserves the interaction contract: no persistent dispatch, serialization, history,
-persistence, database work, or unbounded material/scene work once per pointer sample. See
-`docs/VISUAL-SYSTEM.md` for the normative native-glass quality, sampling, and invalidation contract.
+It may request:
 
-## Selecting UI primitives and motion
+- Major Glass;
+- Minor Glass;
+- Minor Shell;
+- Opaque;
+- Cutout;
+- radius/elevation when the pattern intentionally exposes them.
 
-Generic feature controls import the small public boundary under `src/ui/primitives/`. Reuse native
-semantics supplied by `Button`, form controls, selection controls, `Tabs`, and `LiquidTabs`; do not
-copy control-state CSS into a feature. TaskMap-specific compositions belong under `src/ui/patterns/`
-when C2/C3 production requirements establish their API. The complete capability and deferral matrix
-is in `docs/UI-SYSTEM.md`.
+Feature code does not implement:
 
-The allowed presentation dependency is:
+- backdrop-filter strings;
+- overscan;
+- rim rendering;
+- batch/promotion;
+- logical backdrop construction;
+- WebView2 refresh workarounds.
 
-```text
-feature or pattern -> primitive -> material + motion
-```
+Foundational material-renderer changes require an ADR.
 
-Features and primitives do not import `materials/compositor/` or the compositor coordinator. Motion
-does not import application/domain state, persistence, Redux, Tauri, or feature modules. JavaScript
-motion uses the shared scheduler and reduced-motion boundary; components must not create an
-independent `requestAnimationFrame` loop. Local FLIP measurement is acceptable for a participating
-toolbar row, tab group, card, or panel, but never for the canvas-world population.
+## 10. Motion/presence
 
-Animated native-glass surfaces call `useMaterialSurfaceGeometryInvalidation()` from the public
-material boundary. This schedules only bounded/coalesced material geometry work; it must not activate
-the parked cached backdrop build or perform persistent work.
+Use the shared motion/presence system.
 
-The opt-in UI Lab may still exercise the parked cached compositor and synthetic `BackdropScene`
-fixtures for comparison/regression purposes. That development-only seam does not make the cached
-renderer a production dependency: active production acrylic remains the native-glass
-`MaterialSurface` path, and feature code must not depend on the parked compositor interfaces.
+Compose channels such as:
 
-## Adding a platform operation
+- Fade;
+- Material Fade;
+- Slide;
+- Lift;
+- Scale;
+- Geometry Morph.
 
-1. Define or extend a typed TypeScript client under `src/platform/`.
-2. Add the narrow Tauri command under `src-tauri/src/commands/`.
-3. Delegate immediately to a Rust service module.
-4. Return structured errors.
-5. Add TypeScript contract tests or mocks and Rust service tests.
+Do not create an independent `requestAnimationFrame` loop inside a feature when the shared scheduler
+can own it.
 
-React components must not call `invoke()` directly.
+Do not fade native glass through ancestor opacity.
 
-## History wiring
+## 11. Scrollable UI
 
-Every persistent command declares:
+Use the shared ScrollArea/pattern.
 
-- Human-readable history label
-- Whether it joins an existing transaction
-- Whether it creates a new transaction
-- Patch and inverse-patch generation
+Do not solve scrollbar behavior with feature-local magic padding/gutters.
 
-Pointer interactions begin a transient preview and emit one semantic completion through
-`CanvasInteractionCommitPort`. Normalized production implementations dispatch one named command on
-completion. While `LegacyApplication` still owns production element/document state, the temporary
-adapter under `src/legacy/interactions/` performs one legacy canvas replacement instead. Generic
-controllers never import that adapter or legacy types.
+For glass lists, use the material/content/effect behavior defined by the Glass System Contract.
 
-Legacy camera, selection-setter, element-geometry, and text-card placement/presentation bridges are
-kept beside that adapter. They correlate or translate existing production state at the boundary;
-they are not generic feature APIs and may not be imported by new domain or feature modules. The
-text-card bridge stores only the active bundle's bounded presentation/placement data, never a
-mutable `TaskCanvas` shadow, and its final decision is consumed by the one completion-port call.
+## 12. Dialogs/overlays
 
-Text editing should use an explicit edit session so one meaningful edit becomes one undo step rather than one step per keystroke.
+Use the shared dialog/overlay structure.
 
-## Persistence wiring
+Choose the correct surface role and logical glass layer.
 
-The persistence coordinator observes committed document transactions. Feature modules do not call save directly.
+Feature code owns dialog content/workflow, not a bespoke shell.
 
-Phase 3C owns this dormant wiring under `src/app/workspace/` and `src/app/persistence/`. Future
-feature UI dispatches the narrow workspace operations and reads selectors; it must not dispatch the
-slice's internal lifecycle actions. Revision-conflict resolution remains a future application
-workflow that replaces or explicitly reconciles the workspace before automatic saves can resume.
+## 13. History
 
-Media import is the exception because bytes are persisted by the backend before the document receives a media reference. The media service owns rollback/cleanup if the reference is never committed.
+History records completed persistent transactions.
 
-## Security wiring
+Do not put:
 
-Before adding a field, determine whether it is:
+- camera;
+- selection;
+- hover;
+- menus;
+- animation;
+- in-progress gesture state
 
-- Encrypted document data
-- Unencrypted media transport data
-- External application configuration
-- Ephemeral session state
+into document history.
 
-Do not place user text, filenames, links, workflow definitions, or document relationships in unencrypted tables.
+## 14. Persistence
 
-## Performance wiring
+The persistence coordinator observes committed workspace changes.
 
-For rendering or interaction features:
+Feature code never performs ordinary document saves directly.
 
-- Define the subscription granularity.
-- Define viewport-culling behavior.
-- Avoid document-wide selectors inside individual element components.
-- Ensure pointer frames do not dispatch persistent actions.
-- Add or update performance fixtures.
+Media import is a separate resource operation because bytes must enter native storage before the
+document can reference them; the media service owns rollback/cleanup.
 
-## Documentation checklist
+## 15. Security classification
 
-For refactor-session lifecycle and cross-session handoff, follow `docs/AI-WORKFLOW.md`.
+Before persisting a field, classify it as:
 
-After a meaningful implementation/review cycle:
+- encrypted document data;
+- unencrypted bounded media transport;
+- device-local configuration;
+- encrypted device-local remembered view;
+- ephemeral session/transient state.
 
-- Append relevant implementation, debugging, measurement, and reversion context to
-  `docs/WORK-LOG.md`.
-- Refresh `docs/REFACTOR-STATE.md` when the current phase position, migration boundary, blockers,
-  or immediate next task changes.
+Follow `SECURITY.md` and `DATA-FORMAT.md`.
 
-For every feature:
+## 16. Performance
 
-- Update `docs/CODEMAP.md`.
-- Update `docs/FEATURE-PARITY.md` when replacing legacy behavior.
-- Update `ARCHITECTURE.md` only for structural changes.
-- Add an ADR for foundational trade-offs.
-- Document user-visible configuration.
+For rendering/interaction features define:
 
-## Review checklist
+- subscription granularity;
+- culling/visibility behavior;
+- hot-path operations;
+- material depth/batching implications;
+- applicable benchmark/diagnostics.
 
-Reject the implementation when any answer is yes:
+Avoid document-wide selectors inside repeated element renderers.
 
-- Does `AppShell.tsx` gain feature logic?
+## 17. Documentation
+
+After meaningful work:
+
+- update `REFACTOR-STATE.md`;
+- append durable history/measurements to `WORK-LOG.md`;
+- update CODEMAP when subsystem ownership changes;
+- update parity when retained behavior changes/is accepted;
+- update subsystem contracts only for real contract changes;
+- add ADR for foundational decisions.
+
+## 18. Review checklist
+
+Reject the implementation if any answer is yes:
+
+- Does AppShell gain feature logic?
 - Does a component call Tauri directly?
-- Does domain code import React or DOM APIs?
-- Does pointer movement save or create history?
-- Does a generic menu gain one callback specifically for this feature?
-- Does the feature duplicate validation in TypeScript and Rust?
-- Does the feature bypass `MaterialSurface` or introduce blur/compositor/material implementation?
-- Does a file exceed 400 lines without a clear subsystem reason?
-- Does the feature add legacy compatibility to the main app?
-- Can imported workflow data execute before trust?
-
-The Phase 4 adapter does not relax the legacy-compatibility rule. It lives in the existing legacy
-production boundary, implements a generic new-architecture contract, and must not be imported by new
-feature, application-domain, or domain modules. It is not a database migration/conversion layer and
-must be deleted progressively with Phase 5 ownership migration.
+- Does domain code import React/DOM/Tauri?
+- Does pointer movement persist/history/serialize?
+- Does the feature bypass shared primitives for a common control?
+- Does the feature implement raw glass/material behavior?
+- Does a local style recreate a primitive variant?
+- Does a scroll panel invent a scrollbar workaround?
+- Does a dialog invent a bespoke shell without need?
+- Does a click target become smaller than the UI guardrail?
+- Does new code import legacy persistence/data formats?

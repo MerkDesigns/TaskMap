@@ -2,10 +2,10 @@
 
 This checklist records the legacy application's retained user-facing behavior before implementation changes. Screenshots and recordings should be stored outside the production bundle under `docs/baseline-assets/` or attached to the tracking pull request.
 
-The Phase 0 captures remain historical evidence of legacy behavior and appearance. ADR 003 later
-approved an intentional Phase 4.5 visual redesign, so existing frosted-glass captures are not the
-future material acceptance target. Phase 4.5 acceptance uses `docs/VISUAL-SYSTEM.md` and the approved
-local/reference capture without rewriting or deleting this historical record.
+The Phase 0 captures remain historical evidence of legacy behavior and appearance. ADR 006 and
+`docs/UI-SYSTEM-CONTRACT.md`, `docs/GLASS-SYSTEM-CONTRACT.md` and `docs/UI-QUALITY-GUARDRAILS.md`
+now govern Phase 4.5 acceptance. Existing frosted-glass captures are reference evidence, not the
+final material target; retain them without treating their historical styling as current policy.
 
 ## Capture rules
 

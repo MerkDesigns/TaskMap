@@ -68,6 +68,26 @@
   display: none;
 }
 
+/* WebView2 can bypass an ancestor's rounded overflow for oversized backdrop filters.
+   Mask each filter's output instead: keep its full sampling extent and leave content,
+   rim and external shadow outside this mask. Shared planes keep their shape-union clip. */
+.taskmap-material-surface[data-material-backdrop-source="self"]
+  > .taskmap-material-native-glass__clip
+  > :is(.taskmap-native-glass-preblur, .taskmap-native-glass-backdrop) {
+  mask-image: var(--taskmap-material-output-mask);
+  mask-size: calc(
+      100% - var(--taskmap-material-overscan-left, 0px) -
+        var(--taskmap-material-overscan-right, 0px)
+    )
+    calc(
+      100% - var(--taskmap-material-overscan-top, 0px) -
+        var(--taskmap-material-overscan-bottom, 0px)
+    );
+  mask-position: left var(--taskmap-material-overscan-left, 0px) top
+    var(--taskmap-material-overscan-top, 0px);
+  mask-repeat: no-repeat;
+}
+
 .taskmap-material-surface[data-material-strategy="native-glass"]
   .taskmap-material-native-glass__highlight {
   position: absolute;

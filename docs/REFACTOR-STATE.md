@@ -1,70 +1,88 @@
 # TaskMap Refactor State
 
-> Current snapshot only. Historical implementation steps and measurements live in WORK-LOG.md.
-> REFACTOR-ROADMAP.md and accepted ADRs define phase order.
+> Current snapshot only. History belongs in `WORK-LOG.md`.
 
-## Current HEAD and phase
+## Current branch/HEAD
 
-- Branch: `architecture-v1`.
-- Audited HEAD: `6c9c914d5a383e63fbcd83fc60f45f6506a5f8fa` — database hardening and CI.
-- Current work: uncommitted CI scheduling/close-path follow-up; remote validation still pending.
-- Phase 4.5C/D remains open. Database activation interrupted the glass acceptance plan.
-- Database implementation and requested manual checks are accepted; integration estimate remains
-  99% pending packaged-build/live edition-coexistence validation. This is not whole-refactor progress.
+- Branch: `architecture-v1`
+- Last reviewed HEAD before the UI documentation reset: `1cd89a4fe0add04d34e2425ad81db10f687dbd80`
+  (`Fix CI test scheduling and prevent runtime startup on fallback close`)
+- GitHub CI run `35936566796` for that commit passed; rechecked on 2026-09-24.
+- The documentation reset, Phase 4.5B workbench and Phase 4.5C proof fixture are local/uncommitted.
+- Local validation: full `npm run check` passed (1,709 tests); CODEMAP and diff checks also pass.
+  Rust is unchanged; its successful CI on the reviewed HEAD remains the native validation baseline.
 
-## Active production architecture
+## Current phase
 
-- AppShell composes providers, an outer error boundary and DatabaseApplication. The fallback retains
-  guarded close handling without depending on the normal chrome/material rendering path.
-- One database runtime owns the normalized workspace, named commands, transaction history and
-  revision-aware persistence. Rust owns encrypted storage, derived keys and session authority.
-- Runtime resources attach explicitly before use. Purge/disposal attempt all owners and report failure.
-  Keep future independent lifecycle responsibilities in collaborators; do not grow the session
-  controller with unrelated flags or move persistence back into the retained App.
-- RetainedCanvasApplication still uses legacy App.tsx presentation. This is a temporary renderer
-  boundary, not legacy document/storage ownership. Phase 5 transfers feature ownership in the
-  planned order: Text Card, Container, Text Block, Image/GIF, Mind-map.
-- The interaction controller owns transient pointer state; completed changes use named commands.
-- Media stays outside Redux. Rust read tokens bind bounded chunks to validated immutable bytes,
-  with session revocation, explicit release, completion cleanup and idle expiry.
-- Product boot excludes native legacy storage, keyring/migrations, Discord and raw runner handlers.
-  Old source files may remain as disconnected reference; no user-data conversion occurred.
-- MaterialSurface owns live native CSS glass. Cached compositor/worker code remains parked under
-  ADR 003 until Phase 4.5D cleanup.
+Phase 4.5 is active.
 
-## Verified status
+The database activation intermission is implemented/accepted for normal product use. The remaining
+database/release-specific validation item is packaged/live stable + development coexistence.
 
-- Native disposable-database checks passed: entry/create/open/unlock, wrong-password rejection,
-  save/restart/readback, explicit lock, save-failure retry, full-backup restore, generation recovery,
-  GIF/PNG import/reload and ordinary window geometry persistence.
-- User reported native GIF drop/persistence, Windows lock, screenshot exclusion, maximized reopen
-  and the requested retained-feature round-trip checklist working. Do not repeat these checks
-  without a relevant regression. Optional multi-monitor coverage was not separately confirmed.
-- Inactivity locking is explicitly deferred by the user. Keep the implemented Windows WTS locking.
-- Current local checks: 1,702 frontend tests pass without jsdom errors. Rust default, Dev and all-feature
-  suites each pass 63 tests; the ignored child-process entry is exercised by its parent lock test.
-  Formatting, typecheck, lint, architecture, code map, build and production-exclusion checks pass.
-  Vite's existing bundle-size/plugin-time advisories remain; details are in WORK-LOG.
-- Rebuilt Tauri inspection passed disposable-database unlock/GIF load and a deliberate error-boundary
-  probe with working guarded close. Normal flow had no console errors/warnings; the injected error
-  produced the expected React diagnostic. Save-failure close retry is covered by unit tests.
-- CI now covers architecture-v1 pushes and default/Dev/all-feature Rust configurations separately.
-  GitHub run 35903807853 for 6c9c914 passed all three Rust jobs but failed four frontend tests.
-  Local fixes address actions on disabled controls and one structural-test timeout; a new remote
-  green run is required after commit/push. Do not describe the current GitHub commit as green.
+Phase 4.5A (documentation reset) and 4.5B (minimal workbench) are complete locally.
+Phase 4.5C is active: the proof fixture is built, but the native backend fails the rendering gate.
+Four of six core checks have positive fixture evidence; this is not production acceptance.
 
-## Open blockers
+## Current product ownership
 
-- Commit/push the CI follow-up and confirm its GitHub run is green before new architecture work.
-- Packaged-build/live stable-Dev coexistence remains unverified; preserve installed stable data.
-- Phase 4.5 native-glass visual/animation/stacking acceptance and release-mode pan FPS remain open.
-  Remaining consumers, Quick Extensions polish, cross-display checks and obsolete rendering cleanup
-  follow GLASS-IMPROVEMENT-PLAN.md and the roadmap.
-- No general Phase 5 migration or release completion is claimed.
+- `DatabaseApplication` owns the active application database/session lifecycle.
+- One normalized workspace owns document state.
+- Named commands/history own persistent edits.
+- Revision-aware persistence owns ordinary document saves.
+- Device preferences, encrypted remembered views and session media are separate resources.
+- Interaction controllers own high-frequency transient pointer/camera state.
+- Retained `App.tsx` presentation remains a temporary renderer boundary; it is not the persistence
+  owner.
+
+## Current UI/material position
+
+Development builds expose an App/UI Lab switch inside the admitted database runtime. Both views
+share session resources and in-memory blur tuning. Diagnostics show bounds, hit targets and optional
+frame/material counters. Lock removes tooling and overrides; stable bundles exclude the workbench.
+The normal `app:ui-lab` command now launches TaskMap Dev. The old isolated harness is reference-only.
+Live WebView2 verification covered view switching, shared blur/list overscan, diagnostic outlines,
+counter display and reset, with screenshots inspected and no console errors/warnings. Lock cleanup
+and workspace/history/camera preservation are covered by real-runtime integration tests.
+
+The existing native CSS glass path remains the current implementation, but its topology is **not**
+automatically the final architecture.
+
+Known correctness issues include:
+
+- stale/frozen backdrop while content moves underneath glass;
+- current same-depth batching cannot provide all desired Minor-over-Minor blur behavior;
+- the proof confirms same-layer Major contamination; rounded filter-output clipping is now fixed;
+- current scroll-list clipping behavior differs from the new desired shrinking-material behavior;
+- several UI components still have one-off quality inconsistencies (dialog material/layout,
+  scrollbar presentation, stale button rims, small hit targets).
+
+The final intended behavior is defined by:
+
+- `UI-SYSTEM-CONTRACT.md`
+- `GLASS-SYSTEM-CONTRACT.md`
+- `UI-QUALITY-GUARDRAILS.md`
 
 ## Immediate next task
 
-Commit/push this bounded CI follow-up and verify GitHub, then finish the outstanding isolated database
-packaging/coexistence check before returning to glass acceptance. Benchmark authorization remains
-files only; do not load the benchmark without fresh permission. Keep future commits coherent by
-concern; do not rewrite ee562109 history. Root .tmp-* acceptance artifacts stay local and ignored.
+Address logical backdrop-source isolation while preserving optics/overscan. Rerun all six proof checks
+before broad migration. Rounded clipping now uses a mask on each local filter output, preserving the
+expanded sampling extent. Live App/Lab screenshots were inspected; the user confirmed rounded corners
+and continuously live pointer blur after the fix. `GLASS-RENDERING-PROOF.md` records the evidence and
+limitations. The proof remains 4/6 because cross-layer overscan contamination is still unresolved.
+
+Do not begin large scroll/motion migration until the rendering proof passes.
+
+Benchmark preparation remains files-only; loading the historical benchmark still requires explicit
+authorization and isolated storage. The documentation reset does not authorize stable user-data access.
+
+## Open gates
+
+- glass rendering proof;
+- final glass architecture;
+- scroll/presence/motion;
+- UI primitive/dialog/scrollbar cleanup;
+- final visual/performance acceptance;
+- packaged stable/dev coexistence;
+- Phase 4.5 cleanup.
+
+No general Phase 5 element renderer migration is claimed complete.

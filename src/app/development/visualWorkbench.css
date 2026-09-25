@@ -1,0 +1,64 @@
+.taskmap-workbench {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  z-index: 90;
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 32px));
+  padding: 8px;
+  border: 1px solid #626b79;
+  border-radius: 8px;
+  color: #eef2f8;
+  background: #1b2029;
+  font:
+    12px/1.4 system-ui,
+    sans-serif;
+}
+.taskmap-workbench nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.taskmap-workbench button {
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid #737e90;
+  border-radius: 4px;
+}
+.taskmap-workbench button[aria-pressed="true"] {
+  background: #405a76;
+}
+.taskmap-workbench summary {
+  cursor: pointer;
+  padding-top: 6px;
+}
+.taskmap-workbench__tools {
+  display: grid;
+  gap: 8px;
+  max-height: 50vh;
+  overflow: auto;
+  padding-top: 8px;
+}
+.taskmap-workbench__tools label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.taskmap-workbench__tools p {
+  margin: 0;
+}
+.taskmap-workbench__diagnostics {
+  white-space: pre-line;
+}
+.taskmap-debug-material-bounds [data-material] {
+  outline: 1px solid cyan !important;
+}
+.taskmap-debug-material-bounds .taskmap-native-glass-backdrop {
+  outline: 1px dashed orange !important;
+}
+.taskmap-debug-hit-targets :is(button, input, [role="button"], [contenteditable="true"]) {
+  outline: 1px dotted hotpink !important;
+}
+[data-taskmap-ui-lab="workbench-baseline"] .taskmap-ui-lab__stage {
+  padding-bottom: 130px;
+}

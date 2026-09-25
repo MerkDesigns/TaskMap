@@ -3,6 +3,13 @@
 - Status: Accepted
 - Date: 2026-08-06
 
+## Current applicability
+
+The state/domain/platform boundaries below remain accepted. Phase 1 boot/provider/registry status is
+historical: ADR 004 and the active DatabaseApplication now own production startup, and AppShell's
+outer error boundary covers it. UI/material intent follows ADR 006 and the current UI contracts.
+Do not restore the old LegacyApplication boot route or its error-boundary placement.
+
 ## Context
 
 TaskMap must replace its legacy internal architecture without changing retained behavior during the transition. The target needs predictable persistent state, domain transactions, a responsive pointer path, and a narrow boundary around Tauri and future Rust services. Phase 1 establishes those seams while the legacy application remains the active implementation.

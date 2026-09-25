@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const appShellPath = new URL("../../app/AppShell.tsx", import.meta.url);
+const databasePath = new URL("../../app/database/DatabaseApplication.tsx", import.meta.url);
 const uiLabPath = new URL("./DevelopmentUiLab.tsx", import.meta.url);
 const uiLabCssPath = new URL("./DevelopmentUiLab.css", import.meta.url);
 const playgroundPath = new URL("./AcrylicCompositorPlayground.tsx", import.meta.url);
@@ -12,15 +13,16 @@ const compositorCssPath = new URL("../materials/MaterialCompositor.css", import.
 const materialSurfaceCssPath = new URL("../materials/MaterialSurface.css", import.meta.url);
 
 describe("development UI Lab gate", () => {
-  it("requires both DEV and the explicit environment flag", async () => {
-    const source = await readFile(appShellPath, "utf8");
-    expect(source).toContain('import.meta.env.DEV && import.meta.env.VITE_TASKMAP_UI_LAB === "1"');
+  it("requires DEV and a development edition database runtime", async () => {
+    const source = await readFile(databasePath, "utf8");
+    expect(source).toContain("const DevelopmentVisualWorkbench = import.meta.env.DEV");
+    expect(source).toContain('runtime.edition === "development"');
   });
 
   it("loads the lab dynamically instead of adding an eager production import", async () => {
-    const source = await readFile(appShellPath, "utf8");
-    expect(source).toContain('import("../ui/dev/DevelopmentUiLab")');
-    expect(source).not.toContain("import { DevelopmentUiLab }");
+    const source = await readFile(databasePath, "utf8");
+    expect(source).toContain('import("../development/DevelopmentVisualWorkbench")');
+    expect(source).not.toContain("import { DevelopmentVisualWorkbench }");
   });
 
   it("scopes the target theme to the lab root", async () => {
@@ -32,16 +34,16 @@ describe("development UI Lab gate", () => {
     expect(appShell).not.toContain('className="taskmap-target-theme');
   });
 
-  it("gates the playground with the Lab and reuses the existing compositor boundary", async () => {
+  it("keeps the historical compositor playground disconnected from the application shell", async () => {
     const [appShell, uiLab, playground, playgroundCss] = await Promise.all([
       readFile(appShellPath, "utf8"),
       readFile(uiLabPath, "utf8"),
       readFile(playgroundPath, "utf8"),
       readFile(playgroundCssPath, "utf8"),
     ]);
-    expect(appShell).toContain("<DevelopmentUiLab />");
+    expect(appShell).not.toContain("DevelopmentUiLab");
     expect(appShell).not.toContain("createMaterialCompositorPresentationBridge");
-    expect(appShell).toContain("DevelopmentUiLab || DevelopmentPhase2Entry ? null");
+    expect(appShell).toContain("DevelopmentPhase2Entry ? null");
     expect(uiLab).toContain("<AcrylicCompositorPlayground presentation={presentation}");
     expect(playground).toContain("MaterialCompositorPresentationPublisher");
     expect(playground).toContain("<MaterialSurface");

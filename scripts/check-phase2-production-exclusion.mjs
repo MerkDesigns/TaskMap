@@ -11,6 +11,7 @@ const developmentCapability = await readFile(
 );
 const mainSource = await readFile("src-tauri/src/main.rs", "utf8");
 const appShell = await readFile("src/app/AppShell.tsx", "utf8");
+const databaseApplication = await readFile("src/app/database/DatabaseApplication.tsx", "utf8");
 
 if (stable.identifier !== "com.merkdesigns.taskmap") throw new Error("stable identifier is wrong");
 if (development.identifier !== "com.merkdesigns.taskmap.dev") {
@@ -35,11 +36,15 @@ if (
   throw new Error("Phase 2 frontend entry is not a development-only dynamic import");
 }
 if (
-  !appShell.includes('import.meta.env.DEV && import.meta.env.VITE_TASKMAP_UI_LAB === "1"') ||
-  !appShell.includes('import("../ui/dev/DevelopmentUiLab")') ||
-  appShell.includes("import { DevelopmentUiLab }")
+  !databaseApplication.includes("const DevelopmentVisualWorkbench = import.meta.env.DEV") ||
+  !databaseApplication.includes('import("../development/DevelopmentVisualWorkbench")') ||
+  !databaseApplication.includes('runtime.edition === "development"') ||
+  databaseApplication.includes("import { DevelopmentVisualWorkbench }") ||
+  appShell.includes("DevelopmentUiLab")
 ) {
-  throw new Error("UI Lab frontend entry is not a DEV-and-opt-in dynamic import");
+  throw new Error(
+    "UI workbench must be a DEV-only dynamic import within the development database runtime",
+  );
 }
 
 async function files(directory) {
@@ -63,6 +68,7 @@ for (const path of stableAssets.filter((item) => /\.(?:js|html|css)$/.test(item)
     content.includes("TaskMap UI Lab") ||
     content.includes("Acrylic compositor playground") ||
     content.includes("data-taskmap-ui-lab") ||
+    content.includes("taskmap-workbench") ||
     content.includes("Workspace admitted (preview)") ||
     content.includes("recovered-preview-token") ||
     content.includes("Entry preview — simulated files")

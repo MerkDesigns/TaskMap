@@ -49,26 +49,21 @@ describe("UI Lab Surface architecture", () => {
   });
 
   it("documents exactly Surface, Material, and ordinary Content as core concepts", async () => {
-    const [simple, reference] = await Promise.all([
-      read("docs/ui-architecture/SIMPLE-UI-SYSTEM.md"),
-      read("docs/ui-architecture/UI-SYSTEM-PART-REFERENCE.md"),
+    const [ui, glass] = await Promise.all([
+      read("docs/UI-SYSTEM-CONTRACT.md"),
+      read("docs/GLASS-SYSTEM-CONTRACT.md"),
     ]);
-    const documentation = `${simple}\n${reference}`;
-
-    expect(documentation).toContain("The three core concepts");
-    expect(documentation).toContain("### Surface");
-    expect(documentation).toContain("### Material");
-    expect(documentation).toContain("### Content");
-    expect(documentation).toContain("does not require a universal component or wrapper");
-    expect(documentation).toContain("material-aware presence");
-    expect(documentation).not.toMatch(
-      /VisualGroup|ContentLayer|OpacityGroup|four core concepts|group progress|group transform|alpha[- ]mask/i,
-    );
-    expect(simple).toContain("[TaskMap UI System Part Reference](UI-SYSTEM-PART-REFERENCE.md)");
-    expect(reference).toContain("[TaskMap Simple UI System](SIMPLE-UI-SYSTEM.md)");
-    expect(documentation).toContain(
-      "Native glass must never be faded using ancestor opacity, masks, or `filter: opacity()`.",
-    );
+    const core = ui.split("## 3. The three core concepts")[1]?.split("## 4.")[0] ?? "";
+    expect([...core.matchAll(/^### (.+)$/gm)].map((match) => match[1].trim())).toEqual([
+      "Surface",
+      "Material",
+      "Content",
+    ]);
+    expect(ui).toContain("roles, not mandatory wrapper layers");
+    expect(ui).toContain("GLASS-SYSTEM-CONTRACT.md");
+    expect(ui).toContain("UI-QUALITY-GUARDRAILS.md");
+    expect(glass).toContain("UI-SYSTEM-CONTRACT.md");
+    expect(glass).toContain("Do not fade an entire glass subtree through ancestor");
   });
 
   it("keeps the experimental fade seam in materials and behavior on the Surface ref", async () => {

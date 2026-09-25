@@ -2,214 +2,181 @@
 
 ## Purpose
 
-This document defines the repeatable workflow for AI-assisted work on the `architecture-v1` refactor.
+This is the operational workflow for AI-assisted work on `architecture-v1`.
 
-It exists so a new ChatGPT/Codex session does not need the project history explained from memory. It is an operational guide only. It does not replace the architecture, roadmap, ADRs, parity contract, or testing contract.
+It tells a new session what to read and how to resolve documentation conflicts without requiring old
+chat history.
 
-## Authority order
+## Authority model
 
-When documents disagree, use this order to determine intent:
+Authority is **scope-based**, not a single naive global ranking.
 
-1. `AGENTS.md` — mandatory repository and agent rules.
-2. `ARCHITECTURE.md` — normative target architecture.
-3. `docs/decisions/*.md` — accepted foundational decisions and exceptions.
-4. `docs/REFACTOR-ROADMAP.md` — migration order, phase boundaries, and phase exit criteria.
-5. `docs/FEATURE-PARITY.md` — retained/removed behavior and parity requirements.
-6. Specialized normative docs for the subsystem being changed:
-   - `docs/VISUAL-SYSTEM.md`
-   - `docs/UI-SYSTEM.md`
-   - `docs/FEATURE-WIRING.md`
-   - `docs/TESTING.md`
-   - `docs/DATA-FORMAT.md`
-   - `docs/SECURITY.md`
-7. `docs/REFACTOR-STATE.md` — concise current implementation/status snapshot.
-8. `docs/WORK-LOG.md` — chronological working context, experiments, problems, and follow-ups.
-9. `docs/CODEMAP.md` — generated/current structural map of the codebase.
+### Global rules
 
-`REFACTOR-STATE.md` and `WORK-LOG.md` may describe what currently exists, but they must never silently override a normative document.
+1. `AGENTS.md`
+2. `ARCHITECTURE.md`
+3. accepted current ADRs under `docs/decisions/`
 
-If implementation and documentation disagree:
+### Subsystem contracts
 
-- code and tests establish what is actually implemented;
-- normative docs establish what is intended;
-- record the discrepancy explicitly and resolve it instead of guessing.
+Inside their scope, an accepted subsystem contract is authoritative:
 
-## Session startup protocol
+- `docs/UI-SYSTEM-CONTRACT.md` — public UI architecture
+- `docs/GLASS-SYSTEM-CONTRACT.md` — glass/material behavior and proof/acceptance
+- `docs/UI-QUALITY-GUARDRAILS.md` — UI quality/reuse/hit-target rules
+- `docs/SECURITY.md` — security
+- `docs/DATA-FORMAT.md` — persistent data format
 
-Before answering questions such as "what should we do next?", proposing a refactor task, or preparing an implementation prompt:
+A current subsystem contract may intentionally supersede older feature-parity visuals or historical
+implementation plans. That supersession must be explicit.
 
-1. Confirm the active branch/commit when repository access is available.
-2. Read:
-   - `AGENTS.md`
-   - `docs/REFACTOR-STATE.md`
-   - the current section of `docs/REFACTOR-ROADMAP.md`
-3. Read the relevant architecture/ADR/specialized docs for the subsystem being discussed.
-4. Inspect the relevant implementation or the latest commit/diff. Do not infer current implementation only from old chat context.
-5. Reconcile code with the docs.
-6. State the current phase/slice before recommending work.
-7. Recommend the smallest next task that advances the current roadmap gate unless the user explicitly chooses a side task.
+### Planning/status documents
 
-Do not use conversation memory as the source of truth when repository documentation or code can answer the question.
+- `docs/REFACTOR-ROADMAP.md` — sequence and phase gates; it does not redefine subsystem design.
+- `docs/FEATURE-PARITY.md` — retained behavior unless intentionally superseded.
+- `docs/FEATURE-WIRING.md` — implementation wiring guidance.
+- `docs/TESTING.md` — validation strategy/gates.
+- `docs/REFACTOR-STATE.md` — concise current snapshot only.
+- `docs/WORK-LOG.md` — chronological history only.
+- `docs/CODEMAP.md` — generated/current structure only.
+
+### Historical material
+
+A document explicitly marked superseded/historical has no normative authority.
+
+Git history and `WORK-LOG.md` preserve old implementation context; old temporary plans do not stay
+authoritative merely because they remain readable.
+
+## Session startup
+
+Before recommending or changing substantial work:
+
+1. confirm branch/HEAD when repository access exists;
+2. read `AGENTS.md`;
+3. read `docs/REFACTOR-STATE.md`;
+4. read the active roadmap section;
+5. read the relevant subsystem contract(s);
+6. inspect the actual current implementation/diff;
+7. reconcile code vs intended contract explicitly.
+
+Do not infer current implementation solely from old chat context.
 
 ## Work loop
 
-### 1. Select one task
+### 1. Select one outcome
 
-Tie the task to one of:
+Tie work to:
 
-- a current roadmap checklist item;
-- a blocker preventing the current phase from closing;
-- a local correction/refinement to already migrated work;
-- a user-requested side task that does not violate the roadmap.
+- the active roadmap gate;
+- a blocker to that gate;
+- a local correction to already-migrated work;
+- an explicit user side task.
 
-Avoid opening several unrelated migration fronts at once.
+Avoid opening unrelated migration fronts.
 
-### 2. Establish constraints
+### 2. Establish the contract
 
-Before implementation:
+Identify:
 
-- identify the ownership boundary that must remain unchanged;
-- identify behavior/parity that must be preserved;
-- identify the relevant performance/security/material constraints;
-- identify whether the task is migration, cleanup, bug fix, experiment, or design refinement.
+- owner/subsystem;
+- behavior that must remain;
+- intentional policy changes;
+- performance/security/material constraints;
+- proof/acceptance needed.
 
-Do not jump into a later phase merely because its target architecture looks cleaner.
+If the contract is unclear, resolve it before implementation.
 
-### 3. Implement
+### 3. Implement the smallest coherent change
 
-Implementation may be done by the user, Codex, ChatGPT, or another agent.
+Do not use a local task to justify a broad unrelated rewrite.
 
-Prefer the smallest coherent change. Do not use a local task as an excuse for an unrelated rewrite.
+Side improvements are acceptable when they simplify the touched subsystem without creating a second
+architecture.
 
-Side improvements are allowed when they:
+### 4. Review the actual diff
 
-- make the touched subsystem simpler or more modular;
-- stay within the current architecture contract;
-- do not silently move ownership ahead of the roadmap;
-- do not create a second competing abstraction.
-
-### 4. Review the actual result
-
-After implementation, inspect the real diff/commit instead of relying on the implementation report.
+Inspect what changed rather than trusting an implementation summary.
 
 Check:
 
-- what files actually changed;
-- whether behavior/ownership remained within the intended slice;
-- whether new coupling or duplicated infrastructure was introduced;
-- whether the roadmap task is actually complete;
-- whether follow-up issues were discovered.
+- ownership;
+- dependency direction;
+- duplicated infrastructure;
+- contract compliance;
+- stale compatibility paths;
+- new follow-up issues.
 
 ### 5. Validate
 
-Run only the validation appropriate to the task during iteration, then satisfy the required phase gates before declaring the slice/phase complete.
+Use focused validation while iterating, then the full gate required by `docs/TESTING.md`.
 
-Compilation alone is not parity acceptance.
+For UI/glass work, automated tests do not replace live WebView2 visual acceptance.
 
-Manual visual/interaction checks should be recorded when they are part of acceptance.
+### 6. Update docs
 
-### 6. Update documentation
+Always after a meaningful completed cycle:
 
-Documentation is part of the task's definition of done.
+- append durable context/measurements/failed approaches to `WORK-LOG.md`;
+- refresh `REFACTOR-STATE.md`.
 
-After a completed or materially changed task:
+Update other docs only when their responsibility actually changed.
 
-**Always**
+Do not bulk-edit normative docs to rationalize an implementation accident.
 
-- append a concise entry to `docs/WORK-LOG.md`;
-- refresh `docs/REFACTOR-STATE.md`.
+## Dirty history vs current truth
 
-**When applicable**
+### `WORK-LOG.md`
 
-- `docs/REFACTOR-ROADMAP.md` — only when a roadmap checkbox/gate is actually completed, deferred, split, or intentionally changed;
-- `docs/CODEMAP.md` — when files/subsystems/responsibilities move or are added;
-- `docs/FEATURE-PARITY.md` — when retained behavior is replaced, intentionally changed, accepted, or removed;
-- `ARCHITECTURE.md` — only for structural architecture changes;
-- `docs/decisions/*.md` — add/update an ADR for foundational trade-offs or changed architecture decisions;
-- `docs/VISUAL-SYSTEM.md` / `docs/UI-SYSTEM.md` — when their normative contracts change;
-- `docs/TESTING.md` — when acceptance/fixtures/validation requirements change;
-- `docs/DATA-FORMAT.md` / `docs/SECURITY.md` — when their contracts change.
+Append-oriented history:
 
-Do not bulk-edit normative docs merely to make them match an implementation accident. Resolve the architectural question first.
-
-## Dirty log vs clean state
-
-### `docs/WORK-LOG.md` — dirty/history layer
-
-Use it to preserve useful development context:
-
-- what was attempted;
-- problems found;
-- failed approaches;
+- attempts;
 - measurements;
-- manual observations;
-- why an approach was reverted;
-- decisions made during back-and-forth;
-- commit hashes;
-- known follow-ups.
+- failures;
+- reversions;
+- commits;
+- why a decision changed.
 
-It is chronological and append-oriented. It may contain hypotheses, but label them as hypotheses.
+### `REFACTOR-STATE.md`
 
-### `docs/REFACTOR-STATE.md` — clean/current layer
+Short current snapshot:
 
-Keep it short and current:
+- branch/HEAD;
+- current phase/gate;
+- current ownership boundary;
+- blockers;
+- immediate next task.
 
-- branch and last audited commit;
-- current roadmap phase/slice;
-- completed major foundations;
-- current migration boundary;
-- active blockers;
-- immediate next task;
-- deferred items that are easy to misunderstand.
+Do not accumulate old completed history here.
 
-When something is completed, remove it from "active blockers" instead of accumulating history here. History belongs in `WORK-LOG.md`.
+## Performance/debugging
 
-## Side-task rule
-
-A side task is acceptable when it does not undermine the current migration boundary.
-
-For a side task:
-
-1. determine whether it is local to already migrated code or requires future-phase ownership;
-2. keep future-phase ownership changes deferred unless the roadmap is intentionally revised;
-3. record significant findings in `WORK-LOG.md`;
-4. update `REFACTOR-STATE.md` only if the side task changes current status or blockers;
-5. do not mark roadmap progress unless the official acceptance condition was actually advanced.
-
-If a side task reveals that the roadmap itself is wrong, change the roadmap deliberately and document the reason. Do not drift from it silently.
-
-## Performance/debugging rule
-
-Performance work must distinguish:
+Distinguish:
 
 - interaction-controller cost;
-- React/subscription/render cost;
-- compositor/material cost;
-- browser/WebView2 cost;
-- persistence/history work;
+- React/render cost;
+- material/compositor/GPU cost;
+- browser/WebView2 behavior;
+- persistence/history/database work;
 - development-build overhead.
 
-Record measurements and the exact test conditions in `WORK-LOG.md`.
+Record the exact environment/workload with performance claims.
 
 Do not degrade accepted visual quality based on an unisolated hypothesis.
 
-## End-of-task response
+## End-of-task check
 
-When a task is finished, the session should be able to answer:
+A finished task should answer from the repository:
 
-- What roadmap phase/slice are we in?
-- What changed?
-- What was verified?
-- What problems or failed approaches matter later?
-- Which docs were updated?
-- What is the next smallest roadmap-safe task?
+- what phase/gate are we in?
+- what changed?
+- what was verified?
+- what remains?
+- which contract governs it?
+- what is the next smallest task?
 
-If these cannot be answered from the repository, documentation maintenance is incomplete.
+If that cannot be answered from current docs, documentation maintenance is incomplete.
 
 ## New-chat bootstrap
 
-A new AI session should be instructed simply:
-
-> Read `AGENTS.md` and `docs/AI-WORKFLOW.md`, then follow the startup protocol before recommending or changing anything on the refactor.
-
-After that, the repository—not old chat memory—should provide the working context.
+> Read `AGENTS.md`, `docs/AI-WORKFLOW.md`, `docs/REFACTOR-STATE.md`, the active roadmap section and
+> the relevant subsystem contract before recommending or changing anything.

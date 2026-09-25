@@ -1,895 +1,247 @@
 # TaskMap Testing Strategy
 
-## Automated validation
-
-The Windows CI workflow runs on main/architecture-v1 pushes, pull requests and manual dispatch.
-`npm run check` covers formatting, typecheck, lint, frontend tests, architecture, production build
-and capability/production-exclusion checks; CI also checks the generated code map. Separate default
-development (`phase2-development,mcp-development`) and all-feature Rust jobs run formatting, Clippy with warnings
-denied and all-target tests. Native WebView2 acceptance, packaging/coexistence and release FPS remain
-separate manual gates. A workflow definition does not prove a successful remote run.
-
-Vitest limits jsdom concurrency to four workers. The test setup supplies a dispatched-event-target
-fallback for jsdom's missing `elementFromPoint`; it does not simulate geometry. Coordinate/drag tests
-must supply explicit hit-test geometry; the fallback throws on nonzero coordinates. Animation lifetime assertions use controlled timers; ordinary
-keyboard/focus tests must tolerate an exit animation already completing on a busy runner.
-
-Database entry tests must wait for controls to be enabled, not merely mounted: phase publication can
-precede controller/view-operation completion. Delayed-open regressions prove disabled submissions and
-cleanup clicks cannot bypass this guard, then proceed after settlement. The 1,000-member copy test is
-a deterministic transaction/count gate (including fixture creation, equality, undo/redo and save), not
-a five-second performance budget. Its explicit 15-second timeout accommodates the observed 5.97-second
-Windows CI run; the global Vitest timeout is unchanged. Real timing acceptance remains separate.
-
-Database hardening regressions cover top-level render failure with guarded close/save retry, explicit
-runtime resource attachment and cleanup after a throwing owner. Native media tests mutate SQLite after
-description and require all subsequent chunks to match the validated snapshot, with two-read capacity,
-token expiry/release/completion and lock revocation. Frontend tests cover token-based reads and release
-on metadata mismatch/cancellation. These supplement, rather than replace, live import/decode acceptance.
-
-## Test layers
-
-### Domain unit tests
-
-Cover document commands, schemas, invariants, extension compatibility, element capabilities, history patches, workflow validation, and configuration validation without React or Tauri.
-
-### Phase 3A implemented coverage
-
-Pure Node-environment tests cover minimal current-version creation through an injected UUID source,
-strict structural parsing, JSON round trips, input immutability, multiple-canvas order, normalized
-element layer order, same-canvas connections, missing canvas and element references, cross-canvas
-connection rejection, duplicate and missing order entries, active-canvas rules, malformed IDs,
-unsupported schema versions, unknown fields, media filename/path exclusion, JSON safety, conservative
-string/collection limits, extension target references, and the separation between structural and
-semantic validation. Existing Phase 2 codec and lifecycle tests continue to exercise the same domain
-boundary with canonical Phase 3A fixture documents.
-
-### Phase 3B implemented coverage
-
-Pure Node-environment tests cover explicit handler registration and duplicate rejection, unknown
-commands, strict runtime payload validation, JSON safety without getter invocation, atomic handler
-and invariant failures, input and payload immutability, injected transaction identity/time, static
-non-sensitive labels, forward/inverse Immer patches, no-ops, and explicit history-ignore behavior.
-
-The generic current-version command suite covers canvas creation/rename/settings/activation/order
-and deterministic removal; element insertion/geometry/data/order/removal; same-canvas connection
-insertion/data/removal; media-reference registration/allowed metadata/removal; extension
-installation/enabled state/configuration/removal; and supported document settings. Destructive tests
-verify that canvas removal cascades only to its normalized elements, connections, and canvas/element
-extension targets, while element removal cascades only to endpoint connections and element-targeted
-extension installations.
-
-History tests cover empty state, recording, multi-step undo/redo, future invalidation, no-op and
-ignored-command behavior, optional injected capacity, clearing, unrelated ignored-field
-preservation, empty/mismatched transactions, bidirectional round-trip compatibility, and fail-closed
-corrupt/incompatible patches without serialization. A deterministic 10,000-element test
-updates one element, asserts there is no JSON serialization, and verifies that the transaction
-contains localized patches rather than document snapshots; it deliberately has no fragile
-wall-clock threshold.
-
-### Phase 3C implemented coverage
-
-Node-environment application integration tests cover atomic validated workspace load/replacement/
-clear, revision bounds, epoch advancement, clean sequence initialization, command no-op/failure
-preservation, recordable and ignored-history changes, injected transaction identity/time, input
-immutability, and atomic undo/redo including fail-closed history application and preservation of
-unrelated ignored fields.
-
-A controllable scheduler proves the named 350 ms default, one-timer debounce coalescing, no save or
-encoding before timeout, latest-document capture, cancellation, and explicit flush without
-wall-clock assertions. Controllable promises cover one in-flight save, synchronous commands during
-unresolved database work, sequence-specific acknowledgment, revision 4 -> 5 -> 6 follow-up saves,
-and final cleanliness only after the newest sequence is persisted.
-
-Failure tests cover encoder rejection without a database call, retryable save/session failures,
-explicit retry against the latest document and acknowledged revision, mutation after a non-conflict
-failure, sanitized error state, and revision conflicts that preserve edits/history while blocking
-automatic and ordinary retry saves. Workspace replacement, clear, and coordinator disposal tests
-prove obsolete success/failure completions cannot dispatch into the current epoch. The existing
-deterministic 10,000-element Phase 3B test remains part of the full frontend suite.
-
-### Component tests
-
-Cover element renderers, extension controls, menus, edit sessions, focus behavior, and accessibility with platform clients mocked.
-
-### Application integration tests
-
-Cover command dispatch, history, autosave coordination, database lifecycle, media references, canvas switching, and stable/dev isolation.
-
-### Rust service tests
-
-Cover database schema, encryption envelope, password verification, key zeroization boundaries, backups, file locking, media streaming, process ownership, and structured workflow launching.
-
-### Database activation intermission coverage
-
-Staged card/container tests cover exact typed payloads, empty/Unicode fields, string/order bounds,
-unknown-field and embedded-workflow rejection, frozen retained-view projections, canonical layer vs
-child order, missing/wrong-type/cross-canvas parents and duplicate order. Unsupported content in any
-canvas returns sanitized issues without a partial view. Real-controller pan/zoom samples prove zero
-schema parsing/JSON serialization and identical cached results; completed entity/layer changes,
-parent invalidation, cache clearing and same-ID document replacement have separate regression tests.
-These tests do not establish live UI parity, actual session purge or full typed command admission.
-
-Step 3b2 adds typed block/root node and connection coverage: exact payloads, field/string/geometry
-limits, retained frozen props, four ports, unknown edge data/type rejection, missing/cross-canvas
-capabilities, ordinary-card endpoint rejection, self edges and duplicate unordered pairs independent
-of direction/ports. Inactive-canvas failures return no partial view. Identity tests cover zero parsing/
-serialization for unchanged documents, moving a connected node without rebuilding its edge/block,
-edited ports, capability changes with cached edges, and clearing all projected caches together.
-
-Step 3b3 adds strict image/opaque-ID/metadata tests, explicit empty vs missing media, paired unknown
-intrinsic dimensions, retained stored MIME support, unsupported/unused-reference rejection, mixed
-card/image child order, parent locality and image endpoints. Cache tests cover shared references,
-geometry-only edits, referenced vs unrelated metadata updates, removed/invalid references and clearing.
-100 real pan and 100 zoom samples reuse image/media views without schema parsing or serialization.
-These tests neither read bytes nor establish image/GIF/SVG decoding, safety or live renderer parity.
-
-Step 3b4 tests cover all nine strict extension schemas/defaults and the canonical target matrix,
-including unsupported scope/IDs, removed/raw-workflow entries, disabled-invalid entries and duplicates.
-Installed-but-off state is distinct from a disabled installation, without losing configuration.
-Frozen metadata/props, per-target configure/disable/remove invalidation, unrelated-view reuse,
-geometry-only reuse, cached target revalidation and clearing are tested. Real controller tests run
-100 pan plus 100 zoom samples with no extension parsing or serialization. These are unmounted data
-tests, not evidence of feature command enforcement or visible control parity.
-
-Step 3c1 checks the actual configured workspace and mocked native transport: reject before create
-IPC/pending confirmation, cancel/close fallback, resumed-read relock/close, invalid-save rejection,
-and product composition's required policy wiring. Workspace tests cover invalid load/command/history
-candidate rejection with state/history/scheduled-save preservation, policy exceptions, valid edits/
-undo/redo/save, confirmed-rejection cleanup and fresh empty creation. Actual 100-pan/100-zoom samples
-invoke no acceptance or serialization. These are feature-data gates, not proof of lock/action rules,
-callback epochs, native security delivery or large-document completed-edit latency.
-
-Step 3c2a tests atomic selection deletion, parent/child/edge/installation cascade and whole-group
-undo/redo with one save. Cover locked parent/child protection, mixed allowed/protected selection,
-disabled/configured-off lock state, the deletion preference and the single-remove bypass. Invalid
-target groups and force fields reject; empty/protected sets are no-ops. Media and survivor ordering/
-geometry are retained. A 1,000-child fixture asserts one non-serialized transaction and camera-frame
-isolation; the mocked product factory test proves it uses the retained handler list. Real deletion
-animation, selection/editor cleanup and stale callback rejection remain later acceptance work.
-
-Step 3c2b tests both product geometry entry points across all retained types, effective lock state,
-deletion-preference independence, non-resizable cards/mind-map nodes, parent/child lock distinction,
-atomic invalid/stale/duplicate target rejection and no-op identity. Real controller integration covers
-initial-lock filtering, mid-drag lock rejection, 100 transient previews, canonical-vs-measured card
-dimensions, one group transaction/save, full undo/redo, cancellation and constrained resize. Mocked
-product transport confirms the actual composition uses these handlers. Placement and callback epochs
-are not supplied by these tests; no native or release-latency acceptance is implied.
-
-Step 3c2c tests atomic placement with mixed card/image sibling order, caller-ordered bundles, root
-detachment, same-parent reorder, multiple sources and canonical geometry in one undo/save operation.
-Cover direct/effective locks, allowed locked parents/indirectly shifted siblings, numeric-gap no-ops,
-generic-data placement bypass, malformed/stale/missing/duplicate preconditions, mid-gesture locks/order
-changes and unrelated-content preservation. Real controller tests keep 100 previews and cancellation
-off the document/history/save path, preserve canonical extents and dispatch once at completion. A
-1,000-sibling fixture asserts localized patches and no serialization, not release latency. Mocked native
-composition exercises placement and undo. Production filtered/scroll drop mapping and callback epochs
-remain later work; no native UI, profile/keyring access, benchmark loading or live parity claim.
-
-Step 3c2d/e covers all five types' committed content fields, effective locked content controls,
-field-scoped stale checks, unrelated concurrent-field preservation, full replacement guards, equal/
-empty edits, canonical empty text/link removal, and atomic multi-type edits/undo/redo/save. Layer tests
-cover all four directions, contiguous/noncontiguous and reversed selections, allowed locked targets,
-root-only slots, retained children/data/media, stale/malformed groups, boundary no-ops and single-API
-child protection. Real-controller 100-pan/100-zoom samples invoke neither command; completed layer and
-content actions remain separately undoable but share one debounced save. A 1,000-element fixture checks
-field-local content patches and root-slot-only layer patches without serialization. Mocked product
-composition exercises both commands. These are unmounted command tests, not actual editor draft,
-clipboard/extension, callback epoch, native UI or release-performance acceptance.
-
-Step 3c3 tests revocable callbacks against the real mocked lifecycle/workspace: same-ID reload, clear,
-canvas A/B/A, synchronous lock-start revocation, unlock, failed save-before-lock, cancellation,
-supersession and reentrant replay. Cover typed captures, stale content/sibling snapshots, canonical
-move/resize components, explicit placement decisions, initial child layer filtering and current locks.
-Editor tests cover trimmed/blank/Unicode text/title writes and retained URL/Windows-path normalization
-without opening resources. Actual controller tests run 100 previews with no dispatch/history/save/
-serialization or session reads, then one save on completion; cancellation stays transient. Repeating
-1,000 captures retains one subscription pair and disposal unsubscribes once. Mocked product composition
-checks stale callbacks after lock. This does not establish actual visual editor/gesture wiring, complete
-extension/clipboard routes, native purge acceptance or release performance.
-
-Step 3d1 exercises the unmounted real-controller/callback composition: effective-lock group filtering,
-canonical content-sized geometry, constrained resize, root-layer filtering, undo/redo/save and stale
-command failures. Cover cancelled/no-op/below-threshold gestures, rejected starts, wrong pointer IDs,
-canvas replacement/round trips, lock and failed save-before-lock, disposal and reentrant listeners.
-Assert synchronous preview/guide/selection cleanup and pan rollback on invalidation. 200 move/resize/pan
-samples must not read workspace/session state, subscribe, dispatch, serialize, create history or save;
-completed edits use one existing transaction/save. Placement must fail closed until resolved drop mapping
-exists. Test-supplied view bounds are not production size/hit-test or native visual acceptance.
-
-Step 3d2 tests the normalized compatibility geometry bridge plus actual placement service/controller:
-measured/fallback root and contained bounds, filtered/scrolled positions, root groups, source-order bundle
-pickup, locks, visibility/type-specific snaps, text-block/topmost-container hit tests and directional
-insertion. Check card-only-to-shared-child slot mapping, exact bundle/loose-position validation, explicit
-detachment, missing/throwing resolvers, stale siblings, threshold/cancel/lock cleanup, undo/redo and one
-save. 200 placement samples must not read workspace/session state, resolve completion, dispatch, serialize
-or create history/save work. The visible release path must still update the placement service first.
-
-Step 3d3a tests four typed connectable endpoints/ports, permitted locked endpoints, edge deletion and
-atomic new-root-node+opposite-port-edge completion. Reject missing/self/duplicate/reversed pairs, bad ports,
-ordinary cards, non-node grow sources, duplicate node/edge IDs and invalid node values with no partial
-node, history or save. Captured retargeted-edge deletion and lock/reload/canvas round trips reject stale
-completion. Null/cancel/supersession remain transient with no additional subscriptions/serialization.
-Check whole-transaction undo/redo and one debounced save. This is unmounted action support, not live
-port hit-testing, new-node default/clamp/focus/animation acceptance or clipboard/extension completion.
-
-Step 3d3b tests all nine extension definitions/defaults and compatible element types, mixed existing/new
-installation, exact search text, activation versus configured flags, primary-directed group locks and
-single privacy/checkbox toggles. Check equal-value/absent no-ops, untouched reference preservation, atomic
-undo/redo and one deferred save. Reject malformed/colliding/duplicate/wrong-canvas/retargeted/stale updates
-without partial publication. Every callback must expire on lock, failed-lock recovery, reload, canvas round
-trip, clear and disposal; completion is consumed before reentrant replay. Two hundred cancelled captures
-must add no observers, dispatch or serialization. A 1,000-target install records only installation patches
-in one transaction. This does not accept live extension-drop effects/scroll reset or creation/paste companions.
-
-Step 3d3c1 tests typed copies of all five elements, mixed graphs and parent/edge/extension ID remapping,
-opaque-media reuse and placeholder images, copy-time values after source edits/deletion, source/reference
-preservation, name suffixes and whole-transaction undo/redo/save. Preserve current text-card-only container
-expansion; do not claim contained-image copying parity beyond current behavior. Reject incomplete/duplicate/
-reused IDs, invalid positions/data, foreign targets, changed media and partial insertion. Copy alone adds
-no history/save. Cross-canvas Copy must survive while gesture/edit captures expire; lock/failed-lock,
-reload/clear/dispose/cancel/supersession revoke it and reentrant completion cannot replay. Two hundred
-cancelled copies add no observers or serialization; a 1,000-member paste produces only insertion/order
-patches in one transaction with a deferred save. Live geometry/menu/clipboard and AI JSON remain pending.
-
-Step 3d3c2 tests fresh and copied container insertion at shared card/image slots, active-configured-off versus
-inactive/missing companion installations, inherited versus supplied colors and copied checkbox preservation.
-AI replacement covers zero/one/many cards, old-card extension removal, retained image geometry/media/control
-references, slot replacement/renumbering, HTTP(S)/null links, exact export shape and empty-to-empty no-op.
-Reject stale container/child/extension snapshots, bad JSON/color/link/extra fields, invalid/colliding IDs,
-geometry and checkbox IDs without partial state. New-card/AI captures must expire on session/canvas/clear/
-dispose/cancel/supersession, including failed lock-save; replay is consumed before subscribers run. Two
-hundred cancelled captures must not parse/serialize/dispatch/add observers; a 1,000-card AI replacement
-uses one history transaction/deferred save without rewriting media. Existing AI JSON tests remain required.
-No passing command test establishes native clipboard/editor, scroll/focus/animation or full visual parity.
-
-Step 3d3d1 tests all six existing document settings leaves, grouped edits, exact expected/proposed leaf
-sets, invalid bounds/types/foreign device fields, stale rejection, unrelated concurrent changes and
-cancel/equal no-op semantics. Captures must expire on canvas/session/reload/cancel/supersession/disposal.
-Local slider previews do not dispatch/serialize/save; one completion creates one history entry/deferred
-save and retains element/media/canvas references. Undo/redo callbacks must cancel real controller move,
-resize, pan and selection without committing unfinished samples, revoke captures even when undo restores
-their expected values, block reentrant history/captures and reject workspace changes during invalidation.
-Cover no-entry no-op, rejected/thrown history, lock/dispose, redo revocation, one debounce and document-wide
-undo without navigation history or active-canvas reversal. These are unmounted fixture checks, not native
-keyboard/menu/editor/settings-control acceptance or a preferences/camera persistence implementation.
-
-Batch A resource tests additionally cover queued preference load/updates and failed revision writes,
-strict edition/UTF-8/control-character validation, encrypted camera cache round trips/tampering/AAD,
-session revocation and late-load rejection. Exercise settled-only camera persistence with 100 real pan
-samples without serialization/history/document saves and the exact 256-canvas limit. Canvas commands
-cover activation, last-canvas removal guards, clear/resize atomicity, stale confirmation and undo.
-Media fixtures cover native-selected-file and chunk import with shared GIF/SVG validation, malformed
-and incomplete data, offsets/lengths, pending/locked/obsolete authority, bounded concurrent lazy reads,
-shared URL leases, release/purge/late-result cancellation and atomic metadata-plus-image insertion.
-Resource save failures before ordinary lock must preserve the unlocked workspace. All fixtures use
-test-owned paths/mock IPC; live renderer visibility/decode, picker/drop/clipboard, native locks and
-storage cutover remain Batch B acceptance. Run Rust default/all-feature suites and the scoped resource
-capability/guard checks. Do not load the user's database or benchmark to satisfy fixture tests.
-
-Group geometry command tests cover all-or-nothing duplicate/missing/wrong-canvas/stale/invalid
-rejection, no-op suppression, immutable source data and localized patches. Workspace tests exercise
-100 real-controller preview samples with no serialization/history/save, one completed group save,
-whole-group undo/redo and cancellation. The 10,000-element command fixture covers both single and
-two-element edits; it asserts patch locality and no JSON serialization, not a fragile timing target.
-
-Mocked native transport tests cover edition-selected purpose policy, validation before pending
-confirmation, mismatched confirmation/recovery rejection, session-bound saves and the unmounted
-application lifecycle-to-transport composition. Rust tests check save identity under the write mutex,
-including delayed requests after reopen and lock/unlock at the same revision, strict request fields,
-edition/UI Lab policy and existing path-token/input-limit cases. Run both default and all-feature
-Rust suites and Clippy when changing the shared application/harness command implementation.
-
-`npm run production:inspect` includes the explicit application capability whitelist/config/handler
-check alongside Phase 2 and MCP exclusion. These are code/build checks, not proof of live native
-picker, window-close or OS-lock delivery; packaged cutover acceptance remains mandatory.
-
-### End-to-end tests
-
-Cover complete user workflows in packaged or near-packaged Tauri builds.
-
-### Visual and performance tests
-
-Use fixed fixtures and recorded legacy references. Performance results must include hardware and build mode.
-
-## Required fixtures
-
-### Small
-
-- 3 canvases
-- 50 elements
-- 10 small images
-
-### Normal
-
-- 25 canvases
-- 2,000 elements
-- 500 MB mixed media
-- Search, checkbox, privacy, lock, and color extensions
-
-### Stress
-
-- 100 canvases
-- 10,000 elements
-- 2 GB mixed images and GIFs
-- Dense mind-map connections
-
-Fixtures must be deterministic and generated by scripts rather than committed as enormous binaries.
-
-## Performance acceptance
-
-Release builds target:
-
-- 60 FPS during pan, zoom, drag, and resize on the normal fixture
-- No persistent dispatch, serialization, encryption, database write, or history entry during pointer frames
-- One history transaction per completed drag or resize
-- Database opening time independent of total media byte size, excluding visible media decode
-- Autosave without visible interaction stalls
-- Element rerenders limited to affected entities and overlays
-- Lazy media loading based on viewport visibility
-
-Automated performance checks should record frame duration, long tasks, selector execution, render counts, serialization time, encryption time, database transaction time, and media decode scheduling.
-
-## Database tests
-
-Test:
-
-- Create in default and selected locations
-- Open correct password
-- Reject incorrect password
-- Detect corrupted document
-- Detect invalid envelope
-- Save and reopen
-- Backup rotation
-- Restore backup
-- Disk-full and interrupted-save simulation
-- Concurrent writer rejection
-- Stable/dev database protections
-- Large media insertion and streaming
-- Orphan media cleanup
-- Database compaction as explicit maintenance
-
-## Session tests
-
-Test:
-
-- Close window retains unlocked background session
-- Reopen window without password during session
-- Explicit lock requires password
-- Windows session lock triggers TaskMap lock (deferred until native event integration)
-- Inactivity timeout triggers lock (deferred until timeout integration)
-- Quit clears session
-- Application restart requires password
-- Save pending during lock
-
-### Phase 2 implemented coverage
-
-Rust tests use temporary directories exclusively and cover strict version-1 envelope preflight, malicious Argon2 values, malformed SQLite types, missing/duplicate singleton rows, wrong fixed-field lengths, maximum password/document/media/MIME/ID limits, empty and Unicode passwords, wrong-password and corruption behavior, every authenticated metadata field, rapid nonce uniqueness, zeroizing ownership and explicit clear paths, pending-unlock denial/cancel/timeout/bad confirmation, invalid identity confirmation, concurrent saves, save versus lock/close, transaction rollback, five-generation rotation and recovery, explicit online-backup restore/failure, media length/hash verification, plaintext artifact scans, keeper-failure closure, and edition-specific settings.
-
-Windows-specific Rust tests cover relative/absolute paths, case variants, hard links, symlinks when permitted, a database handle that prevents replacement, stable/development contention, non-contention lock errors, real child-process contention, forced child termination, and stale diagnostic metadata. The routine-save test installs media mutation guards and an 8 MiB media row to prove a document-only save neither copies nor changes media.
-
-TypeScript tests cover typed raw-transport error mapping, validation before save and after read, validation-failure relocking, database-ID and purpose confirmation, password exclusion from Redux, decrypted-document removal on lock/close, secure save-then-lock coordination, valid harness transitions, and production entry exclusion. `npm run production:inspect` builds stable and fails if the stable identifier, capability, Rust registration, bundle, or assets expose Phase 2 command/harness strings.
-
-The Phase 2 manual lifecycle was completed successfully on 2026-08-06 using `Ctrl+Shift+F2` in TaskMap Dev and a disposable `.tmapdb`. The pass covered database creation with a temporary password; document edit, save, revision advance, and readback; explicit lock closing the document-bearing harness; reopening in a locked state without plaintext; password unlock restoring the saved document; closing the visible window while the unlocked process remained alive; single-instance relaunch recreating the window and restoring the unlocked document without another password; explicit full backup without changing the active revision; quit terminating the background process; and a new process starting closed, then opening the recent database with its password and restoring the saved document.
-
-Native Windows session-lock delivery, inactivity locking, final tray UX, scheduled full-backup policy, and streaming/chunked media transport are not Phase 2 claims and remain deferred.
-
-## History tests
-
-Test every persistent command for forward and inverse patches.
-
-Special cases:
-
-- Multi-element move is one entry
-- Resize is one entry
-- Text edit is one entry per edit session
-- Attach/detach cards preserves ordering
-- Delete restores dependent connections on undo
-- Extension installation/removal is reversible
-- Undo/redo triggers persistence
-- Pan, zoom, selection, hover, and menus are excluded
-
-## Media tests
-
-- Media bytes never enter Redux state
-- Invisible media is not fetched
-- Newly visible media is requested
-- GIF decoding does not block pointer interaction
-- Removing the final reference permits cleanup
-- Original filenames and relationships do not appear in plaintext SQLite fields
-
-## Workflow Runner tests
-
-- Executable and argument array remain distinct
-- Working directory validation
-- Sequential and parallel groups
-- Visible and allowed background execution
-- Imported workflow starts untrusted and disabled
-- No administrator elevation
-- No raw shell field
-- Stop affects only TaskMap-launched processes
-- Process completion and logs update correctly
-- Secrets are not written to default logs
-
-## Architecture tests
-
-CI must fail when:
-
-- Domain imports React, Tauri, or DOM-specific modules
-- A component imports Tauri directly
-- Platform imports UI
-- `AppShell.tsx` gains prohibited dependencies
-- A feature imports another feature's internal file instead of its public contract
-- A file exceeds the configured review threshold without allow-list documentation
-- A direct `backdrop-filter`, Tailwind `backdrop-blur-*`, legacy frosted class/consumer, or independent
-  acrylic Canvas2D implementation grows beyond the exact Phase 4.5A frozen legacy allowlist
-
-The Phase 4.5A material rule freezes path-specific occurrence counts rather than exempting broad
-directories. Removing a legacy occurrence is allowed; additions fail unless the exact declaration
-is an explicitly reviewed material-boundary implementation such as `SharedSmallGlassPlane`.
-Phase 4.5D removes this transitional allowlist entirely. Acrylic Canvas2D implementation is owned
-specifically by `src/ui/materials/compositor/`; ordinary non-acrylic Canvas2D rendering remains
-valid elsewhere.
-
-### Phase 1 skeleton coverage
-
-TypeScript component tests cover the transient interaction provider's idle default, injected service, and external-store subscription updates. Error-boundary tests cover unchanged successful rendering, deterministic fallback rendering, typed failure reporting, omission of error internals from the default console report, and propagation of errors thrown inside `LegacyApplication` outside the new-architecture boundary.
-
-### Phase 4 canvas interaction coverage
-
-Pure viewport tests cover screen/world round trips, current zoom bounds and quantization, wheel
-direction/magnitude, anchored zoom, translation, reset-at-center, world rectangles, and non-finite
-input protection. Controller tests cover subscriptions, pointer identity, pan lifecycle, disposal,
-canvas replacement, selection/additive/partial-intersection/tiny-box semantics, single and atomic
-multi-move, zoom-correct deltas, locked/mixed groups, resize constraints/aspect ratio, snapping,
-layer completion, cancellation, no-op completion, and the corrected `pointercancel` discard path.
-Pan-specific coverage injects a deterministic frame scheduler, delivers multiple raw pointer
-samples, and requires one latest-coordinate publication per frame plus a synchronous exact
-pointer-up flush.
-
-Legacy-boundary integration tests drive many transient samples through the generic controller and
-prove that persistent `TaskCanvas` state, history stand-ins, and autosave spies are untouched until
-one completion-port call. Cancellation and no-op completion call the adapter zero times. Adapter
-tests cover atomic collection movement, text-card reparenting, resize, ordered-group layers, lock
-capabilities, and bounded render-only projection. StrictMode coverage proves the production-owned
-controller remains subscribed after React's development effect probe, and selection compatibility
-tests prove consecutive functional updates read the live controller snapshot. Camera-correlation
-tests cover queued-write invalidation across canvas replacement, same-ID stored-camera replacement,
-controller-write acknowledgement, and pan-cancel rollback without a legacy write.
-
-Legacy text-card placement characterization covers the three-screen-pixel commit threshold,
-directional same-container insertion, cross-container reparenting, detach-to-loose behavior,
-filtered-to-real insertion mapping, stable bundle order, locked-member exclusion, current preview
-projection, cancellation, frame-time immutability, and one final canvas replacement.
-
-The deterministic performance fixture prepares 5,000 snap candidates and executes 120 pointer
-updates while spying on JSON serialization/parsing, `structuredClone`, commit calls, and source
-geometry. All forbidden boundaries remain at zero and only one preview geometry is published. A
-separate 10,000-element culling fixture proves the visible candidate set remains below 40 for the
-chosen viewport while pinned off-screen elements remain present. These are architectural CI gates,
-not a machine-dependent `<16.67 ms` assertion and not a claim of measured release-mode FPS.
-The culling guard additionally proves that active pan frames reuse the existing candidate set until
-camera displacement reaches half of the 480-screen-pixel overscan, while zoom, resize, and settled
-camera changes refresh immediately.
-
-The minimap projection tests cover landscape/portrait sizing, element minimum pixels, and viewport
-projection. Production minimap interaction remains reset-only; click/drag navigation is intentionally
-absent. The user completed the Phase 4 production manual parity checklist after commit `9a34a23` and
-accepted the retained interaction behavior. The release-mode rendered 60 FPS measurement was not
-performed. Because Phase 4.5 replaces the rendering/material path, that measurement is performed once
-after Phase 4.5D against the final compositor.
-
-### Phase 4.5A visual-system foundation coverage
-
-TypeScript tests lock the exact material IDs, Large, Small, and Opaque definitions, shared acrylic
-cache profile identity and values, Cutout definition, highlight stops, duplicate registration rejection,
-and safe unknown-ID behavior. Component tests cover registered material selection, ordinary DOM
-props, bounded semantic elements, ref forwarding, default/inherited/overridden plane, default and
-geometry-specific radius, explicit no-shadow elevation, Cutout inset presentation, and the absence
-of feature-facing blur/cache/worker/tint props.
-
-Architecture-rule fixtures prove the exact frozen legacy occurrences remain temporarily accepted,
-new direct backdrop-filter declarations and Tailwind backdrop-blur utilities fail, and even a frozen
-file cannot grow beyond its recorded count. There are no compositor runtime tests in Phase 4.5A.
-
-### Phase 4.5B1 pure compositor-core coverage
-
-Six Node-environment suites contain 60 deterministic cases for the pure B1 boundary. They lock the
-normative quality constants, formulas, clamps, margin cases, explicit invalid-input rejection, and
-ceil-rounded backing dimensions. Coverage cases reuse the canonical Phase 4 viewport transforms and
-exercise inclusive `0.68`/`1.47` zoom bounds, just-outside ratios, all four 30%-margin safety edges,
-dimension changes, non-1 anchors, extreme aspect ratios, and rebuild discovery during 120 active
-gesture samples.
-
-Invalidation cases classify the five normative categories and the explicit output-size category by
-expensive build, cheap compose, mask, overlay, and buffer-resize consequences. Scheduler and generic
-resource fakes prove one active/one newest queued build, chronological lifecycle/build-serial
-ordering, duplicate and stale request suppression, conflicting-identity rejection, queued
-replacement, stale result rejection, next-build start, lifecycle/scene/profile supersession,
-disposal, close-on-reject/replacement, no double close, and prevention of obsolete resource
-replacement. A pure frame state machine proves that 120 transform notifications create one logical
-pending frame, consumption uses the latest state, and a subsequent frame can be scheduled; spies
-keep JSON serialization/parsing and `structuredClone` at zero.
-
-This B1 coverage does not claim a Worker, `OffscreenCanvas`, Canvas2D renderer, `ImageBitmap`, surface
-registry, observer, React provider, fallback runtime, production integration, visual acceptance, or
-release FPS proof. Those Phase 4.5B/4.5D gates remain open below.
-
-### Phase 4.5B2 compositor-runtime proof coverage
-
-Nine Node-environment B2 suites contain 84 deterministic runtime cases, with five additional
-material-architecture cases. Generic scene tests prove deeply frozen structured-clone-safe data,
-bounded primitive/grid/transform inputs, and rejection of feature-specific discriminants. Grid work
-limits apply to the cache/world intersection, allowing large logical worlds while failing before
-pathological cache-local dot or line iteration. Recording Canvas2D fakes lock
-clear/background/grid/primitive order, canonical anchor pan/zoom plus cache-margin transform, rounded
-paths, cache culling, and the one shared 45 CSS-pixel blur converted to backing pixels by cache scale
-with saturation and brightness both fixed at `1`.
-
-Protocol, worker-side, and client cases preserve exact descriptor/request identity, send the scene
-separately from document data, transfer the successful bitmap as the sole transferable, close on
-failed transfer/malformed/stale/replaced/disposed results, require exact bitmap dimensions, and
-prevent stale failures or obsolete successes from disturbing newer work. Runtime cases retain B1's
-one-active/one-newest queue and prove one fatal Worker downgrade automatically continues the current
-desired build, or the newest queued build, through fallback without Worker recreation. They also
-show 120 active-interaction fallback requests invoke no expensive build until settlement, at which
-point only the newest request starts. Capability cases cover Worker/OffscreenCanvas/main-thread/
-overlay-only selection and constructor failure. Hot-path spies keep JSON serialization/parsing and
-`structuredClone` at zero; import rules reject Blob workers and feature/domain/platform/React/Redux/
-Tauri compositor dependencies.
-
-The production Vite graph reaches the B2 runtime through the B3 provider and must emit a distinct
-`acrylicCache.worker-*.js` module-worker asset. Tauri packaging proves that asset survives bundling,
-but neither compilation nor packaging claims successful WebView2 execution. An actual Worker to
-OffscreenCanvas to transferable ImageBitmap run remains a manual acceptance item when no
-controllable Chromium/WebView2 session is available.
-
-### Phase 4.5B3 production-integration infrastructure coverage
-
-The B3 slice adds 32 deterministic cases across registry, component-registration, output-plane,
-reprojection, coordination, legacy projection, and architecture-rule coverage. They prove one shared
-surface observer, StrictMode-safe cached-acrylic registration, explicit base/modal membership,
-independent rounded mask revisions, and no duplicate mask work across 120 unchanged measurements.
-Surface resize, radius, mount, and plane changes rebuild only affected masks and cause zero expensive
-scene-cache requests.
-
-Canonical reprojection cases cover pan, adaptive cache/compositor scales, cache margin, and non-1
-anchor/current zoom. Coordination cases prove zero work with no surfaces, 120 covered viewport
-samples produce zero expensive builds and at most one pending compositor frame, both planes compose
-from that one frame, a settled scene revision requests one asynchronous build, and unsafe coverage
-may request Worker work during an active gesture. Main-thread fallback receives the authoritative
-interaction-active state and remains deferred until settlement. Resize requests a
-dimension-compatible cache, while disposal cancels pending frame work and releases output resources.
-
-The legacy adapter cases lock the production neutral panel body, accent header, border, and current
-container/text-block header heights and radii. Loose cards, mind-map nodes, and contained cards use
-generic body geometry; contained placement reuses the existing read-only filter/order/scroll helper.
-Resolved settled layers change primitive order and presentation revision, while 120 transient samples
-do not. The 10,000-element fixture retains only expanded-cache intersections and performs zero
-world-element DOM measurements.
-
-Coordinator cases also reject cross-canvas accepted caches while allowing an older revision from the
-same scene during replacement. Explicit transform-motion invalidations coalesce 120 notifications
-into one mask-only frame using the latest registered rectangle. Focused architecture fixtures reject
-compositor DOM discovery and legacy world-element measurement. These automated cases do not claim
-production visual migration, real media fidelity, WebView2 Worker execution, or release FPS.
-
-### Phase 4.5B deterministic compositor gates
-
-Phase 4.5B must add deterministic tests proving:
-
-- 120 pan samples within accepted coverage cause zero expensive blur rebuilds.
-- 120 zoom samples within the `0.68`–`1.47` tolerance reuse the cache; crossing a zoom or 30%
-  margin-safety coverage threshold coalesces the required rebuild even during an active gesture.
-- Expensive scene rasterization/blur never runs once per animation frame or pointer sample.
-- At most one compositor `requestAnimationFrame` callback is queued and at most one expensive build
-  is active; the queue retains only the newest relevant request.
-- Newer queued state supersedes obsolete output, rejected/replaced `ImageBitmap` objects are closed,
-  and lifecycle/canvas/viewport identity prevents stale acceptance.
-- Surface mount, visibility, animation, and resize dirty masks/overlays without automatically dirtying
-  the backdrop scene or rebuilding its cache each frame.
-- Drag and resize pointer samples do not rebuild the expensive cache; one relevant settled mutation
-  invalidates once. Coverage-required camera rebuilds remain allowed and coalesced.
-- Worker failure selects the controlled cache-based main-thread fallback; inability to produce full
-  acrylic selects overlay-only degradation and never per-surface backdrop-filter.
-- Disposal cancels owned frames, terminates the worker, disconnects observers, and closes bitmaps.
-- The 10,000-element fixture culls before worker transfer so primitive count is bounded to viewport,
-  cache margin, and necessary pinned presentation.
-- Spies keep JSON serialization/parsing, `structuredClone`, document cloning, persistent Redux
-  dispatch, history, persistence, encryption, and database calls at zero in the compositor hot path.
-
-These are state/count/invariant CI gates, not fragile wall-clock assertions. Real media beneath
-acrylic is a required visual acceptance case; if needed, tests cover a generic raster/thumbnail
-primitive rather than an Image/GIF-specific compositor branch.
-
-### Phase 4.5C1 UI-system foundation coverage
-
-Twenty-one focused C1 suites contain 89 deterministic cases. Motion math covers analytical scalar-spring
-convergence, frame-interval variance, current-state retargeting, interpolation/clamping, and local
-FLIP position/resize. Scheduler cases prove 120 subscribers share one pending frame, idle work stops,
-repeat unsubscribe is safe, StrictMode effects retain one subscriber, and debugger/background deltas
-clamp. The central reduced-motion store
-is subscription-safe and immediate liquid settlement removes travel/overshoot.
-
-Liquid edge-model cases cover both directions, travel stretch, positive width, variable-width exact
-settlement, mid-flight and rapid repeated retargeting, and reduced motion. Component cases cover
-local variable-width tab measurement, ResizeObserver remeasurement, real `acrylic-small`
-MaterialSurface composition, and geometry invalidation during motion. The coordinator integration
-feeds 120 liquid frames through the B3 public geometry seam and proves one coalesced mask refresh
-with zero additional expensive acrylic builds.
-
-Primitive cases cover native disabled/click behavior across button variants, accessible icon/toggle
-buttons, checkbox/switch/radio/range semantics, focus, explicit Field control-ID association, and
-merged explicit plus Field-owned description/error references. ContextMenu cases cover external
-coordinate placement, roving focus, ArrowUp/Down, Home/End, Tab/Escape/outside dismissal, action
-focus return, disabled skipping, and exit presence.
-Tabs and LiquidTabs share click, arrow, Home/End, disabled-skip, ARIA, and roving-tabindex tests. UI
-Lab source gates prove the dynamic entry requires both `DEV` and `VITE_TASKMAP_UI_LAB=1`, remains an
-eager-import-free production boundary, and scopes the target theme to the Lab root. Stable-bundle
-inspection rejects UI Lab markers.
-
-Lab cases mount the real catalog, lock local-only theme scope, verify Tab/Shift+Tab traversal and the
-pseudo-class-only focus architecture, distinguish system reduced motion from the non-persistent
-scoped simulation, and verify explicit Cutout geometry. Playground cases prove pan, cursor-anchored
-zoom, deterministic reset, existing-material preset mapping, shared visible/BackdropScene model
-identity, high-contrast thin geometry, one existing presentation publisher, and absence of a second
-provider, backdrop-filter, persistence, Redux, or history.
-
-Lab stacking-contract cases lock the synthetic playground scene below the base compositor plane and
-the Lab's material surfaces above it. They also reject a Lab-root stacking context that would trap
-surface content below the provider-owned canvas or require per-component inline z-index repairs.
-
-Liquid cases additionally lock the `7px` resting radius, bounded `14px` deformation radius, exact
-radius return on settlement, unit-scale labels, the clear `7.5%` white selection wash, inherited
-moving rim, radius propagation into the real material registry, and zero new expensive cache builds
-across moving and radius-changing samples. Input contracts require a `1px` neutral-white focus border
-without accent glow while retaining danger validation.
-
-Acrylic-toggle cases cover native pressed semantics, unchanged Acrylic Small material identity,
-orange translucent on-state treatment, hover suppression, shared-scheduler compression/settlement,
-reduced motion, and cheap geometry invalidation. Liquid-toggle cases cover travel deformation,
-current-state retargeting, bounded positive geometry, exact circular settlement, native switch
-semantics, shared scheduling, cheap invalidation, and reduced motion. Confirm/animated-checkbox cases
-cover momentary native action semantics, unchanged Acrylic Small identity, glowing treatment, and
-separately drawable native-checkbox tick strokes. Context-menu cases cover Opaque composition with no
-compositor registration or geometry invalidation, item/danger semantics, outside and Escape dismissal,
-retained exit presence, reduced motion, and the Lab fixture's exact
-section/extension ordering against the current production source. The Lab context trigger is asserted
-inside the compositor-backed synthetic viewport, and CSS contracts lock the legacy-compact `165px` /
-`29px` geometry without pretending jsdom proves pixels. Existing exact material-definition tests
-require Large highlight opacity `0.028`, Small `0.026`, and Opaque tint opacity `1.00`.
-
-These tests do not claim production visual migration, WebView2 visual acceptance, production overlay
-migration, or Phase 5 canvas-element presentation.
-
-### Phase 4.5C2A workspace-foundation coverage
-
-Two focused C2A suites contain eight deterministic cases. Component coverage proves the target
-theme remains scoped to the production workspace instead of `documentElement`/`body`, and that the
-visible canvas and legacy BackdropScene consume identical void, canvas, dot-grid, minor-line, and
-major-line colors. Parity contracts also lock `24px` minor and `120px`/every-five major spacing,
-`0.62`/`0.48` line opacity multipliers, the dot fade and screen-radius formulas, and the `24px`
-canvas radius. Static architecture contracts keep the workspace root free of accidental stacking
-contexts, place the future workspace-chrome layer above the existing base compositor output while
-leaving the canvas below it, retain exactly one compositor provider, and reject new blur, material,
-cache, persistence, or Redux ownership in the patterns. Interaction characterization locks the
-existing stage/world pointer, wheel, context-menu, and transform ownership in `App`.
-
-The existing exact theme and legacy BackdropScene suites additionally lock the normative canvas
-border, shadow, radius, background, and grid projection values. This slice does not claim toolbar,
-panel, card, Settings, minimap, overlay, or canvas-element migration or visual acceptance.
-
-### Phase 4.5C2B floating-toolbar coverage
-
-Two focused C2B suites contain eight deterministic cases. Component tests invoke every retained
-callback, lock Canvases/Extensions/Privacy/Minimap pressed semantics, preserve native Undo/Redo
-disabled behavior, and verify collapsed controls remain `aria-hidden` and outside the tab order.
-They also require exactly two base-plane Acrylic Large semantic surfaces with no material elevation
-and exercise size-observer geometry at expansion boundaries. Static contracts keep
-`FloatingToolbar` inside `WorkspaceChromeLayer`, reject toolbar-local z-index, backdrop filters,
-cache/provider/runtime creation, and independent animation frames, and preserve Settings behind its
-existing callback boundary. C2C extends that same layer with only the two side-panel shells. Each
-toolbar group retains its reference-proven local two-pass Large surface; its own ResizeObserver
-follows actual expandable-group size changes with no global material fan-out.
-
-### Phase 4.5C2C side-panel-shell coverage
-
-Focused C2C suites require production to compose one default-elevation Acrylic Large
-`WorkspaceSidePanel` with shared-panel Canvas and Extensions views, which add no second Large surface
-while retaining Acrylic Small cards. They lock top-chrome paint order above the side panel,
-active/inert view semantics, measured height changes, Canvas callbacks, and the Extensions filter
-portal. Motion tests drive the shared scheduler deterministically and require the complete panel to
-travel between its resting position and a fully offscreen left position over `240ms`, using ease-in
-for show and ease-out for hide. They reject all panel-presence opacity, filter, backdrop-filter, and
-reveal-cover changes, require left-batch-only geometry invalidation during transform frames, and cover
-clean reversal without replacing the mounted surface. Content switching uses synchronized `180ms`
-fade/slide transitions and a `200ms` measured-height transition between once-measured endpoints
-without remounting the material shell. A settled inactive view is content-hidden and contributes no
-shared filter or browser runtime. Reduced motion skips both presence and switch motion. Static contracts retain the App-owned
-closing flags and cancellable final-unmount timer, exactly one workspace-chrome layer, portal/drag
-ownership, existing card and search/filter internals, and one compositor provider while rejecting
-panel-local compositor layers, backdrop filters, caches, compositor runtimes, and independent
-animation frames in the new pattern.
-
-The final compositor-fidelity coverage extends the shared registry, `MaterialSurface`, output-plane,
-coordinator, and panel-motion suites. It locks default mask opacity at `1`, finite `0..1` clamping,
-acrylic-only registration, per-surface alpha rasterization, opacity-only plane-mask revisions with
-zero cache builds, synchronized DOM/mask enter and exit opacity, immediate reduced-motion settlement,
-and no post-settlement geometry or mask work.
-
-### Phase 4.5C2D Canvas Browser coverage
-
-Focused Canvas Manager, runtime, pure-math, scroll, and architecture-contract suites lock the
-production `288px` browser geometry, full/minimal Acrylic Small radii, tunable Cutout preview
-geometry, embedded zero-acrylic behavior, target-token active/cycle states, live active-canvas
-camera/element projection and user colors, editor behavior, feature callbacks, local card-count
-panel resizing, and wheel-route ownership.
-
-Interaction coverage proves the `6px` threshold, multi-slot and scrolled insertion, `0.45` wheel
-normalization, `45ms` smooth-scroll convergence, extended edge auto-scroll, `190ms`
-`easeOutQuart` slot/snap motion, click suppression, cancellation, and one final persistent order
-commit. Integration tests prove the same card DOM remains live while its stable portal host moves
-to the drag layer, no clone/duplicate/placeholder exists, and logical Large sampling ownership is
-`inherited` before, during, and after drag. Static contracts reject clone-based drag and new
-feature-owned backdrop/compositor implementation. Shared-batch tests require settled and slot-moving
-Canvas Browser cards to stay on one shared 5px + 23.5px two-pass stack. The actual dragged/snapping card is excluded
-from that mask and activates exactly one bounded shared-style 5px + 23.5px drag batch so it can sample settled
-card content beneath it. Ten or one hundred settled cards therefore retain two Small filter layers;
-drag adds exactly two more layers and never scales with slot-moving cards. Canvas runtime tests also
-reject global material invalidation calls. These tests do not claim pixel-level manual acceptance.
-
-### Phase 4.5C2E primary Extensions Browser coverage
-
-Focused Extensions panel and architecture-contract suites lock
-the production Acrylic Small card/8px radius, Cutout 32px icon/6px radius, and embedded Opaque
-zero-acrylic mappings. Behavior coverage preserves search matching and attributes, target filtering,
-Favorites/Extensions registry ordering, localStorage toggling, the five-favorite limit, filled-star
-state, empty results, control drag suppression, pointer drag/drop callbacks, source-boundary drop
-suppression, and the unregistered body-owned preview.
-
-Static contracts require C1 SearchField/IconButton composition, token-based active-filter state with
-no legacy teal, unchanged legacy filter-portal positioning/shell ownership, and a structurally
-unmigrated Quick Extensions menu/search/rows/drag preview. They also reject new compositor, cache,
-provider, mask-update, or animation-frame ownership and migration leakage into Minimap, Settings,
-general overlays, or later extension-module work. These tests characterize DOM/material structure
-and behavior, not rendered acrylic pixels or manual visual acceptance.
-
-Shared-batch coverage additionally requires one two-layer Small stack regardless of extension-card count,
-zero private card filters, locally coalesced scroll masks, and zero Small filters after the retained
-Extensions view settles inactive. Workspace chrome coverage locks the local 6px + 60px two-pass
-recipe on both toolbar groups, the side panel, and the spatially separate window controls.
-
-### Phase 4.5C2F production Minimap coverage
-
-Twenty-one focused cases across the Minimap component, pure projection, workspace composition,
-material-pattern motion, and retained toolbar/panel architecture suites cover this slice. They lock
-one Acrylic Large 12px shell registration, the `192px`/`8px`/`16px` shell geometry, a non-registering
-Cutout 6px interior, the unchanged maximum/aspect/minimum-pixel projection contracts, exact zoom
-rounding, content-owned accent colors, semantic viewport tokens, and the native IconButton reset
-callback. Pointer characterization confirms the map remains reset-only with no click/drag
-navigation.
-
-Deterministic scheduler tests require DOM and per-surface compositor mask opacity to share every
-visibility progress value, settle exactly, stop all work after settlement, and settle immediately
-under reduced motion. The generic compositor coordinator/registry coverage continues to prove that
-these opacity-only base-plane revisions do not request or rebuild the shared backdrop cache. Static
-contracts retain exactly one `WorkspaceChromeLayer` and compositor provider, keep Toast/FPS/Quick
-Extensions/Settings/menus outside the migration, and reject Minimap-local z-index, legacy frosted
-classes, backdrop blur, new cache/runtime/provider ownership, and independent animation frames.
-These tests do not claim pixel-level or manual visual acceptance.
-
-### Phase 4.5C3A primary Settings coverage
-
-Four focused suites contain 13 deterministic cases. They lock the modal-plane Acrylic Large shell,
-modal-plane Acrylic Small islands and liquid controls, accepted `528px × 632px`/20px/12px/8px
-geometry, exact 0.36 scrim, and the semantic scrim/compositor/content layer contract. Navigation
-coverage retains production/DEV tab gating plus shared LiquidTabs keyboard behavior; control tests
-preserve grid callbacks, exact slider bounds, all five content-color triggers, single-action toggle
-rows, the Discord dependency, close/focus/Escape behavior, data import/export flow, update checking,
-shortcut order, footer version, and DEV callbacks.
-
-Static contracts require one existing compositor provider and only the base/modal planes, reject
-Settings-local compositor z-index, backdrop filters, requestAnimationFrame, persistence/domain
-ownership, legacy teal, and primary `left-panel-card` usage. C3A originally retained nested dialogs;
-C3B coverage below supersedes that presentation boundary for password, Update Available, and Clear
-Canvas while still retaining `ColorPickerMenu`, Quick Extensions, context menus, ToastStack,
-storage-error UI, and command-runner overlays for later C3 slices. These structural and DOM tests do
-not claim rendered acrylic pixels or visual acceptance.
-
-### Phase 4.5C3B production modal coverage
-
-Focused modal, Settings, material-registry, and compositor-coordinator suites cover shared
-enter/open/closing presence, exact `180ms` entry and `120ms` exit settlement, retained exit DOM,
-mid-exit reopening, reduced-motion removal, scrim progress, and zero scheduler work after settlement.
-They synchronize the root shell and every registered descendant mask to modal DOM opacity, verify
-late registrations inherit current group opacity, preserve unrelated surfaces, batch cheap plane
-updates, and prove mask/geometry-only frames request zero shared backdrop-cache rebuilds.
-
-Consumer tests cover root and nested Update Available placement and busy/error behavior, Clear
-Canvas danger/cancel behavior and immediate mutation ownership, Settings password export/import
-flows, topmost Escape ordering, focus retention through visible exit, and focus return only after
-presence completion. Static contracts retain exactly one compositor/provider, only base/modal
-planes, no direct animation frame or feature-specific timeout ownership, and no legacy frosted,
-backdrop-filter, or local global-layer shell styling in migrated dialogs. Color Picker, Quick
-Extensions, filter/info/context overlays, command-runner/conflict dialogs, ToastStack, storage-error,
-creation UI, C3C, and Phase 5 remain explicitly outside this coverage. DOM tests do not claim pixel
-composition or visual acceptance.
-
-### Phase 4.5D visual and performance acceptance
-
-Run stable and development packaged Tauri/WebView2 builds across representative viewport sizes and
-display scaling. Compare target theme, typography, exact material overlays, geometry, base/modal
-stacking, animated surfaces, worker/fallback/degraded modes, and real media under acrylic against
-`docs/VISUAL-SYSTEM.md` and the approved reference capture.
-
-Measure release-mode rendered pan, zoom, drag, and resize on the normal fixture and record hardware,
-Windows/WebView2 versions, display scaling, refresh rate, window size, build/commit, traces, and
-compositor diagnostics. The acceptance target remains 60 FPS. Stress-fixture behavior is recorded
-separately. CI deterministic tests do not claim FPS or a `<16.67 ms` wall-clock threshold.
-
-## Storage-free preview preservation checks
-
-`node scripts/check-storage-preview.mjs` (included in production inspection) checks the dedicated
-identifier/config/feature, debug-only restriction, exact capability allowlist, early startup/close guards,
-native legacy session/path/keyring and media/portable guards, and preview-only frontend suppression.
-Rust tests check mode/identity mismatch and denial before resource access. Normal builds retain their
-existing frontend output. Check actual Tauri backend identity before invoking any live test operation.
-The live preview must show built-in defaults and its no-save notice, return null for legacy load and
-deny reset/save/import/export/media-path/app-database/runner/updater commands. Inspect initial canvas,
-Canvas Browser, screenshots, console and close behavior without opening either installed app's data.
-This validates isolation/baseline usability only, not editable database or full retained-feature parity.
-
-## Database entry UI (Batch B checkpoint, not native database acceptance)
-
-`src/features/database-entry/` tests mount the real application session controller with in-memory
-transport. Cover StrictMode resume, cancelled/late pickers, password confirmation and UTF-8 limits,
-immediate field clearing, duplicate suppression, wrong-password retry, recent edition/token handling,
-resource readiness/retry/cancellation, lock/unlock revocation, blocked cleanup and recovery acknowledgement
-without a write. Keyboard tests cover opt-in Tab/Shift+Tab while preserving canvas defaults.
-
-For visual checks, first verify the native storage-free identity using `npm run app:preview:mcp`, then
-navigate its WebView to `http://127.0.0.1:6971/database-entry-preview.html`. This page has a simulated
-transport only and explicitly labels its admitted placeholder; it does not exercise real encryption,
-filesystem persistence, media or the retained canvas binding. Use throwaway text as passwords (`wrong`
-simulates rejection); the recovered recent-file fixture checks acknowledgement. Never substitute a normal
-dev/stable launch while legacy storage remains active. Production inspection excludes fixture markers.
-Native OS/session lock, close/save-failure behavior, real file restart and complete retained parity still
-require the coherent cutover and separate disposable-file acceptance.
-
-### Retained canvas binding lifetime
-
-`retainedCanvasBinding.test.ts` and `retainedCanvasBindingTransport.test.ts` exercise the existing
-session/command/projection/controller composition using disposable in-memory transport. Cover
-resource-ready admission, one binding per runtime, named edits/undo, canvas camera restoration using
-current viewport dimensions, ordinary save failure retention, and permanent revocation on lock,
-cancellation, replacement and disposal. Reentrant observers cannot resurrect a revoked snapshot;
-failed UI purge hooks remain retryable and observer failures cannot skip controller disposal.
-The performance case checks 200 real-controller pan/zoom samples without view notifications,
-serialization, document/history mutation or database saves; remembered cameras flush separately.
-These are supporting integration tests. They do not establish mounted UI, native locks, real media
-rendering, filesystem persistence or release FPS acceptance.
-
-## Phase gates
-
-Every roadmap phase has explicit exit criteria. A phase is not complete until:
-
-- Required automated tests pass
-- Architecture checks pass
-- Relevant parity entries are documented and manually verified
-- Performance changes are measured in release mode
-- `docs/CODEMAP.md` is current
-- No obsolete legacy fields or dead feature branches were introduced
-
-## Release checklist
-
-Before stable release:
-
-- Full retained-feature parity accepted
-- Stress fixture tested
-- Database recovery scenarios tested
-- Production and development editions run concurrently
-- Standalone migrator tested against the user's real legacy database copy
-- Installer and updater validated
-- Windows Defender results documented
-- Password and media privacy wording reviewed
-- No plaintext document fragments found in database, config, logs, or temporary files
+## Purpose
+
+Tests prove contracts and regression safety.
+
+This document defines current validation layers/gates. Historical phase-by-phase test inventories
+belong in Git/WORK-LOG and in the tests themselves, not in this strategy document.
+
+## 1. CI baseline
+
+The Windows CI path should cover:
+
+- formatting;
+- TypeScript typecheck;
+- lint;
+- frontend tests;
+- architecture/dependency checks;
+- production build;
+- production-exclusion/capability checks;
+- CODEMAP check;
+- Rust formatting;
+- Rust Clippy with warnings denied;
+- Rust tests for default/development/all-feature configurations.
+
+A workflow definition is not evidence of a successful run.
+
+## 2. Unit/domain tests
+
+Pure tests cover:
+
+- document schema/invariants;
+- command payloads/effects;
+- history forward/inverse patches;
+- extension compatibility;
+- element contracts;
+- workflow validation;
+- preference/config validation.
+
+Prefer deterministic structural assertions over fragile wall-clock timing.
+
+## 3. Application integration tests
+
+Cover:
+
+- normalized workspace lifecycle;
+- command dispatch/history;
+- revision-aware persistence;
+- stale epoch/session completion rejection;
+- database entry/open/unlock/lock/retry;
+- device preferences;
+- remembered encrypted views;
+- media import/read/release/session revocation;
+- retained-view callback revocation during migration.
+
+## 4. Rust/native service tests
+
+Cover:
+
+- database envelope/schema;
+- encryption/authentication;
+- writer ownership/file identity;
+- key/session lifetime;
+- backup/recovery generations;
+- bounded media transport and validated read tokens;
+- settings/atomic files;
+- workflow process ownership.
+
+## 5. UI/component tests
+
+Use component tests for deterministic behavior such as:
+
+- semantics/accessibility;
+- focus/keyboard;
+- primitive variants;
+- hit-target class/geometry contracts;
+- motion-controller state;
+- mount/exit lifetime;
+- shared scheduler ownership;
+- no duplicate subscribers.
+
+jsdom does **not** prove WebView2 pixels, native blur, compositor ordering or real geometry unless the
+test provides explicit geometry mocks.
+
+## 6. Architecture/static checks
+
+Reject:
+
+- Tauri imports outside platform boundaries;
+- feature-owned raw glass/backdrop implementations;
+- private material renderer imports from feature code;
+- legacy persistence reintroduction;
+- UI-Lab/dev tooling in production bundles;
+- new one-off primitive visual forks where static detection is practical.
+
+## 7. UI/glass rendering proof
+
+Before broad final glass implementation, manually exercise the proof scene specified in
+`GLASS-SYSTEM-CONTRACT.md` in real Tauri/WebView2.
+
+The proof must establish:
+
+- same-layer Major isolation;
+- higher overlay sampling;
+- promoted Minor ordering;
+- continuously live moving backdrop;
+- continuously live animated backdrop;
+- correct overscan boundaries.
+
+Automated DOM tests cannot substitute for this proof.
+
+The current runnable scene is **UI Lab → Rendering proof**. Reset workbench blur overrides and
+use its independent ink/overlay/promotion controls for A/B comparisons. `GLASS-RENDERING-PROOF.md`
+records the current candidate's failures and screenshots. A user-confirmed pointer drag is required
+when MCP swipe cannot operate the pointer-capture handle; do not infer a drag pass from tool success.
+
+## 8. UI Lab + real App acceptance
+
+The development workbench must allow the same material/tuning state to be inspected in:
+
+- controlled UI Lab fixtures;
+- the real App using the active database/session.
+
+A fix is not visually accepted solely because the controlled fixture looks correct.
+
+Launch `npm run app:dev:mcp` (also `npm run app:ui-lab`) and admit a development database.
+The bottom DEV strip switches App/UI Lab; tuning remains in memory across view switches.
+Check blur in both views, including shared Minor list planes, and reset before visual baselines.
+Material/effect and hit-target outlines are optional. Frame counters measure requestAnimationFrame
+intervals, not GPU-presented FPS, and add diagnostic overhead. They are disabled by default.
+Lock must remove the workbench, its overrides and its sampling loop. Production builds exclude it.
+
+`npm run app:ui-lab:isolated` retains the old storage-free harness as a reference during migration;
+it is not the current workbench acceptance path.
+
+## 9. Glass correctness acceptance
+
+Use the hard acceptance matrix in `GLASS-SYSTEM-CONTRACT.md`.
+
+Particularly important regressions:
+
+- no stale red blur while dragging an object away;
+- no mouse-up correction;
+- real Minor-over-Minor blur when promoted;
+- scroll-edge rounded material shrink;
+- rounded content masking;
+- intact shadow/rim behavior;
+- parent glass unaffected by child-button interaction;
+- deterministic round trip after repeated interaction.
+
+## 10. UI quality acceptance
+
+Use `UI-QUALITY-GUARDRAILS.md`.
+
+Manual review must catch:
+
+- wrong surface/material role;
+- one-off dialog alignment;
+- native scrollbar bleed/gutter;
+- stale button rims;
+- tiny click targets;
+- feature-local primitive forks.
+
+## 11. Performance methodology
+
+Performance claims require a recorded environment.
+
+Record:
+
+- commit/build mode;
+- CPU/GPU;
+- display resolution/refresh;
+- DPR/scaling;
+- WebView2 version;
+- viewport;
+- fixture/database;
+- visible element/media counts;
+- glass surface/batch/filter counts.
+
+For each relevant interaction record:
+
+- median frame time;
+- p95 frame time;
+- p99 frame time;
+- long/dropped frame count;
+- geometry reads;
+- rim redraws;
+- material/backdrop work;
+- React-render activity where relevant.
+
+## 12. Reference interactions
+
+Existing `fixtures/glass-normal-v1/` and `fixtures/glass-smoke-v1/` are ignored, offline-generated
+historical fixtures. `scripts/generate-glass-benchmark.py --verify` checks prepared artifacts; it
+does not import them. The normal fixture has 2,000 elements across 25 canvases (80 per canvas), not
+2,000 visible elements on one canvas. Its legacy document format is not a current `.tmapdb` import.
+Preparation was authorized as files-only; benchmark loading still needs explicit authorization and
+an isolated test database. Never infer permission to use installed stable data or legacy keyring
+resources from the documentation reset. Historical generation details remain in Git/WORK-LOG.
+
+At minimum benchmark:
+
+- camera pan;
+- wheel zoom;
+- Canvas Browser scroll;
+- Canvas Browser drag/reorder + auto-scroll;
+- moving image/bright object under glass;
+- animated media under stationary glass;
+- opening/closing major overlay;
+- representative real-app interaction with normal UI visible.
+
+## 13. Performance acceptance rule
+
+The design objective is maximum practical throughput, including high-refresh displays.
+
+Do not use a fixed 60-FPS ceiling as the final design target.
+
+Final acceptance requires:
+
+1. no meaningful regression in frame-time distribution versus the recorded baseline on the same
+   environment/workload;
+2. hot-path invariants from `GLASS-SYSTEM-CONTRACT.md` hold;
+3. no new unbounded per-surface/per-element material work;
+4. no accumulating runtime resources.
+
+360 Hz (~2.78 ms/frame) is a reference optimization target, not an unconditional pass/fail guarantee
+for every scene.
+
+## 14. Packaged/native acceptance
+
+Before release claims, validate:
+
+- packaged development build;
+- packaged stable build where safe;
+- stable/dev identity/config/database/recent/session coexistence;
+- window/session lock/close/reopen/quit behavior;
+- real media decode/animation;
+- actual WebView2 glass behavior;
+- no dev tooling in production.
+
+## 15. Documentation evidence
+
+When a test/acceptance run matters:
+
+- record durable results/environment in `WORK-LOG.md`;
+- update `REFACTOR-STATE.md` with only the current accepted status;
+- do not grow this strategy file with chronological test history.

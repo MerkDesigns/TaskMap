@@ -2,525 +2,339 @@
 
 ## Purpose
 
-TaskMap is a local-first Windows desktop application for arranging modular content on large visual
-canvases. Users work with containers, text cards, text blocks, media, mind-map connections, and
-optional element extensions. The application must remain responsive with large documents, preserve
-retained behavior, and implement intentional visual changes through the normative visual contract.
+TaskMap is a local-first Windows desktop canvas application. The architecture separates persistent
+document/domain state, transient interaction, presentation/UI, native platform services and secure
+storage so each can evolve without recreating a god component.
 
-This document defines the target architecture for the complete refactor. It is normative: new code must fit this structure unless an architecture decision record explicitly changes it.
-
-## Core principles
-
-1. Preserve the product; replace the internals.
-2. Keep domain logic independent from React and Tauri.
-3. Separate persistent document state from transient interaction state.
-4. Record domain transactions, not UI events.
-5. Keep storage and encryption behind a narrow platform boundary.
-6. Make element and extension modules self-contained and explicitly registered.
-7. Prefer simple, inspectable control flow over clever abstraction.
-8. Design for 10,000 elements and 2 GB of media without blocking interaction.
+This document defines global structural boundaries. Subsystem behavior belongs to the corresponding
+contract.
 
 ## Runtime overview
 
 ```text
-React UI
-  -> application commands and selectors
-  -> normalized document store
-  -> history middleware
-  -> persistence coordinator
-  -> typed platform client
-  -> Tauri commands
-  -> Rust database, crypto, file lock, backup, and session services
+AppShell
+└─ DatabaseApplication / application lifecycle
+   ├─ normalized workspace
+   ├─ named commands + history
+   ├─ persistence coordinator
+   ├─ device/session resources
+   └─ presentation
+      ├─ interaction controllers
+      ├─ retained presentation boundary during migration
+      └─ final UI system
+
+TypeScript platform clients
+→ Tauri commands
+→ Rust session/storage/media/settings/workflow services
 ```
 
-A separate interaction controller handles pointer movement, drag previews, snapping, selection
-rectangles, and resize previews. It emits one semantic operation through
-`CanvasInteractionCommitPort` when an interaction completes; the persistent document owner decides
-how that operation is committed.
+## Core principles
 
-## Target repository structure
+1. Domain logic is independent from React/Tauri/DOM.
+2. Persistent document state is separate from transient interaction state.
+3. Completed semantic operations create document transactions; pointer samples do not.
+4. Storage/encryption remain behind narrow platform/native boundaries.
+5. Media bytes remain outside Redux/document payloads.
+6. UI presentation uses reusable subsystem contracts rather than feature-local infrastructure.
+7. Stable/dev application identities remain isolated.
+8. Legacy file conversion stays outside the main app.
+9. Prefer simple inspectable ownership over clever cross-layer abstractions.
 
-```text
-src/
-├── app/
-│   ├── AppShell.tsx
-│   ├── providers/
-│   ├── store/
-│   ├── commands/
-│   ├── selectors/
-│   └── lifecycle/
-├── domain/
-│   ├── document/
-│   ├── canvas/
-│   ├── elements/
-│   ├── extensions/
-│   ├── history/
-│   └── workflow/
-├── canvas/
-│   ├── CanvasViewport.tsx
-│   ├── CanvasScene.tsx
-│   ├── layers/
-│   ├── interaction/
-│   ├── geometry/
-│   └── virtualization/
-├── elements/
-│   ├── registry.ts
-│   ├── container/
-│   ├── text-card/
-│   ├── text-block/
-│   ├── image/
-│   └── mindmap/
-├── extensions/
-│   ├── registry.ts
-│   ├── checkbox/
-│   ├── search/
-│   ├── lock/
-│   ├── privacy/
-│   ├── color-picker/
-│   └── copy-paste-json/
-├── features/
-│   ├── canvases/
-│   ├── minimap/
-│   ├── workflow-runner/
-│   ├── settings/
-│   ├── database-picker/
-│   └── updates/
-├── platform/
-│   ├── databaseClient.ts
-│   ├── mediaClient.ts
-│   ├── workflowClient.ts
-│   ├── sessionClient.ts
-│   ├── settingsClient.ts
-│   └── updaterClient.ts
-├── ui/
-│   ├── theme/
-│   ├── materials/
-│   │   ├── MaterialSurface.tsx
-│   │   ├── materialDefinitions.ts
-│   │   ├── materialRegistry.ts
-│   │   └── compositor/ (Phase 4.5B)
-│   ├── menus/
-│   ├── dialogs/
-│   ├── controls/
-│   └── feedback/
-└── test/
+## Application composition
 
-src-tauri/src/
-├── commands/
-├── database/
-│   ├── connection.rs
-│   ├── schema.rs
-│   ├── document_repository.rs
-│   ├── media_repository.rs
-│   └── backup.rs
-├── crypto/
-│   ├── derivation.rs
-│   ├── envelope.rs
-│   └── memory.rs
-├── session/
-│   ├── manager.rs
-│   └── windows_lock.rs
-├── workflow/
-│   ├── model.rs
-│   ├── launcher.rs
-│   └── process_registry.rs
-├── files/
-│   ├── lock.rs
-│   └── atomic.rs
-├── settings/
-└── error.rs
+`AppShell.tsx` is composition only.
 
-tools/
-└── taskmap-migrator/
-```
+It may assemble:
 
-The structure may evolve through ADRs, but dependency direction must remain intact.
+- error boundaries;
+- material/UI providers;
+- database application lifecycle;
+- application providers;
+- development-only workbench gates.
 
-## Document model
+It must not own feature/domain mutation, interaction algorithms, persistence, encryption or
+feature-specific presentation logic.
 
-The decrypted TaskMap document is owned by TypeScript and validated at the application boundary. It uses normalized entity collections.
+## Database/session lifecycle
 
-```ts
-type TaskMapDocument = {
-  schemaVersion: 1;
-  id: DocumentId;
-  databaseId: DatabaseId;
-  databasePurpose: "production" | "development";
-  activeCanvasId: CanvasId | null;
-  canvasOrder: CanvasId[];
-  canvases: Record<CanvasId, CanvasRecord>;
-  elements: Record<ElementId, DocumentElement>;
-  connections: Record<ConnectionId, DocumentConnection>;
-  mediaReferences: Record<MediaId, MediaReference>;
-  extensionInstallations: Record<ExtensionInstanceId, ExtensionInstallation>;
-  documentSettings: DocumentSettings;
-};
-```
+One application database runtime owns the active product session.
 
-Canvas and element entity order is represented separately from entity records: `canvasOrder` is the
-stable canvas order and each canvas owns a complete back-to-front `elementOrder`. Element and
-connection module data and extension configuration are bounded JSON objects; concrete modules own
-their later schema fragments, and the generic document model does not import their registries.
+It composes:
 
-Media references contain opaque media IDs and presentation metadata. They do not contain raw bytes,
-original filenames, or local paths. The media table is outside the encrypted payload. Viewport,
-selection, pointer, window, device, and session state is not part of this model. See
-`docs/DATA-FORMAT.md` for the exact current-version structure, limits, and validation stages.
+- session lifecycle/controller;
+- normalized workspace;
+- persistence;
+- device preferences;
+- remembered encrypted view state;
+- session-bound media;
+- privacy/session resources.
 
-Application preferences such as window state, recent database paths, UI theme, update preferences, and inactivity-lock preference are stored separately in the edition-specific configuration directory and can be exported or imported.
+There is never a legacy/new dual persistence owner for the same active document.
 
-## State ownership
+Security and storage details are governed by `docs/SECURITY.md`, `docs/DATA-FORMAT.md` and current
+accepted database ADRs.
 
-### Persistent Redux state
+## Persistent document ownership
 
-Redux Toolkit owns:
+TypeScript owns the decrypted normalized document schema and invariants.
 
-- Decrypted document state
-- Active database identity and status
-- Document-level settings
-- Session-only transaction history and undo/redo availability
-- Backend revision, workspace epoch, local-change sequence, acknowledged-persisted sequence, and
-  serializable save status
-- Trusted workflow definitions and execution summaries
-- Stable UI state that must survive view changes
+Persistent document content includes:
 
-The Phase 3C `documentWorkspace` state is dormant while `LegacyApplication` remains the active
-boundary. Loading a workspace validates the complete current-version document before Redux receives
-it, records its backend revision, clears history, and starts with matching local and persisted
-sequences. Replacing or clearing a workspace advances its epoch so obsolete asynchronous results
-cannot affect the new session. Serialized documents, clients, timers, promises, credentials, and key
-material are never Redux state.
+- canvases/order/settings;
+- normalized elements/order;
+- connections;
+- media references;
+- extension installations;
+- document settings.
 
-### Transient interaction state
+Device/session/transient UI state does not belong in the document.
 
-The Phase 4 interaction subsystem owns:
+## Commands and history
 
-- Active pointer and gesture
-- Drag and resize preview
-- Selection rectangle
-- Snap guides
-- Drop targets
-- High-frequency pointer samples
-- Temporary animation state directly tied to the gesture
+Persistent changes use named commands.
 
-It does not write Redux or legacy document collections on pointer frames. It publishes bounded
-geometry and viewport previews through a narrow subscription API. Pan, zoom, selection, hover, and
-snap guides never call the persistent commit port. Changed move and resize gestures call the port
-once at completion; cancellation and canonical no-ops do not call it.
+The command layer:
 
-The application-facing transient interaction service remains read-only: consumers call
-`getSnapshot` and `subscribe`. `canvasInteractionController.ts` is its mutable implementation and
-uses a discriminated primary-gesture state so pan, selection box, move, and resize cannot overlap.
-The snapshot contains only the current canvas key, viewport, selected IDs, active pointer/targets,
-selection rectangle, bounded geometry overrides, and snap guides. It never contains a document,
-history, backend client, promise, timer, or persistence metadata.
+- validates payloads;
+- applies one atomic mutation;
+- validates the resulting document;
+- produces localized forward/inverse history patches when applicable.
 
-Pure viewport math under `src/canvas/geometry/` is the source of truth for screen/world conversion,
-anchored zoom, translation, viewport rectangles, and finite-number protection. Selection hit
-testing, move/resize calculations, and snapping are framework-independent interaction modules.
-`src/canvas/virtualization/` owns the 480-screen-pixel overscan conversion and pinned-element
-culling. `src/features/minimap/minimapProjection.ts` projects canvas, element, and world-viewport
-bounds; the minimap has no independent camera or navigation state.
+History records completed document transactions.
 
-### Transitional production interaction commits
+Pan, zoom, selection, hover, menu state and in-progress pointer samples do not enter document history.
 
-Phase 4 controllers are document-model agnostic. `CanvasInteractionCommitPort` exposes only named
-move, resize, and layer-order operations; it is not an arbitrary patch API. Current production still
-owns its document in `LegacyApplication`, so
-`src/legacy/interactions/legacyCanvasInteractionCommitAdapter.ts` temporarily applies completed
-operations as one `TaskCanvas` replacement. Legacy geometry mapping, camera correlation, selection
-compatibility, and bounded text-card placement presentation also live under
-`src/legacy/interactions/`; those transitional bridge modules are the only Phase 4 code that imports
-legacy element/document types. Generic controllers, geometry, culling, and minimap modules do not.
+## Persistence
 
-This adapter is temporary migration infrastructure, not legacy data migration support. It does not
-parse or convert database formats, create an `AppData`/`TaskMapDocument` conversion, or maintain a
-shadow normalized document. Pointer frames never enter the adapter. Existing per-canvas camera
-parity is preserved by a canvas-correlated, bounded render-frame synchronization in the legacy
-React integration. Text-card bundle pickup, sway, insertion projection, reparent/detach decisions,
-and release animation are bounded transient presentation state in the legacy bridge; only the exact
-settled placement decision reaches the commit adapter. Neither bridge mutates collections during a
-pointer frame. Camera synchronization and text-card presentation remain transitional concerns;
-camera state remains session/UI state in the target normalized architecture and is not added to
-`TaskMapDocument`.
+The persistence coordinator observes successful document changes and owns revision-aware deferred
+save behavior.
 
-As Phase 5 moves each element slice to normalized production ownership, its legacy geometry mapping
-and commit behavior are replaced by an implementation of the same semantic port backed by named
-commands/workspace operations. New features must not import or build on the legacy adapter. The
-remaining adapter is deleted when all production element/document ownership has left `TaskCanvas`.
+Feature components do not call database save directly.
 
-### Local component state
+Persistence is epoch/session/revision guarded so obsolete async completions cannot mutate a new
+workspace.
 
-Components may own ephemeral presentation details such as an open local submenu or an input draft when no other subsystem needs it. Component state must not become the source of truth for document content.
+## Transient interaction
 
-## Application failure boundary
+Interaction controllers own:
 
-New providers and feature architecture render inside an application error boundary with a typed reporting contract and a deterministic, non-sensitive fallback. The default reporter logs only a failure classification, never the error message, stack, component stack, or document content.
+- active gesture/pointer;
+- pan/zoom preview;
+- selection;
+- drag/resize preview;
+- snap/drop calculations;
+- high-frequency transient geometry.
 
-While the legacy application remains active, `LegacyApplication` is a sibling outside this boundary. Errors thrown inside its component tree therefore continue to propagate according to the existing legacy behavior. The boundary moves outward only as a feature is deliberately ported into the new architecture.
+Pointer frames do not mutate the persistent document.
 
-## Application commands
+Completed interactions cross a narrow semantic completion/command boundary once.
 
-All persistent mutations use named commands. Examples:
+## Current presentation migration boundary
 
-```text
-CreateElement
-DeleteElements
-MoveElements
-ResizeElement
-UpdateTextCard
-AttachCardsToContainer
-ReorderContainerCards
-InstallExtension
-RemoveExtension
-UpdateExtensionState
-CreateConnection
-DeleteConnection
-CreateCanvas
-DeleteCanvas
-UpdateCanvas
-```
+The database/workspace/command/history system is already the product data owner.
 
-A command handler declares a runtime payload schema, a static non-sensitive label, and an explicit
-history policy, then describes one mutation against an Immer draft. An explicitly composed handler
-registry rejects duplicate stable command identifiers and remains extensible without a central
-feature-command union or global registration side effects.
+Some production presentation still passes through retained `App.tsx`/legacy view structures while
+later phases migrate renderers.
 
-The central domain executor validates the plain-data command, captures forward and inverse Immer
-patches, validates the complete candidate document, and constructs at most one transaction using an
-injected transaction-ID source and clock. Expected failures return typed issues and the original
-document; zero-patch commands return no transaction. Dirty tracking belongs to Phase 3C application
-orchestration, not handlers or the Phase 3B domain executor.
+This retained presentation boundary is temporary.
 
-React components dispatch commands; they do not directly update arrays or entity maps.
-Command execution is only for committed persistent operations. Pointer-frame pan, zoom, drag,
-resize, hover, and selection previews stay in the transient interaction subsystem; a future
-completed drag or resize dispatches one final geometry command and therefore creates one history
-entry.
+Do not broadly dissect `App.tsx` as part of unrelated UI/glass work. Transfer ownership through
+planned vertical feature slices.
 
-Phase 3C application orchestration composes the core handler registry through
-`createCommandDispatcher`. A successful changed command commits its document and optional history
-transaction in one Redux action; ignored-history commands still count as persistent changes. Undo
-and redo likewise commit document and history together. Each successful document change increments
-one monotonic local sequence for the current workspace. Failed and no-op operations dispatch
-nothing.
+## UI architecture
 
-## History
+General UI architecture is governed by:
 
-History stores completed document transactions as Immer patches and inverse patches.
+- `docs/UI-SYSTEM-CONTRACT.md`
+- `docs/UI-QUALITY-GUARDRAILS.md`
 
-```ts
-type HistoryEntry = {
-  id: string;
-  label: string;
-  timestamp: number;
-  patches: Patch[];
-  inversePatches: Patch[];
-};
-```
+The public concepts are Surface, Material and Content plus reusable behavior helpers/patterns.
 
-Rules:
+Feature UI depends downward on reusable UI infrastructure; private renderers do not leak upward.
 
-- One drag or resize equals one history entry.
-- Text editing commits according to an explicit edit transaction, not each keystroke.
-- Pan, zoom, selection, hover, menus, and visibility changes are excluded.
-- History is in memory for the active session unless a later ADR explicitly adds durable history.
-- Undo applies inverse patches and moves one entry from past to future; redo applies forward patches
-  and moves it back. Both fail closed if patches cannot produce a valid current-version document.
-- A recorded branch clears redo history. Zero-patch and explicitly ignored commands do not alter
-  history.
-- Autosave follows undo and redo like any other document transaction.
+## Glass/material architecture
 
-## Persistence and database
+Glass behavior is governed by `docs/GLASS-SYSTEM-CONTRACT.md`.
 
-TaskMap uses one SQLite-based `.tmapdb` file.
+`MaterialSurface`/the final Surface+Material boundary remains the feature-facing material boundary.
 
-The database contains:
+Features do not implement:
 
-- Plaintext format and encryption parameters
-- One authenticated encrypted document payload
-- Unencrypted media BLOBs addressed by random opaque IDs
-- Minimal non-sensitive media transport fields
+- backdrop filters;
+- overscan;
+- material repaint tricks;
+- batching/promotion internals;
+- rim rendering;
+- browser-specific refresh behavior.
 
-The encrypted document includes all media relationships, card text, links, canvas names, positions,
-alt text, extension states, and document settings. Original media filenames and local paths are not
-persisted.
+The private rendering backend is not frozen until the final WebView2 proof gate passes.
 
-Normal document saves update only the encrypted document row. Existing media BLOBs remain untouched. Large GIFs and images are loaded lazily when visible.
+Historical cached-compositor/native-CSS experiments are implementation history, not global
+architecture authority.
 
-Rust owns SQLite access, file locking, backups, encryption, password derivation, and key lifetime. TypeScript owns the decrypted schema and domain validation.
+## Development visual workbench
 
-Phase 3C persistence is owned by one dependency-injected application coordinator outside Redux
-reducers and domain code. It schedules the existing 350 ms parity delay through an injected timer
-abstraction, maintains at most one timer and one save request in flight for the current workspace,
-and calls `encodeDatabaseDocument` only when a save begins. A save captures the workspace epoch,
-document reference, local sequence, and current acknowledged backend revision. The database request
-uses that revision as `expectedRevision`.
+Development mode may provide a workbench that switches between:
 
-Success acknowledges only the captured local sequence. If a newer command committed while the save
-was running, the returned backend revision is accepted, the newer document remains dirty, and a
-follow-up save uses the new revision. Epoch checks discard success or failure completions from a
-replaced, cleared, or disposed workspace. Revision conflicts preserve document and history, block
-automatic and ordinary retry saves, and wait for a later explicit conflict-resolution workflow;
-Phase 3C does not guess a revision, reload, or add resolution UI. Other failures remain dirty and
-may be retried explicitly against the latest document and last acknowledged revision.
+- the real App view;
+- UI Lab.
 
-## Encryption and session lifecycle
+Both views sit inside one database/session/workspace runtime and share the real UI/material/motion
+implementation.
 
-- The raw password is never stored.
-- Argon2id derives the document key using per-database parameters and salt.
-- The document payload uses authenticated encryption.
-- Only the derived key remains in the session process.
-- Closing the visible window leaves the background session unlocked.
-- Explicit Lock, Windows session lock, configured inactivity timeout, or Quit erases key material and decrypted document state.
-- Reopening the window during the same unlocked session does not request the password again.
-- Application restart or Windows restart requires the password.
+The workbench is development tooling, not a second product application architecture.
 
-See `docs/SECURITY.md` and `docs/DATA-FORMAT.md`.
+## Platform boundary
+
+Only `src/platform/` imports Tauri APIs.
+
+React/features depend on typed platform interfaces.
+
+Tauri commands delegate quickly to Rust service modules.
+
+## Rust ownership
+
+Rust owns:
+
+- SQLite access;
+- encryption/key derivation/session key lifetime;
+- file locking/atomic writes/backups;
+- native session authority;
+- bounded media transport/validated reads;
+- native settings/filesystem integration;
+- workflow process ownership.
+
+TypeScript owns document semantics; Rust treats the encrypted document payload as opaque bytes except
+for bounded envelope/session validation.
 
 ## Media
 
-Media bytes are intentionally unencrypted for performance and direct playback. Security-sensitive associations remain encrypted.
+Media bytes remain outside Redux.
 
-Rules:
+The document stores opaque media references/metadata.
 
-- Media uses random IDs unrelated to filenames or content descriptions.
-- Media bytes never enter Redux.
-- The application loads media only when visible or imminently visible.
-- Large GIF decoding must not block pointer interaction.
-- Unreferenced media cleanup is an explicit repository operation.
-- Database compaction is maintenance, not part of normal autosave.
+The application uses session-bound media clients and lazy loading/leases.
 
-## Elements
+Import/cleanup/transport remain explicit resource operations.
 
-Each element type provides an explicit module definition:
+## Device preferences and remembered views
 
-```ts
-type ElementDefinition = {
-  type: ElementType;
-  schema: ZodType;
-  createDefault(context: CreateContext): CanvasElement;
-  Renderer: ComponentType<ElementRendererProps>;
-  ContextMenu?: ComponentType<ElementMenuProps>;
-  getBounds(element: CanvasElement): Rect;
-  validate(document: TaskMapDocument, element: CanvasElement): Issue[];
-};
-```
+Device-local preferences are separate from document history.
 
-Business commands remain testable without rendering components. Shared behavior such as movement, selection, layers, lock checks, deletion, and history integration is implemented once against common element contracts.
+Remembered per-database/canvas camera state is encrypted device-local session data and is not portable
+document content.
 
-## Extensions
+Settled camera persistence must not serialize/write on every pointer sample.
 
-Extensions are static built-in modules. TaskMap does not execute third-party extension code.
+## Element modules
 
-Each extension definition declares:
+Each final element type owns its feature-specific:
 
-- ID and label
-- Compatible element types
-- Conflicts
-- State schema and default state
-- Commands and selectors
-- Optional renderer controls
-- Optional menu contributions
-- Tests
+- model/schema;
+- commands/selectors;
+- renderer;
+- menu/control contributions;
+- tests;
+- registry definition.
 
-Installation and removal are generic commands. Unrelated UI files must not contain one callback per extension.
+Shared behavior such as movement/selection/layering goes through common contracts rather than
+cross-importing feature implementations.
+
+## Extension modules
+
+Extensions are statically registered built-in modules.
+
+Each owns:
+
+- definition/compatibility;
+- configuration/state schema;
+- commands/selectors;
+- UI contributions;
+- tests.
+
+Unrelated central components must not accumulate one callback/switch per extension.
 
 ## Workflow Runner
 
-The Workflow Runner replaces the raw Command Runner while preserving its purpose.
+The Workflow Runner uses structured executable/arguments/working-directory/sequencing/display fields.
 
-A workflow contains structured steps such as:
+Do not reintroduce hidden arbitrary shell strings or administrator-elevation behavior.
 
-- Run executable with an argument array
-- Open application
-- Open folder
-- Open URL
-- Run sequentially or in parallel
-- Wait for a process
+Imported workflow definitions remain disabled until explicitly trusted.
 
-First-version restrictions:
+## Performance architecture
 
-- No arbitrary shell string
-- No hidden administrator execution
-- No UAC elevation
-- Program and arguments are distinct fields
-- Imported workflows are disabled until trusted
-- TaskMap stops only processes it launched and tracks
+High-frequency interaction aims for maximum practical throughput and low frame-time variance.
 
-## Material system and compositor boundary
+Pointer/camera/scroll hot paths avoid:
 
-`docs/VISUAL-SYSTEM.md` is the normative source for theme tokens, exact material definitions,
-adaptive quality constants, invalidation rules, fallback behavior, and material usage. Feature UI
-selects a registered internal material through `MaterialSurface`; it does not implement backgrounds,
-borders, shadows, blur, or compositor behavior independently.
+- persistence/history/database;
+- serialization;
+- broad React renders;
+- unnecessary DOM measurement;
+- unnecessary material rebuilds.
+
+UI/glass benchmark methodology is defined by `docs/TESTING.md` and
+`docs/GLASS-SYSTEM-CONTRACT.md`.
+
+## Repository structure
+
+The exact tree may evolve, but responsibilities remain approximately:
 
 ```text
-feature UI
-  -> MaterialSurface / static material registry
-  -> material compositor public boundary
-  -> adaptive cached Canvas2D implementation
+src/
+├─ app/          application lifecycle/workspace/commands/persistence
+├─ domain/       pure document/history/command rules
+├─ canvas/       geometry/interaction/virtualization
+├─ elements/     element modules
+├─ extensions/   extension modules
+├─ features/     product features
+├─ platform/     typed native adapters
+├─ ui/           theme/materials/motion/primitives/patterns/dev
+└─ legacy/       temporary retained-presentation bridges only
+
+src-tauri/src/
+├─ commands/
+├─ database/
+├─ crypto/
+├─ session/
+├─ settings/
+├─ workflow/
+└─ files/
 ```
 
-The material registry owns stable definitions and rendering strategies. `MaterialSurface` owns the
-feature-facing material, explicit/inherited `base`/`modal` plane, geometry, and elevation contract.
-`MaterialCompositorProvider` owns one bounded surface registry and shared `ResizeObserver`, the two
-output canvases and mask caches, one frame scheduler, and the browser acrylic runtime. With no
-registered cached-acrylic surface the provider remains inert. Features do not receive compositor
-tuning controls. Transform-driven surface motion uses the material registration boundary's explicit
-geometry invalidation callback, which coalesces through the same compositor frame and dirties masks
-only.
+## Dependency direction
 
-The compositor consumes a generic `BackdropScene` presentation contract assembled from cullable
-visual primitives. It imports no domain, persistence, database, feature business logic, element
-modules, or legacy `TaskCanvas` types and contains no element-type switches. Phase 4.5A does not add
-a final contribution method to `ElementDefinition`; normalized element/canvas presentation assembly
-will be finalized during Phase 5. The mixed-architecture application uses a transitional read-only
-adapter under `src/legacy/materials/`: the authoritative Phase 4 controller publishes its live
-viewport and interaction-active status through a generic presentation bridge, while the adapter
-projects only model primitives intersecting the expanded acrylic-cache rectangle. It performs no
-DOM scene capture and creates no persistent or normalized shadow document.
-
-Persistent and transient ownership rules continue unchanged. Camera frames may cheaply reproject a
-cache and may coalesce a coverage-required rebuild during a long gesture, but they do not scan/build
-the scene, blur, dispatch persistent commands, serialize, create history, or invoke storage once per
-pointer sample. Expensive cache, viewport transform, surface geometry, material overlay, and shared
-blur invalidations remain independently testable.
-
-Direct/nested backdrop filters and `FrostedSurface` are superseded. Their exact existing occurrences
-remain frozen migration debt only so Phase 4.5A does not change production appearance. Phase 4.5C
-migrates consumers; Phase 4.5D deletes the old implementation and removes the transitional
-architecture allowlist.
-
-## Stable and development editions
-
-Stable and development builds are separate applications.
+Allowed:
 
 ```text
-Stable:      com.merkdesigns.taskmap
-Development: com.merkdesigns.taskmap.dev
+feature/pattern -> primitive/behavior -> material/motion
+UI -> application commands/selectors
+UI -> transient interaction
+application -> domain
+application -> platform interfaces
+platform -> Tauri
+Rust commands -> Rust services
 ```
 
-They have separate configuration, default database, recent files, session process, tray icon, update channel, window identity, and file-association behavior. Both may run simultaneously.
+Forbidden:
 
-A database file is locked against simultaneous writing. A development build opening a production-marked database requires an explicit read-only or override decision.
+```text
+domain -> UI/React/Tauri/DOM
+platform -> UI
+feature -> private material renderer
+component -> direct database/encryption/filesystem/history mutation
+new architecture -> legacy persistence formats
+```
 
-## Performance targets
+## Architecture change rule
 
-- 60 FPS for pan, zoom, drag, and resize
-- No save, serialization, encryption, or history write during pointer frames
-- Normal target: 10,000 elements and 2 GB of media
-- Media is lazy-loaded and viewport-cullable
-- Autosave is non-blocking from the UI's perspective
-- Selectors minimize rerenders to affected entities
-- Context-menu changes do not rerender the complete canvas
+A foundational ownership/rendering/security decision requires an ADR.
 
-See `docs/TESTING.md` for measurable scenarios.
+Routine implementation detail inside an accepted contract does not require a new ADR.
 
-## Migration strategy
+If code and contract disagree:
 
-The current application remains usable on `main`. The new architecture is developed on `architecture-v1` with critical legacy fixes only.
-
-The main application does not read legacy data. A separate graphical migrator converts old data into the new format and emits a detailed conversion report.
-
-Implementation proceeds through vertical slices. The first slice proves database creation/opening, unlocking, one canvas, one element, editing, history, autosave, close, and reopen before broader feature porting begins.
+- code tells us what currently exists;
+- contract tells us what should exist;
+- record and resolve the discrepancy instead of silently rewriting the contract around the code.

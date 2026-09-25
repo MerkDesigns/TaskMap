@@ -2086,3 +2086,116 @@ removed. Resume exact native state rather than rebuilding earlier fixtures.
 - Current remote commit still has failed frontend CI. No commit/push was performed; user must publish
   the fix and obtain a fresh successful run before claiming green GitHub CI. Database estimate remains
   99% (+0 acceptance gates); isolated packaging/coexistence follows green CI, then glass acceptance.
+
+### 2026-09-24 — Final UI/glass documentation reset installed
+
+- Adopted the user's UI-SYSTEM-CONTRACT, GLASS-SYSTEM-CONTRACT, UI-QUALITY-GUARDRAILS and ADR 006
+  as the current scoped UI/material authority. Preserved the user's removals and redesigned roadmap.
+  Intentional list/presence/reduced-motion changes are documented policy, not yet implemented behavior.
+- Fixed the documentation-dependent Surface test to read the new contracts and verify the three core
+  concepts, public ownership references and glass fade constraint. The old version failed with ENOENT
+  after deletion of SIMPLE-UI-SYSTEM. No production behavior was changed; the sole production-source
+  edit is a stale theme-token comment.
+- Replaced CODEMAP's chronological/manual overview with concise current module ownership and navigation,
+  including the mounted database runtime and parked renderer boundary. Regenerated its source inventory.
+  Updated BASELINE-CAPTURE and marked ADR 003's previous topology explicitly historical. Clarified that
+  ADR 001's Phase 1 boot/error-boundary details are historical while its state/platform rules remain.
+  Remaining deleted-document mentions are supersession/history evidence, not active reading guidance.
+- Normalized the three documents flagged by Prettier. Kept the existing benchmark files-only constraint
+  in TESTING/STATE; the legacy 25-canvas fixture is not a current database import or 2,000 simultaneously
+  visible elements. No fixture was loaded, user database touched or rendering strategy changed.
+- Independently verified GitHub CI run 35936566796 succeeded for HEAD
+  1cd89a4fe0add04d34e2425ad81db10f687dbd80. That supersedes the previous log entry's pending CI status;
+  this uncommitted documentation reset still requires its own remote run when published.
+- Validation: full `npm run check` passed, including 249 files / 1,702 frontend tests, formatting,
+  typecheck, lint, architecture, production build and capability/exclusion checks. CODEMAP freshness
+  and diff whitespace checks passed. The existing large-bundle advisory remains. Rust and runtime
+  behavior are unchanged, so native suites/visual acceptance were not repeated for this docs slice.
+- Phase 4.5A documentation reset complete locally. Next is the minimal shared database-backed App/UI Lab
+  workbench (4.5B), then the small WebView2 rendering proof (4.5C). Broad scroll/motion migration waits
+  for that proof. Packaging/coexistence remains a separate acceptance gate. No commit or push performed.
+
+## 2026-09-24 — Phase 4.5B database-backed development workbench
+
+- Added DEV-only, development-edition `DevelopmentVisualWorkbench` inside `DatabaseSessionGate`.
+  App/Lab switching unmounts the retained presentation/binding (including global input handlers),
+  while the existing database runtime, workspace, history, media and preferences remain owned above it.
+- Reused `UiLabApp` fixtures in embedded mode without duplicate window chrome/providers. Shared
+  motion ownership and in-memory Major/Minor blur overrides survive view switches; reset/unmount
+  restores prior root values. No document settings or persistence were added for tooling.
+- Added opt-in material/effect bounds, hit-target outlines, frame-interval percentiles and existing
+  native-material counters. Sampling runs only while enabled. These are diagnostic observations,
+  not GPU/rendered-FPS or glass-topology acceptance.
+- Live verification caught retained App's local blur defaults shadowing the workbench. The admitted
+  view now inherits blur, including list planes; its old local tuner is disconnected. Existing
+  production defaults remain 60px Major / 23.5px Minor.
+- `app:ui-lab` now launches the ordinary MCP-enabled Dev runtime; `app:ui-lab:isolated` preserves
+  the old storage-free harness as reference until final cleanup. The old AppShell opt-in Lab route
+  is disconnected. Production inspection checks the new DEV/edition gate and excludes its CSS/JS.
+- Real-runtime tests cover repeated App/Lab round trips, nonempty undo history, remembered camera,
+  session/workspace identity, detached canvas input listeners and lock-time override/Lab cleanup.
+  Embedded-fixture tests verify a single window-control owner.
+- Live Tauri/WebView2 screenshots inspected at 1100x760: App/Lab switching, shared 35px Major and
+  31px Minor blur, shared Minor list overscan 108px, diagnostic outlines/counters and reset. Read-only
+  UI inspection only; no benchmark loading or stable database access. No frontend console warnings
+  or errors in the inspected window. Native locking was covered by integration tests rather than
+  interrupting the user's active database. Existing glass correctness defects remain Phase 4.5C work.
+- Validation: full `npm run check` passed, 250 files / 1,705 tests, architecture, production build and
+  capability/exclusion checks. Existing bundle-size advisory remains. Rust/capabilities unchanged;
+  native baseline remains the accepted HEAD CI. CODEMAP regenerated; formatting/diff checks passed.
+- Next: build the smallest logical-layer/backdrop rendering proof in the embedded Lab before broad
+  material or motion migration.
+
+## 2026-09-24 — Phase 4.5C current-backend rendering proof
+
+- Added UI Lab scene selection; only the selected proof/baseline mounts. The new scene uses production
+  MaterialSurface, shared Minor planes and canonical recipes, with explicit intended layer labels,
+  independently switchable foreground ink, overlay and promotion, a pointer-driven red object,
+  optional automatic translation and changing canvas media. No runtime/document ownership changes.
+- Synthetic backdrop updates write transforms/pixels directly; they do not dispatch, measure geometry
+  or rerender React per frame. Animation is opt-in and cancelled on unmount. Autoplay disables manual
+  red controls so its automatic motion cannot be mistaken for a mouse-release material correction.
+- Real WebView2 proof rejected the current native topology: Major A foreground changes contaminate
+  same-layer Major B. Saved A/B screenshots give a 63.24/255 mean absolute RGB-channel difference in
+  a body-only region of B. Overlay sampling, promoted-Minor lower-content blur and changing-media
+  freshness were observed working in this controlled scene. These are not production acceptance.
+- The user manually dragged the real pointer handle and confirmed blur follows while held, but
+  reported square blur corners outside the rounded rim. MCP swipe did not actually move the handle;
+  its success output was rejected as drag evidence and the redundant captures were removed.
+- Inspected clip styles: rounded radius and overflow:hidden already present. Removing Major A clip
+  transform in a temporary DOM experiment did not fix corners. Adding explicit rounded clip-path
+  removed the desired backdrop blur. Both experiments were reverted; no production material CSS or
+  geometry was changed. Do not ship the clip-path trial as a fix.
+- Evidence, environment, reproduction steps and limitations are in GLASS-RENDERING-PROOF.md and nine
+  native screenshots under docs/evidence/glass-proof/. The active Dev database was only used to admit
+  the workbench; no document edits, imports, benchmarks or stable-data access were performed.
+- Validation: full npm run check passes (251 files / 1,707 tests), architecture, production build and
+  production/capability exclusions. Two proof tests cover batch promotion/reset identity and animation
+  lifetime. CODEMAP and formatting/diff checks pass. No frontend console warnings/errors were observed.
+  Existing Vite bundle-size advisory remains; Rust/native services are unchanged.
+- Phase 4.5C remains open: 4/6 checks have positive fixture evidence, 2 fail. Next is a bounded private
+  backend experiment for logical source isolation plus rounded material clipping without reducing
+  overscan or changing optics, then rerun the complete proof before any broad UI migration.
+
+### 2026-09-25 — Rounded native glass output clipping
+
+- Fixed the reported square blur outside rounded rims in the shared MaterialSurface backend. A
+  radius-aware SVG masks each local filter output using existing overscan offsets and the unexpanded
+  surface size. Sampling geometry/optics, content, rim, shadow and shared shape-union clips stay intact.
+  SVG radius axes clamp together for short/narrow surfaces; verified using a decoded SVG canvas probe.
+- Ancestor clip-path removed blur; removing transforms, contain:paint and filter clip-path trials did
+  not fix the defect. All temporary trial styles were removed. Direct output masking retained blur.
+- Native before/after screenshot comparison at 1103x746/DPR1: Major interior RGB delta was zero in
+  x150-369/y390-439; previously square corner mean channel delta was 53.31/255 in x115-121/y331-337.
+  Saved docs/evidence/glass-proof/rounded-output-mask.png and updated the proof report.
+- Inspected live App toolbar/window controls, Canvas Browser opening and Settings opening/closing,
+  plus proof promotion/overlay/animated-media states. Screenshots were inspected. The user repeated
+  the real-pointer drag and confirmed rounded corners and live blur both work. No console errors or
+  warnings were observed. No document edits, media imports or stable-data access were performed.
+- Added regression coverage for radius changes retaining material/content identity and local-only
+  masking that leaves the geometry hot path unchanged. Full npm run check passed: 251 files / 1,709
+  tests, typecheck, formatting, lint, architecture, build and production/capability exclusions.
+  CODEMAP regenerated. Existing Vite bundle-size advisory remains; Rust/services are unchanged.
+- Clipping subtask complete. Phase 4.5C remains 4/6 positive fixture checks: logical Major isolation and
+  cross-layer overscan contamination are still open. Next is source isolation, then the complete proof;
+  this does not claim production scrolling or final performance acceptance.

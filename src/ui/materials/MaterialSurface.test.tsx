@@ -23,6 +23,28 @@ afterEach(() => {
 });
 
 describe("MaterialSurface", () => {
+  it("updates the filter-output silhouette with radius without replacing the material or content", () => {
+    const { rerender } = render(
+      <MaterialSurface material="acrylic-large" radius={20} geometryActive={false}>
+        Content
+      </MaterialSurface>,
+    );
+    const surface = screen.getByText("Content");
+    const filter = surface.querySelector(".taskmap-native-glass-backdrop");
+    const mask = () =>
+      decodeURIComponent(surface.style.getPropertyValue("--taskmap-material-output-mask"));
+    expect(mask()).toContain('rx="20"');
+    expect(mask()).toContain("rx:min(20px,50vmin);ry:min(20px,50vmin)");
+    rerender(
+      <MaterialSurface material="acrylic-large" radius={0} geometryActive={false}>
+        Content
+      </MaterialSurface>,
+    );
+    expect(screen.getByText("Content")).toBe(surface);
+    expect(surface.querySelector(".taskmap-native-glass-backdrop")).toBe(filter);
+    expect(mask()).toContain('rx="0"');
+    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("60px");
+  });
   it("keeps the public element, ref, children, and ordinary DOM prop contract", () => {
     const ref = createRef<HTMLElement>();
     render(

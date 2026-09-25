@@ -7103,14 +7103,19 @@ function App({
     "--frosted-shadow-blur": "32px",
     "--left-panel-card-bg-opacity": 1,
     "--left-panel-card-outline-opacity": 0.13,
-    "--taskmap-material-large-blur-override": `${glassMaterialValues.large.blur}px`,
+    // The database-backed view inherits session-only workbench blur overrides.
+    ...(!retained
+      ? {
+          "--taskmap-material-large-blur-override": `${glassMaterialValues.large.blur}px`,
+          "--taskmap-material-small-blur-override": `${glassMaterialValues.small.blur}px`,
+        }
+      : {}),
     "--taskmap-material-large-tint-rgb-override": hexColorToRgbChannels(
       glassMaterialValues.large.tintColor,
     ),
     "--taskmap-material-large-tint-opacity-override": glassMaterialValues.large.tintOpacity,
     "--taskmap-material-large-border-brightness-override":
       glassMaterialValues.large.borderBrightness,
-    "--taskmap-material-small-blur-override": `${glassMaterialValues.small.blur}px`,
     "--taskmap-material-small-tint-rgb-override": hexColorToRgbChannels(
       glassMaterialValues.small.tintColor,
     ),
@@ -7155,18 +7160,21 @@ function App({
       >
         <div className="h-full">
           <section className="relative h-full overflow-hidden">
-            {import.meta.env.DEV && temporaryPanelsVisible && DevelopmentFrostedGlassTuner && (
-              <Suspense fallback={null}>
-                <DevelopmentFrostedGlassTuner
-                  materialValues={glassMaterialValues}
-                  previewValues={previewTuningValues}
-                  geometryValues={workspaceGeometryValues}
-                  onMaterialChange={setGlassMaterialValues}
-                  onPreviewChange={setPreviewTuningValues}
-                  onGeometryChange={setWorkspaceGeometryValues}
-                />
-              </Suspense>
-            )}
+            {import.meta.env.DEV &&
+              !retained &&
+              temporaryPanelsVisible &&
+              DevelopmentFrostedGlassTuner && (
+                <Suspense fallback={null}>
+                  <DevelopmentFrostedGlassTuner
+                    materialValues={glassMaterialValues}
+                    previewValues={previewTuningValues}
+                    geometryValues={workspaceGeometryValues}
+                    onMaterialChange={setGlassMaterialValues}
+                    onPreviewChange={setPreviewTuningValues}
+                    onGeometryChange={setWorkspaceGeometryValues}
+                  />
+                </Suspense>
+              )}
             <WorkspaceChromeLayer>
               {leftPanelOpen && (
                 <Suspense fallback={null}>
@@ -7190,7 +7198,7 @@ function App({
                           closing={leftPanelClosing}
                           cardRadius={workspaceGeometryValues.canvasCardRadius}
                           previewGap={previewTuningValues.gap}
-                          smallGlassBlur={glassMaterialValues.small.blur}
+                          smallGlassBlur={retained ? undefined : glassMaterialValues.small.blur}
                           minimalView={canvasManagerMinimalView}
                           sharedPanel
                           viewportWidth={stageWidth}
@@ -7209,7 +7217,7 @@ function App({
                           closing={leftPanelClosing}
                           panelRef={leftPanelRef}
                           sharedPanel
-                          smallGlassBlur={glassMaterialValues.small.blur}
+                          smallGlassBlur={retained ? undefined : glassMaterialValues.small.blur}
                           onDropExtension={dropExtensionOnCanvas}
                         />,
                       ]}

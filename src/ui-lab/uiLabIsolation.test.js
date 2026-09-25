@@ -91,8 +91,8 @@ describe("isolated UI Lab entry", () => {
     const capability = JSON.parse(capabilitySource);
 
     expect(packageJson.scripts["dev:ui-lab"]).toContain("--port 6970");
-    expect(packageJson.scripts["app:ui-lab"]).toContain("tauri dev");
-    expect(packageJson.scripts["app:ui-lab"]).toContain("ui-lab-development");
+    expect(packageJson.scripts["app:ui-lab"]).toBe("npm run app:dev:mcp");
+    expect(packageJson.scripts["app:ui-lab:isolated"]).toContain("ui-lab-development");
     expect(config.productName).toBe("TaskMap UI Lab");
     expect(config.identifier).toBe("com.merkdesigns.taskmap.ui-lab");
     expect(config.build.devUrl).toBe("http://127.0.0.1:6970/ui-lab.html");

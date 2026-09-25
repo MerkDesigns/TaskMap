@@ -1,10 +1,15 @@
 # ADR 003: Adaptive Cached Canvas2D Acrylic Compositor
 
-- Status: Superseded by the native CSS glass production decision
+- Status: Historical; final UI/material authority superseded by ADR 006
 - Date: 2026-08-08
 - Superseded: 2026-08-20
 
 ## Supersession
+
+The sections below preserve the cached-compositor and subsequent native-CSS decisions as historical
+evidence. ADR 006 and the current UI/glass contracts supersede their topology, motion and acceptance
+rules. References to removed visual documents identify historical sources available in Git; they
+are not instructions to restore those documents or follow their old requirements.
 
 The cached Canvas2D acrylic compositor documented here was the previous production candidate. The
 accepted Large/Small path now uses live native CSS glass through the same feature-facing

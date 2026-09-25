@@ -51,7 +51,7 @@
   --taskmap-minimap-element: #7aa2c8;
   --taskmap-minimap-viewport: #c8dae8;
 
-  /* Semantic layout geometry. VISUAL-SYSTEM.md remains normative for exact targets. */
+  /* Shared geometry tokens; UI-SYSTEM-CONTRACT.md defines ownership, not duplicate values. */
   --taskmap-space-1: 4px;
   --taskmap-space-2: 8px;
   --taskmap-space-3: 12px;

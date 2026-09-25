@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createTauriDatabaseSessionController } from "./createTauriDatabaseSessionController";
 import { DatabaseSessionGate } from "../../features/database-entry/DatabaseSessionGate";
 import { DatabaseWindowChrome } from "../../features/database-entry/DatabaseWindowChrome";
@@ -9,6 +9,10 @@ import { ApplicationErrorBoundary } from "../errors/ApplicationErrorBoundary";
 import { defaultApplicationErrorReporter } from "../errors/applicationErrorReporter";
 import { createWindowCloseController } from "../createWindowCloseController";
 import { tauriWindowCloseClient } from "../../platform/window/tauriWindowCloseClient";
+
+const DevelopmentVisualWorkbench = import.meta.env.DEV
+  ? lazy(() => import("../development/DevelopmentVisualWorkbench"))
+  : null;
 
 // One runtime per renderer lifetime. React StrictMode must not create two native session owners.
 let boot: ReturnType<typeof createTauriDatabaseSessionController> | undefined;
@@ -91,7 +95,13 @@ export function DatabaseApplication() {
       {runtime ? (
         <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
           <DatabaseSessionGate runtime={runtime}>
-            <RetainedCanvasApplication runtime={runtime} />
+            {DevelopmentVisualWorkbench && runtime.edition === "development" ? (
+              <Suspense fallback={<p role="status">Opening development workbench…</p>}>
+                <DevelopmentVisualWorkbench runtime={runtime} />
+              </Suspense>
+            ) : (
+              <RetainedCanvasApplication runtime={runtime} />
+            )}
           </DatabaseSessionGate>
         </ApplicationErrorBoundary>
       ) : (
