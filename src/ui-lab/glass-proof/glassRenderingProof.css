@@ -6,6 +6,18 @@
   font-size: 18px;
   margin: 0;
 }
+.taskmap-glass-proof select {
+  margin-left: 8px;
+  padding: 4px 8px;
+  color: #eee;
+  background: #20242a;
+  border: 1px solid #485363;
+  border-radius: 4px;
+}
+.taskmap-glass-proof__performance output {
+  display: block;
+  font-size: 12px;
+}
 .taskmap-glass-proof h2 {
   font-size: 15px;
   margin: 0;
@@ -34,7 +46,7 @@
 .taskmap-glass-proof__scene {
   position: relative;
   isolation: isolate;
-  width: 900px;
+  width: 1100px;
   height: 425px;
   background: #101318;
 }

@@ -2,15 +2,19 @@
 
 > Current snapshot only. History belongs in `WORK-LOG.md`.
 
-## Current branch/HEAD
+## Current branch / snapshot baseline
 
 - Branch: `architecture-v1`
-- Last reviewed HEAD before the UI documentation reset: `1cd89a4fe0add04d34e2425ad81db10f687dbd80`
-  (`Fix CI test scheduling and prevent runtime startup on fallback close`)
-- GitHub CI run `35936566796` for that commit passed; rechecked on 2026-09-24.
-- The documentation reset, Phase 4.5B workbench and Phase 4.5C proof fixture are local/uncommitted.
-- Local validation: full `npm run check` passed (1,709 tests); CODEMAP and diff checks also pass.
+- Implementation baseline: `abd4000` (`docs: reset UI and glass architecture contracts`).
+  This snapshot includes the subsequent glass proof candidate and main-App clipping correction;
+  use `git log -1` for the containing checkout's current HEAD.
+- Last verified GitHub CI: run `35936566796` for `1cd89a4`, rechecked on 2026-09-24.
+- The selectable stable-depth plane candidate and diagnostics remain Lab-only and unaccepted.
+- Local validation: full `npm run check` passed again on 2026-09-28 (252 files / 1,714 tests)
+  after the main-App clipping correction, including build and production exclusions.
   Rust is unchanged; its successful CI on the reviewed HEAD remains the native validation baseline.
+- 2026-09-28 audit: architecture checks (589 files), CODEMAP and diff checks pass. GitHub CI above
+  remains historical. Subsequent main-App work reconnected Dev and verified the clipping correction.
 
 ## Current phase
 
@@ -21,7 +25,9 @@ database/release-specific validation item is packaged/live stable + development 
 
 Phase 4.5A (documentation reset) and 4.5B (minimal workbench) are complete locally.
 Phase 4.5C is active: the proof fixture is built, but the native backend fails the rendering gate.
-Four of six core checks have positive fixture evidence; this is not production acceptance.
+The original proof had four of six positive fixture checks, not production acceptance. The stable-plane
+candidate is implemented but unaccepted: overlapping foreground isolation fails and the synthetic
+scene does not reproduce the user's real-App stale edge blur/distant brightening.
 
 ## Current product ownership
 
@@ -49,12 +55,22 @@ automatically the final architecture.
 
 Known correctness issues include:
 
-- stale/frozen backdrop while content moves underneath glass;
+- stale edge color is fixed for the reproduced trigger, with repeatable displayed-window evidence: remove both
+  Major filter ancestor overflow clips, retaining rounded filter-output masks and content clipping;
+  user confirmed the frozen edge is gone and corners remain rounded;
+- the user noticed no distant brightening after the correction; broader intermittent-flicker and
+  performance acceptance remain open;
 - current same-depth batching cannot provide all desired Minor-over-Minor blur behavior;
 - the proof confirms same-layer Major contamination; rounded filter-output clipping is now fixed;
 - current scroll-list clipping behavior differs from the new desired shrinking-material behavior;
 - several UI components still have one-off quality inconsistencies (dialog material/layout,
   scrollbar presentation, stale button rims, small hit targets).
+
+The current implementation does not yet satisfy the final UI/glass contracts. Existing ownership and
+performance gaps include a private-filter compositor hint in `WorkspaceSidePanel.css` and drag
+geometry notifications reaching retained `App.tsx` through `useLegacyInteractionSnapshot`. These
+are not established causes of the visual defect. Core database/application ownership is unchanged
+by the current diff; the parked compositor remains inactive.
 
 The final intended behavior is defined by:
 
@@ -64,11 +80,23 @@ The final intended behavior is defined by:
 
 ## Immediate next task
 
-Address logical backdrop-source isolation while preserving optics/overscan. Rerun all six proof checks
-before broad migration. Rounded clipping now uses a mask on each local filter output, preserving the
-expanded sampling extent. Live App/Lab screenshots were inspected; the user confirmed rounded corners
-and continuously live pointer blur after the fix. `GLASS-RENDERING-PROOF.md` records the evidence and
-limitations. The proof remains 4/6 because cross-layer overscan contamination is still unresolved.
+Continue Phase 4.5C with same-layer Major isolation/overlapping foreground, keeping the accepted
+main-App held-drag correction. Include repeated real-App brightness/round-trip checks in acceptance.
+The pre-fix main-App held-drag failure was reproduced automatically and seen in displayed-window
+capture; WebView capture alone did not reliably show it. The synthetic scene cannot substitute for
+main-App acceptance.
+
+Earlier single-variable trials failed and were reverted, including image/container translation.
+The new two-clip correction is distinct: leaving either the surface-root clip or inner material clip
+in place failed; removing both cleared the repeated held-exit reproduction. No per-frame refresh,
+optical reduction or experimental-plane migration is added. History is in `WORK-LOG.md`.
+
+Keep the stable-plane candidate available for comparison, with the current backend as default.
+Resolve foreground/effect overlap and optical parity before production migration. The candidate
+has fewer filter nodes and stable geometry during synthetic motion, but no proven GPU/performance
+advantage. `GLASS-STABLE-PLANE-CANDIDATE.md` records architecture, native evidence, measurements,
+automated coverage and blockers. Main App still uses the local native backend, now with the bounded
+clipping correction; the experimental planes remain Lab-only.
 
 Do not begin large scroll/motion migration until the rendering proof passes.
 

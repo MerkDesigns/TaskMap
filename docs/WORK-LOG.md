@@ -2199,3 +2199,88 @@ removed. Resume exact native state rather than rebuilding earlier fixtures.
 - Clipping subtask complete. Phase 4.5C remains 4/6 positive fixture checks: logical Major isolation and
   cross-layer overscan contamination are still open. Next is source isolation, then the complete proof;
   this does not claim production scrolling or final performance acceptance.
+
+### 2026-09-27 — Selectable stable logical-depth plane candidate
+
+- Implemented the user's bounded proof request on architecture-v1/abd4000. No branch, commit, push,
+  App rewrite, production migration, scroll morph or parked compositor activation.
+- Added experimental material-owned fixed 1100x425 planes, rounded filter-output union masks and
+  separate canonical foreground/rim/shadow shells. Explicit Major-base, settled/promoted Minor and
+  Major-overlay depths. The current local backend remains selectable/default and production is intact.
+- Added separate-Major placement, red travel beyond the old overscan range, and opt-in 10-second
+  diagnostics. Tests establish stable filter identity, shared ownership, canonical promotion optics,
+  separate foreground, no translation rim redraw and no backdrop-driven geometry measurement.
+- Native inspection: candidate separates adjacent Major sampling (zero RGB change in B patch), higher
+  overlay and promoted Minor respond to lower ink, corners stay rounded and checker media remains
+  live. Overlapping A foreground still shows through B: candidate is not accepted. Three native
+  screenshots and reproduction/results are recorded in GLASS-STABLE-PLANE-CANDIDATE.md.
+- After validation completed, synthetic moving-red/animated-media rAF samples at 1200x960/DPR1 on
+  Ryzen 7800X3D / RTX5070Ti / reported 360Hz display: local 3566 intervals, candidate 3600; both median
+  2.80ms and p95/p99 2.90ms. Filter nodes 6 vs 4; shared planes 1 vs 2; topology changes and peak
+  geometry refreshes/s both zero. These are development rAF intervals, not GPU/release acceptance.
+- Damage-tracking hypothesis remains unproven. The user explicitly says the synthetic scene does not
+  reproduce the real-App defect and declined that manual test. Main-App held-drag overscan exit and
+  distant brightening remain unresolved. Next must reproduce the actual transform/camera path.
+- Full npm run check passed (252 files / 1,714 tests), including production exclusion of the candidate.
+  Final reset/Small-padding changes: focused 2 files / 7 tests passed. Native console final inspection
+  had no warnings/errors. CODEMAP regenerated; Rust unchanged; existing bundle-size advisory remains.
+
+### 2026-09-28 — Main-App negative trials and contract audit
+
+- User reports no improvement from each bounded main-App experiment: removing Major compositor
+  hints; viewport-sized local filter bounds; removing the extra ancestor overflow clip while retaining
+  rounded output masks; combining preblur/main filtering on one filter element; and moving actual
+  images/containers through CSS translation instead of left/top. Each trial was reverted. These
+  negative results do not establish the root cause or rule out all native rendering approaches.
+- The translation trial passed typecheck and three focused test files/eight tests before reversion;
+  automated correctness did not predict visual improvement. Current diff has no changes to App,
+  legacy presentation, application/domain/platform ownership or Rust. No lasting production fix
+  resulted from these trials; the Lab-only candidate remains unaccepted and selectable.
+- Re-read active UI/glass/quality contracts, roadmap, workflow, testing strategy, architecture and
+  ADR 006; inspected current material/workbench/candidate wiring and the local diff. Phase remains
+  4.5C, blocked on rendering correctness. A/B are complete locally; D-H and later migrations remain
+  open. Earlier four-of-six fixture observations are not a production-compliance percentage.
+- Confirmed existing contract gaps: WorkspaceSidePanel.css directly selects private filter children
+  for a compositor hint (material-backend ownership belongs below the pattern); retained App subscribes
+  to geometry preview changes through useLegacyInteractionSnapshot (final pure-translation hot-path
+  requirement remains unmet). Neither observation establishes the cause of stale blur/brightening.
+  No runtime changes were made to address these during the audit.
+- Architecture checks pass for 589 target-architecture files; CODEMAP and git diff checks pass.
+  Full tests/build/Rust/CI were not rerun for this documentation audit. Tauri connection on port 9223
+  was unavailable at the start of the audit; no new screenshot, interaction, console or performance
+  acceptance is claimed. Prior full validation remains dated evidence only.
+- Workflow correction: capture the actual main-App failure and active rendering state before another
+  candidate change. A fixture is useful only if it reproduces that failure. Do not ask the user to
+  repeat already-failed CSS trials without new evidence, weaken the contracts, migrate the unaccepted
+  candidate into production, or start large scroll/motion work before the rendering gate passes.
+
+### 2026-09-28 — Reproduced and corrected main-App held-drag ghost
+
+- Started Dev/MCP, user unlocked their development database. Inspected the actual main App: four
+  local Major surfaces, zero experimental planes. A passive trusted-pointer monitor saw no glass
+  DOM/style mutations during the user's failing drag. Image left edge reached 508px beyond the
+  filter's right edge at 502px. User confirmed a one-time filter reset cleared the ghost while held;
+  this reset was diagnostic only and is not shipped.
+- Tauri WebView captures did not reliably retain the displayed stale pixels. Foreground window
+  capture through the computer-use tool did. Synthetic pointer events through the real image move
+  controller then reproduced the ghost without committing a move; pointer cancellation restored
+  the pre-test geometry. Camera translate3d-to-translate probe failed and was reverted.
+- Removing BOTH the outer Major surface overflow clip and its inner material overflow clip cleared
+  the ghost. Restoring clipping reproduced it; outer-only removal still failed. Earlier inner-only
+  removal had also failed. Rounded masks remain directly on filter outputs throughout.
+- Source change: Major inner material clip uses overflow:visible; WorkspaceSidePanel root no longer
+  clips its backdrop filters. Its existing content switcher keeps overflow:hidden and inherits the
+  panel radius. No recipe, overscan, animation loop, refresh nudge, database ownership or candidate
+  plane migration changed. Existing content/list clipping and external rim/shadow remain separate.
+- Evidence: main-app-held-ghost.png and main-app-held-clear.png under docs/evidence/glass-proof/.
+  Ghost capture is the outer-only negative control (inner clip still present); corrected capture uses
+  the source fix. Same image at x535/y260, 180x180, held. In x280-294/y235-394 the mean red-minus-green
+  channel value changed from 31.96 to -1. Five further crossings at several heights ended clear.
+  This establishes the reproduced rendering failure/correction, not Chromium's precise internal bug.
+- User repeated the real-mouse trigger: frozen edge gone, corners good, no brightening noticed.
+  Inspected Settings open/close and rounded overlay rendering; existing scrollbar debt remains.
+  Console errors/warnings empty. Diagnostic globals/trials removed; temporary WebView captures deleted.
+- Full npm run check passed: 252 files / 1,714 tests, formatting/typecheck/lint/architecture/build and
+  production/capability exclusions. Existing Vite bundle-size advisory remains; Rust unchanged.
+  No release/GPU performance claim. Phase 4.5C still fails same-layer isolation; intermittent flicker
+  needs broader round-trip coverage despite the positive user check. No branch, commit or push.

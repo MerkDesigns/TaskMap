@@ -61,6 +61,14 @@
   transform: translateZ(0);
 }
 
+/* Major filters already mask their own rounded outputs. An additional ancestor
+   overflow clip can leave their overscan contribution stale in WebView2 when
+   backdrop content moves outside the clip. Content viewports clip separately. */
+.taskmap-material-surface[data-material-strategy="native-glass"][data-material-role="large"]
+  > .taskmap-material-native-glass__clip {
+  overflow: visible;
+}
+
 .taskmap-material-surface[data-material-backdrop-source="shared"]
   .taskmap-material-native-glass__preblur,
 .taskmap-material-surface[data-material-backdrop-source="shared"]

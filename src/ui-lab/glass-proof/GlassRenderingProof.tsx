@@ -6,10 +6,14 @@ import {
 } from "../../ui/materials/SharedSmallGlassPlane";
 import { Button } from "../../ui/primitives/Button";
 import { useProofBackdrop } from "./useProofBackdrop";
+import { StableProofSurfaces } from "./StableProofSurfaces";
+import { ProofPerformance } from "./ProofPerformance";
 import "./glassRenderingProof.css";
 
 /** Reproduces the current backend. Layer labels describe intended sampling, not proven isolation. */
 export function GlassRenderingProof() {
+  const [candidate, setCandidate] = useState(false);
+  const [separated, setSeparated] = useState(false);
   const [majorA, setMajorA] = useState(true);
   const [ink, setInk] = useState(false);
   const [lowerInk, setLowerInk] = useState(false);
@@ -25,8 +29,9 @@ export function GlassRenderingProof() {
         { x: 24, y: 130, width: 210, height: 110, radius: 14 },
         ...(!promoted ? [{ x: 290, y: 130, width: 210, height: 110, radius: 14 }] : []),
       ]);
-  }, [promoted]);
+  }, [promoted, candidate]);
   const reset = () => {
+    setSeparated(false);
     setMajorA(true);
     setInk(false);
     setLowerInk(false);
@@ -38,7 +43,17 @@ export function GlassRenderingProof() {
   };
   return (
     <section className="taskmap-glass-proof" aria-label="Glass rendering proof">
-      <h1>Glass rendering proof · current native backend</h1>
+      <h1>Glass rendering proof</h1>
+      <label>
+        Backend{" "}
+        <select
+          value={candidate ? "stable" : "local"}
+          onChange={(event) => setCandidate(event.target.value === "stable")}
+        >
+          <option value="local">Current local native backend</option>
+          <option value="stable">Stable logical-depth plane candidate</option>
+        </select>
+      </label>
       <p>
         Layer labels are requirements, not isolation guarantees. Pause motion before A/B
         comparisons.
@@ -53,6 +68,7 @@ export function GlassRenderingProof() {
             ["Promote Minor", promoted, setPromoted],
             ["Move red", moving, setMoving],
             ["Animate media", animated, setAnimated],
+            ["Separate Majors", separated, setSeparated],
           ] as const
         ).map(([label, checked, update]) => (
           <label key={label}>
@@ -78,6 +94,9 @@ export function GlassRenderingProof() {
         <Button size="compact" disabled={moving} onClick={() => backdrop.setPosition(740)}>
           Red right
         </Button>
+        <Button size="compact" disabled={moving} onClick={() => backdrop.setPosition(950)}>
+          Red far away
+        </Button>
         <span>Pause Move red to drag the handle; release must not correct the blur.</span>
       </div>
       <div className="taskmap-glass-proof__viewport">
@@ -95,64 +114,71 @@ export function GlassRenderingProof() {
               L0 · grid / red object / changing canvas media
             </span>
           </div>
-          <MaterialSurface
-            material="acrylic-large"
-            radius={20}
-            className="taskmap-glass-proof__major-a"
-            data-proof-surface="major-a"
-            data-proof-layer="1"
-            style={{ visibility: majorA ? "visible" : "hidden" }}
-          >
-            <h2>Persistent Major A · L1</h2>
-            <div className="taskmap-glass-proof__ink" data-proof-ink={ink}>
-              A content
-            </div>
-            <SharedSmallGlassPlane ref={plane} batchId="proof-settled-minors" />
-            <MaterialSurface
-              material="acrylic-small"
-              backdropSource="shared"
-              radius={14}
-              className="taskmap-glass-proof__minor taskmap-glass-proof__minor-lower"
-              data-proof-surface="minor-lower"
-            >
-              <strong>Lower Minor</strong>
-              <div className="taskmap-glass-proof__card-ink" data-proof-ink={lowerInk}>
-                TEXT · ▦ · cyan / magenta
-              </div>
-            </MaterialSurface>
-            <MaterialSurface
-              material="acrylic-small"
-              backdropSource={promoted ? "self" : "shared"}
-              radius={14}
-              className="taskmap-glass-proof__minor taskmap-glass-proof__minor-upper"
-              data-proof-surface="minor-upper"
-              data-proof-promoted={promoted}
-            >
-              <strong>{promoted ? "Promoted Minor" : "Settled Minor"}</strong>
-              <p>Same recipe and radius</p>
-            </MaterialSurface>
-          </MaterialSurface>
-          <MaterialSurface
-            material="acrylic-large"
-            radius={20}
-            className="taskmap-glass-proof__major-b"
-            data-proof-surface="major-b"
-            data-proof-layer="1"
-          >
-            <h2>Persistent Major B · L1</h2>
-            <p>A ink must not affect this glass.</p>
-          </MaterialSurface>
-          {overlay && (
-            <MaterialSurface
-              material="acrylic-large"
-              radius={20}
-              className="taskmap-glass-proof__overlay"
-              data-proof-surface="overlay"
-              data-proof-layer="2"
-            >
-              <h2>Overlay Major · L2</h2>
-              <p>Should sample completed lower UI.</p>
-            </MaterialSurface>
+          {candidate ? (
+            <StableProofSurfaces {...{ majorA, ink, lowerInk, overlay, promoted, separated }} />
+          ) : (
+            <>
+              <MaterialSurface
+                material="acrylic-large"
+                radius={20}
+                className="taskmap-glass-proof__major-a"
+                data-proof-surface="major-a"
+                data-proof-layer="1"
+                style={{ visibility: majorA ? "visible" : "hidden" }}
+              >
+                <h2>Persistent Major A · L1</h2>
+                <div className="taskmap-glass-proof__ink" data-proof-ink={ink}>
+                  A content
+                </div>
+                <SharedSmallGlassPlane ref={plane} batchId="proof-settled-minors" />
+                <MaterialSurface
+                  material="acrylic-small"
+                  backdropSource="shared"
+                  radius={14}
+                  className="taskmap-glass-proof__minor taskmap-glass-proof__minor-lower"
+                  data-proof-surface="minor-lower"
+                >
+                  <strong>Lower Minor</strong>
+                  <div className="taskmap-glass-proof__card-ink" data-proof-ink={lowerInk}>
+                    TEXT · ▦ · cyan / magenta
+                  </div>
+                </MaterialSurface>
+                <MaterialSurface
+                  material="acrylic-small"
+                  backdropSource={promoted ? "self" : "shared"}
+                  radius={14}
+                  className="taskmap-glass-proof__minor taskmap-glass-proof__minor-upper"
+                  data-proof-surface="minor-upper"
+                  data-proof-promoted={promoted}
+                >
+                  <strong>{promoted ? "Promoted Minor" : "Settled Minor"}</strong>
+                  <p>Same recipe and radius</p>
+                </MaterialSurface>
+              </MaterialSurface>
+              <MaterialSurface
+                material="acrylic-large"
+                radius={20}
+                className="taskmap-glass-proof__major-b"
+                data-proof-surface="major-b"
+                data-proof-layer="1"
+                style={separated ? { left: 660 } : undefined}
+              >
+                <h2>Persistent Major B · L1</h2>
+                <p>A ink must not affect this glass.</p>
+              </MaterialSurface>
+              {overlay && (
+                <MaterialSurface
+                  material="acrylic-large"
+                  radius={20}
+                  className="taskmap-glass-proof__overlay"
+                  data-proof-surface="overlay"
+                  data-proof-layer="2"
+                >
+                  <h2>Overlay Major · L2</h2>
+                  <p>Should sample completed lower UI.</p>
+                </MaterialSurface>
+              )}
+            </>
           )}
           <button
             type="button"
@@ -165,6 +191,7 @@ export function GlassRenderingProof() {
           </button>
         </div>
       </div>
+      <ProofPerformance key={candidate ? "stable" : "local"} />
       <ol>
         <li>Toggle A ink: B must stay unchanged; the higher overlay should respond.</li>
         <li>

@@ -8,7 +8,7 @@ export function useProofBackdrop(moving: boolean, animated: boolean) {
   const position = useRef(0);
   const drag = useRef<{ pointerId: number; start: number; origin: number } | null>(null);
   const setPosition = (x: number) => {
-    position.current = Math.max(0, Math.min(740, x));
+    position.current = Math.max(0, Math.min(950, x));
     for (const element of [red.current, handle.current]) {
       if (!element) continue;
       element.style.transform = `translateX(${position.current}px)`;
@@ -21,7 +21,7 @@ export function useProofBackdrop(moving: boolean, animated: boolean) {
     const start = performance.now();
     const context = media.current?.getContext("2d");
     const draw = (now: number) => {
-      if (moving && !drag.current) setPosition(370 + Math.sin((now - start) / 1400) * 370);
+      if (moving && !drag.current) setPosition(475 + Math.sin((now - start) / 1400) * 475);
       const mediaFrame = animated ? Math.floor((now - start) / 450) : 0;
       if (context && mediaFrame !== lastMediaFrame) {
         for (let y = 0; y < 6; y++)

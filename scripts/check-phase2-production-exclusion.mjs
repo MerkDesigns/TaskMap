@@ -69,6 +69,7 @@ for (const path of stableAssets.filter((item) => /\.(?:js|html|css)$/.test(item)
     content.includes("Acrylic compositor playground") ||
     content.includes("data-taskmap-ui-lab") ||
     content.includes("taskmap-workbench") ||
+    content.includes("taskmap-stable-glass-plane") ||
     content.includes("Workspace admitted (preview)") ||
     content.includes("recovered-preview-token") ||
     content.includes("Entry preview — simulated files")

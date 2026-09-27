@@ -124,7 +124,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `scripts/check-architecture.mjs`                                           |   270 | Repository maintenance script                                                                      |
 | `scripts/check-database-cutover.mjs`                                       |    28 | Repository maintenance script                                                                      |
 | `scripts/check-mcp-development-exclusion.mjs`                              |    89 | Repository maintenance script                                                                      |
-| `scripts/check-phase2-production-exclusion.mjs`                            |    81 | Repository maintenance script                                                                      |
+| `scripts/check-phase2-production-exclusion.mjs`                            |    82 | Repository maintenance script                                                                      |
 | `scripts/check-storage-preview.mjs`                                        |    69 | Repository maintenance script                                                                      |
 | `scripts/check-version.mjs`                                                |    56 | Repository maintenance script                                                                      |
 | `scripts/generate-baseline-fixtures.mjs`                                   |   115 | Repository maintenance script                                                                      |
@@ -660,8 +660,10 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui-lab/DraggableTextBlockFixture.tsx`                                 |   207 | React component or typed UI module                                                                 |
 | `src/ui-lab/FormControlsPrototype.test.tsx`                                |    64 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/FormControlsPrototype.tsx`                                     |    98 | React component or typed UI module                                                                 |
-| `src/ui-lab/glass-proof/GlassRenderingProof.test.tsx`                      |    69 | Geometry/pixels are verified in WebView2, not simulated by this structural test.                   |
-| `src/ui-lab/glass-proof/GlassRenderingProof.tsx`                           |   185 | React component or typed UI module                                                                 |
+| `src/ui-lab/glass-proof/GlassRenderingProof.test.tsx`                      |   121 | Geometry/pixels are verified in WebView2, not simulated by this structural test.                   |
+| `src/ui-lab/glass-proof/GlassRenderingProof.tsx`                           |   212 | React component or typed UI module                                                                 |
+| `src/ui-lab/glass-proof/ProofPerformance.tsx`                              |    75 | React component or typed UI module                                                                 |
+| `src/ui-lab/glass-proof/StableProofSurfaces.tsx`                           |    90 | React component or typed UI module                                                                 |
 | `src/ui-lab/glass-proof/useProofBackdrop.ts`                               |    84 | TypeScript application module                                                                      |
 | `src/ui-lab/InteractiveControlsPrototype.test.tsx`                         |    61 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/InteractiveControlsPrototype.tsx`                              |   236 | React component or typed UI module                                                                 |
@@ -738,6 +740,8 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/materials/compositor/sceneRasterizer.ts`                           |   235 | TypeScript application module                                                                      |
 | `src/ui/materials/compositor/sharedAcrylicCacheBuilder.ts`                 |    66 | TypeScript application module                                                                      |
 | `src/ui/materials/compositor/sharedAcrylicProfile.ts`                      |    56 | TypeScript application module                                                                      |
+| `src/ui/materials/experimental/StableGlassPlane.test.tsx`                  |    80 | Tests for the adjacent module                                                                      |
+| `src/ui/materials/experimental/StableGlassPlane.tsx`                       |   120 | Only the output mask changes with geometry. Filter bounds/identity remain stable.                  |
 | `src/ui/materials/FrostedSurface.test.tsx`                                 |    22 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/FrostedSurface.tsx`                                      |    15 | React component or typed UI module                                                                 |
 | `src/ui/materials/frostedSurfaceTypes.ts`                                  |     6 | TypeScript application module                                                                      |

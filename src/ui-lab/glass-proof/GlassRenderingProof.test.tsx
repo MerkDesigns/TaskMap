@@ -66,3 +66,55 @@ it("schedules backdrop animation only while enabled and cancels it on view dispo
   unmount();
   expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
 });
+
+it("keeps the local baseline selectable and uses one candidate Major plane without local Major filters", () => {
+  const { container } = render(<GlassRenderingProof />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Backend" }), {
+    target: { value: "stable" },
+  });
+  const majorPlane = container.querySelector('[data-stable-glass-depth="major-base"]')!;
+  expect(container.querySelectorAll('[data-stable-glass-depth="major-base"]')).toHaveLength(1);
+  expect(majorPlane).toHaveAttribute("data-plane-shape-count", "2");
+  for (const name of ["major-a", "major-b"]) {
+    expect(
+      container.querySelector(`[data-proof-surface="${name}"] .taskmap-native-glass-backdrop`),
+    ).toBeNull();
+  }
+  fireEvent.click(screen.getByLabelText("Separate Majors"));
+  fireEvent.click(screen.getByLabelText("Major A ink"));
+  fireEvent.click(screen.getByRole("button", { name: "Red far away" }));
+  expect(container.querySelector('[data-stable-glass-depth="major-base"]')).toBe(majorPlane);
+  expect(container.querySelector(".taskmap-glass-proof__red")).toHaveAttribute(
+    "data-proof-red-x",
+    "950",
+  );
+  fireEvent.click(screen.getByLabelText("Promote Minor"));
+  expect(container.querySelector('[data-stable-glass-depth="minor-promoted"]')).not.toBeNull();
+  fireEvent.change(screen.getByRole("combobox", { name: "Backend" }), {
+    target: { value: "local" },
+  });
+  expect(container.querySelector("[data-stable-glass-depth]")).toBeNull();
+  expect(
+    container.querySelector('[data-proof-surface="major-a"] .taskmap-native-glass-backdrop'),
+  ).not.toBeNull();
+});
+
+it("moves backdrop pixels without measuring geometry or changing candidate filter nodes/masks", () => {
+  const { container } = render(<GlassRenderingProof />);
+  fireEvent.change(screen.getByRole("combobox", { name: "Backend" }), {
+    target: { value: "stable" },
+  });
+  fireEvent.click(screen.getByLabelText("Move red"));
+  fireEvent.click(screen.getByLabelText("Animate media"));
+  const planes = [...container.querySelectorAll("[data-stable-glass-depth]")];
+  const styles = planes.map((plane) => plane.getAttribute("style"));
+  const filters = planes.flatMap((plane) => [...plane.children]);
+  const measure = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+  const calls = vi.mocked(requestAnimationFrame).mock.calls;
+  const draw = calls[calls.length - 1][0];
+  draw(performance.now() + 1000);
+  draw(performance.now() + 2000);
+  expect(measure).not.toHaveBeenCalled();
+  expect(planes.map((plane) => plane.getAttribute("style"))).toEqual(styles);
+  expect(planes.flatMap((plane) => [...plane.children])).toEqual(filters);
+});

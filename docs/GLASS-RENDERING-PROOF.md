@@ -3,6 +3,18 @@
 Non-normative evidence for Phase 4.5C. Requirements remain in `GLASS-SYSTEM-CONTRACT.md`.
 The current backend **fails the gate**. These fixture observations do not accept production glass.
 
+2026-09-27 follow-up: a selectable stable-depth plane candidate now exists beside the original
+backend. See `GLASS-STABLE-PLANE-CANDIDATE.md` for exact implementation, measurements and blockers.
+The user confirms the synthetic proof does not reproduce the main App's frozen edge blur or distant
+brightening. Earlier fixture freshness passes must not be interpreted as real-App acceptance.
+
+2026-09-28 main-App correction: removing both Major filter ancestor overflow clips, while retaining
+rounded output masks and separate content clipping, cleared a repeatable held-drag ghost. The user
+confirmed no frozen edge, rounded corners and no brightening noticed. Displayed-window evidence:
+[failing inner-clip control](evidence/glass-proof/main-app-held-ghost.png) and
+[corrected held state](evidence/glass-proof/main-app-held-clear.png). WORK-LOG records the reproduction
+and limits. This does not fix the same-layer isolation failure below or accept the experimental planes.
+
 ## Environment and reproduction
 
 2026-09-24, Windows, TaskMap Dev with MCP, native WebView2; renderer reports Edge/Chromium 153,
