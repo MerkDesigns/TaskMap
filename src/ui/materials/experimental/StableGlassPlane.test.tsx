@@ -77,3 +77,59 @@ it("promotes Small at a higher depth while preserving its optical recipe", () =>
   expect(plane.style.getPropertyValue("--taskmap-material-blur")).toBe(blur);
   expect(plane.style.getPropertyValue("--taskmap-material-preblur")).toBe(preblur);
 });
+
+it("occludes foreground in scene coordinates without masking a filter ancestor or replacing content", () => {
+  const upper = { ...shape, x: 180, y: 40, radius: 14 };
+  const renderSurface = (x: number) => (
+    <StableGlassSurface
+      depth="major-base"
+      shape={shape}
+      name="lower"
+      occlusion={{
+        width: 1100,
+        height: 425,
+        shapes: [
+          { ...upper, x },
+          { ...upper, x: 200 },
+        ],
+      }}
+    >
+      <button>Still interactive outside the overlap</button>
+    </StableGlassSurface>
+  );
+  const { container, rerender } = render(renderSurface(180));
+  const surface = container.firstElementChild as HTMLElement;
+  const button = surface.querySelector("button");
+  const clip = () => surface.querySelector("clipPath path")!.getAttribute("d")!;
+  expect(clip()).toContain("M-20 -30h1100v425h-1100Z");
+  expect(clip()).toContain("M174 10H346A14 14");
+  const clips = surface.querySelectorAll("clipPath");
+  expect(clips).toHaveLength(2);
+  expect(clips[1].firstElementChild).toHaveAttribute("clip-path", `url(#${clips[0].id})`);
+  expect(surface.style.clipPath).toBe(`url(#${clips[1].id})`);
+  expect(surface.querySelector(".taskmap-native-glass-backdrop")).toBeNull();
+  vi.mocked(drawNativeGlassRim).mockClear();
+  rerender(renderSurface(500));
+  expect(container.firstElementChild).toBe(surface);
+  expect(surface.querySelector("button")).toBe(button);
+  expect(clip()).toContain("M494 10");
+  expect(drawNativeGlassRim).not.toHaveBeenCalled();
+});
+
+it("subtracts upper siblings from Minor filter output without clipping the filter parent", () => {
+  const { container } = render(
+    <StableGlassPlane
+      depth="minor-settled"
+      width={1100}
+      height={425}
+      shapes={[shape]}
+      occluders={[{ ...shape, x: 180 }]}
+    />,
+  );
+  const plane = container.firstElementChild as HTMLElement;
+  expect(plane.style.maskImage).toBe("");
+  expect(decodeURIComponent(plane.style.getPropertyValue("--taskmap-plane-mask"))).toContain(
+    'mask="url(#visible)"',
+  );
+  expect(plane.children).toHaveLength(2);
+});

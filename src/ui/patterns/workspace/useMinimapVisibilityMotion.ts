@@ -1,56 +1,37 @@
-import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
-import { useMotionFrameScheduler } from "../../motion/MotionProvider";
-import { interpolate, normalizedProgress } from "../../motion/motionMath";
-import { useReducedMotion } from "../../motion/reducedMotionPreference";
+import { useLayoutEffect, type RefObject } from "react";
+import { presetChannels, type PresencePresetName } from "../../motion/presencePresets";
+import { usePresenceMotion, usePresencePreset } from "../../motion/usePresenceMotion";
 
-/** Retained production Minimap fade duration; App owns the matching unmount timer. */
+/** Retained production Minimap fade-out duration; App owns the matching unmount timer. */
 export const MINIMAP_VISIBILITY_DURATION_MS = 500;
+/** Fade in 50% faster than fade out (user direction 2026-09-30). */
+const MINIMAP_ENTER_DURATION_MS = MINIMAP_VISIBILITY_DURATION_MS / 2;
 
+const smoothstep = (progress: number) => progress * progress * (3 - 2 * progress);
+const ENTER = { durationMs: MINIMAP_ENTER_DURATION_MS, easing: smoothstep };
+const EXIT = { durationMs: MINIMAP_VISIBILITY_DURATION_MS, easing: smoothstep };
+const DEFAULT_PRESET: PresencePresetName = "materialFade";
+
+/**
+ * Minimap presence through the shared presence controller: glass fades through the material
+ * presence variable and content fades on glass-free children, never ancestor opacity (glass
+ * contract section 17). The workbench previews alternative presets.
+ */
 export function useMinimapVisibilityMotion(
   surfaceRef: RefObject<HTMLElement | null>,
   visible: boolean,
 ): void {
-  const scheduler = useMotionFrameScheduler();
-  const reducedMotion = useReducedMotion();
-  const opacityRef = useRef(visible ? 0 : 1);
-  const initializedRef = useRef(false);
-
-  const writeOpacity = useCallback(
-    (opacity: number, active: boolean) => {
-      const settledOpacity = Math.min(1, Math.max(0, opacity));
-      opacityRef.current = settledOpacity;
-      const surface = surfaceRef.current;
-      if (surface) {
-        surface.style.opacity = `${settledOpacity}`;
-        surface.style.willChange = active ? "opacity" : "";
-      }
-    },
-    [surfaceRef],
-  );
+  const preset = usePresencePreset("minimap", DEFAULT_PRESET);
+  const channels = presetChannels(preset, DEFAULT_PRESET);
+  const presence = usePresenceMotion(surfaceRef, {
+    channels,
+    enter: ENTER,
+    exit: EXIT,
+    initialProgress: 0,
+  });
 
   useLayoutEffect(() => {
-    const target = visible ? 1 : 0;
-    if (reducedMotion) {
-      initializedRef.current = true;
-      writeOpacity(target, false);
-      return;
-    }
-
-    const from = initializedRef.current ? opacityRef.current : visible ? 0 : 1;
-    initializedRef.current = true;
-    if (from === target) {
-      writeOpacity(target, false);
-      return;
-    }
-
-    writeOpacity(from, true);
-    let elapsedMs = 0;
-    return scheduler.subscribe(({ deltaMs }) => {
-      elapsedMs += deltaMs;
-      const progress = normalizedProgress(elapsedMs, 0, MINIMAP_VISIBILITY_DURATION_MS);
-      const easedProgress = progress * progress * (3 - 2 * progress);
-      writeOpacity(interpolate(from, target, easedProgress), progress < 1);
-      return progress < 1;
-    });
-  }, [reducedMotion, scheduler, visible, writeOpacity]);
+    if (visible) presence.show();
+    else presence.hide();
+  }, [presence, visible]);
 }

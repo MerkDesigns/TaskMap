@@ -3,7 +3,6 @@ import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 import { notifyWorkspacePanelContentSizeChanged } from "./workspacePanelContentSize";
 import { supplyMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
 import { MaterialGeometryFrame } from "../../materials/materialGeometryScheduler";
-import { writeGlassListEffectsClip } from "./glassListGeometry";
 
 export function readCanvasBrowserDragFrame(viewport: HTMLElement, card?: HTMLElement) {
   const frame = new MaterialGeometryFrame();
@@ -38,8 +37,57 @@ export function measureCanvasBrowserCard<Id extends string>(record: CanvasBrowse
   record.height = Math.max(1, editorHeight || fallback);
 }
 
+/** Visible slice of a card whose logical top is `top` inside a viewport of `viewportHeight`. */
+export interface CanvasBrowserCardSlice {
+  readonly offset: number;
+  readonly visible: number;
+}
+
+export function canvasBrowserCardSlice(
+  top: number,
+  height: number,
+  viewportHeight: number,
+): CanvasBrowserCardSlice {
+  const clippedTop = Math.max(top, 0);
+  const visible = Math.max(0, Math.min(top + height, viewportHeight) - clippedTop);
+  return { offset: visible > 0 ? clippedTop - top : 0, visible };
+}
+
+export function interpolateSlice(
+  from: CanvasBrowserCardSlice,
+  to: CanvasBrowserCardSlice,
+  progress: number,
+): CanvasBrowserCardSlice {
+  return {
+    offset: from.offset + (to.offset - from.offset) * progress,
+    visible: from.visible + (to.visible - from.visible) * progress,
+  };
+}
+
+export function readCanvasBrowserCardSlice<Id extends string>(
+  record: CanvasBrowserCardRecord<Id>,
+): CanvasBrowserCardSlice {
+  const read = (name: string, fallback: number) => {
+    const value = Number.parseFloat(record.host.style.getPropertyValue(name));
+    return Number.isFinite(value) ? value : fallback;
+  };
+  return {
+    offset: read("--taskmap-canvas-card-clip-offset", 0),
+    visible: read("--taskmap-canvas-card-visible-height", record.height),
+  };
+}
+
+/** The shell is offset by the scroll-edge slice; callers need the card's logical rectangle. */
+export function logicalCanvasBrowserCardRectangle<Id extends string>(
+  record: CanvasBrowserCardRecord<Id>,
+  shell: DOMRect,
+): DOMRect {
+  const top = shell.top - readCanvasBrowserCardSlice(record).offset;
+  return new DOMRect(shell.left, top, shell.width, record.height);
+}
+
 export function canvasBrowserCardRectangle<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
-  const rectangle = record.card.getBoundingClientRect();
+  const rectangle = logicalCanvasBrowserCardRectangle(record, record.card.getBoundingClientRect());
   const top = rectangle.top;
   return {
     x: rectangle.x,
@@ -94,13 +142,9 @@ export function syncCanvasBrowserCardViewport<Id extends string>(
   viewportHeight: number,
 ) {
   const top = record.y - scrollTop;
-  const clippedTop = Math.max(top, 0);
-  const clippedBottom = Math.min(top + record.height, viewportHeight);
-  const visibleHeight = Math.max(0, clippedBottom - clippedTop);
-  const clipOffset = visibleHeight > 0 ? clippedTop - top : 0;
+  const { offset, visible } = canvasBrowserCardSlice(top, record.height, viewportHeight);
   record.host.style.setProperty("--taskmap-canvas-card-y", `${top}px`);
-  writeGlassListEffectsClip(record.host, top, record.height, viewportHeight);
-  writeCanvasBrowserCardViewport(record, clipOffset, visibleHeight, visibleHeight > 0);
+  writeCanvasBrowserCardViewport(record, offset, visible, visible > 0);
 }
 
 export function writeCanvasBrowserCardViewport<Id extends string>(
@@ -113,9 +157,10 @@ export function writeCanvasBrowserCardViewport<Id extends string>(
   record.host.style.setProperty("--taskmap-canvas-card-visible-height", `${visibleHeight}px`);
   record.host.style.setProperty("--taskmap-canvas-card-full-height", `${record.height}px`);
   record.host.dataset.canvasCardVisible = String(visible);
+  // The settled shell morphs to its visible slice; rim and shadow follow it (glass contract §12).
   supplyMaterialSurfaceSize(record.card, {
     width: CANVAS_BROWSER_LAYOUT.cardWidth,
-    height: record.height,
+    height: visible ? visibleHeight : record.height,
   })?.();
 }
 
@@ -128,4 +173,14 @@ export function reorderCanvasBrowserHosts<Id extends string>(
     const host = records.get(id)?.host;
     if (host && host.parentElement === cardsLayer) cardsLayer.append(host);
   });
+}
+
+/**
+ * Held-item exemption (glass contract section 13): an ancestor that clips for its own reasons
+ * (e.g. the side-panel view switcher) declares `data-held-item-clip` and releases its clip while a
+ * card is held, so the card can be dragged past the panel. Settled cards clip themselves.
+ */
+export function releaseHeldItemClip(panel: HTMLElement, held: boolean) {
+  const host = panel.closest<HTMLElement>("[data-held-item-clip]");
+  if (host) host.dataset.heldItemClip = held ? "released" : "";
 }

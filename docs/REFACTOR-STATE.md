@@ -2,115 +2,125 @@
 
 > Current snapshot only. History belongs in `WORK-LOG.md`.
 
-## Current branch / snapshot baseline
+## Branch and phase
 
-- Branch: `architecture-v1`
-- Implementation baseline: `abd4000` (`docs: reset UI and glass architecture contracts`).
-  This snapshot includes the subsequent glass proof candidate and main-App clipping correction;
-  use `git log -1` for the containing checkout's current HEAD.
-- Last verified GitHub CI: run `35936566796` for `1cd89a4`, rechecked on 2026-09-24.
-- The selectable stable-depth plane candidate and diagnostics remain Lab-only and unaccepted.
-- Local validation: full `npm run check` passed again on 2026-09-28 (252 files / 1,714 tests)
-  after the main-App clipping correction, including build and production exclusions.
-  Rust is unchanged; its successful CI on the reviewed HEAD remains the native validation baseline.
-- 2026-09-28 audit: architecture checks (589 files), CODEMAP and diff checks pass. GitHub CI above
-  remains historical. Subsequent main-App work reconnected Dev and verified the clipping correction.
+- Branch: `architecture-v1`; HEAD: `5fc2be2` (`Fix stale main-app glass and add isolated renderer diagnostics`).
+- Subsequent chrome/Settings fixes, Lab occlusion work, shared Major default and Minor masking trial
+  are local/uncommitted. Do not discard this work or assume HEAD includes it.
+- Phase 4.5C/D is active. Shared workspace Major glass is accepted; full Minor/depth migration and
+  the final rendering gate remain open. No general Phase 5 renderer migration is claimed.
+- Last verified GitHub CI remains run `35936566796` for `1cd89a4`; local validation is newer.
 
-## Current phase
+## Active ownership and accepted behavior
 
-Phase 4.5 is active.
+- DatabaseApplication and the normalized workspace/commands/history/persistence system own product
+  data. Rust owns database/session security. Retained App.tsx is presentation only.
+- MaterialSurface and the materials subsystem own glass; features must not own private filters.
+- Shared workspace Major glass is now the default in normal and Dev builds. User accepted the real
+  App held-drag test on 2026-09-29: no frozen edge, distant brightening or broken corners noticed.
+- Dev retains `Shared workspace Major glass` for comparison. Window controls now join the plane via
+  `WorkspaceMajorGlassBridge` (local on entry/unlock screens); measured zero contamination from an
+  adjacent foreground (local path: 3.54/255). Settings islands now share one Minor batch (`SettingsIslandList`); knobs on islands render as
+  shells (new `shell` source, automatic Minor-on-Minor policy); the tab indicator keeps its blur.
+  User accepted the look on 2026-09-29.
+  General overlapping App panels are not yet accepted.
+- Toolbar hitboxes are clear of the window drag strip. Settings uses the shared hidden scrollbar.
+- Dedicated performance benchmarks are deferred at the user's request; this is subjective acceptance,
+  not measured parity. Keep hot-path constraints; revisit if slowdown or significant new work arises.
+- Darker candidate Minor glass is allowed for evaluation. No final Minor appearance choice exists.
 
-The database activation intermission is implemented/accepted for normal product use. The remaining
-database/release-specific validation item is packaged/live stable + development coexistence.
+## Current local slice: output-masked Minor (default)
 
-Phase 4.5A (documentation reset) and 4.5B (minimal workbench) are complete locally.
-Phase 4.5C is active: the proof fixture is built, but the native backend fails the rendering gate.
-The original proof had four of six positive fixture checks, not production acceptance. The stable-plane
-candidate is implemented but unaccepted: overlapping foreground isolation fails and the synthetic
-scene does not reproduce the user's real-App stale edge blur/distant brightening.
+- Default ON since 2026-09-29 (user accepted). Dev checkbox `Output-masked Minor glass` switches
+  back to the legacy root-clip path for comparison only.
+- SharedSmallGlassPlane retains existing settled/drag batch owners and recipes. The trial replaces
+  the batch-root clip with masks on the two filter outputs. Existing card geometry and rectangular
+  viewport intersections remain; this does not implement rounded scroll-edge shrinking.
+- `sharedSmallOutputMask.ts` caches shapes and uses the existing geometry scheduler for bounds.
+  Shape/scroll updates use cached dimensions; hidden zero-size batches do not reschedule endlessly.
+- Masks are layered: one cached rounded-rectangle image per shape size, positioned/sized per layer,
+  plus one intersecting viewport layer when every clip is shape ∩ one shared rectangle. Moving shapes
+  only change mask position/size values. Other shape sets fall back to the single-SVG encoder.
+- Legacy (trial OFF) held-card glass is structurally transparent: any `clip-path` on the batch root
+  makes it a WebView2 backdrop root, so its filters cannot sample the cards beneath. Not fixable
+  within the root-clip design; the trial's output masks are the correct direction.
+- NativeGlassPlane's mask encoder now supports per-shape viewport clips and an overscan origin.
+- Toggling back restores the latest legacy clip geometry without replacing the filter nodes.
+- This is NOT the final Lab Minor topology or a complete promotion/occlusion migration.
 
-## Current product ownership
+## Verified status
 
-- `DatabaseApplication` owns the active application database/session lifecycle.
-- One normalized workspace owns document state.
-- Named commands/history own persistent edits.
-- Revision-aware persistence owns ordinary document saves.
-- Device preferences, encrypted remembered views and session media are separate resources.
-- Interaction controllers own high-frequency transient pointer/camera state.
-- Retained `App.tsx` presentation remains a temporary renderer boundary; it is not the persistence
-  owner.
+- Full `npm run check` passed on 2026-09-29 after the layered-mask change: 254 files / 1,727 tests,
+  typecheck, lint, formatting, architecture (595 files), production build and
+  production-exclusion/security-boundary checks. CODEMAP regenerated.
+- Mask tests cover overscan-aligned layer positions, viewport intersection, image reuse while
+  shapes move, exact fallback for non-shared clips, no geometry reads on shape updates,
+  hidden-batch scheduling and toggle restoration with stable filter identity.
+- Earlier shared Major native verification passed: three registered workspace shapes, no local
+  workspace Major filters, isolated toolbar foreground probe, live backdrop response, aligned
+  close motion, real toolbar hits and clean console. Evidence is in `docs/evidence/glass-proof/`.
+- Minor trial passed native acceptance on 2026-09-29: computed masks, clip removal, identical look,
+  scroll, toggle restoration with stable filter nodes, clean console; user drag looked good. User
+  accepted it as the default on 2026-09-29.
+- Held-card drag with the trial ON, synthetic harness, 360 Hz display: ~80 fps before (per-frame
+  SVG mask re-encoding on both planes) → ~355 fps after layered masks (p99 5.5 ms, normal and fast
+  sweeps; one 188 fps warm-up outlier). Held card still blurs the cards beneath; scroll-edge clip,
+  toggle restore and console verified live. User confirmed real-mouse dragging feels good.
+- Fixed 2026-09-29: resize no longer blurs the whole canvas (Major mask reset by React re-render +
+  WebView2 ignoring empty SVG masks) and side panels fit their content instead of keeping resize/
+  overscan-inflated height. Verified live across window sizes, trial ON and OFF.
+- Rust unchanged. No commit/push performed for this slice.
 
-## Current UI/material position
+- Settled scroll-edge morph (4.5E) implemented for Canvas Browser on 2026-09-29: visible-slice shell,
+  rim, shadow, rounded content mask and cap-built glass; held cards stay full. Scroll A/B showed no
+  regression. Extensions panel and Quick Extensions morph too (native-scroll slice insets);
+  Settings intentionally excluded until its redesign. User accepted the list morph look; Quick
+  Extensions got a reusable `ScrollIndicator`, a 4-card scroll cap and a fading hover highlight.
+- Held-item exemption (§13) verified. Liquid pickup/drop (§14) implemented for Canvas Browser:
+  edge cards expand from their settled slice over 150 ms and drops morph toward the destination
+  slice during the snap; pickup now positions by the logical card (fixed a content jump equal to
+  the clip offset). Awaiting user feel check.
 
-Development builds expose an App/UI Lab switch inside the admitted database runtime. Both views
-share session resources and in-memory blur tuning. Diagnostics show bounds, hit targets and optional
-frame/material counters. Lock removes tooling and overrides; stable bundles exclude the workbench.
-The normal `app:ui-lab` command now launches TaskMap Dev. The old isolated harness is reference-only.
-Live WebView2 verification covered view switching, shared blur/list overscan, diagnostic outlines,
-counter display and reset, with screenshots inspected and no console errors/warnings. Lock cleanup
-and workspace/history/camera preservation are covered by real-runtime integration tests.
+## Immediate next task / handoff
 
-The existing native CSS glass path remains the current implementation, but its topology is **not**
-automatically the final architecture.
+1. Composable presence motion (4.5E): `src/ui/motion/presenceMotion.ts` owns independent channels
+   (content Fade, Material Fade, Slide X/Y, Lift, Scale) with separate enter/exit timing; the shared
+   Major plane projects translate X/Y + scale + opacity. UI Lab uses it via an adapter. Quick
+   Extensions migrated: user picked "Material fade + Scale", 264 ms emphasized enter / 192 ms
+   standard exit (original timing, 20% slower). Glass-list layout now measures in local
+   coordinates during ancestor scale (fixed misplaced card glass). DEV "Quick Extensions motion"
+   still previews presets. Side panel migrated: default material fade + off-screen slide +
+   scale 0.94, 300 ms ease-in-out; Quick Extensions: fade + slide up with side-panel shadow; shared Major plane now uses layered cached masks (open/close p50 2.8 ms). Quick Extensions owns
+   its outside-click close so the exit animation runs. Minimap migrated (2026-09-30): material fade, 250 ms enter / 500 ms exit smoothstep, no
+   ancestor opacity. Dialogs migrated (2026-09-30): `ModalPresence` runs on `createPresenceMotion`
+   (preset "Material fade + Settle", 180 ms ease-out / 120 ms smoothstep); the group only moves,
+   glass fades through the presence variable, glass-free content through
+   `markMaterialPresenceContent`, nested dialogs compose root x nested in `ModalLayer.css`. DEV
+   selectors: Minimap motion, Dialog motion. Blur timing (4.5E): the native glass recipe's blur presence
+   is `pow(clamp((p - delay) / (1 - delay)), curve)` with defaults delay 0.3 / curve 1; DEV "Blur
+   delay" / "Blur curve" sliders tune it live. Shared-plane Majors fade output as a unit (one filter
+   per plane), so the delay applies to recipe-rendered glass. Awaiting user tuning values (defaults kept).
+   4.5F dialog shell (2026-09-30): `ModalDialogHeader` / `ModalDialogBody` / `ModalDialogActions`
+   in `ui/patterns/overlays/ModalDialog.tsx`; Update, Clear Canvas, Password and the new Create
+   Canvas dialog use them. Create Canvas is now a root Major Glass modal (`CanvasCreateDialog`)
+   sharing `CanvasDraftFields` with the inline editor; the frosted popup is gone.
+   `useDialogFocus` gives initial focus to the first non-header control and owns the whole Tab
+   order (primitives default to tabIndex -1). Canvas Browser active preview follows pan/zoom
+   live again (camera subscription, no rerender). JSON editor is a non-modal Major Glass window
+   (2026-09-30). Settings header now uses `ModalDialogHeader`
+   ("Close settings" via `closeLabel`); the dialog-shell item is done. Scrollbar policy standardized (hidden for
+   glass panels, thin translucent elsewhere). Button audit and hit targets done. Next 4.5F:
+   local visual forks (legacy context menus/filter menu/colour picker onto primitives).
+2. Keep the legacy root-clip Minor path only as a Dev comparison; remove it in 4.5H cleanup.
+   Preserve the accepted Major and output-masked Minor defaults and the user's uncommitted work.
 
-Known correctness issues include:
+## Remaining gates
 
-- stale edge color is fixed for the reproduced trigger, with repeatable displayed-window evidence: remove both
-  Major filter ancestor overflow clips, retaining rounded filter-output masks and content clipping;
-  user confirmed the frozen edge is gone and corners remain rounded;
-- the user noticed no distant brightening after the correction; broader intermittent-flicker and
-  performance acceptance remain open;
-- current same-depth batching cannot provide all desired Minor-over-Minor blur behavior;
-- the proof confirms same-layer Major contamination; rounded filter-output clipping is now fixed;
-- current scroll-list clipping behavior differs from the new desired shrinking-material behavior;
-- several UI components still have one-off quality inconsistencies (dialog material/layout,
-  scrollbar presentation, stale button rims, small hit targets).
-
-The current implementation does not yet satisfy the final UI/glass contracts. Existing ownership and
-performance gaps include a private-filter compositor hint in `WorkspaceSidePanel.css` and drag
-geometry notifications reaching retained `App.tsx` through `useLegacyInteractionSnapshot`. These
-are not established causes of the visual defect. Core database/application ownership is unchanged
-by the current diff; the parked compositor remains inactive.
-
-The final intended behavior is defined by:
-
-- `UI-SYSTEM-CONTRACT.md`
-- `GLASS-SYSTEM-CONTRACT.md`
-- `UI-QUALITY-GUARDRAILS.md`
-
-## Immediate next task
-
-Continue Phase 4.5C with same-layer Major isolation/overlapping foreground, keeping the accepted
-main-App held-drag correction. Include repeated real-App brightness/round-trip checks in acceptance.
-The pre-fix main-App held-drag failure was reproduced automatically and seen in displayed-window
-capture; WebView capture alone did not reliably show it. The synthetic scene cannot substitute for
-main-App acceptance.
-
-Earlier single-variable trials failed and were reverted, including image/container translation.
-The new two-clip correction is distinct: leaving either the surface-root clip or inner material clip
-in place failed; removing both cleared the repeated held-exit reproduction. No per-frame refresh,
-optical reduction or experimental-plane migration is added. History is in `WORK-LOG.md`.
-
-Keep the stable-plane candidate available for comparison, with the current backend as default.
-Resolve foreground/effect overlap and optical parity before production migration. The candidate
-has fewer filter nodes and stable geometry during synthetic motion, but no proven GPU/performance
-advantage. `GLASS-STABLE-PLANE-CANDIDATE.md` records architecture, native evidence, measurements,
-automated coverage and blockers. Main App still uses the local native backend, now with the bounded
-clipping correction; the experimental planes remain Lab-only.
-
-Do not begin large scroll/motion migration until the rendering proof passes.
-
-Benchmark preparation remains files-only; loading the historical benchmark still requires explicit
-authorization and isolated storage. The documentation reset does not authorize stable user-data access.
-
-## Open gates
-
-- glass rendering proof;
-- final glass architecture;
-- scroll/presence/motion;
-- UI primitive/dialog/scrollbar cleanup;
-- final visual/performance acceptance;
-- packaged stable/dev coexistence;
+- final glass rendering/architecture acceptance and general overlap;
+- Minor batching/promotion migration and scroll/presence/motion;
+- UI primitive/dialog/scrollbar cleanup and final visual acceptance;
+- packaged stable/Dev coexistence;
 - Phase 4.5 cleanup.
 
-No general Phase 5 element renderer migration is claimed complete.
+Current authority: `UI-SYSTEM-CONTRACT.md`, `GLASS-SYSTEM-CONTRACT.md`,
+`UI-QUALITY-GUARDRAILS.md`, and validation gates in `TESTING.md`.

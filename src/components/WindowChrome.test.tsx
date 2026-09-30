@@ -26,6 +26,8 @@ describe("WindowChrome", () => {
     const dragRegion = document.querySelector<HTMLElement>(".taskmap-window-drag-region");
 
     expect(dragRegion).not.toBeNull();
+    expect(dragRegion?.parentElement).toBe(document.body);
+    expect(dragRegion?.closest(".taskmap-window-chrome-layer")).toBeNull();
     expect(document.body.querySelector(":scope > .taskmap-window-chrome-layer")).not.toBeNull();
     expect(
       screen

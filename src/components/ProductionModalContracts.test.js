@@ -14,6 +14,7 @@ const extensionsPath = new URL("./ExtensionsPanel.tsx", import.meta.url);
 const toastPath = new URL("./ToastStack.tsx", import.meta.url);
 const presencePath = new URL("../ui/patterns/overlays/ModalPresence.tsx", import.meta.url);
 const motionPath = new URL("../ui/patterns/overlays/modalMotion.ts", import.meta.url);
+const presetsPath = new URL("../ui/motion/presencePresets.ts", import.meta.url);
 const layerPath = new URL("../ui/patterns/overlays/ModalLayer.tsx", import.meta.url);
 const layerCssPath = new URL("../ui/patterns/overlays/ModalLayer.css", import.meta.url);
 const dialogPath = new URL("../ui/patterns/overlays/ModalDialog.tsx", import.meta.url);
@@ -39,17 +40,24 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
   });
 
   it("locks accepted shared motion, retained exit, scrim, and nested layer contracts", async () => {
-    const [motion, layer, layerCss] = await Promise.all([
+    const [motion, presence, presets, layer, layerCss] = await Promise.all([
       readFile(motionPath, "utf8"),
+      readFile(presencePath, "utf8"),
+      readFile(presetsPath, "utf8"),
       readFile(layerPath, "utf8"),
       readFile(layerCssPath, "utf8"),
     ]);
     expect(motion).toContain("MOTION_DURATION_MS.normal");
     expect(motion).toContain("MOTION_DURATION_MS.fast");
-    expect(motion).toContain("translateY: 6");
-    expect(motion).toContain("scale: 0.98");
-    expect(motion).toContain("translateY: 4");
-    expect(motion).toContain("scale: 0.985");
+    // Shared presence controller; the group moves but never takes ancestor opacity.
+    expect(presence).toContain("createPresenceMotion");
+    expect(presence).not.toMatch(/group\.style\.opacity/);
+    expect(presets).toContain(
+      "materialFadeSettle: { materialFade: true, slide: { y: 6 }, scale: 0.98 }",
+    );
+    expect(layerCss).toContain(
+      "var(--taskmap-modal-root-presence, 1) * var(--taskmap-modal-nested-presence, 1)",
+    );
     expect(layer).toContain('<MaterialPlaneProvider plane="modal">');
     expect(layer.match(/<MaterialPlaneProvider plane=/g)).toHaveLength(1);
     expect(layerCss.match(/background: rgb\(0 0 0 \/ 0\.36\)/g)).toHaveLength(2);
@@ -68,7 +76,8 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
     expect(dialogs).toContain("width={380}");
     expect(dialogs).toContain("width={360}");
     expect(dialogs).toContain("width={340}");
-    expect(dialogs).toContain("<IconButton");
+    expect(dialogs.match(/<ModalDialogHeader\b/g)).toHaveLength(3);
+    expect(dialog).toContain("<IconButton");
     expect(dialogs).toContain('variant="primary"');
     expect(dialogs).toContain('variant="danger"');
     expect(dialogs).toContain("<TextField");

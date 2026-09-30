@@ -56,7 +56,11 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(css).toContain("font-size: 14px");
     expect(css).toContain("font-size: 11px");
     expect(css).toContain("height: 22px");
-    expect(css).toContain("right: 11px");
+    // Overflow action is the shared compact IconButton, positioned only (UI guardrails section 6).
+    expect(css).toMatch(
+      /\.taskmap-canvas-browser-card__options\s*\{[^}]*right: var\(--taskmap-space-1\);/s,
+    );
+    expect(css).not.toContain("options-dots");
     expect(browserCss).toContain("var(--taskmap-toolbar-height)");
     expect(browserCss).toContain("var(--taskmap-chrome-gap)");
     expect(panelCss).toContain("left: var(--taskmap-chrome-inset-inline)");
@@ -88,8 +92,8 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
 
     expect(manager).toContain("<CanvasBrowserCard");
     expect(manager).toContain("<CanvasPreview>");
-    expect(manager).toContain("<Field");
-    expect(manager).toContain("<TextField");
+    expect(manager).toContain("<CanvasDraftFields");
+    expect(manager).toContain("<CanvasCreateDialog");
     expect(manager).toContain("<IconButton");
     expect(manager).toContain("new CanvasBrowserRuntime<string>");
     expect(manager).toContain("const canvasesRef = useRef(canvases)");
@@ -103,7 +107,6 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(interaction).toContain("CANVAS_CARD_SLOT_TRANSITION_MS = 190");
     expect(manager).not.toContain("applyLocalFlip(");
     expect(manager).toContain("createPortal(");
-    expect(manager).toContain("data-new-canvas-menu");
     expect(manager).toContain("data-context-menu");
     expect(manager).not.toContain("left-panel-card");
     expect(extensions).toContain("<ExtensionBrowserCard");
@@ -137,7 +140,9 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
       readFile(extensionsPanelPath, "utf8"),
     ]);
 
-    expect(manager).toContain('material="frosted-popup"');
+    // Create Canvas is a Major Glass dialog on the shared dialog structure (UI guardrails section 2).
+    expect(manager).not.toContain("frosted-popup");
+    expect(manager).toContain("<ModalPresence open={createOpen}>");
     expect(manager).toContain("MENU_ITEM_CLASS");
     expect(extensions).toContain('placeholder="Search extensions"');
     expect(extensions).toContain("data-quick-extensions-menu");

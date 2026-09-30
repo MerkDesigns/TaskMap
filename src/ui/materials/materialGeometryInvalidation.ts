@@ -8,6 +8,39 @@ const ownedSizeWriters = new WeakMap<
 >();
 const MATERIAL_TUNING_CHANGE_EVENT = "taskmap:material-tuning-change";
 
+export interface MaterialPresentation {
+  readonly translateX: number;
+  readonly translateY: number;
+  /** Uniform scale around the surface centre (CSS default transform origin). */
+  readonly scale: number;
+  readonly opacity: number;
+}
+const IDENTITY_PRESENTATION: MaterialPresentation = {
+  translateX: 0,
+  translateY: 0,
+  scale: 1,
+  opacity: 1,
+};
+const presentations = new WeakMap<HTMLElement, MaterialPresentation>();
+const presentationWriters = new WeakMap<HTMLElement, () => void>();
+export function readMaterialPresentation(surface: HTMLElement): MaterialPresentation {
+  return presentations.get(surface) ?? IDENTITY_PRESENTATION;
+}
+/** Motion owners project cached geometry; this path performs no layout reads. */
+export function supplyMaterialPresentation(
+  surface: HTMLElement,
+  value: Partial<MaterialPresentation>,
+): void {
+  presentations.set(surface, { ...readMaterialPresentation(surface), ...value });
+  presentationWriters.get(surface)?.();
+}
+export function subscribeMaterialPresentation(surface: HTMLElement, write: () => void): () => void {
+  presentationWriters.set(surface, write);
+  return () => {
+    presentationWriters.delete(surface);
+  };
+}
+
 export function invalidateMaterialSurfaceGeometry(surface: HTMLElement): void {
   surfaceInvalidations.get(surface)?.forEach((refresh) => refresh());
 }

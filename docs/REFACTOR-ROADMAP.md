@@ -133,9 +133,14 @@ Exit:
 
 ## 4.5D — Final material/depth architecture
 
+2026-09-29: user accepted the shared workspace Major plane as the main-App default after the
+bounded real-App isolation/motion/held-drag checks. Production ownership now lives in MaterialSurface
+and WorkspaceMajorGlass. This is a partial cutover; Minor/depth and general overlap work below remain.
+
 - [ ] Implement logical glass layer contexts.
 - [ ] Implement canonical Major/Minor recipe ownership.
-- [ ] Implement settled Minor batching.
+- [ ] Implement settled Minor batching. (Canvas Browser, Extensions and Settings islands batched;
+      Minor-on-Minor shell policy in MaterialSurface.)
 - [ ] Implement promotion/demotion for overlap/drag.
 - [ ] Separate geometry invalidation from backdrop damage.
 - [ ] Keep browser-specific refresh behavior private to the material backend.
@@ -147,13 +152,19 @@ Exit:
 
 ## 4.5E — Scroll + motion
 
-- [ ] Implement settled scroll-edge material shrinking.
+- [ ] Implement settled scroll-edge material shrinking. (Canvas Browser, Extensions and Quick
+      Extensions done 2026-09-29; Settings deferred to its redesign.)
 - [ ] Keep ordinary content unscaled and rounded-masked.
 - [ ] Keep rim/shadow independent from content clipping.
-- [ ] Implement held-item exemption during auto-scroll.
-- [ ] Implement liquid pickup/drop geometry morph.
-- [ ] Implement composable Fade / Material Fade / Slide / Lift / Scale / Geometry Morph.
+- [x] Implement held-item exemption during auto-scroll. (Verified 2026-09-29 in Canvas Browser: held
+      card keeps full shell/rim/glass past the auto-scroll edge while settled cards morph.)
+- [ ] Implement liquid pickup/drop geometry morph. (Canvas Browser pickup expansion + drop slice morph
+      implemented 2026-09-29; awaiting user feel check. Neighbour "move outward" not implemented.)
+- [x] Implement composable Fade / Material Fade / Slide / Lift / Scale / Geometry Morph. (Production
+      `presenceMotion` + presets + DEV preview landed 2026-09-29; Quick Extensions, side panel and
+      minimap and dialogs migrated by 2026-09-30.)
 - [ ] Tune material-fade blur timing after structural behavior works.
+      (DEV delay/curve tuning landed 2026-09-30; awaiting chosen values.)
 
 Exit:
 
@@ -161,12 +172,17 @@ Exit:
 
 ## 4.5F — UI-system cleanup
 
-- [ ] Standardize major dialog/overlay shell.
-- [ ] Migrate Create Canvas to Major Glass.
-- [ ] Standardize ScrollArea/scrollbar presentation.
-- [ ] Remove Settings scrollbar bleed/gutter.
-- [ ] Audit shared button/IconButton variants and remove stale local rims.
-- [ ] Fix common icon-action hit targets (including Canvas Browser overflow).
+- [x] Standardize major dialog/overlay shell. (2026-09-30: shared header/body/actions; production
+      dialogs, Create Canvas, JSON editor and Settings header migrated. Command Runner dialogs skipped:
+      removed feature, Workflow Runner is Phase 7.)
+- [x] Migrate Create Canvas to Major Glass. (2026-09-30: root modal on the shared dialog structure.)
+- [x] Standardize ScrollArea/scrollbar presentation. (2026-09-30: `taskmap-scrollbar-hidden` /
+      `taskmap-scrollbar-thin` + `ScrollArea scrollbar`; theme `color-scheme: dark`.)
+- [x] Remove Settings scrollbar bleed/gutter (shared hidden-scrollbar variant; scrolling verified).
+- [x] Audit shared button/IconButton variants and remove stale local rims. (2026-09-30: Extensions
+      filter/favorite/info; primitive `data-selected` state.)
+- [x] Fix common icon-action hit targets (including Canvas Browser overflow). (2026-09-30: card
+      overflow and Extensions actions are 28 px compact IconButtons.)
 - [ ] Remove feature-local visual forks that should be reusable primitives/patterns.
 
 Exit:
@@ -178,8 +194,10 @@ Exit:
 - [ ] Run the Glass System hard acceptance matrix.
 - [ ] Validate the same tuning in controlled Lab and real App.
 - [ ] Run deterministic round-trip/stale-backdrop checks.
-- [ ] Run release-mode performance benchmark with recorded environment.
-- [ ] Compare median/p95/p99 frame times and hot-path diagnostic invariants.
+- Deferred by user direction (2026-09-28): dedicated release-mode benchmarks and median/p95/p99
+  comparisons. Current use feels normal with no perceived regression; this is subjective acceptance,
+  not a measured pass. Do not block the next slices on these measurements. Revisit on noticeable
+  slowdown or a concrete change adding significant rendering work. Hot-path design rules remain.
 - [ ] Verify no accumulating observers/schedulers/filter layers/promoted surfaces.
 - [ ] Verify packaged stable/dev database/application coexistence.
 

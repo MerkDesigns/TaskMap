@@ -7,11 +7,23 @@ import {
   type MaterialGeometryReason,
 } from "../../materials/materialGeometryScheduler";
 import { supplyMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
-import { readGlassListLayout, projectGlassListScroll } from "./glassListScrollGeometry";
+import {
+  glassListSliceInsets,
+  glassListSlicedSize,
+  readGlassListLayout,
+  projectGlassListSlices,
+  type GlassListSlice,
+} from "./glassListScrollGeometry";
 
 interface SharedSmallGlassListOptions {
   readonly active: boolean;
   readonly cardSelector: string;
+  /**
+   * Settled scroll-edge morph (glass contract section 12): edge cards shrink their body, rim,
+   * shadow and rounded content mask to the visible slice. Requires cards that use the shared
+   * `.taskmap-glass-list__content` mask.
+   */
+  readonly morph?: boolean;
   readonly planeRef: RefObject<HTMLElement | null>;
   readonly viewportRef: RefObject<HTMLElement | null>;
 }
@@ -19,6 +31,7 @@ interface SharedSmallGlassListOptions {
 export function useSharedSmallGlassList({
   active,
   cardSelector,
+  morph = false,
   planeRef,
   viewportRef,
 }: SharedSmallGlassListOptions): void {
@@ -30,18 +43,30 @@ export function useSharedSmallGlassList({
       return;
     }
     let layout: ReturnType<typeof readGlassListLayout> | undefined;
+    const slices = new Map<HTMLElement, string>();
     const sync = (frame: MaterialGeometryFrame, reason: MaterialGeometryReason) => {
       recordMaterialGeometryRefresh();
       const rimWrites: (() => void)[] = [];
-      if (!layout || reason === "layout") {
-        layout = readGlassListLayout(frame, viewport, plane, cardSelector);
-        for (const card of layout) {
-          const writeRim = supplyMaterialSurfaceSize(card.element, card.size);
+      const relayout = !layout || reason === "layout";
+      if (relayout) layout = readGlassListLayout(frame, viewport, plane, cardSelector);
+      const projected = projectGlassListSlices(layout!);
+      const sliceWrites: (() => void)[] = [];
+      for (const card of projected) {
+        const size = morph ? glassListSlicedSize(card) : card.size;
+        if (morph || relayout) {
+          const writeRim = supplyMaterialSurfaceSize(card.element, size);
           if (writeRim) rimWrites.push(writeRim);
         }
+        if (morph) {
+          const write = sliceWriter(card, slices);
+          if (write) sliceWrites.push(write);
+        }
       }
-      const shapes = projectGlassListScroll(layout);
+      const shapes = projected.flatMap(({ shape }) =>
+        shape ? [morph ? { ...shape, morph: true } : shape] : [],
+      );
       return () => {
+        sliceWrites.forEach((write) => write());
         rimWrites.forEach((write) => write());
         writeSharedSmallGlassShapes(plane, shapes);
       };
@@ -67,6 +92,31 @@ export function useSharedSmallGlassList({
       geometry.dispose();
       mutationObserver.disconnect();
       writeSharedSmallGlassShapes(plane, []);
+      slices.forEach((_, element) => clearSlice(element));
     };
-  }, [active, cardSelector, planeRef, viewportRef]);
+  }, [active, cardSelector, morph, planeRef, viewportRef]);
+}
+
+const SLICE_PROPERTIES = ["top", "right", "bottom", "left"] as const;
+
+function sliceWriter(card: GlassListSlice, written: Map<HTMLElement, string>) {
+  const insets = glassListSliceInsets(card);
+  const key = insets ? insets.join(",") : "hidden";
+  if (written.get(card.element) === key) return;
+  written.set(card.element, key);
+  // Cards wholly outside the visible area (e.g. in the shadow gutter) are hidden, not stale.
+  if (!insets) return () => (card.element.dataset.glassListSlice = "hidden");
+  return () => {
+    card.element.dataset.glassListSlice = "true";
+    SLICE_PROPERTIES.forEach((side, index) =>
+      card.element.style.setProperty(`--taskmap-glass-list-slice-${side}`, `${insets[index]}px`),
+    );
+  };
+}
+
+function clearSlice(element: HTMLElement) {
+  delete element.dataset.glassListSlice;
+  SLICE_PROPERTIES.forEach((side) =>
+    element.style.removeProperty(`--taskmap-glass-list-slice-${side}`),
+  );
 }

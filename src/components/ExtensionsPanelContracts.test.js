@@ -42,9 +42,13 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(main).toContain("prefixSlot={<IconSearch");
     expect(main).toContain("<IconButton");
     expect(main).toContain("aria-expanded={filterOpen}");
-    expect(main).not.toContain("aria-pressed");
-    expect(css).toContain("var(--taskmap-accent)");
-    expect(css).toContain("var(--taskmap-accent-rgb)");
+    // The filter opens a menu: its active state uses the primitive's data-selected, not a press.
+    expect(main).toContain("data-selected={!allTargetsSelected || undefined}");
+    expect(main).toContain("aria-pressed={favorited}");
+    expect(main.match(/aria-pressed/g)).toHaveLength(1);
+    // Card actions are 90% of the compact control by user direction; no local rim/state overrides.
+    expect(css).toContain("calc(var(--taskmap-control-height-compact) * 0.9)");
+    expect(css).not.toMatch(/data-filter-active|data-favorited/);
     expect(`${main}\n${css}`).not.toMatch(/#2dd8c8|45\s*,\s*216\s*,\s*200/i);
   });
 
@@ -59,7 +63,7 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(quick).toContain("<MaterialSurface");
     expect(quick).toContain("<SearchField");
     expect(quick).toContain("<GlassListFrame");
-    expect(quick).toContain("quick-extensions-scroll");
+    expect(quick).toContain("taskmap-scrollbar-hidden");
     expect(quick).toContain("<ExtensionBrowserCard");
     expect(quick).not.toContain("frosted-glass");
 

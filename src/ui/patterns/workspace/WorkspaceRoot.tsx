@@ -1,6 +1,7 @@
 import { forwardRef, type HTMLAttributes } from "react";
 import "../../theme/theme.css";
 import "./WorkspaceRoot.css";
+import { WorkspaceMajorGlass } from "../../materials/WorkspaceMajorGlass";
 
 export const WorkspaceRoot = forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(
   function WorkspaceRoot({ className, ...props }, ref) {
@@ -17,13 +18,15 @@ export const WorkspaceRoot = forwardRef<HTMLElement, HTMLAttributes<HTMLElement>
 );
 
 export const WorkspaceChromeLayer = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  function WorkspaceChromeLayer({ className, ...props }, ref) {
+  function WorkspaceChromeLayer({ className, children, ...props }, ref) {
     return (
       <div
         {...props}
         ref={ref}
         className={["taskmap-workspace-chrome-layer", className].filter(Boolean).join(" ")}
-      />
+      >
+        <WorkspaceMajorGlass>{children}</WorkspaceMajorGlass>
+      </div>
     );
   },
 );

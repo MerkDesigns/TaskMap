@@ -1,8 +1,20 @@
+/* Blur presence is timed independently of tint/rim/shadow and content (glass contract section 17):
+   it waits for `delay` of the presence, then follows `pow(progress, curve)`. The development
+   workbench tunes both; production uses these defaults. */
 .taskmap-native-glass-recipe {
-  --taskmap-material-blur-presence-progress: clamp(
-    0,
-    calc((var(--taskmap-material-presence-progress, 1) - 0.3) / 0.7),
-    1
+  --taskmap-material-blur-presence-progress: pow(
+    clamp(
+      0,
+      calc(
+        (
+            var(--taskmap-material-presence-progress, 1) -
+              var(--taskmap-material-blur-presence-delay, 0.3)
+          ) /
+          (1 - var(--taskmap-material-blur-presence-delay, 0.3))
+      ),
+      1
+    ),
+    var(--taskmap-material-blur-presence-curve, 1)
   );
 }
 

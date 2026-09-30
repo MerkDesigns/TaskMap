@@ -66,11 +66,11 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     const deferred = modals.slice(primaryEnd);
 
     expect(primary).toContain("<LiquidTabs");
-    expect(primary).toContain("<ScrollArea");
+    expect(primary).toContain("<SettingsIslandList");
     expect(primary).toContain("<SegmentedControl");
     expect(primary).toContain("<Slider");
     expect(primary).toContain("<SettingsToggleRow");
-    expect(primary).toContain("<IconButton");
+    expect(primary).toContain("<ModalDialogHeader");
     expect(primary).not.toMatch(
       /#318f87|left-panel-card|frosted-glass|backdrop-filter|bg-\[#141519\]|z-40|<button\b/,
     );

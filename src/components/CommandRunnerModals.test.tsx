@@ -24,7 +24,7 @@ describe("Command Runner settings", () => {
     );
 
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "false");
-    expect(document.querySelector(".json-editor-scrollbar")).toBeInTheDocument();
+    expect(document.querySelector(".taskmap-scrollbar-thin")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add command" }));
     await user.click(screen.getByRole("button", { name: "Save" }));

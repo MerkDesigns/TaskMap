@@ -44,6 +44,13 @@
   transition: height 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* A held list item may leave the panel (glass contract section 13); settled items clip themselves. */
+.taskmap-workspace-side-panel-switcher[data-held-item-clip="released"],
+.taskmap-workspace-side-panel-switcher[data-held-item-clip="released"]
+  > .taskmap-workspace-side-panel-switcher__view[data-active] {
+  overflow: visible;
+}
+
 .taskmap-workspace-side-panel-switcher__view {
   position: absolute;
   top: 0;
@@ -155,4 +162,18 @@
   background: transparent;
   color: var(--taskmap-accent);
   box-shadow: none;
+}
+
+/* Material-fade presets: glass fades through the inherited presence variable; ordinary content
+   fades only on glass-free wrappers (never ancestor opacity over glass, contract section 17). */
+.taskmap-workspace-side-panel
+  :is(
+    .taskmap-canvas-browser__header,
+    .taskmap-workspace-panel-header,
+    .taskmap-extension-browser-controls,
+    .taskmap-extension-browser-section__heading,
+    .taskmap-extension-browser-empty,
+    .taskmap-glass-list__content
+  ) {
+  opacity: var(--taskmap-material-presence-progress, 1);
 }

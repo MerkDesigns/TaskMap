@@ -137,7 +137,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         matchAnchorWidth
         open={open}
         onOpenChange={setOpen}
-        className="taskmap-select__panel"
+        className="taskmap-select__panel taskmap-scrollbar-thin"
       >
         <div id={listboxId} role="listbox" aria-label={props["aria-label"]}>
           {options.map((option) => (

@@ -138,6 +138,7 @@ export function WorkspaceSidePanelContentSwitcher({
       {...props}
       className={["taskmap-workspace-side-panel-switcher", className].filter(Boolean).join(" ")}
       data-height-ready={height === null ? undefined : true}
+      data-held-item-clip=""
       style={{ ...style, height: height === null ? undefined : `${height}px` }}
     >
       {views.map((view, index) => {
@@ -173,8 +174,15 @@ export function WorkspaceSidePanelContentSwitcher({
   );
 }
 
+/**
+ * Natural layout height of the view's content. The view normally stretches to the switcher, and
+ * scrollHeight also counts glass overscan layers, so neither may feed back into the panel height.
+ */
 function measurePanelViewHeight(view: HTMLElement): number {
-  const contentHeight = Math.max(view.scrollHeight, view.firstElementChild?.scrollHeight ?? 0);
+  const stretchedHeight = view.style.height;
+  view.style.height = "auto";
+  const contentHeight = view.offsetHeight;
+  view.style.height = stretchedHeight;
   return clampPanelViewHeight(view, contentHeight);
 }
 

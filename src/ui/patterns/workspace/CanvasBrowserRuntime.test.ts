@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CANVAS_CARD_SLOT_TRANSITION_MS, easeOutQuart } from "./canvasBrowserInteraction";
+import {
+  CANVAS_CARD_PICKUP_MS,
+  CANVAS_CARD_SLOT_TRANSITION_MS,
+  easeOutQuart,
+} from "./canvasBrowserInteraction";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { dispatchPointer, runtimeFixture, wheel } from "./canvasBrowserRuntimeTestFixture";
 import { readSuppliedMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
@@ -128,7 +132,7 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 
-  it("updates viewport intersections without shortening material or content geometry", () => {
+  it("morphs settled material to the visible slice while content keeps its full geometry", () => {
     const fixture = runtimeFixture(["a", "b", "c"], 100);
     const firstHost = fixture.cards.get("a")!.host;
     const secondHost = fixture.cards.get("b")!.host;
@@ -136,9 +140,10 @@ describe("production Canvas Browser runtime", () => {
     expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("84px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("6px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset")).toBe("0px");
+    // Rim/shadow geometry follows the visible silhouette (glass contract section 12).
     expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("b")!.card)).toEqual({
       width: 264,
-      height: 84,
+      height: 6,
     });
 
     fixture.viewport.dispatchEvent(wheel(100));
@@ -154,13 +159,13 @@ describe("production Canvas Browser runtime", () => {
     expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-full-height")).toBe("84px");
 
     fixture.frames.fire(32);
-    expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("a")!.card)).toEqual({
-      width: 264,
-      height: 84,
-    });
-    expect(
-      Number.parseFloat(firstHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset")),
-    ).toBeGreaterThan(firstOffset);
+    const offset = Number.parseFloat(
+      firstHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset"),
+    );
+    expect(offset).toBeGreaterThan(firstOffset);
+    expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("a")!.card)?.height).toBeCloseTo(
+      84 - offset,
+    );
     fixture.destroy();
   });
 
@@ -173,11 +178,23 @@ describe("production Canvas Browser runtime", () => {
     dispatchPointer("pointermove", 177);
     fixture.frames.fire(16);
     expect(secondHost.parentElement).toBe(fixture.cardsLayer);
-    expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("84px");
+    // Liquid pickup starts from the settled 6px slice and expands to the full card.
+    const visible = () =>
+      Number.parseFloat(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height"));
+    expect(visible()).toBe(6);
+    fixture.frames.fire(16 + CANVAS_CARD_PICKUP_MS / 2);
+    expect(visible()).toBeGreaterThan(6);
+    expect(visible()).toBeLessThan(84);
+    fixture.frames.fire(16 + CANVAS_CARD_PICKUP_MS);
+    expect(visible()).toBe(84);
 
     dispatchPointer("pointercancel", 177);
-    fixture.frames.fire(32);
-    fixture.frames.fire(222);
+    fixture.frames.fire(200);
+    // Drop morphs from the full held card toward the destination's settled slice.
+    fixture.frames.fire(200 + CANVAS_CARD_SLOT_TRANSITION_MS / 2);
+    expect(visible()).toBeLessThan(84);
+    expect(visible()).toBeGreaterThan(6);
+    fixture.frames.fire(400);
     expect(secondHost.parentElement).toBe(fixture.cardsLayer);
     const expectedVisibleHeight = 6 + fixture.runtime.getSnapshot().scroll.currentScrollY;
     expect(
@@ -185,6 +202,31 @@ describe("production Canvas Browser runtime", () => {
     ).toBeCloseTo(expectedVisibleHeight);
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-full-height")).toBe("84px");
     fixture.destroy();
+  });
+
+  it("releases the clipping ancestor only while a card is held (glass contract section 13)", () => {
+    const fixture = runtimeFixture(["a", "b"]);
+    const clipHost = document.createElement("div");
+    clipHost.dataset.heldItemClip = "";
+    document.body.append(clipHost);
+    clipHost.append(fixture.panel);
+
+    fixture.begin("a", 100);
+    dispatchPointer("pointermove", 103);
+    fixture.frames.fire(16);
+    // Below the drag threshold nothing is held yet.
+    expect(clipHost.dataset.heldItemClip).toBe("");
+    dispatchPointer("pointermove", 140);
+    fixture.frames.fire(32);
+    expect(clipHost.dataset.heldItemClip).toBe("released");
+
+    dispatchPointer("pointerup", 140);
+    fixture.frames.fire(200);
+    fixture.frames.fire(400);
+    expect(fixture.runtime.getSnapshot().dragActive).toBe(false);
+    expect(clipHost.dataset.heldItemClip).toBe("");
+    fixture.destroy();
+    clipHost.remove();
   });
 
   it("requires 6px, leaves clicks untouched below threshold, and never clones", () => {

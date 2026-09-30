@@ -13,7 +13,7 @@ import { MinimapSurface, MinimapViewport } from "./MinimapSurface";
 afterEach(cleanup);
 
 describe("MinimapSurface", () => {
-  it("animates native glass DOM opacity on the shared scheduler without cached masks", () => {
+  it("material-fades on the shared scheduler without ancestor opacity or cached masks", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
     const registry = createMaterialSurfaceRegistry(null);
@@ -30,23 +30,32 @@ describe("MinimapSurface", () => {
     const { rerender } = render(renderSurface(true));
     const surface = screen.getByLabelText("Minimap");
 
-    expect(surface.style.opacity).toBe("0");
+    expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
+    expect(surface).toHaveAttribute("data-presence-phase", "showing");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
     act(() => driver.fire());
-    expect(Number(surface.style.opacity)).toBeGreaterThan(0);
+    expect(
+      Number(surface.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeGreaterThan(0);
     act(() => driver.flush());
-    expect(surface.style.opacity).toBe("1");
+    expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
+    expect(surface).toHaveAttribute("data-presence-phase", "visible");
+    expect(surface.style.opacity).toBe("");
     expect(registry.getSnapshot().surfaces).toEqual([]);
-    expect(surface.style.willChange).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     rerender(renderSurface(false));
     expect(surface).toHaveAttribute("data-visible", "false");
     act(() => driver.fire());
-    expect(Number(surface.style.opacity)).toBeLessThan(1);
+    expect(
+      Number(surface.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeLessThan(1);
     act(() => driver.flush());
-    expect(surface.style.opacity).toBe("0");
+    expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
+    expect(surface).toHaveAttribute("data-presence-phase", "hidden");
+    expect(surface).toHaveAttribute("aria-hidden", "true");
+    expect(surface.style.opacity).toBe("");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
@@ -58,7 +67,7 @@ describe("MinimapSurface", () => {
     registry.dispose();
   });
 
-  it("settles native DOM opacity immediately under reduced motion", () => {
+  it("settles material presence immediately under reduced motion", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
     const registry = createMaterialSurfaceRegistry(null);
@@ -75,12 +84,12 @@ describe("MinimapSurface", () => {
     );
     const { rerender } = render(renderSurface(true));
     const surface = screen.getByLabelText("Minimap");
-    expect(surface.style.opacity).toBe("1");
+    expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot().subscriberCount).toBe(0);
 
     rerender(renderSurface(false));
-    expect(surface.style.opacity).toBe("0");
+    expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     scheduler.dispose();

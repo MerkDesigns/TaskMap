@@ -12,30 +12,22 @@ import {
   createModalPresenceTestHarness as createPresenceHarness,
   ModalPresenceTestProviders as HarnessProviders,
 } from "./modalPresenceTestHarness";
-import { advanceModalMotion, MODAL_ENTER_FROM, MODAL_REST } from "./modalMotion";
+import { MODAL_PRESENCE_TIMING } from "./modalMotion";
 
 afterEach(cleanup);
 
 describe("ModalPresence", () => {
-  it("uses exact accepted enter/exit states and durations", () => {
-    const entering = advanceModalMotion(MODAL_ENTER_FROM, true, 90);
-    expect(entering.settled).toBe(false);
-    expect(entering.state.opacity).toBeGreaterThan(0);
-    expect(entering.state.opacity).toBeLessThan(1);
-    expect(advanceModalMotion(MODAL_ENTER_FROM, true, 180)).toEqual({
-      state: { opacity: 1, translateY: 0, scale: 1, scrimOpacity: 1 },
-      settled: true,
-    });
-    expect(advanceModalMotion(MODAL_REST, false, 120)).toEqual({
-      state: { opacity: 0, translateY: 4, scale: 0.985, scrimOpacity: 0 },
-      settled: true,
-    });
+  it("keeps the accepted enter/exit durations and curves", () => {
+    expect(MODAL_PRESENCE_TIMING.enter.durationMs).toBe(180);
+    expect(MODAL_PRESENCE_TIMING.exit.durationMs).toBe(120);
+    expect(MODAL_PRESENCE_TIMING.enter.easing(0.5)).toBeCloseTo(0.875, 10);
+    expect(MODAL_PRESENCE_TIMING.exit.easing(0.5)).toBeCloseTo(0.5, 10);
   });
 
-  it("retains native glass DOM through exit on one scheduler without cached masks", () => {
+  it("material-fades native glass through exit without ancestor opacity or cached masks", () => {
     const harness = createPresenceHarness(false);
     const exitMasks: number[][] = [];
-    const exitStyles: Array<{ opacity: string; transform: string; willChange: string }> = [];
+    const exitStyles: Array<{ opacity: string; transform: string; presence: string }> = [];
     const view = (open: boolean) => (
       <HarnessProviders harness={harness}>
         <ModalPresence
@@ -48,7 +40,7 @@ describe("ModalPresence", () => {
             exitStyles.push({
               opacity: current.style.opacity,
               transform: current.style.transform,
-              willChange: current.style.willChange,
+              presence: presenceValue(current),
             });
           }}
         >
@@ -58,46 +50,69 @@ describe("ModalPresence", () => {
     );
     const { rerender } = render(view(true));
     const group = presenceGroup();
-    expect(group.style.opacity).toBe("0");
-    expect(group.style.transform).toBe("translate3d(0, 6px, 0) scale(0.98)");
-    expect((document.querySelector(".taskmap-modal-scrim") as HTMLDivElement).style.opacity).toBe(
-      "0",
-    );
+    expect(presenceValue(group)).toBe("0");
+    expect(group.style.opacity).toBe("");
+    expect(group.style.transform).toBe("translate3d(0px, 6px, 0) scale(0.98)");
+    expect(scrim().style.opacity).toBe("0");
     expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot().subscriberCount).toBe(1);
 
     act(() => harness.driver.fire());
     expect(harness.notifyGeometry).not.toHaveBeenCalled();
-    expect(Number(group.style.opacity)).toBeGreaterThan(0);
-    expect(maskOpacities(harness)).toEqual([]);
+    expect(Number(presenceValue(group))).toBeGreaterThan(0);
+    expect(group.style.opacity).toBe("");
     act(() => harness.driver.flush());
-    expect(group.style.opacity).toBe("1");
-    expect(group.style.transform).toBe("translate3d(0, 0px, 0) scale(1)");
-    expect(group.style.willChange).toBe("");
+    expect(presenceValue(group)).toBe("");
+    expect(group.style.transform).toBe("");
+    expect(scrim().style.opacity).toBe("1");
+    expect(group).toHaveAttribute("data-motion-state", "open");
     expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    const geometryAtRest = harness.notifyGeometry.mock.calls.length;
     expect(harness.driver.fire()).toBe(false);
-    expect(harness.notifyGeometry).toHaveBeenCalledTimes(geometryAtRest);
 
     rerender(view(false));
-    expect(screen.getByRole("dialog", { name: "Motion dialog" })).toBeInTheDocument();
     expect(group).toHaveAttribute("data-motion-state", "closing");
     act(() => harness.driver.fire());
-    expect(maskOpacities(harness)).toEqual([]);
+    expect(Number(presenceValue(group))).toBeLessThan(1);
+    expect(group.style.opacity).toBe("");
     act(() => harness.driver.flush());
     expect(exitMasks).toEqual([[]]);
     expect(exitStyles).toEqual([
-      {
-        opacity: "0",
-        transform: "translate3d(0, 4px, 0) scale(0.985)",
-        willChange: "",
-      },
+      { opacity: "", transform: "translate3d(0px, 6px, 0) scale(0.98)", presence: "0" },
     ]);
     expect(screen.queryByRole("dialog", { name: "Motion dialog" })).not.toBeInTheDocument();
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    expect(harness.driver.fire()).toBe(false);
     expect(harness.notifyGeometry).not.toHaveBeenCalled();
+    harness.dispose();
+  });
+
+  it("fades only glass-free content, including content mounted mid-animation", async () => {
+    const harness = createPresenceHarness(false);
+    const view = (late: boolean) => (
+      <HarnessProviders harness={harness}>
+        <ModalPresence open>
+          <ModalDialog width={360} role="dialog" aria-label="Motion dialog">
+            <p>Body</p>
+            <MaterialSurface material="acrylic-small" radius={8} data-testid="island">
+              <span>Island label</span>
+            </MaterialSurface>
+            {late ? <p>Late</p> : null}
+          </ModalDialog>
+        </ModalPresence>
+      </HarnessProviders>
+    );
+    const { rerender } = render(view(false));
+    const marked = "data-material-presence-content";
+    expect(screen.getByText("Body")).toHaveAttribute(marked);
+    expect(screen.getByText("Island label")).toHaveAttribute(marked);
+    expect(screen.getByTestId("island")).not.toHaveAttribute(marked);
+    expect(screen.getByRole("dialog")).not.toHaveAttribute(marked);
+
+    act(() => harness.driver.fire());
+    rerender(view(true));
+    await act(async () => {});
+    expect(screen.getByText("Late")).toHaveAttribute(marked);
+    act(() => harness.driver.flush());
     harness.dispose();
   });
 
@@ -114,15 +129,15 @@ describe("ModalPresence", () => {
     act(() => harness.driver.flush());
     rerender(view(false));
     act(() => harness.driver.fire());
-    const closingOpacity = Number(presenceGroup().style.opacity);
-    expect(closingOpacity).toBeLessThan(1);
+    const closingPresence = Number(presenceValue(presenceGroup()));
+    expect(closingPresence).toBeLessThan(1);
 
     rerender(view(true));
     expect(document.querySelectorAll("[data-taskmap-modal-presence-level='root']")).toHaveLength(1);
-    expect(Number(presenceGroup().style.opacity)).toBe(closingOpacity);
+    expect(Number(presenceValue(presenceGroup()))).toBe(closingPresence);
     expect(harness.scheduler.getSnapshot().subscriberCount).toBe(1);
     act(() => harness.driver.flush());
-    expect(presenceGroup().style.opacity).toBe("1");
+    expect(presenceValue(presenceGroup())).toBe("");
     expect(maskOpacities(harness)).toEqual([]);
     harness.dispose();
   });
@@ -137,7 +152,8 @@ describe("ModalPresence", () => {
       </HarnessProviders>
     );
     const { rerender } = render(view(true));
-    expect(presenceGroup().style.opacity).toBe("1");
+    expect(presenceValue(presenceGroup())).toBe("");
+    expect(presenceGroup().style.opacity).toBe("");
     expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     rerender(view(false));
@@ -168,7 +184,7 @@ describe("ModalPresence", () => {
     harness.dispose();
   });
 
-  it("composes root and nested opacity for every scheduler ordering and motion combination", () => {
+  it("composes root and nested presence for every scheduler ordering and motion combination", () => {
     const rootOpacity = { current: 1 };
     const nestedOpacity = { current: 1 };
     const rootGroup: MaterialSurfaceMaskOpacityGroup = {
@@ -311,22 +327,41 @@ function presenceGroupByLevel(level: "root" | "nested") {
   return document.querySelector(`[data-taskmap-modal-presence-level='${level}']`) as HTMLDivElement;
 }
 
+function scrim() {
+  return document.querySelector(".taskmap-modal-scrim") as HTMLDivElement;
+}
+
+function presenceValue(element: HTMLElement) {
+  return element.style.getPropertyValue("--taskmap-material-presence-progress");
+}
+
+function inlineNumber(element: HTMLElement, property: string) {
+  return Number(element.style.getPropertyValue(property) || 1);
+}
+
 function rootGroupOpacity() {
-  return Number(presenceGroupByLevel("root").style.opacity);
+  return inlineNumber(presenceGroupByLevel("root"), "--taskmap-material-presence-progress");
 }
 
+/** Mirrors the nested-group rule in ModalLayer.css: root presence x nested presence. */
 function nestedEffectiveDomOpacity() {
-  return rootGroupOpacity() * Number(presenceGroupByLevel("nested").style.opacity);
+  return (
+    inlineNumber(presenceGroupByLevel("root"), "--taskmap-modal-root-presence") *
+    inlineNumber(presenceGroupByLevel("nested"), "--taskmap-modal-nested-presence")
+  );
 }
 
+/** Effective material presence for a surface; group opacity must never be used. */
 function effectivePresenceOpacity(testId: string): number {
-  let opacity = 1;
   let current = screen.getByTestId(testId).parentElement;
   while (current) {
     if (current.classList.contains("taskmap-modal-presence-group")) {
-      opacity *= Number(current.style.opacity || 1);
+      expect(current.style.opacity).toBe("");
+      return current.dataset.taskmapModalPresenceLevel === "nested"
+        ? nestedEffectiveDomOpacity()
+        : rootGroupOpacity();
     }
     current = current.parentElement;
   }
-  return opacity;
+  return 1;
 }

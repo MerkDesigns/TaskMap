@@ -77,7 +77,7 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     expect(minimap).toContain("MINIMAP_MAX_SIZE");
   });
 
-  it("shares opacity motion without new compositor infrastructure or animation loops", async () => {
+  it("shares presence motion without new compositor infrastructure or animation loops", async () => {
     const [appShell, motion, pattern, minimap] = await Promise.all([
       readFile(appShellPath, "utf8"),
       readFile(motionPath, "utf8"),
@@ -86,7 +86,8 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     ]);
     const boundary = `${motion}\n${pattern}\n${minimap}`;
 
-    expect(motion).toContain("useMotionFrameScheduler");
+    expect(motion).toContain("usePresenceMotion");
+    expect(motion).not.toContain("style.opacity");
     expect(motion).not.toContain("useMaterialSurfaceMaskOpacity");
     expect(motion).not.toContain("useMaterialSurfaceGeometryInvalidation");
     expect(boundary).not.toMatch(

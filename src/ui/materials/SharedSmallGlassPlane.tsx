@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useContext,
   useId,
   useLayoutEffect,
   useRef,
@@ -15,6 +16,13 @@ import { readMaterialGeometryRefreshesPerSecond } from "./materialPerformanceDia
 import "./SharedSmallGlassPlane.css";
 import "./nativeGlassRecipe.css";
 import type { MaterialRectangle } from "./materialSamplingBoundary";
+import {
+  SmallGlassOutputMaskEnabled,
+  registerSmallOutputMask,
+  readSmallOutputShapes,
+  writeSmallOutputShapes,
+} from "./sharedSmallOutputMask";
+import { morphed } from "./NativeGlassPlane";
 
 export interface SharedSmallGlassShape {
   readonly x: number;
@@ -23,6 +31,8 @@ export interface SharedSmallGlassShape {
   readonly height: number;
   readonly radius: number;
   readonly clip?: MaterialRectangle;
+  /** Render `clip` as the visible silhouette with this radius (settled scroll-edge morph). */
+  readonly morph?: boolean;
 }
 
 export interface NativeGlassDiagnostics {
@@ -48,6 +58,7 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
     { batchId = "canvas-small", blurPx, className, kind = "small-canvas", style, ...props },
     ref,
   ) {
+    const outputMasked = useContext(SmallGlassOutputMaskEnabled);
     const clipId = `taskmap-shared-small-${useId().replace(/:/g, "")}`;
     const planeRef = useRef<HTMLDivElement | null>(null);
     const refreshTuning = useCallback(
@@ -66,13 +77,22 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
       if (!import.meta.env.DEV || blurPx !== undefined) return;
       return subscribeMaterialTuningChanged(refreshTuning);
     }, [blurPx, refreshTuning]);
+    useLayoutEffect(() => {
+      const plane = planeRef.current;
+      if (!plane || !outputMasked) return;
+      const dispose = registerSmallOutputMask(plane);
+      return () => {
+        dispose();
+        writeSharedSmallGlassShapes(plane, readSmallOutputShapes(plane));
+      };
+    }, [outputMasked]);
     const materialStyle = {
       ...createMaterialSurfaceStyle(ACRYLIC_SMALL, "none", ACRYLIC_SMALL.defaultRadiusPx, style),
       ...(blurPx === undefined
         ? {}
         : { "--taskmap-material-small-blur-override": `${Math.max(0, blurPx)}px` }),
-      clipPath: `url(#${clipId})`,
-      WebkitClipPath: `url(#${clipId})`,
+      clipPath: outputMasked ? undefined : `url(#${clipId})`,
+      WebkitClipPath: outputMasked ? undefined : `url(#${clipId})`,
     } as CSSProperties;
 
     return (
@@ -90,6 +110,7 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
         data-shared-small-glass-plane="inactive"
         data-material="acrylic-small"
         data-material-role="small"
+        data-small-output-masked={outputMasked || undefined}
         aria-hidden="true"
         style={materialStyle}
       >
@@ -137,11 +158,15 @@ export function writeSharedSmallGlassShapes(
   plane: HTMLElement,
   shapes: readonly SharedSmallGlassShape[],
 ): void {
+  const state = shapes.length > 0 ? "active" : "inactive";
+  plane.dataset.glassBatchState = state;
+  plane.dataset.sharedSmallGlassPlane = state;
+  if (writeSmallOutputShapes(plane, shapes)) return;
   const clip = plane.querySelector<SVGClipPathElement>("[data-shared-small-glass-clip]");
   if (!clip) return;
   const rectangles = [...clip.querySelectorAll<SVGRectElement>("rect")];
 
-  shapes.forEach((shape, index) => {
+  shapes.map(morphed).forEach((shape, index) => {
     const rectangle =
       rectangles[index] ?? document.createElementNS("http://www.w3.org/2000/svg", "rect");
     if (!rectangles[index]) clip.append(rectangle);
@@ -182,9 +207,6 @@ export function writeSharedSmallGlassShapes(
     .forEach((viewportClip) => {
       if (Number(viewportClip.dataset.glassViewportClip) >= shapes.length) viewportClip.remove();
     });
-  const state = shapes.length > 0 ? "active" : "inactive";
-  plane.dataset.glassBatchState = state;
-  plane.dataset.sharedSmallGlassPlane = state;
 }
 
 export function readNativeGlassDiagnostics(root?: ParentNode): NativeGlassDiagnostics {
@@ -195,8 +217,10 @@ export function readNativeGlassDiagnostics(root?: ParentNode): NativeGlassDiagno
     ...owner.querySelectorAll<HTMLElement>('[data-material-strategy="native-glass"]'),
   ];
   const activeIndividualSurfaces = nativeSurfaces.filter(
-    (surface) => surface.dataset.materialBackdropSource !== "shared",
+    (surface) =>
+      !["shared", "plane", "shell"].includes(surface.dataset.materialBackdropSource ?? ""),
   );
+  const majorPlanes = owner.querySelectorAll("[data-major-glass-plane]");
   const activeBatches = [
     ...owner.querySelectorAll<HTMLElement>('[data-glass-batch-state="active"]'),
   ];
@@ -204,6 +228,7 @@ export function readNativeGlassDiagnostics(root?: ParentNode): NativeGlassDiagno
     (batch) => batch.dataset.glassDepth === "2",
   ).length;
   const activeDepths = new Set(activeBatches.map((batch) => batch.dataset.glassDepth));
+  if (majorPlanes.length) activeDepths.add("1");
   activeIndividualSurfaces.forEach((surface) =>
     activeDepths.add(surface.dataset.materialRole === "large" ? "1" : "2"),
   );
@@ -217,11 +242,21 @@ export function readNativeGlassDiagnostics(root?: ParentNode): NativeGlassDiagno
   );
   return {
     activeDepthCount: activeDepths.size,
-    activeGlassBatchCount: activeBatches.length,
+    activeGlassBatchCount: activeBatches.length + majorPlanes.length,
     localMaterialBackdropFilterCount: activeIndividualSurfaces.length,
     materialGeometryRefreshesPerSecond: readMaterialGeometryRefreshesPerSecond(),
-    nativeBackdropSurfaceCount: activeIndividualSurfaces.length + activeBatches.length,
-    nativeBackdropFilterLayerCount: localFilterLayers + batchFilterLayers,
+    nativeBackdropSurfaceCount:
+      activeIndividualSurfaces.length + activeBatches.length + majorPlanes.length,
+    nativeBackdropFilterLayerCount:
+      localFilterLayers +
+      batchFilterLayers +
+      [...majorPlanes].reduce(
+        (count, plane) =>
+          count +
+          plane.querySelectorAll(".taskmap-native-glass-preblur, .taskmap-native-glass-backdrop")
+            .length,
+        0,
+      ),
     sharedSmallBatchCount,
     sharedSmallPlaneActive: sharedSmallBatchCount > 0,
     temporaryDragBatchActive: activeBatches.some(

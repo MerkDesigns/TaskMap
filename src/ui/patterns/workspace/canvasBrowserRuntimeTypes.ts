@@ -1,3 +1,5 @@
+import type { CanvasBrowserCardSlice } from "./canvasBrowserDom";
+
 export interface CanvasBrowserCardRecord<Id extends string> {
   readonly id: Id;
   readonly host: HTMLDivElement;
@@ -19,6 +21,10 @@ export interface CanvasCardDragState<Id extends string> {
   finish: "commit" | "cancel" | null;
   snapStartedAt: number | null;
   snapFromY: number;
+  /** Liquid pickup/drop (glass contract section 14): visible slice morph endpoints. */
+  pickupStartedAt: number | null;
+  pickupFrom: CanvasBrowserCardSlice;
+  snapFromSlice: CanvasBrowserCardSlice;
 }
 
 export interface CanvasBrowserFrameDriver {

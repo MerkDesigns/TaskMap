@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type MouseEvent, type PointerEvent } 
 import { createPortal } from "react-dom";
 import { windowChromeActions, type WindowChromeActions } from "../app/windowChrome";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
+import { WorkspaceMajorGlassBridge } from "../ui/materials/WorkspaceMajorGlass";
 import { IconButton } from "../ui/primitives/Button";
 import "../ui/patterns/workspace/ChromeControlGroup.css";
 import "../ui/patterns/workspace/WindowChrome.css";
@@ -62,52 +63,60 @@ export function WindowChrome({ actions = windowChromeActions, radius }: WindowCh
   const maximizeLabel = maximized ? "Restore window" : "Maximize window";
 
   return createPortal(
-    <div className="taskmap-target-theme taskmap-window-chrome-layer">
+    <>
       <div
-        className="taskmap-window-drag-region"
+        className="taskmap-target-theme taskmap-window-drag-region"
         aria-hidden="true"
         onDoubleClick={handleDragDoubleClick}
         onPointerDown={handleDragPointerDown}
       />
-      <MaterialSurface
-        material="acrylic-large"
-        elevation="none"
-        radius={radius}
-        role="group"
-        aria-label="Window controls"
-        className="taskmap-chrome-control-group taskmap-window-controls"
-        onDoubleClick={(event) => event.stopPropagation()}
-        onPointerDown={stopChromePointerPropagation}
-      >
-        <IconButton
-          variant="ghost"
-          size="compact"
-          title="Minimize window"
-          aria-label="Minimize window"
-          icon={<IconMinus size={16} stroke={2} />}
-          onClick={() => void actions.minimize()}
-        />
-        <IconButton
-          variant="ghost"
-          size="compact"
-          title={maximizeLabel}
-          aria-label={maximizeLabel}
-          icon={
-            maximized ? <IconCopy size={14} stroke={1.8} /> : <IconSquare size={14} stroke={1.8} />
-          }
-          onClick={() => void toggleMaximize()}
-        />
-        <IconButton
-          variant="ghost"
-          size="compact"
-          className="taskmap-window-controls__close"
-          title="Close window"
-          aria-label="Close window"
-          icon={<IconX size={16} stroke={2} />}
-          onClick={() => void actions.close()}
-        />
-      </MaterialSurface>
-    </div>,
+      <div className="taskmap-target-theme taskmap-window-chrome-layer">
+        <WorkspaceMajorGlassBridge>
+          <MaterialSurface
+            material="acrylic-large"
+            elevation="none"
+            radius={radius}
+            role="group"
+            aria-label="Window controls"
+            className="taskmap-chrome-control-group taskmap-window-controls"
+            onDoubleClick={(event) => event.stopPropagation()}
+            onPointerDown={stopChromePointerPropagation}
+          >
+            <IconButton
+              variant="ghost"
+              size="compact"
+              title="Minimize window"
+              aria-label="Minimize window"
+              icon={<IconMinus size={16} stroke={2} />}
+              onClick={() => void actions.minimize()}
+            />
+            <IconButton
+              variant="ghost"
+              size="compact"
+              title={maximizeLabel}
+              aria-label={maximizeLabel}
+              icon={
+                maximized ? (
+                  <IconCopy size={14} stroke={1.8} />
+                ) : (
+                  <IconSquare size={14} stroke={1.8} />
+                )
+              }
+              onClick={() => void toggleMaximize()}
+            />
+            <IconButton
+              variant="ghost"
+              size="compact"
+              className="taskmap-window-controls__close"
+              title="Close window"
+              aria-label="Close window"
+              icon={<IconX size={16} stroke={2} />}
+              onClick={() => void actions.close()}
+            />
+          </MaterialSurface>
+        </WorkspaceMajorGlassBridge>
+      </div>
+    </>,
     document.body,
   );
 }

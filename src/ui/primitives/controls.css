@@ -103,9 +103,11 @@
   background: color-mix(in srgb, var(--taskmap-danger) 28%, transparent);
 }
 
+/* Ghost buttons have no rim: no border and no inset highlight at rest (user direction 2026-09-30). */
 .taskmap-button--ghost {
   border-color: transparent;
   background: transparent;
+  box-shadow: none;
 }
 
 .taskmap-button--ghost:hover:not(:disabled) {
@@ -137,7 +139,9 @@
   width: var(--taskmap-control-height-compact);
 }
 
-.taskmap-toggle-button[aria-pressed="true"] {
+/* Selected state for toggles, and for menu/filter buttons whose active state is not a press. */
+.taskmap-toggle-button[aria-pressed="true"],
+.taskmap-button[data-selected="true"] {
   border-color: rgb(var(--taskmap-accent-rgb) / 0.56);
   background: var(--taskmap-state-selected);
   color: color-mix(in srgb, var(--taskmap-accent) 78%, white);

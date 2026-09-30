@@ -60,15 +60,17 @@
   color: var(--taskmap-danger);
 }
 
-.taskmap-modal-dialog__clear-copy {
-  margin-top: var(--taskmap-space-3);
-}
-
 .taskmap-modal-dialog__actions {
   justify-content: flex-end;
   gap: var(--taskmap-space-2);
 }
 
-.taskmap-modal-dialog__password {
-  margin-bottom: var(--taskmap-space-4);
+.taskmap-modal-dialog__body > p {
+  margin: 0;
+}
+
+/* Form bodies: fields stack on the shared spacing grid. */
+.taskmap-modal-dialog__form {
+  display: grid;
+  gap: var(--taskmap-space-3);
 }

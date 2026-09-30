@@ -22,7 +22,14 @@ export function useDialogFocus(
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusableElements = () =>
       Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-    (initialFocusRef?.current ?? focusableElements()[0] ?? dialog).focus();
+    // Initial focus skips the header close action so content/actions receive it first.
+    const focusable = focusableElements();
+    const initial =
+      initialFocusRef?.current ??
+      focusable.find((element) => !element.closest(".taskmap-modal-dialog__header")) ??
+      focusable[0] ??
+      dialog;
+    initial.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
@@ -31,20 +38,21 @@ export function useDialogFocus(
       );
       if (openDialogs[openDialogs.length - 1] !== dialog) return;
       const focusable = focusableElements();
+      event.preventDefault();
       if (focusable.length === 0) {
-        event.preventDefault();
         dialog.focus();
         return;
       }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      // Primitives default to tabIndex -1, so the dialog owns Tab order completely.
+      const current = focusable.indexOf(document.activeElement as HTMLElement);
+      const step = event.shiftKey ? -1 : 1;
+      const next =
+        current === -1
+          ? event.shiftKey
+            ? focusable.length - 1
+            : 0
+          : (current + step + focusable.length) % focusable.length;
+      focusable[next].focus();
     };
 
     window.addEventListener("keydown", handleKeyDown, true);

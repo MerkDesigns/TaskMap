@@ -62,11 +62,12 @@ interface FlowProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export interface ScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
-  readonly hiddenScrollbar?: boolean;
+  /** "hidden" for glass panels, "thin" for editors/menus/inner content (UI guardrails section 4). */
+  readonly scrollbar?: "hidden" | "thin";
 }
 
 export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(function ScrollArea(
-  { className, hiddenScrollbar = false, ...props },
+  { className, scrollbar = "thin", ...props },
   ref,
 ) {
   return (
@@ -75,7 +76,7 @@ export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(function S
       ref={ref}
       className={primitiveClassNames(
         "taskmap-scroll-area",
-        hiddenScrollbar && "taskmap-scroll-area--hidden-scrollbar",
+        `taskmap-scrollbar-${scrollbar}`,
         className,
       )}
     />

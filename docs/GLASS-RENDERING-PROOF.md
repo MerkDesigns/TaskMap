@@ -15,6 +15,11 @@ confirmed no frozen edge, rounded corners and no brightening noticed. Displayed-
 [corrected held state](evidence/glass-proof/main-app-held-clear.png). WORK-LOG records the reproduction
 and limits. This does not fix the same-layer isolation failure below or accept the experimental planes.
 
+The later Lab-only occlusion follow-up has zero-change overlapping-Major evidence while retaining
+exposed lower foreground, higher-overlay sampling and promoted-Minor blur. See the dated update in
+`GLASS-STABLE-PLANE-CANDIDATE.md`. The original/default backend still fails isolation, including the
+normal main-App toolbar/Canvas Browser arrangement. Overall Phase 4.5C acceptance remains open.
+
 ## Environment and reproduction
 
 2026-09-24, Windows, TaskMap Dev with MCP, native WebView2; renderer reports Edge/Chromium 153,

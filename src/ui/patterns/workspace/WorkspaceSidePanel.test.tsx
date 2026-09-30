@@ -20,8 +20,8 @@ afterEach(() => {
 });
 
 describe("WorkspaceSidePanel motion", () => {
-  it("slides the complete panel on and offscreen without fading it", () => {
-    expect(WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS).toBe(240);
+  it("fades, slides and scales the panel in and out by default", () => {
+    expect(WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS).toBe(300);
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(panelBounds(288));
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
@@ -43,21 +43,25 @@ describe("WorkspaceSidePanel motion", () => {
     const offscreenX = -(288 + 16 + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
 
     expect(panel).toHaveAttribute("data-material", "acrylic-large");
-    expect(panel).toHaveAttribute("data-panel-motion", "active");
-    expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0, 0)`);
-    expect(panel.style.willChange).toBe("transform");
+    expect(panel).toHaveAttribute("data-presence-phase", "showing");
+    expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0px, 0) scale(0.94)`);
     expect(panel.style.opacity).toBe("");
+    // Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17).
+    const presence = () => panel.style.getPropertyValue("--taskmap-material-presence-progress");
+    expect(presence()).toBe("0");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
 
     act(() => expect(driver.fire()).toBe(true));
     expect(readTranslateX(panel)).toBeGreaterThan(offscreenX);
     expect(readTranslateX(panel)).toBeLessThan(0);
+    expect(Number(presence())).toBeGreaterThan(0);
+    expect(Number(presence())).toBeLessThan(1);
     expect(panel.style.opacity).toBe("");
     act(() => driver.flush());
-    expect(panel).not.toHaveAttribute("data-panel-motion");
+    expect(panel).toHaveAttribute("data-presence-phase", "visible");
     expect(panel.style.transform).toBe("");
-    expect(panel.style.willChange).toBe("");
+    expect(presence()).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     const invalidationsAtRest = notifySurfaceGeometryChanged.mock.calls.length;
@@ -67,8 +71,8 @@ describe("WorkspaceSidePanel motion", () => {
 
     rerender(renderPanel(true));
     expect(panel).toHaveAttribute("data-closing", "true");
-    expect(panel).toHaveAttribute("data-panel-motion", "active");
-    expect(panel.style.transform).toBe("translate3d(0px, 0, 0)");
+    expect(panel).toHaveAttribute("data-presence-phase", "hiding");
+    expect(panel.style.transform).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
     act(() => expect(driver.fire()).toBe(true));
@@ -84,7 +88,6 @@ describe("WorkspaceSidePanel motion", () => {
     expect(readTranslateX(panel)).toBeGreaterThan(interruptedCloseX);
     act(() => driver.flush());
     expect(panel.style.transform).toBe("");
-    expect(panel.style.willChange).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
@@ -111,15 +114,14 @@ describe("WorkspaceSidePanel motion", () => {
     const panel = screen.getByLabelText("Reduced panel");
     const offscreenX = -(288 + 16 + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
 
-    expect(panel).not.toHaveAttribute("data-panel-motion");
+    expect(panel).toHaveAttribute("data-presence-phase", "visible");
     expect(panel.style.transform).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     rerender(renderPanel(true));
-    expect(panel).toHaveAttribute("data-panel-motion", "hidden");
-    expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0, 0)`);
-    expect(panel.style.willChange).toBe("");
+    expect(panel).toHaveAttribute("data-presence-phase", "hidden");
+    expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0px, 0) scale(0.94)`);
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
@@ -149,8 +151,8 @@ function panelBounds(width: number): DOMRect {
 
 describe("WorkspaceSidePanelContentSwitcher", () => {
   it("crossfades views and updates the shell content height to the active view", () => {
-    const scrollHeight = vi
-      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+    const offsetHeight = vi
+      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
       .mockImplementation(function (this: HTMLElement) {
         if (this.dataset.viewIndex === "0") return 180;
         if (this.dataset.viewIndex === "1") return 360;
@@ -176,6 +178,30 @@ describe("WorkspaceSidePanelContentSwitcher", () => {
     expect(views[0]).toHaveAttribute("inert");
     expect(views[1]).toHaveAttribute("data-active", "true");
     expect(views[1]).not.toHaveAttribute("inert");
+    offsetHeight.mockRestore();
+  });
+
+  it("measures natural content height so stretched views and glass overscan never ratchet it", () => {
+    const offsetHeight = vi
+      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.dataset.viewIndex !== "0") return 0;
+        return this.style.height === "auto" ? 180 : 400;
+      });
+    const scrollHeight = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockReturnValue(480);
+    const { container } = render(
+      <WorkspaceSidePanelContentSwitcher
+        activeIndex={0}
+        views={[<div key="canvases">Canvases</div>, <div key="extensions">Extensions</div>]}
+      />,
+    );
+    const switcher = container.firstElementChild as HTMLElement;
+    act(() => window.dispatchEvent(new Event("resize")));
+    expect(switcher.style.height).toBe("180px");
+    expect(switcher.querySelector<HTMLElement>('[data-view-index="0"]')!.style.height).toBe("");
+    offsetHeight.mockRestore();
     scrollHeight.mockRestore();
   });
 });

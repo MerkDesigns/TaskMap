@@ -328,3 +328,34 @@ function overscan(element: HTMLElement): string[] {
     element.style.getPropertyValue(`--taskmap-material-overscan-${side}`),
   );
 }
+
+describe("Minor depth policy", () => {
+  it("renders Minor-on-Minor as a filter-free shell unless a source is explicit", () => {
+    render(
+      <MaterialSurface material="acrylic-large" data-testid="major">
+        <MaterialSurface material="acrylic-small" data-testid="minor">
+          <MaterialSurface material="acrylic-small" data-testid="nested" />
+          <MaterialSurface material="acrylic-small" backdropSource="self" data-testid="explicit" />
+        </MaterialSurface>
+      </MaterialSurface>,
+    );
+    const source = (id: string) =>
+      screen.getByTestId(id).getAttribute("data-material-backdrop-source");
+    expect(source("minor")).toBe("self");
+    expect(source("nested")).toBe("shell");
+    expect(source("explicit")).toBe("self");
+    const nested = screen.getByTestId("nested");
+    expect(nested.querySelector(".taskmap-native-glass-backdrop")).toBeNull();
+    expect(nested.querySelector(".taskmap-material-native-glass__rim-canvas")).not.toBeNull();
+    expect(
+      screen.getByTestId("minor").querySelector(".taskmap-native-glass-backdrop"),
+    ).not.toBeNull();
+  });
+
+  it("rejects shell sources on Major glass", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(() =>
+      render(<MaterialSurface material="acrylic-large" backdropSource="shell" />),
+    ).toThrow(RangeError);
+  });
+});

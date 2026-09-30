@@ -2284,3 +2284,797 @@ removed. Resume exact native state rather than rebuilding earlier fixtures.
   production/capability exclusions. Existing Vite bundle-size advisory remains; Rust unchanged.
   No release/GPU performance claim. Phase 4.5C still fails same-layer isolation; intermittent flicker
   needs broader round-trip coverage despite the positive user check. No branch, commit or push.
+
+### 2026-09-28 — Normal-layout isolation evidence and bounded overlap occlusion
+
+- Resumed from clean 5fc2be2. Main App was unlocked on the user's current canvas. A temporary
+  200x30 red foreground patch inside Canvas Browser at x16/y71 changed the toolbar across its visible
+  gap: x20-209/y20-51 mean absolute RGB-channel delta 8.13/255. No layout or document change was
+  required. Removed the probe; retained only 320x120 chrome crops, deleting full temporary captures.
+- Continued the experimental Lab candidate only. Numeric upper-sibling geometry now subtracts its
+  rounded silhouette from lower foreground/effect shells and owned Minor filter outputs. Shared
+  Major sampling stays below all foreground. Exposed lower content is retained rather than hidden
+  wholesale. Filter DOM and foreground identity remain stable through occlusion changes.
+- Native static comparison at 1278x946/DPR1, proof x50/y309: changing only A ink gives zero delta in
+  overlapping B, 136.40/255 in exposed A ink and 22.35/255 in the overlay patch. Separately changing
+  lower-card ink gives 37.30/255 in promoted Minor. Exact rectangles/screenshots are recorded in
+  GLASS-STABLE-PLANE-CANDIDATE.md. Rounded surfaces and moving/changing backdrop were inspected.
+- This addresses the demonstrated static overlap compositing failure, not all candidate acceptance.
+  CSS masks do not prove hit-test exclusion for covered controls; geometry motion, shadow edges,
+  optical/ambient parity and release/GPU performance remain open. No main-App renderer migration,
+  optical changes, per-frame refresh hack or weakening of the accepted frozen-edge correction.
+- Focused tests: 2 files / 9 tests pass, including content/filter identity and output-vs-ancestor
+  clipping ownership. Typecheck passed. Native console errors/warnings empty. Returned to App view;
+  candidate proof animations were stopped. CODEMAP regenerated.
+- Full npm run check passed: 252 files / 1,716 tests, formatting/typecheck/lint/architecture/build
+  and production exclusions. Existing Vite bundle-size advisory remains. Rust unchanged. Changes
+  remain uncommitted; the prior explicit commit/push request was completed at 5fc2be2.
+
+### 2026-09-28 — Toolbar hitboxes, Settings scrollbar, candidate hit testing
+
+- Confirmed the real main-App Settings button begins at y22 while the high-layer drag strip extends
+  to y35: its top hit returned the drag strip. Split the drag region out of the window-control portal
+  layer and place it immediately below workspace chrome. Window control buttons remain above modal
+  overlays. All eight visible toolbar buttons now pass top/bottom native elementFromPoint checks;
+  clicking Settings at (100,24), previously covered, opens it. The empty strip still hits the drag
+  region. Unit coverage retains native drag/maximize routing and checks the separate portal parent.
+- Enabled the existing ScrollArea hiddenScrollbar variant in Settings. Native scrollbar width is
+  none; clientWidth increased from 473 to 488 and equals offsetWidth, reclaiming the 15px gutter.
+  Wheel scrolling reached scrollTop21/max21. Inspected the rendered Settings screen and close/open
+  behavior. No settings values or document data were edited.
+- Resumed the glass plan. In the Lab candidate, (460,500) incorrectly hit the visually masked Minor
+  behind Major B. Replaced the alpha mask on filter-free foreground/effect shells with a rounded
+  even-odd clip path. The covered point now hits B and exposed (460,519) hits the Minor. Filter
+  output masks are unchanged. The bounded API explicitly supports one upper occluder; multiple
+  overlapping siblings need union geometry rather than an incorrect collection of even-odd holes.
+- Inspected hit-aware-occlusion.png. Compared to the preceding alpha-mask checkpoint, Major B patch
+  RGB delta was zero, promoted patch rounded to 0.00/255, overlay patch 0.31/255. Full optical parity
+  is not claimed. One caught Lab render error occurred during the cross-file HMR API change;
+  subsequent fresh candidate mounting and hit/visual checks succeeded. Returned to main App.
+- Focused window/Settings tests: 4 files / 16 tests passed. Full npm run check passed: 252 files /
+  1,716 tests, formatting/typecheck/lint/architecture/build and production exclusions. Final console
+  error check after the HMR transition was empty; warnings empty. Existing bundle-size advisory
+  remains. These changes remain local/uncommitted.
+
+### 2026-09-28 — Candidate geometry and isolated optical comparison
+
+- Added a bounded Expand Major B control to both proof backends; shared candidate geometry drives
+  the shell, Major output union, owned Minor output subtraction and foreground hit clip.
+- Live WebView2: expanding B from310x120 to390x240 covers the prior Minor hit at scene(400,230).
+  Moving it to x660 exposes that Minor again and moves the B hit to(680,230). Plane and rim-canvas
+  nodes retain identity; rim bitmap width updates to390. Inspected expanded-scene screenshot.
+- Compared isolated B at identical bounds, A hidden, separate Majors, static checker/red at0,
+  viewport1278x946/DPR1. Text-free patch x730-999/y455-489 differs by mean1.70/255 per RGB channel;
+  maximum pixel channel-sum difference15. Both screenshots inspected and saved. Optical parity
+  remains unresolved; local filter overflow also adds fixture scrollbars absent from candidate.
+- No production renderer changes. No continuous geometry/GPU performance claim. Prior HMR error
+  remains in historical console output; no new errors or warnings appeared in these checks.
+- Validation: full npm run check passed (252 files / 1,716 tests), architecture589 files,
+  production build and production exclusions. Existing build chunk-size advisory remains.
+  No new console errors since the earlier documented HMR event; warnings empty. Git diff check passed.
+
+### 2026-09-28 — User-directed acceptance scope
+
+- User prefers faster progress over dedicated performance testing: current use feels normal with no
+  perceived slowdown. Defer formal benchmarks/frame-time comparisons; do not treat them as passed
+  or block upcoming slices on them. Revisit only for noticeable slowdown or concrete significant
+  rendering-work changes. Keep correctness validation and hot-path architecture constraints.
+- User has not chosen between existing and candidate optics. Darker candidate Minor glass may
+  improve contrast against Major glass; preserve it for evaluation, not automatic parity correction.
+- Updated state and roadmap. Documentation-only change; no application tests needed.
+
+### 2026-09-28 — Minor promotion consistency
+
+- Added Promote in place to the development proof on both backends; ordinary promotion still
+  moves the card over its sibling. This isolates depth changes from position/backdrop changes.
+- Native candidate screenshots inspected at1278x946/DPR1: upper Minor stays x430/y494,210x110;
+  settled/promoted text-free interior patch x450-619/y565-589 is pixel-identical (mean0).
+- Live old/candidate computed styles match: preblur5, blur23.5, saturation0.78, brightness0.9,
+  contrast1, transparent tint/tone. No added opaque candidate fill. Sampling topology differs;
+  exact individual cause of the cross-backend darkness difference remains unisolated. Preserved
+  appearance as requested; no production renderer or recipe changes and no performance benchmark.
+- Focused fixture/material tests pass (2 files/9 tests); TypeScript check passes. Evidence stored
+  under docs/evidence/glass-proof/minor-in-place-{settled,promoted}.png.
+
+### 2026-09-28 — Multiple sibling occlusion
+
+- Replaced the single CSS inverse clip with linked SVG inverse clips on filter-free foreground
+  shells. Intersecting these clips excludes the union of upper siblings without reopening their
+  shared overlap. Filter output masks stay independent; no new dependency, optics or production change.
+- Added Third Major on both proof backends. Candidate clips A/owned Minors by B+C and B by C.
+- Native screenshots inspected at1278x946/DPR1, scene50/337: toggling A ink changes sampled B, C
+  and their shared overlap by exactly0 RGB. Hit tests reach C/B where covered and Minor where
+  exposed. Expanding/moving B then removing C restores the newly exposed Minor/B hit targets.
+- Focused tests (9) and typecheck passed. Full validation follows. A transient HMR error occurred
+  while the old caller and new occlusion prop shape coexisted; remount after updating both resolved it.
+- Performance benchmarks remain deferred. Main-App renderer and darker candidate Minor recipe unchanged.
+- Round trip after resize/move/removal/reset: all467,500 scene pixels match the initial three-Major
+  ink-off image exactly. No console errors/warnings after the completed-code remount.
+- Full npm run check passed:252 files/1,716 tests, lint/typecheck, architecture, build and production
+  exclusions. Existing chunk-size advisory remains. CODEMAP regenerated; git diff check passed.
+
+### 2026-09-28 — Ambient edge check and integration boundary
+
+- Candidate reset, red950→740→950. It remains outside both Major silhouettes at740 (gap50 to B,
+  120 to A). Nearby edge patches respond (B3.45/255, A0.63); opposite A edge0. Full scene returns
+  to identical467,500 pixels. Native screenshots inspected/saved. This is discrete Lab evidence,
+  not held-drag production acceptance or a WebView compositor root-cause claim.
+- Inspected WorkspaceChromeLayer, MaterialSurface, ToolbarGroup, WorkspaceSidePanel and its
+  motion owner. Documented first dev-only shared-Major trial with explicit registrations and cached
+  geometry projected by existing motion writers. Minor migration stays separate; no broad App rewrite.
+- No application code changed in this cycle. No benchmark or redundant application test run.
+
+### 2026-09-29 — Optional shared workspace Major trial verified in App
+
+- Added optional MaterialSurface/WorkspaceChromeLayer ownership boundary and DEV workbench toggle,
+  off by default. Trial reuses StableGlassPlane; local Major filters are removed only while opted in.
+  Retained Minor filters and window controls remain unchanged. No broad App.tsx rewrite.
+- Motion owners project cached bounds/opacity without measurements; extra presentation bookkeeping
+  is guarded by DEV. Registration cleanup removes closed surfaces. Diagnostics count the shared
+  Major plane once rather than treating its shells as individual filters.
+- Clean-start native check: toolbar2 shapes, Canvas Browser adds third. Foreground red probe at16/71
+  causes exactly0 channel change in toolbar patch20-209/20-51 (old local checkpoint8.13/255).
+  A separate L0 red positive control visibly colors glass, so zero contamination is not absent blur.
+  Saved chrome-only evidence; removed all probes and temporary full-workspace captures.
+- Closing animation:83 samples, maximum shell/mask x mismatch0.000016px; count returns to2.
+  All8 toolbar top hit probes pass. Trial off restores local filters/removes plane; on restores3
+  shapes while retaining panel DOM identity. Screenshots inspected in actual Tauri/WebView2.
+- HMR during structural edits invalidated contexts/retained canvas; clean app restarts were needed.
+  Final fresh-session console errors/warnings empty. No unrelated database or document edits.
+- Full check passes253 files/1,718 tests, architecture592 files, lint/typecheck, build and production
+  exclusions. Existing build chunk-size advisory remains. Formal performance benchmarks deferred.
+- Trial enabled in current Dev session for user's real held-image exit/return check; confirmation
+  pending. Arbitrary overlapping App panels still require Minor/depth/foreground migration.
+- User then completed the real main-App held-drag check with the trial enabled and reported
+  "No artifacts noticed" for frozen edge color, distant brightening and broken corners. The bounded
+  trial acceptance passes; remaining overlapping-panel/Minor migration is the next slice.
+
+### 2026-09-29 — User-requested shared Major default
+
+- User approved the App trial and explicitly requested it as the main material. Promoted workspace
+  Major ownership into production WorkspaceMajorGlass, mounted directly by WorkspaceChromeLayer.
+- Extracted NativeGlassPlane from the experimental fixture so Lab and product share the exact filter
+  implementation/recipe. Lab-only foreground shell/clipping stays excluded. Removed the optional
+  renderer-component injection; the simple owner context remains at the MaterialSurface boundary.
+- Default enabled in both ordinary and Dev builds. Dev retains a session-only comparison checkbox.
+  Existing translation/opacity owners now supply the shared masks in ordinary builds as well.
+  Retained Minor cards, window controls and unrelated overlays are unchanged.
+- Clean-start WebView2: shared enabled without user toggle,3 workspace shapes,0 local workspace
+  Major filters. Inspected screenshot; console errors/warnings empty. Normal bundle contains the
+  shared native plane; strengthened exclusion rejects the experimental foreground shell.
+- Full npm run check passed253 files/1,718 tests, architecture593 files, typecheck/lint/build and
+  production exclusions. Existing chunk-size advisory remains. CODEMAP refreshed. No benchmarks.
+- Changes remain uncommitted. Remaining work is Minor/depth and arbitrary overlapping-panel migration.
+
+## 2026-09-29 — Optional Minor output-mask slice and usage-limit handoff
+
+After the user accepted shared workspace Major glass as the default, started the next bounded
+Minor migration step. Added the default-off Dev control `Trial output-masked Minor glass`.
+Existing SharedSmallGlassPlane batches retain their feature-owned geometry, settled/drag membership,
+recipe and overscan. The trial removes the batch-root clip/overflow/promotion hint and places masks
+on individual filter outputs. NativeGlassPlane's SVG mask encoder now accepts a viewport clip per
+shape and an overscan origin; original card radii/geometry remain intact. This is not the final
+scroll-edge shrink or general Minor promotion/occlusion solution.
+
+New sharedSmallOutputMask owner caches shapes and schedules bounds reads through the existing
+material scheduler. Scroll/shape updates use cached dimensions. A zero-size hidden batch cannot
+create a self-scheduling geometry loop. Disabling the trial restores current legacy viewport clip
+geometry without replacing filter nodes. Normal production behavior remains unchanged for Minors.
+
+Validation: focused three-file suite passed 11 tests. Full `npm run check` passed 254 files / 1,720
+tests, formatting/typecheck/lint, architecture (595 files), production build and all production
+exclusion/boundary checks. Existing large-chunk build advisory only. CODEMAP regenerated (760 files).
+
+Native acceptance is unfinished: HMR invalidated the retained view after material module edits,
+so Dev was cleanly restarted. Reached database entry, but the later MCP call returned Window 'main'
+not found. No post-change Minor screenshot, scroll/drag acceptance or clean-console claim is made.
+User requested wrap-up because usage was almost exhausted. The trial remains OFF by default.
+Next agent: reconnect/start Dev, unlock the development test database through normal UI, open Canvas
+Browser, compare trial OFF/ON, exercise scroll and cancellable held-card transitions, inspect actual
+pixels/computed masks/console and toggle restoration. Do not repeat the full automated matrix unless
+code changes. Keep shared Major default accepted; do not promote Minor until native acceptance.
+No commit or push performed. All earlier uncommitted chrome/Settings/Lab/Major work is preserved.
+
+## 2026-09-29 — Minor output-mask trial native acceptance
+
+Environment: Dev build via `npm run app:dev:mcp` (debug), Tauri MCP server 0.13.0 against pinned
+bridge 0.12.0 (version warning only; all tools worked), development test database, Canvas Browser
+with 7 canvases. Prior stale Dev tree (exec 21025 era) had lost its main window and was restarted.
+
+Trial OFF baseline: batch root `clip-path: url(#…)`, `overflow: hidden`, no mask on the two filter
+layers (preblur 5px; backdrop blur 23.5px saturate 0.78 brightness 0.9). Trial ON: root clip
+`none`, `overflow: visible`, both filter layers masked (`100% 100%`, no-repeat), same recipe, same
+filter node identities. Screenshots ON/OFF looked identical at rest and scrolled (window 1329×865
+and 1000×520). Wheel events on the glass-list viewport scrolled it; cards clip at panel edges.
+Toggling OFF restored the legacy clip and removed masks with the same filter nodes. Console clean.
+
+User-run held-card drag with trial ON: works and looks good. User observed fps dropping to ~70 when
+dragging a card back and forth quickly, and saw the same fps with the trial OFF, so the slowdown
+predates/is independent of the trial. Not yet investigated (no frame-time data; counters not used).
+Trial remains OFF by default; not promoted. Removed three stale `.tmp-acceptance-*.tmapdb` test
+databases (Recycle Bin). MCP notes: interact tool needs selector/coordinates, not refs; first
+screenshot after launch can be blank until first paint.
+
+## 2026-09-29 — Canvas Browser drag frame-rate investigation (Minor trial)
+
+Environment: Dev debug build (`app:dev:mcp`), WebView2 in the Tauri MCP-driven window 1329×865,
+display idle rAF 360 Hz (2.78 ms), 7-canvas development test database, Major glass ON. Method: an
+in-page harness dispatched synthetic pointerdown on a card, then a sinusoidal pointermove sweep
+(±170 px, 500 ms period, 3–4 s) on `document` each rAF, then `pointercancel` (order restored).
+Numbers are rAF intervals, not presented GPU frames; synthetic input is not identical to a mouse.
+
+| Run                                  | fps          | p50 / p95 ms   |
+| ------------------------------------ | ------------ | -------------- |
+| Trial OFF, ±170 px (2 runs)          | 355 / 348    | 2.8 / 2.9      |
+| Trial ON, ±170 px (3 runs)           | 89 / 77 / 80 | 8.4–11 / 22–28 |
+| Trial OFF, ±18 px (no reorder)       | 355          | 2.8 / 2.9      |
+| Trial ON, ±18 px (no reorder)        | 259          | 2.8 / 5.6      |
+| Trial ON, hide drag-plane filters    | 231          | 2.8 / 8.4      |
+| Trial ON, hide settled-plane filters | 360          | 2.8 / 2.9      |
+| Trial ON, hide Major filters         | 78           | 13.8 / 16.7    |
+
+Findings: no long animation frames (>50 ms), so the main thread is not blocked; the cost is
+render/compositor. With the trial ON, `--taskmap-small-output-mask` (a regenerated SVG data-URL used
+as `mask-image` on both filter layers) was rewritten ~190 times in 160 frames on each of the
+settled and drag planes, with ~170 distinct values each: the drag plane's mask changes every frame
+(the card moves) and the settled plane's whenever slots animate during reorder. Each change forces a
+new mask image raster on both backdrop-filter layers. Legacy path updates clip-rect attributes instead.
+Contradiction: the user reported ~70 fps also with the trial OFF during real mouse dragging. The
+harness does NOT reproduce a drop with the trial OFF (≈350 fps), so either real-pointer input costs
+something the synthetic sweep omits or the OFF report needs re-measuring with the Dev frame counter.
+Unresolved. Do not promote the masked Minor trial; if pursued, mask image churn must be removed
+first (e.g. transform-positioned mask/clip or geometry-stable mask, not per-frame data URLs).
+
+Correction (same day, after user feedback and held-drag screenshots): the trial-OFF measurements above
+are NOT a valid performance baseline. With the trial OFF, the held/dragged Canvas Browser card renders
+transparent — no blur, background text shows through, only the rim — even though the drag plane's
+clip rect, filter layers and backdrop-filter values are present in the DOM. With the trial ON the
+held card is correctly blurred and hides the card beneath it. The ~350 fps OFF result therefore
+reflects missing glass, and the ~80 fps ON result is the cost of the intended Minor-over-Minor
+blur on a moving card. The legacy OFF drag rendering appears broken in the current build (separate
+issue, cause not yet identified). Open question: how much of the ON cost is inherent full-plane
+backdrop blur (both filter layers span the whole 459×819 plane, masked to a 264×84 card) versus
+per-frame mask-image churn; not separable without a code change (e.g. card-sized moving layer).
+
+Root causes and fix (same day, Opus session):
+
+1. Legacy held-card transparency: with a held drag, removing the drag plane root's
+   `clip-path: url(#…)` made the full plane blur the cards beneath correctly; replacing it with a
+   basic-shape `inset(… round 12px)` clip of identical geometry was still transparent. Any
+   clip-path on the batch root makes it a backdrop root in WebView2, so child backdrop filters see
+   nothing. This is structural to the root-clip design, not a geometry bug.
+2. Trial-ON drag cost: freezing `--taskmap-small-output-mask` writes on both planes during a held
+   drag restored ~355 fps while the blur kept running (either plane alone: partial recovery). The
+   cost was per-frame SVG data-URL regeneration/decoding for full-plane masks, not the blur.
+
+Fix: `sharedSmallOutputMask.ts` now emits a layered CSS mask — one cached rounded-rectangle image
+per shape size, per-layer `mask-position`/`mask-size`, and one `linear-gradient` viewport layer with
+`mask-composite: intersect` when every clip equals shape ∩ one rectangle (exact: that rectangle is
+the clips' bounding box). Non-shared clips or partial opacity fall back to the previous single-SVG
+encoder. Writes skip unchanged values. CSS reads the new position/size/composite properties with
+the old values as fallbacks. Normal (trial OFF) behavior unchanged.
+
+After (Dev restart, same harness/environment): trial ON ±170 px 500 ms sweep 357/357 fps
+(p99 2.9 ms); 300 ms sweep 188 (first run), then 342/356/356; 500 ms repeat 356. Held card blurs
+Canvas 4 beneath it; mask position aligned to the card; scrolled edge clips cleanly (intersect
+layer = 363 px viewport, only visible cards layered); toggle OFF clears all mask properties, restores
+the url() clip and keeps filter nodes. Console clean. `npm run check`: 254 files / 1,721 tests and
+all gates passed; CODEMAP regenerated; `git diff --check` clean. Real-mouse user confirmation
+pending. No commit/push.
+
+## 2026-09-29 — Resize blur spill and side-panel extra height
+
+User report after accepting the trial drag feel: resizing the window blurred the entire canvas, and
+the Canvas Browser panel kept empty space below the last card.
+
+1. Resize blur: after resize the workspace Major plane mask was `<svg …><g></g></svg>` while three
+   shapes were registered. `WorkspaceMajorGlass` rendered `NativeGlassPlane` with
+   `width={window.innerWidth}` and `shapes={[]}`, so a re-render after resize changed the mask prop
+   and React overwrote the owner's imperative mask with an empty one. Separately, WebView2 ignores an
+   SVG mask that paints nothing and shows the full filter output (verified: a 2×2 rect mask hid it).
+   Fix: constant initial-size props in WorkspaceMajorGlass; `outputMask` returns
+   `linear-gradient(transparent, transparent)` for zero shapes.
+2. Panel height: the content switcher re-measured on window resize with
+   `max(view.scrollHeight, child.scrollHeight)`. The view stretches to the switcher (can never
+   shrink), and with the trial ON the Minor plane's overscan layers overflow and add ~74 px (718 →
+   792; Extensions similar). Fix: measure the view's natural layout height by briefly unsetting its
+   stretched height (`offsetHeight`, excludes overflow) — only on resize/view switch, not per frame.
+
+Live (trial ON, then OFF): 1329×865 → 1345×971 → 1000×520 → 1345×971: Major mask kept 3 shapes at
+every size; Canvas Browser panel 718 px ending 12 px below the last card, clamped to the window at
+520 px (list scrolls) and restored to 718 px; Extensions panel ends 12 px below its last card; view
+switching no longer ratchets. Console clean. `npm run check` 254 files / 1,723 tests, all gates.
+
+## 2026-09-29 — Output-masked Minor becomes the default; open-edge card shadows
+
+User accepted the layered output-masked Minor path. `SmallGlassOutputMaskEnabled` now defaults to
+true (normal and Dev builds); the Dev checkbox is renamed `Output-masked Minor glass`, starts checked,
+and still switches back to the legacy root-clip path for comparison. Legacy-specific clip-rect tests
+now pin the legacy provider; the proof-scene test counts batched shapes renderer-independently.
+
+Settled bottom-card shadow was cut at the card edge: the per-card effects clip
+`inset(clipTop -20px clipBottom -20px)` clipped vertically at the list viewport even when no
+content was hidden there (dragged hosts use `clip-path: none`, hence the correct shadow while held).
+`writeGlassListEffectsClip` now takes open edges from the scroll state (at scroll start/end); open
+edges allow 48 px of external effects, edges with hidden scrolled content stay hard. Live: at top,
+first card top open / cut last card clipped at the edge; mid-scroll both edges hard; at end, last
+card keeps its shadow and the cut first card is clipped. Masked default active at startup; console
+clean. `npm run check` 254 files / 1,724 tests, all gates.
+
+## 2026-09-29 — Window controls join the shared workspace Major plane
+
+Survey of the unlocked App (Canvas Browser, Extensions, Settings open): the only Layer-1 surface
+still rendering a local Major filter was the window-controls group. It is mounted app-wide by
+`DatabaseWindowChrome` through a body portal, outside the workspace subtree that provides the shared
+plane owner, so it never registered. Settings (Layer 2, `modal` plane) keeps its local Major shell and
+seven local Minor filters (islands, toggle knobs, tab indicator) — intentionally unchanged here.
+
+Change: `MajorGlassLayer` keeps a small store of mounted workspace plane owners;
+`WorkspaceMajorGlass` publishes its owner while enabled, and `WorkspaceMajorGlassBridge` provides the
+active owner to base Majors outside the subtree. `WindowChrome` wraps its MaterialSurface in the
+bridge. Without a workspace (entry/unlock screens) or with the Dev Major toggle off, the controls keep
+local material; unmount/toggle unregisters them.
+
+Live (Dev, 1329×865, DPR 1): entry screen — controls `self`, local filter visible, no plane. Unlocked —
+controls `plane`, no local filter, plane mask rect 1209/16 104×40 matching the shell; three shapes.
+Positive control: a red patch in the workspace backdrop behind the controls tints their glass.
+Isolation probe: a red 100×40 chrome-layer foreground at 1100/16 (beside the controls). Native PNG
+diffs over the controls body (1212–1310 × 19–53): shared path mean 0/255 (max 0); local path (Dev
+Major toggle off) mean 3.54/255 (max 23). Baseline repeat noise 0. Shared vs local at rest: 0.
+Evidence: `evidence/glass-proof/window-controls-shared-probe.png`,
+`evidence/glass-proof/window-controls-local-probe.png`. After resizing to 1100×700 the mask rect follows
+(980/16) and minimize/maximize/close centre hits reach their buttons. Toggle off/on restores
+local/shared. Console clean. `npm run check` 254 files / 1,725 tests, all gates.
+
+All persistent Layer-1 Majors in the main App now share one plane; non-overlapping same-layer
+isolation holds there. Overlapping Layer-1 siblings (foreground occlusion) remain Lab-only.
+
+## 2026-09-29 — Settings Minor batching and Minor-on-Minor shells (option 1)
+
+User chose contract policy (GLASS-SYSTEM-CONTRACT §6/§10): first Minor depth blurs, deeper
+Minor-on-Minor objects are shells; settled non-overlapping Minors share material work.
+
+Correction to the pre-implementation summary: the Settings tab indicator sits on `LiquidTabs`
+navigation directly on the Major shell (not on an island), so it is first Minor depth and keeps its
+own blur. Only the two toggle knobs (on toggle-row islands) became shells.
+
+Changes:
+
+- `MaterialBackdropSource` gains `shell`: Minor body/tint/highlight, rim and shadow without filter
+  nodes or filter geometry. Small-only (Major throws).
+- `MaterialSurface` applies the default policy: an `acrylic-small` surface nested in another small
+  surface with no explicit source renders as a shell; explicit sources still win. Survey of App views
+  (Canvas Browser, Extensions, Settings) found the knobs as the only nested case; Acrylic buttons are
+  Dev-only.
+- New `SettingsIslandList` pattern: `GlassListFrame` + shared plane (`settings-small`) +
+  `useSharedSmallGlassList` over the existing hidden-scrollbar ScrollArea; islands inside it use
+  `backdropSource="shared"`/`geometrySource="owner"`. Islands elsewhere keep local glass.
+  `Modals.tsx` swaps its ScrollArea for this pattern (no behavior change otherwise).
+- Diagnostics no longer count shells as local filters.
+
+Result: Settings Minor filter work 7 local → 1 shared batch + 1 local (indicator).
+
+Live (Dev 1329×865): Visual tab batch active, layered mask = viewport ∩ 4 islands, partly
+scrolled-off island clipped at the viewport edge. PNG diff with batch filters hidden vs shown: island
+interior mean 4.19/255 (batch blurs), shell gap between islands 0, canvas outside Settings 0 (mask
+exact). Toggle knob animates as a filter-free shell and settles; scrolling (max 21 px) moves shapes
+and clips the top island; Database/Misc/Shortcuts/Visual each keep exactly one batch with layers =
+islands + viewport; closing Settings removes the batch. Console clean. Toggled setting reverted.
+`npm run check` 254 files / 1,727 tests, all gates. Visual difference vs the old per-island/knob
+filters has not had user acceptance yet.
+
+User visually accepted the Settings batching/knob shells on 2026-09-29 ("looks fine").
+
+## 2026-09-29 — Settled scroll-edge material morph (Canvas Browser, 4.5E first slice)
+
+Contract §12/§25: a settled Minor crossing a list edge shrinks its visible material from the
+clipped side, keeps its radius, and its rim, shadow and rounded content mask follow the visible
+silhouette; content is clipped, never scaled. Held items keep full geometry (§13).
+
+Implementation (Canvas Browser only; Extensions/Settings shells do not morph yet, so their glass
+keeps flat viewport intersection):
+
+- `NativeGlassShape.morph` / `SharedSmallGlassShape.morph`: render `clip` as the rounded visible
+  slice. Supported by the single-SVG fallback, legacy clip-rect writer and layered mask. The layered
+  mask builds clipped slices from cached corner caps + solid middle (fully visible shapes keep one
+  cached image), so per-frame height changes reuse images. Mixed flat/morph clips fall back.
+- Card shell CSS: height = visible slice, translated by the clip offset; content counter-offset so
+  it keeps its logical position under the rounded content mask. Runtime supplies the visible height
+  as material size, so only edge cards redraw their rim (cached per size).
+- Removed the per-host `clip-path` effects clip (and the open-edge logic added earlier today): the
+  shell no longer extends past the viewport, so shadows follow the shell and are never guillotined.
+- Updated the runtime test that encoded the old "never shorten material" behavior; CSS comment in
+  GlassListFrame.css updated to match the contract.
+
+Live (Dev 1000×560, list mid-scroll): top card 23 px/50 px slices with rim canvas at the same height
+and two-cap glass (thinner than 2r), bottom card 61 px slice, content titles at logical positions
+under rounded masks. Pickup of a 33 px edge card restores 84 px shell, rim and drag-plane glass;
+cancel restores. Console clean.
+
+Scroll A/B (same workload: alternating ±12 px wheel per rAF, 1.8 s, three sequential runs after a
+clean start; synthetic, rAF intervals, 360 Hz display): morph OFF 224 / 84 / 77 fps (p95 11.1–16.6 ms);
+morph ON 225 / 215 / 178 fps (p95 5.6–8.3 ms). No regression; rim drawing accounts for ~10% of the ON
+cost (canvas stubbed: 239 vs 217 fps). ~2.7 rim clears/frame during continuous edge morphing.
+Instant 33→84 px jump at pickup remains; liquid pickup/drop morph (§14) is a later slice.
+
+## 2026-09-29 — Scroll-edge morph for Extensions panel and Shift+E Quick Extensions
+
+User direction: skip the Settings list for now (Settings will be redesigned later); apply the morph to
+the Extensions panel and Quick Extensions menu. Panel animations (Fade/Material Fade/Slide/…) remain
+planned in 4.5E after the list/held-item items.
+
+These lists use native scrolling with cards in normal flow, so the card box cannot shrink.
+`useSharedSmallGlassList({ morph: true })` now projects per-card slices on each scroll (no layout
+reads), writes `--taskmap-glass-list-slice-{top,right,bottom,left}` + `data-glass-list-slice` only when
+a card's slice changes, supplies the sliced size as material size (edge-card rim redraw only), and
+marks glass shapes `morph`. `GlassListFrame.css` insets the body and rim layers to the slice, moves
+the shell shadow onto the body layer, and rounds the content mask at the slice edges via `clip-path`.
+Card box, content layout and hit testing are unchanged. Settings does not opt in. Slice math lives in
+`glassListScrollGeometry.ts` (`projectGlassListSlices`, `glassListSliceInsets`, `glassListSlicedSize`).
+
+Live (Dev 1000×560): Extensions panel scrolled 95 px — top card body/rim 54 px starting at the
+viewport edge, bottom card 3 px strip, mask all per-card layers (no flat intersect). Quick Extensions
+(Shift+E) scrolled 60 px — top and bottom cards 32 px rounded slices, rim at 32 px. Native scroll
+sweep of the quick list (±35 px sinusoid, 2 s): 360 fps, p99 2.9 ms, ~0.7 rim clears/frame. Settings has
+no sliced cards. Console errors seen during the session came only from synthetic KeyboardEvents
+dispatched on `document` (App keydown handlers call `target.closest`); real key events target elements.
+
+Follow-up (user screenshot): Quick Extensions had a 24 px gap below the last card (content padding 12 +
+menu padding 12) and its shadow was cut because the scroll clip ended at the card edge. Fix: the
+scroll frame and scrollable list extend into the menu's bottom padding (`margin-bottom: -space-3`) and
+the list owns a `space-3` bottom gutter inside its clip. The Extensions panel list had the same cut
+shadow (12 px gap but 0 px shadow room) and got the same gutter pattern with `--taskmap-panel-padding`.
+`readGlassListLayout` now clips to viewport content boxes, so padding is an effects gutter and edge
+cards morph at the inner edge (matching Canvas Browser). Live: Quick Extensions at end — gap 12,
+clip reaches the menu edge; mid-scroll edge card body ends at the inner edge (540) with a 12 px
+gutter. Extensions panel — gap 12 and 12 px shadow room both scrolled (small window) and unscrolled
+(large window); no horizontal slicing; side-panel height unchanged.
+
+Quick Extensions follow-up (user request): new reusable `ScrollIndicator` primitive
+(`src/ui/primitives/ScrollIndicator.tsx`) — 3 px decorative track/thumb for lists with hidden native
+scrollbars; transform-only thumb updates on scroll, sizes re-read on target/track resize or content
+mutation, hidden when not scrollable, briefly brighter while scrolling. Quick Extensions places it in
+the right gutter of the scrollable "not favorited" list, and that list is capped at exactly four cards
+(+ gaps + shadow gutter), so with three favorites seven cards fit and the rest scroll without a
+partially cut card. Live: 3 favorited + 4 fully visible non-favorited, list 202 px, 12 px bottom gap,
+indicator 3×190 px at 5 px from the cards / 4 px from the menu edge, thumb 128 px travelling to the end
+on scroll; max scroll equals exactly two cards.
+
+Second follow-up (user screenshot): on first open a card wholly below the visible area kept a stale
+full slice and showed as a sliver in the bottom shadow gutter. Slice writes now mark fully hidden
+cards `data-glass-list-slice="hidden"` (`visibility: hidden`), restored when they scroll back in.
+Both Quick Extensions card lists give up an 8 px lane on the right (sections stay aligned), and the
+indicator is centred in the 20 px lane: 8.5 px to the cards and 8.5 px to the menu edge. Live: hidden
+state follows scroll both ways (open / mid / end / back to top). Full `npm run check`: 255 files /
+1,730 tests, all gates; `git diff --check` clean.
+
+Extension card hover highlight (panel and Quick Extensions share `ExtensionBrowserCard`): the
+existing fade was 120 ms on the front-loaded standard curve and read as instant. Now fades in over
+`--taskmap-motion-normal` (180 ms) and out over `--taskmap-motion-slow` (280 ms) with `ease`; both
+tokens collapse under reduced motion. Computed transition verified live; synthetic MCP hover cannot
+trigger real `:hover`, so the visible fade needs user confirmation. User confirmed it is fine.
+
+## 2026-09-29 — Held-item exemption verified; liquid pickup/drop (4.5E, Canvas Browser)
+
+§13 held-item exemption needed no code: holding a card at the list's bottom edge (Dev 1000×560) kept
+its shell, rim and drag-plane mask at the full 84 px while it extended past the viewport (570 vs 532)
+and the list auto-scrolled; settled cards kept morphing (top strip 61 → 27 px).
+
+§14 liquid pickup/drop:
+
+- Bug found first: pickup read the card rectangle from the morphed shell, so a top-cut card's content
+  jumped down by its clip offset (measured 2 px for a 1.8 px offset; larger for deeper cuts). Pickup
+  now uses the logical rectangle (shell top minus clip offset) in both `beginDrag` and activation.
+- Pickup: the held card starts at its settled slice and expands to full over `CANVAS_CARD_PICKUP_MS`
+  (150 ms, easeOutQuart). Drag-plane glass follows the slice (`morph` shape, caps then full image).
+- Drop: during the existing 190 ms snap the slice interpolates toward the destination's settled slice
+  (same `canvasBrowserCardSlice` formula as the settled sync), so the handoff back to the batch is
+  exact. Motion lives in `canvasBrowserLiquidSlice.ts`; slice geometry in `canvasBrowserDom.ts`;
+  runtime back under 400 lines (395).
+- Live: top-cut card (offset 27, visible 57) — title moved exactly with the 8 px pointer delta; slice
+  57 → 77 → 82 → 84 px by ~128 ms with drag mask following. Synthetic drops always landed on fully
+  visible slots (auto-scroll/reorder), so the destination morph is proven by the runtime test instead
+  (mid-snap strictly between held 84 px and settled slice; exact settled end). Neighbour "move
+  outward" from §14 is optional and not implemented. `npm run check` 255 files / 1,730 tests.
+- User: "looks good".
+
+## 2026-09-29 — Composable presence motion in production (4.5E, first slice)
+
+Survey: UI Lab had the only channel-based presence controller (Fade/Lift/Slide, material presence
+via `--taskmap-material-presence-progress`). Real panels used one-offs: side-panel slide hook, minimap
+opacity hook, Quick Extensions CSS keyframes. The shared Major plane followed only translate X and
+opacity.
+
+Change:
+
+- `src/ui/motion/presenceMotion.ts`: production controller with independent channels per contract
+  §16/§17 — content `fade` (content targets), `materialFade` (presence variable; never ancestor
+  opacity), `slide {x,y}`, `lift`, `scale` — separate enter/exit timing, `setChannels` without
+  recreating the owner, endpoint inert/aria handling. Every write supplies a material presentation.
+- `MaterialPresentation` gains `translateY` and `scale`; `WorkspaceMajorGlass` inverts the full
+  presentation when measuring and projects it (scale around the centre, radius scaled).
+- `motionMath.cubicBezier` + `presencePresets.ts` (JS versions of the theme easings, named channel
+  presets, retained menu timing). `usePresenceMotion` hook + dev-only `PresencePresetOverrides`
+  context (production has no provider).
+- UI Lab `presenceController` is now an adapter over the production controller (Lab tests unchanged).
+- Quick Extensions: keyframes and close timer removed; the controller owns enter/exit and closes on
+  the hidden endpoint. Default preset "Material fade + Lift" with 220 ms emphasized / 160 ms standard.
+- DEV strip: "Quick Extensions motion" selector previews presets on the real menu; workbench select
+  styling added.
+
+Live: default enter sampled per frame — lift 10 → 0 px and presence 0 → 1 over ~220 ms on the
+emphasized curve; exit presence 1 → 0 / lift 0 → 10 over ~157 ms, then unmount; search focus kept.
+Switching the DEV preset to "Material fade + Lift + Scale" applied `scale(0.97)` on the next open.
+Console clean. `npm run check` 256 files / 1,734 tests, architecture 602 files, production exclusion.
+
+User choice: "Material fade + Scale" as the Quick Extensions default, but the fade read as a pop. The
+220 ms emphasized curve reached ~78% presence after 56 ms, and blur only appears above 30% presence.
+Menu timing is now 320 ms enter / 220 ms exit on CSS `ease` (`EASE_GENTLE`). Live: presence 0.45 at
+92 ms, 0.74 at 148 ms, 0.90 at 203 ms, settled ~320 ms, scaling up from 0.96; exit ~220 ms.
+
+Follow-up: user found 320/220 ms too slow and reported misplaced card glass. Timing is now the
+original curves 20% slower (264 ms emphasized enter / 192 ms standard exit). The glass bug: list
+layout snapshots were measured during the 0.96 scale-in, so screen-space rectangles were 4% off in
+local coordinates and stayed stale. `readGlassListLayout` now divides by the owner's measured scale
+(rect width / layout width). Live after settling: Quick Extensions card local positions and mask
+positions match exactly (12/24.5, 12/73.5, 12/122.5). Regression test added. Full `npm run check`
+NOT rerun after this last fix (usage limit); focused workspace/motion tests pass.
+
+## 2026-09-30 — Side panel on the composable presence controller
+
+Full `npm run check` after the previous session's scale/timing fixes: 256 files / 1,735 tests, all gates.
+
+`useWorkspaceSidePanelMotion` keeps its API but now runs on `createPresenceMotion`. Default
+"Off-screen slide" is the retained behaviour: slide x = −(layout width + inline inset + 32 px), 240 ms,
+ease-in cubic opening / ease-out cubic closing, backdrop refresh when visible. Every preset keeps
+240 ms because App's unmount timers use `WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS`. Layout width
+(`offsetWidth`) is used so scale presets cannot distort the off-screen distance.
+
+Material-fade presets fade glass through the inherited presence variable and the shared plane's
+per-shape opacity; ordinary content fades only on glass-free wrappers (panel headers, Extensions
+controls/section headings, card content masks) via `WorkspaceSidePanel.css` — never ancestor opacity
+over glass (§17). New generic preset "Material fade + Slide from left" (−24 px). Override typing now
+allows surface-specific names (`SurfacePresenceName`, `offscreenSlide`); `presetChannels` resolves
+generic presets with a surface fallback. DEV strip gains "Side panel motion".
+
+Tests: the old slide-only assertions (`data-panel-motion`, `willChange`, exact transform string) were
+rewritten against the controller (phase attribute, same off-screen/interrupt/reduced-motion
+behaviour); the architecture contract now requires `createPresenceMotion` and still forbids panel
+opacity/filter writes.
+
+Live: default opening −330 px at 60 ms → −126 px at 200 ms → rest; closing slides out with the glass
+shape following, then unmounts. "Material fade + Slide from left": presence, header opacity and plane
+glass opacity all 0.06 at 90 ms and 0.37 at 160 ms, glass x following the short slide, clean settle.
+Console clean. `npm run check` 256 files / 1,735 tests, all gates.
+
+User feedback: the side panel only slid; it must fade from zero opacity/blur while sliding in, with an
+ease-in-out curve, and be fully fluid.
+
+- New surface motion `fadeOffscreenSlide` (material fade + full off-screen slide) is the side-panel
+  default; ease-in-out cubic both ways; `WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS` 240 → 300 ms (App's
+  unmount timers read the constant). DEV option "Material fade + Off-screen slide".
+- Profiling (Dev, 1329×865, 360 Hz, rAF intervals over 3 open/close cycles): fade+slide 219–277 fps,
+  p50 5.5 ms. Freezing `--taskmap-plane-mask` writes → 324/346 fps, p50 2.8 ms; freezing Minor blur
+  radius → no gain. Cause: the shared Major plane re-encoded a full-window SVG mask every frame.
+- Fix: layered mask builder moved to `materials/layeredOutputMask.ts` and used by both the Minor
+  planes and the shared Major plane. Per-shape opacity is baked into cached images quantised to 1/64
+  (translucent caps drop the 1px seam overlap); slides only change `mask-position`. Shared writer
+  skips unchanged properties. `NativeGlassPlane.css` reads position/size/composite variables.
+- After: open 301–322 fps, close 277–340 fps, p50 2.8 ms, p95 ≤5.6 ms; remaining 11–17 ms maxima are
+  panel content mount/unmount frames (also present for the plain slide). Mid-open samples: glass
+  position tracks the slide exactly, quantised opacity tracks presence (0.05 → 0.28 → 0.70 → 0.98 →
+  1). At rest the panel, toolbar and window-control glass render correctly; console clean.
+- Tests updated for the new default (presence starts at 0, 300 ms, ease-in-out) and the layered Major
+  mask format. `npm run check` 256 files / 1,735 tests, all gates.
+
+User direction: Quick Extensions gets the Canvas Browser shadow and "Material fade + Slide up";
+the side panel adds a scale.
+
+- Quick Extensions: dropped `elevation="none"`; computed shadow now identical to the side panel
+  (`0 3.5px 12.5px /0.29, 0 4.5px 16.5px -1px /0.21`). Default preset `materialFadeSlideUp` (16 px),
+  264/192 ms timing unchanged; live: translateY 16 → 0 with presence 0 → 1.
+- Side panel: new default surface motion `fadeScaleOffscreenSlide` (material fade + off-screen slide
+  - scale 0.94 around the centre). Shared-plane glass tracked the scaled panel exactly (rect and mask
+    both −307/84, 271×410 mid-open). Frame times: open 253–276 fps / close 260–276 fps, p50 2.8 ms,
+    p95 5.6 ms (vs 301–340 fps without scale). Hiding the Minor blur did not change it; the extra cost
+    is re-rasterising scaled content. `will-change: transform` while animating was measured slightly
+    worse (218–230 fps open) and reverted. Tests updated for the scale suffix.
+- `npm run check` 256 files / 1,735 tests, all gates.
+
+Quick Extensions outside-click close had no exit animation: `App.handleMainPointerDownCapture`
+cleared the menu state in the capture phase, unmounting it before the menu's own listener ran. The
+menu is now the sole owner of outside-click closing (capture-phase document listener, left button),
+and App only unmounts via `onClose` after the exit animation. A new Shift+E request at a different
+position during the exit reopens the menu. Live: clicking the canvas → presence 0.89 → 0.33 → 0.05
+while sliding 0 → 16 px, unmount at ~190 ms.
+
+## 2026-09-30 — Minimap presence migration (4.5E)
+
+- `useMinimapVisibilityMotion` now runs on the shared presence controller (`usePresenceMotion`),
+  default preset Material fade, 500 ms smoothstep both ways (retained duration; App's unmount timer
+  unchanged). The old hook wrote `style.opacity` on the whole glass surface (ancestor opacity,
+  contract section 17); now glass follows `--taskmap-material-presence-progress` and only the
+  glass-free header and Cutout interior take opacity from it.
+- `@property --taskmap-material-presence-progress` moved from `QuickExtensionsMenu.css` to
+  `MaterialSurface.css` so every presence surface gets the registered, inherited number.
+- DEV workbench: new "Minimap motion" select (generic presets).
+- Live (TEST123, Dev): wheel on canvas → presence 0→1 over ~490 ms, visible hold, hiding at
+  ~2.2 s, hidden at ~2.7 s then unmount; surface computed opacity stayed 1 throughout;
+  ~357 rAF samples/s during the run. Visual check: glass + content render normally at rest.
+- `npm run check`: 256 files / 1,735 tests, architecture 603 files; `git diff --check` clean.
+
+## 2026-09-30 — Minimap enter timing; dialog presence migration (4.5E)
+
+- Minimap: fade-in now 50% of the fade-out (250 ms vs 500 ms, user direction). Live: showing
+  ~242 ms, hiding ~483 ms.
+- `ModalPresence` rewritten on `createPresenceMotion`. Before, the group wrote `style.opacity`,
+  which put ancestor opacity over the dialog blur during every open/close (contract section 17).
+  Now the group only carries the transform; glass follows `--taskmap-material-presence-progress`;
+  the scrim takes its own opacity from `onProgress`.
+- Retained timing kept (180 ms ease-out enter, 120 ms smoothstep exit). Movement is now the
+  symmetric preset `materialFadeSettle` (y 6 px, scale 0.98); the old exit target (4 px / 0.985)
+  is gone. DEV "Dialog motion" select previews other presets.
+- Glass-free content: `markMaterialPresenceContent` (materialPresence.ts) marks the largest
+  glass-free subtrees; CSS fades them with the variable. A MutationObserver re-marks only while
+  animating (lazy Settings content). A CSS `:has()` version was tried first and rejected: jsdom's
+  selector engine made RetainedCanvasApplication's canvas test 906 ms → 6.2 s (timeout).
+- Nested dialogs: root and nested write `--taskmap-modal-root-presence` /
+  `--taskmap-modal-nested-presence`; `ModalLayer.css` composes them for the nested group, so a
+  closing root still fades nested glass frame-exactly.
+- `@property` for the presence variable now lives in `MaterialSurface.css`.
+- Live (TEST123): Settings enter 0→1 by ~170 ms, exit ~110 ms then unmount; group and shell
+  computed opacity stay 1; the header follows the variable; 18 content subtrees marked.
+- Found, not fixed: first Settings open animates an empty shell because the lazy Settings content
+  mounts ~300 ms after the click (also before this change). Colour swatches in "Default element
+  colours" are 2 px wide, because the swatch is an inline span inside the block
+  `.taskmap-button__label`; that comes from committed code.
+- `npm run check`: 256 files / 1,736 tests, architecture 603 files; `git diff --check` clean.
+
+## 2026-09-30 — Tunable material-fade blur timing (4.5E)
+
+- `nativeGlassRecipe.css`: blur presence is now
+  `pow(clamp(0, (p - delay) / (1 - delay), 1), curve)`, with
+  `--taskmap-material-blur-presence-delay` (default 0.3, same as before) and
+  `--taskmap-material-blur-presence-curve` (default 1). Tint, saturation, rim, shadow and content
+  keep the linear presence.
+- DEV `BlurPresenceTuning` (workbench): "Blur delay" 0–0.8 and "Blur curve" 0.4–3 sliders write
+  the variables on the document root; production ships the defaults.
+- Scope: this covers recipe-rendered glass (dialogs, other local native glass). Shared-plane Majors
+  (side panel, minimap) fade their mask output as a unit, because one plane filter serves every
+  shape. That is the accepted side-panel look, unchanged.
+- WebView2 154 supports CSS `pow()`. Live readings at presence 0.65: delay 0.3 / curve 1 → 30 px of
+  60 px; curve 2 → 15 px; delay 0 → 39 px.
+- `npm run check`: 256 files / 1,736 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — 4.5F dialog shell + Create Canvas on Major Glass
+
+- `ModalDialog.tsx` now also exports `ModalDialogHeader` (icon, title, aligned close
+  IconButton), `ModalDialogBody` and `ModalDialogActions`; `.taskmap-modal-dialog__form` is a
+  grid variant for form bodies. Update, Clear Canvas and Password dialogs use the parts. Clear
+  Canvas gained the standard close action.
+- Create Canvas: the legacy `frosted-popup` popover, with raw inputs/buttons, keyframe classes, a
+  120 ms timeout and an outside-click listener, is replaced by `CanvasCreateDialog`: a root
+  `ModalPresence` + `ModalDialog` (acrylic-large on the modal plane), portaled into a
+  `taskmap-target-theme` wrapper on body because the side panel is transformed during presence.
+  `CanvasDraftFields` is shared with the inline canvas editor. Name is focused and selected; Enter
+  creates; Escape, the close button and Cancel close.
+- `useDialogFocus`: initial focus skips the header close action. The trap now owns the whole Tab
+  order with wrap-around. The previous first/last-only trap let Tab escape once the close button
+  was no longer the last control, because primitives default to tabIndex -1.
+- Removed the unused `data-new-canvas-menu` / `data-new-canvas-trigger` markers.
+- Live (TEST123): dialog opens centred (340 px, native glass, modal plane) with the scrim over the
+  side panel; typing plus Enter created "Dialog test" and the dialog exited via presence.
+- `npm run check`: 256 files / 1,736 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Live Canvas Browser preview on pan/zoom (parity fix)
+
+- User report: in the old app the active canvas card preview followed pan/zoom live. The refactor
+  deliberately excludes camera frames from `canvasManagerCanvases`, but nothing replaced the live
+  preview, so it only updated on document revisions.
+- `src/components/canvasPreviewProjection.ts`: one projection (camera → preview left/top/scale)
+  shared by render and `presentCanvasPreview`. That function writes item geometry from
+  `data-preview-world` / `data-preview-header` attributes. `CanvasManager` takes the interaction
+  `controller` (App passes it), renders the active card from the live snapshot, and subscribes to
+  viewport changes to present only the active card's preview. No React rerender and no document
+  work on camera frames. Skipped in minimal view or when panel work is inactive.
+- Live (TEST123): zoom in/out and pan move and scale the active preview frame by frame (e.g.
+  left 127.2 → 130.6 → 133.9 → 130.6 → 127.2 px); the user confirmed it works.
+- Incident: `npm run format` during Dev made Vite cache `CanvasManager.tsx` as an empty module
+  (Canvas Browser unstyled until `touch` + reload); see the session memory note.
+- `npm run check`: 257 files / 1,738 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — JSON editor on Major Glass (4.5F)
+
+- User direction: the Workflow Runner is deferred. The retained Command Runner dialogs are not
+  restyled, because that feature is removed and its replacement is Phase 7.
+- `ContainerJsonEditorWindow`: a hand-built opaque Tailwind window (`bg-[#141519]`, raw buttons,
+  plain textarea) is now a non-modal Major Glass window: `MaterialSurface` acrylic-large, radius 12,
+  portaled into a `taskmap-target-theme` wrapper on body. The header (icon, title, Reset / Apply
+  JSON primitive Buttons, close IconButton) remains the drag handle. The editor uses the `TextArea`
+  primitive, with monospace, fill and resize: none, and keeps ctrl+wheel font size. Move and resize
+  behaviour is unchanged; the retained layer z-index 1004 sits below modal scrims.
+- Presence: Material fade + Scale with menu timing on open. Close and Escape (focus inside) play the
+  exit before `onClose`. A successful Apply is still closed immediately by App, which owns that
+  unmount. Header and editor follow the presence variable; the glass is never under ancestor
+  opacity.
+- Live (TEST123): opens at 620×480 with native glass; corner resize to 740×552 redrew the rim canvas
+  at the new size; close fades and scales out in ~180 ms, then unmounts.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Settings header on the shared dialog header; colour swatch fix
+
+- `ModalDialogHeader` gained `closeLabel`. The Settings header uses it ("Close settings"); the local
+  header/title/close CSS is gone, including the close IconButton's local size override, which the
+  guardrails forbid (section 6).
+- The Default element colours swatches were 2 px wide: the Button primitive wraps children in
+  `.taskmap-button__label`, so the swatch span was inline. Fixed with a flex row on that label
+  inside `.taskmap-settings-color-trigger`, the same pattern the side-panel and toolbar icon
+  toggles use.
+- Live: the Settings header matches the other dialogs (close 28 px, initial focus on the Visual
+  tab); the swatches render as 20 px squares.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Scrollbar standardization (4.5F)
+
+- Policy (UI guardrails section 4): glass panels hide the native bar (`taskmap-scrollbar-hidden`,
+  optionally with `ScrollIndicator`). Editors, menus, select panels and inner content use
+  `taskmap-scrollbar-thin`: standard `scrollbar-width: thin` with a translucent
+  `--taskmap-scrollbar-thumb` on a transparent track. Both live in `ui/primitives/layout.css`.
+  `ScrollArea` takes `scrollbar="hidden" | "thin"`, replacing `hiddenScrollbar`.
+- The theme root sets `color-scheme: dark`, so any remaining unstyled scrollbar or native control
+  renders dark instead of light OS chrome.
+- Applied to the JSON editor, context menu, Select panel, markdown code/table scrollers and the
+  Command Runner list. Text blocks, Quick Extensions, Extensions and Settings use the hidden class.
+  Removed legacy `settings-tab-scroll` (unused), `json-editor-scrollbar`, `hidden-scrollbar`,
+  `quick-extensions-scroll` and the duplicated webkit rules.
+- Live: the JSON editor bar is thin with translucent colours; Settings, Extensions and Quick
+  Extensions lists compute `scrollbar-width: none`; `color-scheme` resolves to dark.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Button audit + icon hit targets (4.5F)
+
+- Primitive: `.taskmap-button[data-selected="true"]` shares the toggle-pressed selected look, for
+  menu/filter buttons whose active state is not a press (`aria-pressed` would be wrong there).
+- Extensions browser: the filter IconButton lost its duplicated size/radius and its local accent
+  state and now uses `data-selected`. The info action went from a raw `<button>` with a local hover
+  override to a ghost compact IconButton. The favourite went from a 24 px IconButton with a local
+  rim and background to a ghost compact IconButton with `aria-pressed`; only the gold favourited
+  colour stays local, as content semantics.
+- Canvas Browser card overflow: the raw ~6×17 px dots button with local hover and focus overrides is
+  now a ghost compact IconButton (28×28, `IconDotsVertical`), positioned only. The copy area's
+  existing 27 px padding keeps titles clear of it.
+- Live: overflow buttons are 28 px, 4 px from the card edge; a real click opens Edit/Delete.
+  Extensions actions compute transparent ghost buttons. A faint square behind the star persisted
+  with the button hidden, so it is card glass, not the button.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Ghost buttons lose their faint rim
+
+- User report: faint outlines/rims on many buttons (e.g. canvas card "⋮", Create canvas "+"). Cause:
+  `.taskmap-button` carries `box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035)`, and
+  `.taskmap-button--ghost` cleared the border and background but not that inset highlight. Fixed in
+  the primitive (`box-shadow: none` on ghost). Pressed toggles and `data-selected` keep their
+  selection ring.
+- Live: 36 ghost buttons on screen now compute `box-shadow: none`. A scan of all visible buttons
+  found borders or inset highlights only on the DEV workbench's own buttons.
+- `npm run check`: 257 files / 1,739 tests; `git diff --check` clean.
+
+## 2026-09-30 — Held canvas card leaves the panel; smaller card actions
+
+- User direction: a dragged canvas card should not be clipped by the panel. The clip came from the
+  side-panel view switcher (`overflow: hidden` for its view transitions), not the Canvas Browser,
+  whose settled cards already clip to their own slices. The switcher declares
+  `data-held-item-clip`. `releaseHeldItemClip` (canvasBrowserDom.ts) marks it `released` when a drag
+  activates and clears it on drop, cancel and immediate finish; CSS then lets the switcher and its
+  active view overflow. There is no reparenting and no drag layer, so the earlier decision stands
+  and the material subtree never moves (glass contract section 13).
+- Canvas card "⋮": width is 80% of the compact control (22.4 px), by user direction.
+- Extension cards: the info and favourite actions sit top-right (4 px inset) at 90% of the compact
+  control (25.2 px), with the icon token at 14.4 px. Only the title reserves space for them, so
+  descriptions use the full width.
+- Live: a held card dragged to ~60 px from the window bottom renders fully below the panel with its
+  glass, rim and shadow; the switcher is `overflow: visible` only while held and `hidden` after the
+  drop. The "⋮" measures 22.4 px; the extension actions 25.2 px at (209.6 / 234.8, 4) in a 264 px
+  card.
+- New runtime test covers the release and restore; `npm run check`: 257 files / 1,740 tests,
+  architecture 604 files; `git diff --check` clean.

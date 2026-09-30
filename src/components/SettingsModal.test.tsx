@@ -31,7 +31,27 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(document.querySelectorAll(".taskmap-settings-island")).toHaveLength(4);
 
     expect(document.querySelectorAll("[data-material='acrylic-large']")).toHaveLength(1);
-    expect(document.querySelectorAll("[data-material='acrylic-small']")).toHaveLength(7);
+    expect(
+      document.querySelectorAll(".taskmap-material-surface[data-material='acrylic-small']"),
+    ).toHaveLength(7);
+    // Islands share one settled Minor batch; knobs on islands are shells; the tab indicator sits
+    // directly on the shell (first Minor depth) and keeps its own blur.
+    expect(document.querySelectorAll("[data-glass-batch-id='settings-small']")).toHaveLength(1);
+    expect(
+      [...document.querySelectorAll(".taskmap-settings-island")].map((island) =>
+        island.getAttribute("data-material-backdrop-source"),
+      ),
+    ).toEqual(["shared", "shared", "shared", "shared"]);
+    const knobs = [...document.querySelectorAll(".taskmap-liquid-toggle__knob")];
+    expect(knobs.length).toBeGreaterThan(0);
+    knobs.forEach((knob) => {
+      expect(knob).toHaveAttribute("data-material-backdrop-source", "shell");
+      expect(knob.querySelector(".taskmap-native-glass-backdrop")).toBeNull();
+    });
+    expect(document.querySelector(".taskmap-liquid-indicator")).toHaveAttribute(
+      "data-material-backdrop-source",
+      "self",
+    );
     expect(
       [...document.querySelectorAll("[data-material-strategy='native-glass']")].every(
         (surface) => surface.getAttribute("data-material-plane") === "modal",
@@ -220,15 +240,27 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     act(() => driver.fire());
-    expect(Number(group.style.opacity)).toBeGreaterThan(0);
-    expect(Number(group.style.opacity)).toBeLessThan(1);
-    expect(screen.getByTestId("unrelated")).not.toHaveStyle({ opacity: group.style.opacity });
+    expect(
+      Number(group.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeGreaterThan(0);
+    expect(
+      Number(group.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeLessThan(1);
+    expect(group.style.opacity).toBe("");
+    expect(
+      screen
+        .getByTestId("unrelated")
+        .style.getPropertyValue("--taskmap-material-presence-progress"),
+    ).toBe("");
     act(() => driver.flush());
-    expect(group.style.opacity).toBe("1");
+    expect(group.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
 
     rerender(view(false));
     act(() => driver.fire());
-    expect(Number(group.style.opacity)).toBeLessThan(1);
+    expect(
+      Number(group.style.getPropertyValue("--taskmap-material-presence-progress")),
+    ).toBeLessThan(1);
+    expect(group.style.opacity).toBe("");
     act(() => driver.flush());
     expect(screen.queryByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
     expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");

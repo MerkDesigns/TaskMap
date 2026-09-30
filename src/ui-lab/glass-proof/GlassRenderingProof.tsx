@@ -14,11 +14,14 @@ import "./glassRenderingProof.css";
 export function GlassRenderingProof() {
   const [candidate, setCandidate] = useState(false);
   const [separated, setSeparated] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [majorA, setMajorA] = useState(true);
   const [ink, setInk] = useState(false);
   const [lowerInk, setLowerInk] = useState(false);
   const [overlay, setOverlay] = useState(false);
   const [promoted, setPromoted] = useState(false);
+  const [promotionInPlace, setPromotionInPlace] = useState(false);
+  const [thirdMajor, setThirdMajor] = useState(false);
   const [moving, setMoving] = useState(false);
   const [animated, setAnimated] = useState(false);
   const plane = useRef<HTMLDivElement>(null);
@@ -32,11 +35,14 @@ export function GlassRenderingProof() {
   }, [promoted, candidate]);
   const reset = () => {
     setSeparated(false);
+    setExpanded(false);
     setMajorA(true);
     setInk(false);
     setLowerInk(false);
     setOverlay(false);
     setPromoted(false);
+    setPromotionInPlace(false);
+    setThirdMajor(false);
     setMoving(false);
     setAnimated(false);
     backdrop.setPosition(0);
@@ -66,9 +72,12 @@ export function GlassRenderingProof() {
             ["Lower card ink", lowerInk, setLowerInk],
             ["Higher overlay", overlay, setOverlay],
             ["Promote Minor", promoted, setPromoted],
+            ["Promote in place", promotionInPlace, setPromotionInPlace],
             ["Move red", moving, setMoving],
             ["Animate media", animated, setAnimated],
             ["Separate Majors", separated, setSeparated],
+            ["Expand Major B", expanded, setExpanded],
+            ["Third Major", thirdMajor, setThirdMajor],
           ] as const
         ).map(([label, checked, update]) => (
           <label key={label}>
@@ -115,7 +124,19 @@ export function GlassRenderingProof() {
             </span>
           </div>
           {candidate ? (
-            <StableProofSurfaces {...{ majorA, ink, lowerInk, overlay, promoted, separated }} />
+            <StableProofSurfaces
+              {...{
+                majorA,
+                ink,
+                lowerInk,
+                overlay,
+                promoted,
+                separated,
+                expanded,
+                promotionInPlace,
+                thirdMajor,
+              }}
+            />
           ) : (
             <>
               <MaterialSurface
@@ -150,6 +171,7 @@ export function GlassRenderingProof() {
                   className="taskmap-glass-proof__minor taskmap-glass-proof__minor-upper"
                   data-proof-surface="minor-upper"
                   data-proof-promoted={promoted}
+                  style={promotionInPlace ? { left: 290, top: 130 } : undefined}
                 >
                   <strong>{promoted ? "Promoted Minor" : "Settled Minor"}</strong>
                   <p>Same recipe and radius</p>
@@ -161,11 +183,33 @@ export function GlassRenderingProof() {
                 className="taskmap-glass-proof__major-b"
                 data-proof-surface="major-b"
                 data-proof-layer="1"
-                style={separated ? { left: 660 } : undefined}
+                style={{
+                  left: separated ? 660 : 380,
+                  ...(expanded && { width: 390, height: 240 }),
+                }}
               >
                 <h2>Persistent Major B · L1</h2>
                 <p>A ink must not affect this glass.</p>
               </MaterialSurface>
+              {thirdMajor && (
+                <MaterialSurface
+                  material="acrylic-large"
+                  radius={20}
+                  data-proof-surface="major-c"
+                  style={{
+                    position: "absolute",
+                    left: 480,
+                    top: 155,
+                    width: 260,
+                    height: 145,
+                    padding: 16,
+                    zIndex: 12,
+                  }}
+                >
+                  <h2>Persistent Major C · L1</h2>
+                  <p>Overlap must not reveal A or B.</p>
+                </MaterialSurface>
+              )}
               {overlay && (
                 <MaterialSurface
                   material="acrylic-large"

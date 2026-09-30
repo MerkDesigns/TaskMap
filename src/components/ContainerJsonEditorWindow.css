@@ -1,0 +1,76 @@
+/* Floating, movable Major Glass window for container JSON (non-modal). */
+.taskmap-material-surface.taskmap-json-editor {
+  position: fixed;
+  /* Retained layer: above workspace chrome and menus, below modal scrims. */
+  z-index: 1004;
+  display: flex;
+  flex-direction: column;
+  color: var(--taskmap-text);
+}
+
+/* Glass-free content follows the material presence (glass contract section 17). */
+.taskmap-json-editor__header,
+.taskmap-json-editor__text {
+  position: relative;
+  z-index: 2;
+  opacity: var(--taskmap-material-presence-progress, 1);
+}
+
+.taskmap-json-editor__header {
+  display: flex;
+  min-height: 48px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-2);
+  padding: 0 var(--taskmap-space-2) 0 var(--taskmap-space-4);
+  cursor: grab;
+}
+
+.taskmap-json-editor__header:active {
+  cursor: grabbing;
+}
+
+.taskmap-json-editor__identity,
+.taskmap-json-editor__actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-json-editor__actions {
+  flex: none;
+  gap: var(--taskmap-space-1);
+  cursor: default;
+}
+
+.taskmap-json-editor__icon {
+  flex: none;
+  color: var(--taskmap-muted);
+}
+
+.taskmap-json-editor__title {
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Editor fills the window on the shared input surface; resizing belongs to the window. */
+.taskmap-json-editor__text {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  margin: 0 var(--taskmap-space-3) var(--taskmap-space-3);
+  width: auto;
+  resize: none;
+  padding: var(--taskmap-space-3);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+.taskmap-json-editor[data-presence-phase="hiding"] {
+  pointer-events: none;
+}

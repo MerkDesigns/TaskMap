@@ -1,5 +1,6 @@
 export const CANVAS_CARD_DRAG_THRESHOLD = 6;
 export const CANVAS_CARD_SLOT_TRANSITION_MS = 190;
+export const CANVAS_CARD_PICKUP_MS = 150;
 export const CANVAS_CARD_AUTO_SCROLL = Object.freeze({
   startInset: 52,
   outsideExtensionRatio: 0.2,

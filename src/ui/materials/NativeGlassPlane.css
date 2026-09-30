@@ -1,0 +1,18 @@
+.taskmap-native-glass-plane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Fixed scene bounds; only each filter's output is masked. No masked ancestor. */
+.taskmap-native-glass-plane > :is(.taskmap-native-glass-preblur, .taskmap-native-glass-backdrop) {
+  inset: 0;
+  transform: none;
+  backface-visibility: visible;
+  mask-image: var(--taskmap-plane-mask);
+  mask-position: var(--taskmap-plane-mask-position, 0 0);
+  mask-size: var(--taskmap-plane-mask-size, 100% 100%);
+  mask-composite: var(--taskmap-plane-mask-composite, add);
+  mask-repeat: no-repeat;
+}

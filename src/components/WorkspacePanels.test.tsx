@@ -41,7 +41,9 @@ describe("C2C workspace panels", () => {
     }
     expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(16);
     expect(registry.getSnapshot().surfaces).toEqual([]);
-    expect(document.querySelectorAll(".taskmap-scroll-area--hidden-scrollbar")).toHaveLength(1);
+    expect(document.querySelectorAll(".taskmap-scroll-area.taskmap-scrollbar-hidden")).toHaveLength(
+      1,
+    );
     expect(document.querySelectorAll("[data-canvas-browser-viewport]")).toHaveLength(1);
     registry.dispose();
   });

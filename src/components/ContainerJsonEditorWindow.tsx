@@ -1,6 +1,20 @@
 import { IconBraces, IconCheck, IconRefresh, IconX } from "@tabler/icons-react";
-import { PointerEvent, WheelEvent, useRef, useState } from "react";
+import {
+  PointerEvent,
+  WheelEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
+import { MENU_PRESENCE_TIMING, PRESENCE_PRESETS } from "../ui/motion/presencePresets";
+import { usePresenceMotion } from "../ui/motion/usePresenceMotion";
+import { Button, IconButton } from "../ui/primitives/Button";
+import { TextArea } from "../ui/primitives/FormControls";
+import "./ContainerJsonEditorWindow.css";
 
 type ContainerJsonEditorWindowProps = {
   containerName: string;
@@ -56,6 +70,34 @@ export function ContainerJsonEditorWindow({
   const [bounds, setBounds] = useState(getInitialBounds);
   const [fontSize, setFontSize] = useState(12);
   const pointerActionRef = useRef<PointerAction | null>(null);
+  const windowRef = useRef<HTMLElement | null>(null);
+  const closingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const presence = usePresenceMotion(windowRef, {
+    channels: PRESENCE_PRESETS.materialFadeScale,
+    enter: MENU_PRESENCE_TIMING.enter,
+    exit: MENU_PRESENCE_TIMING.exit,
+    initialProgress: 0,
+    onComplete: (endpoint) => {
+      if (endpoint === "hidden" && closingRef.current) onCloseRef.current();
+    },
+  });
+  useLayoutEffect(() => presence.show(), [presence]);
+  // Close and Escape play the exit; a successful Apply is closed by its owner.
+  const requestClose = useCallback(() => {
+    closingRef.current = true;
+    presence.hide();
+  }, [presence]);
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !windowRef.current?.contains(document.activeElement)) return;
+      event.preventDefault();
+      requestClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [requestClose]);
 
   const startPointerAction = (
     event: PointerEvent<HTMLElement>,
@@ -158,99 +200,105 @@ export function ContainerJsonEditorWindow({
   };
 
   return createPortal(
-    <section
-      role="dialog"
-      aria-modal="false"
-      aria-label={`Edit JSON for ${containerName}`}
-      className="fixed z-[1004] flex flex-col overflow-hidden rounded-xl border border-white/[0.15] bg-[#141519] text-white shadow-[0_24px_70px_rgba(0,0,0,0.62)]"
-      style={bounds}
-      onPointerDown={(event) => event.stopPropagation()}
-      onContextMenu={(event) => event.preventDefault()}
-    >
-      <header
-        className="flex h-12 shrink-0 cursor-grab items-center justify-between border-b border-white/[0.10] bg-[#1b1b1e] px-3 active:cursor-grabbing"
-        onPointerDown={(event) => startPointerAction(event, "move")}
-        onPointerMove={movePointerAction}
-        onPointerUp={finishPointerAction}
-        onPointerCancel={finishPointerAction}
+    <div className="taskmap-target-theme">
+      <MaterialSurface
+        ref={windowRef}
+        material="acrylic-large"
+        radius={12}
+        role="dialog"
+        aria-modal="false"
+        aria-label={`Edit JSON for ${containerName}`}
+        className="taskmap-json-editor"
+        style={bounds}
+        onPointerDown={(event) => event.stopPropagation()}
+        onContextMenu={(event) => event.preventDefault()}
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <IconBraces size={19} stroke={2} className="shrink-0 text-white/72" />
-          <span className="truncate text-sm font-semibold text-white/85">
-            Copy/Paste JSON - {containerName}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-white/58 transition-colors hover:bg-white/[0.08] hover:text-white/82"
+        <header
+          className="taskmap-json-editor__header"
+          onPointerDown={(event) => startPointerAction(event, "move")}
+          onPointerMove={movePointerAction}
+          onPointerUp={finishPointerAction}
+          onPointerCancel={finishPointerAction}
+        >
+          <div className="taskmap-json-editor__identity">
+            <IconBraces size={19} stroke={2} className="taskmap-json-editor__icon" />
+            <h2 className="taskmap-json-editor__title">Copy/Paste JSON - {containerName}</h2>
+          </div>
+          <div
+            className="taskmap-json-editor__actions"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => setDraft(initialJson)}
           >
-            <IconRefresh size={16} stroke={2} />
-            <span>Reset</span>
-          </button>
-          <button
-            className="flex h-8 items-center gap-1.5 rounded-md bg-[#318f87] px-2.5 text-sm font-semibold text-white/92 transition-colors hover:bg-[#38a198]"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => onApply(draft)}
-          >
-            <IconCheck size={16} stroke={2} />
-            <span>Apply JSON</span>
-          </button>
-          <button
-            className="grid h-8 w-8 place-items-center rounded-md text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onClose}
-            title="Close JSON editor"
-          >
-            <IconX size={18} stroke={2} />
-          </button>
-        </div>
-      </header>
+            <Button
+              variant="ghost"
+              size="compact"
+              leadingIcon={<IconRefresh size={16} stroke={2} />}
+              onClick={() => setDraft(initialJson)}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              size="compact"
+              leadingIcon={<IconCheck size={16} stroke={2} />}
+              onClick={() => onApply(draft)}
+            >
+              Apply JSON
+            </Button>
+            <IconButton
+              icon={<IconX size={17} stroke={2} />}
+              variant="ghost"
+              size="compact"
+              aria-label="Close JSON editor"
+              title="Close JSON editor"
+              onClick={requestClose}
+            />
+          </div>
+        </header>
 
-      <textarea
-        className="json-editor-scrollbar m-3 min-h-0 flex-1 resize-none rounded-lg border border-white/[0.12] bg-[#0f1014] p-3 font-mono text-white/78 outline-none selection:bg-[#318f87]/45 focus:border-white/25"
-        style={{ fontSize, lineHeight: `${Math.round(fontSize * 1.65)}px` }}
-        value={draft}
-        spellCheck={false}
-        onChange={(event) => setDraft(event.target.value)}
-        onWheel={handleEditorWheel}
-        aria-label="Container JSON"
-      />
+        <TextArea
+          className="taskmap-json-editor__text taskmap-scrollbar-thin"
+          style={{ fontSize, lineHeight: `${Math.round(fontSize * 1.65)}px` }}
+          value={draft}
+          spellCheck={false}
+          onChange={(event) => setDraft(event.target.value)}
+          onWheel={handleEditorWheel}
+          aria-label="Container JSON"
+        />
 
-      <div
-        className="absolute left-2 right-2 top-0 z-10 h-1 cursor-ns-resize"
-        {...resizeHandleProps("n")}
-      />
-      <div
-        className="absolute bottom-0 left-2 right-2 z-10 h-1 cursor-ns-resize"
-        {...resizeHandleProps("s")}
-      />
-      <div
-        className="absolute bottom-2 left-0 top-2 z-10 w-1 cursor-ew-resize"
-        {...resizeHandleProps("w")}
-      />
-      <div
-        className="absolute bottom-2 right-0 top-2 z-10 w-1 cursor-ew-resize"
-        {...resizeHandleProps("e")}
-      />
-      <div
-        className="absolute left-0 top-0 z-20 h-2 w-2 cursor-nwse-resize"
-        {...resizeHandleProps("nw")}
-      />
-      <div
-        className="absolute right-0 top-0 z-20 h-2 w-2 cursor-nesw-resize"
-        {...resizeHandleProps("ne")}
-      />
-      <div
-        className="absolute bottom-0 left-0 z-20 h-2 w-2 cursor-nesw-resize"
-        {...resizeHandleProps("sw")}
-      />
-      <div
-        className="absolute bottom-0 right-0 z-20 h-2 w-2 cursor-nwse-resize"
-        {...resizeHandleProps("se")}
-      />
-    </section>,
+        <div
+          className="absolute left-2 right-2 top-0 z-10 h-1 cursor-ns-resize"
+          {...resizeHandleProps("n")}
+        />
+        <div
+          className="absolute bottom-0 left-2 right-2 z-10 h-1 cursor-ns-resize"
+          {...resizeHandleProps("s")}
+        />
+        <div
+          className="absolute bottom-2 left-0 top-2 z-10 w-1 cursor-ew-resize"
+          {...resizeHandleProps("w")}
+        />
+        <div
+          className="absolute bottom-2 right-0 top-2 z-10 w-1 cursor-ew-resize"
+          {...resizeHandleProps("e")}
+        />
+        <div
+          className="absolute left-0 top-0 z-20 h-2 w-2 cursor-nwse-resize"
+          {...resizeHandleProps("nw")}
+        />
+        <div
+          className="absolute right-0 top-0 z-20 h-2 w-2 cursor-nesw-resize"
+          {...resizeHandleProps("ne")}
+        />
+        <div
+          className="absolute bottom-0 left-0 z-20 h-2 w-2 cursor-nesw-resize"
+          {...resizeHandleProps("sw")}
+        />
+        <div
+          className="absolute bottom-0 right-0 z-20 h-2 w-2 cursor-nwse-resize"
+          {...resizeHandleProps("se")}
+        />
+      </MaterialSurface>
+    </div>,
     document.body,
   );
 }

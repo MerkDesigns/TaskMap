@@ -11,6 +11,7 @@ export * from "./Layout";
 export * from "./LiquidSelectionIndicator";
 export * from "./LiquidTabs";
 export * from "./LiquidToggleSwitch";
+export * from "./ScrollIndicator";
 export * from "./SelectionControls";
 export * from "./Status";
 export * from "./Tabs";

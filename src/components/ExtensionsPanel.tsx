@@ -39,11 +39,13 @@ import {
 import { IconButton } from "../ui/primitives/Button";
 import { SearchField } from "../ui/primitives/FormControls";
 import { ScrollArea } from "../ui/primitives/Layout";
+import { ScrollIndicator } from "../ui/primitives/ScrollIndicator";
 import { Tooltip } from "../ui/primitives/Tooltip";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { GlassListFrame } from "../ui/patterns/workspace/GlassListFrame";
-import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
+import { MENU_PRESENCE_TIMING, presetChannels } from "../ui/motion/presencePresets";
+import { usePresenceMotion, usePresencePreset } from "../ui/motion/usePresenceMotion";
 import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
 import { useSharedSmallGlassList } from "../ui/patterns/workspace/useSharedSmallGlassList";
 import "./QuickExtensionsMenu.css";
@@ -88,15 +90,15 @@ function ExtensionInfoButton({ targets }: { targets: readonly ExtensionTargetTyp
 
   return (
     <Tooltip label={targetItems}>
-      <button
-        type="button"
+      <IconButton
+        variant="ghost"
+        size="compact"
         aria-label="Compatible elements"
         className="taskmap-extension-info-button"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
-      >
-        <IconInfoCircle size={15} stroke={2} />
-      </button>
+        icon={<IconInfoCircle size={15} stroke={2} />}
+      />
     </Tooltip>
   );
 }
@@ -150,11 +152,19 @@ export function QuickExtensionsMenu({
   const menuRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const scrollListRef = useRef<HTMLDivElement | null>(null);
   const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
-  const closeTimerRef = useRef<number | null>(null);
+  const closingRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [closing, setClosing] = useState(false);
-  const reducedMotion = useReducedMotion();
+  const presencePreset = usePresencePreset("quickExtensions", "materialFadeSlideUp");
+  const presence = usePresenceMotion(menuRef, {
+    channels: presetChannels(presencePreset, "materialFadeSlideUp"),
+    ...MENU_PRESENCE_TIMING,
+    initialProgress: 0,
+    onComplete: (endpoint) => {
+      if (endpoint === "hidden" && closingRef.current) onClose();
+    },
+  });
   const favorites = loadExtensionFavorites();
   const position = useClampedFixedPosition(menuRef, { left: left + 10, top: top + 10 });
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -173,17 +183,11 @@ export function QuickExtensionsMenu({
   const favoriteExtensions = filteredExtensions.filter((extension) => favorites[extension.id]);
   const otherExtensions = filteredExtensions.filter((extension) => !favorites[extension.id]);
   const requestClose = useCallback(() => {
-    if (closeTimerRef.current !== null) return;
-    if (reducedMotion) {
-      onClose();
-      return;
-    }
-    setClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      closeTimerRef.current = null;
-      onClose();
-    }, 160);
-  }, [onClose, reducedMotion]);
+    if (closingRef.current) return;
+    closingRef.current = true;
+    presence.hide();
+  }, [presence]);
+  useLayoutEffect(() => presence.show(), [presence]);
   const { drag, startExtensionDrag } = useExtensionDrag({
     sourceRef: menuRef,
     onDropExtension,
@@ -193,6 +197,7 @@ export function QuickExtensionsMenu({
   useSharedSmallGlassList({
     active: true,
     cardSelector: "[data-extension-card-id]",
+    morph: true,
     planeRef: sharedSmallGlassPlaneRef,
     viewportRef: scrollAreaRef,
   });
@@ -204,23 +209,24 @@ export function QuickExtensionsMenu({
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
-    },
-    [],
-  );
-
   useEffect(() => {
+    // Sole owner of outside-click closing; capture phase so canvas handlers cannot swallow it.
     const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
+      if (event.button === 0 && !menuRef.current?.contains(event.target as Node)) {
         requestClose();
       }
     };
 
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
   }, [requestClose]);
+
+  // A new Shift+E request while the exit animation runs reopens instead of closing.
+  useEffect(() => {
+    if (!closingRef.current) return;
+    closingRef.current = false;
+    presence.show();
+  }, [left, top, presence]);
 
   const renderCategory = (
     label: string,
@@ -235,45 +241,55 @@ export function QuickExtensionsMenu({
       }
     >
       <div className="taskmap-quick-extensions-menu__heading">{label}</div>
-      <div
-        data-shared-small-glass-viewport={scrollable || undefined}
-        className={
-          scrollable
-            ? "taskmap-glass-list__scroll taskmap-quick-extensions-menu__list quick-extensions-scroll taskmap-quick-extensions-menu__list--scrollable"
-            : "taskmap-quick-extensions-menu__list"
-        }
-      >
-        {extensions.map((extension) => {
-          const ExtensionIcon = extension.Icon;
-          return (
-            <ExtensionBrowserCard
-              key={extension.id}
-              embedded={false}
-              radius={minorRadius}
-              data-extension-card-id={extension.id}
-              className="taskmap-quick-extensions-menu__card"
-              onPointerDown={(event) => startExtensionDrag(event, extension.id)}
-            >
-              <ExtensionIconBox
-                radius={iconRadius}
-                style={
-                  {
-                    "--taskmap-material-fill-opacity": iconBackgroundOpacity,
-                  } as CSSProperties
-                }
-              >
-                <ExtensionIcon size={19} stroke={2} />
-              </ExtensionIconBox>
-              <span className="taskmap-extension-browser-card__title">{extension.label}</span>
-              <span className="taskmap-extension-browser-card__actions">
-                <ExtensionInfoButton targets={extension.targets} />
-              </span>
-            </ExtensionBrowserCard>
-          );
-        })}
-      </div>
+      {scrollable ? (
+        <div className="taskmap-quick-extensions-menu__scroll-region">
+          <div
+            ref={scrollListRef}
+            data-shared-small-glass-viewport
+            className="taskmap-glass-list__scroll taskmap-quick-extensions-menu__list taskmap-scrollbar-hidden taskmap-quick-extensions-menu__list--scrollable"
+          >
+            {renderCards(extensions)}
+          </div>
+          <ScrollIndicator
+            targetRef={scrollListRef}
+            className="taskmap-quick-extensions-menu__scroll-indicator"
+          />
+        </div>
+      ) : (
+        <div className="taskmap-quick-extensions-menu__list">{renderCards(extensions)}</div>
+      )}
     </div>
   );
+
+  const renderCards = (extensions: readonly ExtensionDefinition[]) =>
+    extensions.map((extension) => {
+      const ExtensionIcon = extension.Icon;
+      return (
+        <ExtensionBrowserCard
+          key={extension.id}
+          embedded={false}
+          radius={minorRadius}
+          data-extension-card-id={extension.id}
+          className="taskmap-quick-extensions-menu__card"
+          onPointerDown={(event) => startExtensionDrag(event, extension.id)}
+        >
+          <ExtensionIconBox
+            radius={iconRadius}
+            style={
+              {
+                "--taskmap-material-fill-opacity": iconBackgroundOpacity,
+              } as CSSProperties
+            }
+          >
+            <ExtensionIcon size={19} stroke={2} />
+          </ExtensionIconBox>
+          <span className="taskmap-extension-browser-card__title">{extension.label}</span>
+          <span className="taskmap-extension-browser-card__actions">
+            <ExtensionInfoButton targets={extension.targets} />
+          </span>
+        </ExtensionBrowserCard>
+      );
+    });
 
   const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconPuzzle;
 
@@ -282,9 +298,7 @@ export function QuickExtensionsMenu({
       <MaterialSurface
         ref={menuRef}
         data-quick-extensions-menu
-        data-presence-phase={closing ? "exiting" : "entering"}
         material="acrylic-large"
-        elevation="none"
         radius={majorRadius}
         className="taskmap-quick-extensions-menu"
         style={position}
@@ -370,6 +384,7 @@ export function ExtensionsPanel({
   useSharedSmallGlassList({
     active: workActive && !embedded,
     cardSelector: "[data-extension-card-id]",
+    morph: true,
     planeRef: sharedSmallGlassPlaneRef,
     viewportRef: scrollAreaRef,
   });
@@ -477,7 +492,7 @@ export function ExtensionsPanel({
             variant="ghost"
             size="compact"
             className="taskmap-extension-browser-favorite"
-            data-favorited={favorited || undefined}
+            aria-pressed={favorited}
             aria-label={favoriteTitle}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -518,7 +533,7 @@ export function ExtensionsPanel({
           ref={filterButtonRef}
           variant="secondary"
           className="taskmap-extension-browser-filter"
-          data-filter-active={!allTargetsSelected || undefined}
+          data-selected={!allTargetsSelected || undefined}
           onClick={() => setFilterOpen((current) => !current)}
           title="Filter by element"
           aria-label="Filter by element"
@@ -583,7 +598,7 @@ export function ExtensionsPanel({
       >
         <ScrollArea
           ref={scrollAreaRef}
-          hiddenScrollbar
+          scrollbar="hidden"
           className="taskmap-glass-list__scroll taskmap-extension-browser-scroll-area space-y-2"
         >
           {favoriteExtensions.length > 0 && (

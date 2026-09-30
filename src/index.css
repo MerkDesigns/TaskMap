@@ -93,61 +93,6 @@ body {
   opacity: 0.45;
 }
 
-.settings-tab-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.32) transparent;
-}
-
-.settings-tab-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.settings-tab-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.settings-tab-scroll::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.32);
-}
-
-.settings-tab-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgb(255 255 255 / 0.46);
-}
-
-.json-editor-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #4d535e #17181d;
-}
-
-.json-editor-scrollbar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.json-editor-scrollbar::-webkit-scrollbar-track {
-  background: #17181d;
-  border-radius: 999px;
-}
-
-.json-editor-scrollbar::-webkit-scrollbar-thumb {
-  background: #4d535e;
-  border: 2px solid #17181d;
-  border-radius: 999px;
-}
-
-.json-editor-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #656d7a;
-}
-
-.hidden-scrollbar {
-  scrollbar-width: none;
-}
-
-.hidden-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
 .markdown-content {
   overflow-wrap: anywhere;
 }
@@ -261,6 +206,8 @@ body {
 .markdown-content pre {
   max-width: 100%;
   overflow: auto;
+  scrollbar-color: var(--taskmap-scrollbar-thumb) transparent;
+  scrollbar-width: thin;
   border: 1px solid rgb(255 255 255 / 0.09);
   border-radius: 7px;
   background: rgb(0 0 0 / 0.3);
@@ -279,6 +226,8 @@ body {
 .markdown-content .markdown-table-scroll {
   max-width: 100%;
   overflow-x: auto;
+  scrollbar-color: var(--taskmap-scrollbar-thumb) transparent;
+  scrollbar-width: thin;
 }
 
 .markdown-content table {
@@ -726,28 +675,6 @@ body {
   }
 }
 
-.quick-extensions-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: #5f6673 #202127;
-}
-
-.quick-extensions-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.quick-extensions-scroll::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: #202127;
-}
-
-.quick-extensions-scroll::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: #5f6673;
-}
-
-.quick-extensions-scroll::-webkit-scrollbar-thumb:hover {
-  background: #7b8493;
-}
 .command-runner-play-press {
   animation: command-runner-play-press 380ms cubic-bezier(0.2, 0.9, 0.25, 1);
 }

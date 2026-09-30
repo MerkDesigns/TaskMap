@@ -1,13 +1,21 @@
 import {
+  createContext,
   forwardRef,
+  useContext,
+  useRef,
   type ForwardedRef,
   type HTMLAttributes,
   type MouseEvent,
   type ReactNode,
 } from "react";
 import { MaterialSurface } from "../../materials/MaterialSurface";
+import { ScrollArea } from "../../primitives/Layout";
 import { LiquidToggleSwitch } from "../../primitives/LiquidToggleSwitch";
+import { GlassListFrame } from "../workspace/GlassListFrame";
+import { useSharedSmallGlassList } from "../workspace/useSharedSmallGlassList";
 import "./SettingsPatterns.css";
+
+const SettingsIslandBatch = createContext(false);
 
 export const SettingsShell = forwardRef<HTMLDivElement, HTMLAttributes<HTMLElement>>(
   function SettingsShell({ className, ...props }, ref) {
@@ -25,15 +33,53 @@ export const SettingsShell = forwardRef<HTMLDivElement, HTMLAttributes<HTMLEleme
 
 export const SettingsIsland = forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(
   function SettingsIsland({ className, ...props }, ref) {
+    const batched = useContext(SettingsIslandBatch);
     return (
       <MaterialSurface
         {...props}
         ref={ref}
         material="acrylic-small"
+        backdropSource={batched ? "shared" : undefined}
+        geometrySource={batched ? "owner" : undefined}
+        data-settings-island={batched || undefined}
         radius={8}
         as="section"
         className={["taskmap-settings-island", className].filter(Boolean).join(" ")}
       />
+    );
+  },
+);
+
+/**
+ * Scrollable Settings content. Its islands share one settled Minor batch over the Settings shell;
+ * Minors nested on an island (toggle knobs) render as shells per the glass contract.
+ */
+export const SettingsIslandList = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  function SettingsIslandList({ children, className, ...props }, ref) {
+    const planeRef = useRef<HTMLDivElement | null>(null);
+    const viewportRef = useRef<HTMLDivElement | null>(null);
+    useSharedSmallGlassList({
+      active: true,
+      cardSelector: "[data-settings-island]",
+      planeRef,
+      viewportRef,
+    });
+    return (
+      <GlassListFrame
+        ref={ref}
+        className="taskmap-settings-scroll-frame"
+        planeRef={planeRef}
+        batchId="settings-small"
+      >
+        <ScrollArea
+          {...props}
+          ref={viewportRef}
+          scrollbar="hidden"
+          className={["taskmap-settings-scroll", className].filter(Boolean).join(" ")}
+        >
+          <SettingsIslandBatch.Provider value>{children}</SettingsIslandBatch.Provider>
+        </ScrollArea>
+      </GlassListFrame>
     );
   },
 );

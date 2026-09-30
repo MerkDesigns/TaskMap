@@ -483,7 +483,7 @@ function TextBlockNodeComponent({
             <div className="relative h-full">
               <textarea
                 ref={textareaRef}
-                className="hidden-scrollbar h-full w-full resize-none overflow-auto bg-transparent px-4 py-3 text-[16px] leading-6 text-white outline-none selection:bg-white/25"
+                className="taskmap-scrollbar-hidden h-full w-full resize-none overflow-auto bg-transparent px-4 py-3 text-[16px] leading-6 text-white outline-none selection:bg-white/25"
                 value={draft}
                 spellCheck={false}
                 onChange={(event) => onDraftChange(event.target.value)}
@@ -501,7 +501,7 @@ function TextBlockNodeComponent({
             <div
               ref={contentRef}
               data-text-block-content
-              className="markdown-content hidden-scrollbar h-full select-text overflow-auto break-words px-4 py-3 text-[16px] leading-6 text-white/92"
+              className="markdown-content taskmap-scrollbar-hidden h-full select-text overflow-auto break-words px-4 py-3 text-[16px] leading-6 text-white/92"
             >
               <Suspense fallback={<div className="whitespace-pre-wrap">{element.text}</div>}>
                 <MarkdownContent>{element.text}</MarkdownContent>

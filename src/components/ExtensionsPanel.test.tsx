@@ -159,7 +159,7 @@ describe("C2E Extensions panel", () => {
     for (const label of ["Containers", "Text blocks", "Text cards", "Images"]) {
       await user.click(within(filterMenu).getByRole("button", { name: label }));
     }
-    expect(trigger).toHaveAttribute("data-filter-active", "true");
+    expect(trigger).toHaveAttribute("data-selected", "true");
     expect(screen.getByText("Lock")).toBeInTheDocument();
     expect(screen.getByText("Extra colors")).toBeInTheDocument();
     expect(screen.queryByText("Privacy")).not.toBeInTheDocument();

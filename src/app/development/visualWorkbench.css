@@ -28,6 +28,30 @@
 .taskmap-workbench button[aria-pressed="true"] {
   background: #405a76;
 }
+.taskmap-workbench > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.taskmap-workbench select {
+  flex: 1;
+  min-height: 24px;
+  padding: 2px 6px;
+  border: 1px solid #737e90;
+  border-radius: 4px;
+  color: #eef2f8;
+  background: #262d38;
+  font: inherit;
+}
+.taskmap-workbench > label > input[type="range"] {
+  flex: 1;
+}
+.taskmap-workbench > label > output {
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 .taskmap-workbench summary {
   cursor: pointer;
   padding-top: 6px;

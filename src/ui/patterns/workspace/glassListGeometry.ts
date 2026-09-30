@@ -19,14 +19,3 @@ export function glassListShape(
   if (right <= left || bottom <= top) return null;
   return { ...card, clip: { left, top, width: right - left, height: bottom - top } };
 }
-
-/** External effects use a rectangular list boundary, independent of the rounded content mask. */
-export function writeGlassListEffectsClip(
-  host: HTMLElement,
-  top: number,
-  height: number,
-  viewportHeight: number,
-) {
-  host.style.setProperty("--taskmap-glass-list-clip-top", `${-top}px`);
-  host.style.setProperty("--taskmap-glass-list-clip-bottom", `${top + height - viewportHeight}px`);
-}

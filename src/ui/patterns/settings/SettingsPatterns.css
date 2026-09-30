@@ -76,41 +76,11 @@
   opacity: var(--taskmap-state-disabled-opacity);
 }
 
-.taskmap-settings-header {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--taskmap-space-5);
-}
-
-.taskmap-settings-header__identity,
 .taskmap-settings-section-heading,
 .taskmap-settings-slider-heading,
 .taskmap-settings-key-group {
   display: flex;
   align-items: center;
-}
-
-.taskmap-settings-header__identity {
-  gap: var(--taskmap-space-2);
-}
-
-.taskmap-settings-header__icon {
-  color: var(--taskmap-muted);
-}
-
-.taskmap-settings-title {
-  margin: 0;
-  color: var(--taskmap-text);
-  font-size: var(--taskmap-text-section-size);
-  font-weight: 650;
-  line-height: var(--taskmap-text-section-line);
-}
-
-.taskmap-settings-close {
-  width: var(--taskmap-row-height-compact);
-  height: var(--taskmap-row-height-compact);
 }
 
 .taskmap-settings-body {
@@ -129,6 +99,13 @@
   flex: 1;
   padding: 0 var(--taskmap-space-2);
   text-transform: capitalize;
+}
+
+.taskmap-settings-scroll-frame {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 
 .taskmap-settings-scroll {
@@ -211,6 +188,14 @@
   justify-content: flex-start;
   padding: 0 var(--taskmap-space-2);
   text-align: left;
+}
+
+/* The Button primitive wraps content in a label; lay out swatch + copy as a row inside it. */
+.taskmap-settings-color-trigger .taskmap-button__label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--taskmap-space-2);
 }
 
 .taskmap-settings-color-swatch {

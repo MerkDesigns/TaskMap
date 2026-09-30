@@ -1,7 +1,9 @@
 import {
+  createContext,
   createElement,
   forwardRef,
   useCallback,
+  useContext,
   useId,
   useLayoutEffect,
   useMemo,
@@ -20,6 +22,7 @@ import { useMaterialPlane } from "./MaterialPlane";
 import { materialRegistry } from "./materialRegistry";
 import { registerNativeGlassGeometry } from "./nativeGlassGeometry";
 import { createMaterialSurfaceStyle } from "./materialSurfaceStyle";
+import { MajorGlassLayerContext } from "./MajorGlassLayer";
 import type {
   MaterialElevation,
   MaterialId,
@@ -30,6 +33,9 @@ import type {
 } from "./materialTypes";
 
 type MaterialSurfaceElement = "div" | "section" | "aside" | "nav";
+
+/** Minor glass nested on another Minor defaults to a shell (contract: first Minor depth blurs). */
+const InsideMinorGlass = createContext(false);
 
 export interface MaterialSurfaceProps extends HTMLAttributes<HTMLElement> {
   readonly material: MaterialId;
@@ -48,7 +54,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
   function MaterialSurface(
     {
       as = "div",
-      backdropSource: backdropSourceOverride = "self",
+      backdropSource: backdropSourceProp,
       children,
       className,
       elevation = "default",
@@ -65,16 +71,27 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
   ) {
     const definition = materialRegistry.require(material);
     const nativeGlass = definition.strategy === "native-glass" ? definition : null;
-    if (backdropSourceOverride === "shared" && nativeGlass?.role !== "small") {
-      throw new RangeError("Only Acrylic Small surfaces may use a shared backdrop source");
+    const insideMinor = useContext(InsideMinorGlass);
+    const backdropSourceOverride: MaterialBackdropSource =
+      backdropSourceProp ?? (insideMinor && nativeGlass?.role === "small" ? "shell" : "self");
+    if (backdropSourceOverride !== "self" && nativeGlass?.role !== "small") {
+      throw new RangeError("Only Acrylic Small surfaces may use a shared or shell backdrop source");
     }
     const plane = useMaterialPlane(planeOverride);
     const radius = requireMaterialRadius(material, radiusOverride ?? definition.defaultRadiusPx);
     const surfaceId = useId();
     const inheritedBoundary = useInheritedMaterialSamplingBoundary();
+    const majorLayer = useContext(MajorGlassLayerContext);
+    const sharedMajor =
+      nativeGlass?.role === "large" && plane === "base" && !inheritedBoundary ? majorLayer : null;
     const elementRef = useRef<HTMLElement | null>(null);
     const rimCanvasRef = useRef<HTMLCanvasElement>(null);
     const providedBoundary = useMemo(() => ({ id: surfaceId, elementRef }), [surfaceId]);
+
+    useLayoutEffect(() => {
+      if (sharedMajor && elementRef.current && geometryActive)
+        return sharedMajor.register(elementRef.current, radius);
+    }, [sharedMajor, radius, geometryActive]);
 
     useLayoutEffect(() => {
       const element = elementRef.current;
@@ -84,7 +101,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
         canvas: rimCanvasRef.current,
         definition: nativeGlass,
         radius,
-        shared: backdropSourceOverride === "shared",
+        shared: !!sharedMajor || backdropSourceOverride !== "self",
         owned: geometrySource === "owner",
         samplingElement: () =>
           backdropSourceOverride === "self" && nativeGlass.role === "small"
@@ -98,6 +115,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       inheritedBoundary,
       nativeGlass,
       radius,
+      sharedMajor,
     ]);
 
     const composedRef = useCallback(
@@ -113,6 +131,8 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
         <MaterialSamplingBoundaryProvider boundary={providedBoundary}>
           {children}
         </MaterialSamplingBoundaryProvider>
+      ) : nativeGlass?.role === "small" && !insideMinor ? (
+        <InsideMinorGlass.Provider value>{children}</InsideMinorGlass.Provider>
       ) : (
         children
       );
@@ -136,10 +156,20 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
         "data-material-role": nativeGlass?.role,
         "data-material-plane": plane,
         "data-material-elevation": elevation,
-        "data-material-backdrop-source": nativeGlass ? backdropSourceOverride : undefined,
+        "data-material-backdrop-source": nativeGlass
+          ? sharedMajor
+            ? "plane"
+            : backdropSourceOverride
+          : undefined,
         "data-material-sampling-boundary": samplingBoundaryKind(nativeGlass, inheritedBoundary),
       },
-      nativeGlass ? nativeGlassChrome(rimCanvasRef, nativeGlass) : null,
+      nativeGlass
+        ? nativeGlassChrome(
+            rimCanvasRef,
+            nativeGlass,
+            !sharedMajor && backdropSourceOverride !== "shell",
+          )
+        : null,
       content,
     );
   },
@@ -148,15 +178,20 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
 function nativeGlassChrome(
   rimCanvasRef: RefObject<HTMLCanvasElement | null>,
   definition: NativeGlassMaterialDefinition,
+  ownFilters: boolean,
 ) {
   return (
     <>
       <span className="taskmap-material-native-glass__clip" aria-hidden="true">
-        <span
-          className="taskmap-material-native-glass__preblur taskmap-native-glass-preblur"
-          data-enabled={definition.preblurPx === null ? undefined : true}
-        />
-        <span className="taskmap-material-native-glass__backdrop taskmap-native-glass-backdrop" />
+        {ownFilters && (
+          <span
+            className="taskmap-material-native-glass__preblur taskmap-native-glass-preblur"
+            data-enabled={definition.preblurPx === null ? undefined : true}
+          />
+        )}
+        {ownFilters && (
+          <span className="taskmap-material-native-glass__backdrop taskmap-native-glass-backdrop" />
+        )}
         <span className="taskmap-material-native-glass__highlight" />
       </span>
       <span className="taskmap-material-native-glass__rim" aria-hidden="true">

@@ -9,26 +9,23 @@ import {
   IconRefresh,
   IconSettings,
   IconUpload,
-  IconX,
 } from "@tabler/icons-react";
 import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
 import { commandErrorMessage } from "../app/commandError";
 import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
-import {
-  Button,
-  IconButton,
-  Keycap,
-  LiquidTabs,
-  ScrollArea,
-  SegmentedControl,
-  Slider,
-} from "../ui/primitives";
+import { Button, Keycap, LiquidTabs, SegmentedControl, Slider } from "../ui/primitives";
 import {
   isNestedModalPresenceBlocking,
+  ModalDialogHeader,
   ModalPresence,
   useDialogFocus,
 } from "../ui/patterns/overlays";
-import { SettingsIsland, SettingsShell, SettingsToggleRow } from "../ui/patterns/settings";
+import {
+  SettingsIsland,
+  SettingsIslandList,
+  SettingsShell,
+  SettingsToggleRow,
+} from "../ui/patterns/settings";
 import { ColorPickerMenu } from "./ColorPickerMenu";
 import {
   DatabaseSettingsActions,
@@ -300,23 +297,13 @@ export function SettingsModal({
         tabIndex={-1}
         data-settings-primary-shell
       >
-        <div className="taskmap-settings-header">
-          <div className="taskmap-settings-header__identity">
-            <IconSettings size={20} stroke={2} className="taskmap-settings-header__icon" />
-            <h2 id="settings-title" className="taskmap-settings-title">
-              Settings
-            </h2>
-          </div>
-          <IconButton
-            className="taskmap-settings-close"
-            variant="ghost"
-            size="compact"
-            aria-label="Close settings"
-            onClick={onClose}
-            title="Close settings"
-            icon={<IconX size={17} stroke={2} />}
-          />
-        </div>
+        <ModalDialogHeader
+          titleId="settings-title"
+          title="Settings"
+          icon={<IconSettings size={19} stroke={2} className="taskmap-modal-dialog__icon" />}
+          onClose={onClose}
+          closeLabel="Close settings"
+        />
         <div className="taskmap-settings-body">
           <LiquidTabs
             className="taskmap-settings-navigation"
@@ -334,7 +321,7 @@ export function SettingsModal({
               setActiveTab(tab);
             }}
           />
-          <ScrollArea key={activeTab} className="taskmap-settings-scroll">
+          <SettingsIslandList key={activeTab}>
             <div className="taskmap-settings-content-stack">
               {activeTab === "visual" && (
                 <>
@@ -560,7 +547,7 @@ export function SettingsModal({
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </SettingsIslandList>
         </div>
         <div className="taskmap-settings-footer">MADE BY MERK - v{appVersion}</div>
       </SettingsShell>

@@ -1,0 +1,31 @@
+.taskmap-scroll-indicator {
+  width: 3px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  opacity: var(--taskmap-material-presence-progress, 1);
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.taskmap-scroll-indicator[data-hidden="true"] {
+  opacity: 0;
+}
+
+.taskmap-scroll-indicator__thumb {
+  width: 100%;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.24);
+  transition: background-color 160ms ease;
+  will-change: transform;
+}
+
+.taskmap-scroll-indicator[data-active="true"] .taskmap-scroll-indicator__thumb {
+  background: rgb(255 255 255 / 0.42);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-scroll-indicator,
+  .taskmap-scroll-indicator__thumb {
+    transition: none;
+  }
+}

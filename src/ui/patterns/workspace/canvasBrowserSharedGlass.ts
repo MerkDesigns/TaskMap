@@ -3,6 +3,7 @@ import {
   type SharedSmallGlassShape,
 } from "../../materials/SharedSmallGlassPlane";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
+import { readCanvasBrowserCardSlice } from "./canvasBrowserDom";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 import { glassListShape } from "./glassListGeometry";
 
@@ -36,13 +37,20 @@ export function syncCanvasBrowserDragGlass<Id extends string>(
   const radius =
     finiteStyleNumber(record.card, "--taskmap-material-radius") ||
     CANVAS_BROWSER_LAYOUT.smallRadius;
+  const x = finiteStyleNumber(record.host, "left");
+  const y = finiteStyleNumber(record.host, "--taskmap-canvas-card-y");
+  const width = finiteStyleNumber(record.host, "width") || CANVAS_BROWSER_LAYOUT.cardWidth;
+  // Held glass follows the liquid pickup/drop slice written on the host.
+  const { offset, visible } = readCanvasBrowserCardSlice(record);
   writeSharedSmallGlassShapes(plane, [
     {
-      x: finiteStyleNumber(record.host, "left"),
-      y: finiteStyleNumber(record.host, "--taskmap-canvas-card-y"),
-      width: finiteStyleNumber(record.host, "width") || CANVAS_BROWSER_LAYOUT.cardWidth,
+      x,
+      y,
+      width,
       height: record.height,
       radius,
+      clip: { left: x, top: y + offset, width, height: visible },
+      morph: true,
     },
   ]);
 }
@@ -78,7 +86,7 @@ export function syncCanvasBrowserSharedGlass<Id extends string>(
         height: visibleHeight,
       },
     );
-    if (shape) shapes.push(shape);
+    if (shape) shapes.push({ ...shape, morph: true });
   }
   writeSharedSmallGlassShapes(plane, shapes);
 }

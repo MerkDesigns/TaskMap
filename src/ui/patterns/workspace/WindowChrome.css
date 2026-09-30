@@ -10,8 +10,9 @@
 }
 
 .taskmap-window-drag-region {
-  position: absolute;
-  z-index: 0;
+  position: fixed;
+  /* Drag only the empty strip; workspace controls must win hit testing. */
+  z-index: calc(var(--taskmap-layer-workspace-chrome) - 1);
   top: 0;
   right: 0;
   left: 0;

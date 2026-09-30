@@ -119,11 +119,12 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(patternCss).toContain("z-index: 0");
     expect(patternCss).not.toContain("taskmap-workspace-side-panel__reveal-cover");
     expect(patternCss).not.toContain("data-content-motion");
-    expect(motion).toContain("WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 240");
+    expect(motion).toContain("WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 300");
     expect(motion).toContain("WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32");
-    expect(motion).toContain("easeInCubic");
-    expect(motion).toContain("easeOutCubic");
-    expect(motion).toMatch(/panel\.style\.(?:transform|willChange)/);
+    expect(motion).toContain("easeInOutCubic");
+    // Composable presence (glass contract section 16/18) through the shared controller; the panel
+    // itself is never faded with ancestor opacity or filters (section 17).
+    expect(motion).toContain("createPresenceMotion");
     expect(motion).not.toMatch(/panel\.style\.(?:opacity|filter|backdropFilter)/);
     expect(boundary).not.toMatch(
       /(?:-webkit-)?backdrop-filter\s*:|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,

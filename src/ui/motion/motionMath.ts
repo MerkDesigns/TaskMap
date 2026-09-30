@@ -18,6 +18,38 @@ export function normalizedProgress(value: number, from: number, to: number): num
   return clamp((value - from) / (to - from), 0, 1);
 }
 
+/** CSS `cubic-bezier(x1, y1, x2, y2)` as an easing function (Newton with bisection fallback). */
+export function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
+  const axis = (a: number, b: number) => (t: number) =>
+    3 * a * t * (1 - t) ** 2 + 3 * b * t ** 2 * (1 - t) + t ** 3;
+  const slope = (a: number, b: number) => (t: number) =>
+    3 * a * (1 - t) ** 2 + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t ** 2;
+  const x = axis(x1, x2);
+  const dx = slope(x1, x2);
+  const y = axis(y1, y2);
+  return (progress: number): number => {
+    const target = clamp(progress, 0, 1);
+    if (target === 0 || target === 1) return target;
+    let t = target;
+    for (let i = 0; i < 8; i++) {
+      const error = x(t) - target;
+      if (Math.abs(error) < 1e-6) return y(t);
+      const d = dx(t);
+      if (Math.abs(d) < 1e-6) break;
+      t = clamp(t - error / d, 0, 1);
+    }
+    let low = 0;
+    let high = 1;
+    t = target;
+    for (let i = 0; i < 30 && high - low > 1e-6; i++) {
+      if (x(t) < target) low = t;
+      else high = t;
+      t = (low + high) / 2;
+    }
+    return y(t);
+  };
+}
+
 export function clampFrameDelta(deltaMs: number): number {
   if (!Number.isFinite(deltaMs) || deltaMs <= 0) return 0;
   return Math.min(deltaMs, MOTION_MAX_FRAME_DELTA_MS);

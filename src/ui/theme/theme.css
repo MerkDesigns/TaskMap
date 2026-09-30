@@ -11,6 +11,10 @@
  * Activate on the production root only during Phase 4.5C.
  */
 .taskmap-target-theme {
+  /* Native controls and unstyled scrollbars render dark (UI guardrails section 4). */
+  color-scheme: dark;
+  --taskmap-scrollbar-thumb: rgb(255 255 255 / 0.24);
+
   /* Foundation */
   --taskmap-void-bg: #0b0b0c;
   --taskmap-canvas-bg: #0f1011;

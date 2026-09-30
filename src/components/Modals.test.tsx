@@ -25,10 +25,13 @@ describe("modal keyboard behavior", () => {
     const clear = screen.getByRole("button", { name: "Clear" });
     await waitFor(() => expect(cancel).toHaveFocus());
 
+    const close = screen.getByRole("button", { name: "Close" });
+    await user.tab({ shift: true });
+    expect(close).toHaveFocus();
     await user.tab({ shift: true });
     expect(clear).toHaveFocus();
     await user.tab();
-    expect(cancel).toHaveFocus();
+    expect(close).toHaveFocus();
 
     await user.keyboard("{Escape}");
     expect(onCancel).toHaveBeenCalledOnce();

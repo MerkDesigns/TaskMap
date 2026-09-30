@@ -1,10 +1,8 @@
-import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import {
-  IconArrowsHorizontal,
-  IconArrowsVertical,
   IconCheck,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
+  IconDotsVertical,
   IconPencil,
   IconPlus,
   IconTrash,
@@ -29,6 +27,18 @@ import {
   MENU_ITEM_CLASS,
 } from "../constants";
 import { TaskCanvas } from "../types";
+import type { CanvasInteractionController } from "../app/interactions/canvasInteractionTypes";
+import {
+  canvasPreviewProjection,
+  presentCanvasPreview,
+  previewHeaderHeight,
+  previewItemStyle,
+  PREVIEW_HEADER_ATTRIBUTE,
+  PREVIEW_WORLD_ATTRIBUTE,
+} from "./canvasPreviewProjection";
+import { ModalPresence } from "../ui/patterns/overlays";
+import { CanvasCreateDialog } from "./CanvasCreateDialog";
+import { CanvasDraftFields, type CanvasDraft } from "./CanvasDraftFields";
 import { CanvasBrowserCard, CanvasPreview, WorkspaceSidePanel } from "../ui/patterns/workspace";
 import { SharedSmallGlassPlane } from "../ui/materials/SharedSmallGlassPlane";
 import { GlassListFrame } from "../ui/patterns/workspace/GlassListFrame";
@@ -36,13 +46,9 @@ import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
 import { Button, IconButton, ToggleButton } from "../ui/primitives/Button";
-import { Field } from "../ui/primitives/Field";
-import { TextField } from "../ui/primitives/FormControls";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import "../ui/patterns/workspace/CanvasBrowser.css";
 import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
-
-type CanvasDraft = Pick<TaskCanvas, "name" | "width" | "height">;
 
 type CanvasManagerProps = {
   active?: boolean;
@@ -59,6 +65,8 @@ type CanvasManagerProps = {
   smallGlassBlur?: number;
   viewportWidth: number;
   viewportHeight: number;
+  /** Live camera source; the active card's preview follows pan/zoom frames without rerendering. */
+  controller?: CanvasInteractionController;
   onMinimalViewChange: (minimalView: boolean) => void;
   onCreateCanvas: (draft: CanvasDraft) => void;
   onSelectCanvas: (id: string) => void;
@@ -101,6 +109,7 @@ export function CanvasManager({
   smallGlassBlur,
   viewportWidth,
   viewportHeight,
+  controller,
   onMinimalViewChange,
   onCreateCanvas,
   onSelectCanvas,
@@ -122,8 +131,9 @@ export function CanvasManager({
   const canvasesRef = useRef(canvases);
   canvasesRef.current = canvases;
   const reorderCommitRef = useRef(onReorderCanvases);
-  const [modalMode, setModalMode] = useState<"create" | null>(null);
-  const [createMenuClosing, setCreateMenuClosing] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createSession, setCreateSession] = useState(0);
+  const [createDraft, setCreateDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const [draft, setDraft] = useState<CanvasDraft>(DEFAULT_DRAFT);
@@ -133,8 +143,7 @@ export function CanvasManager({
   useLayoutEffect(() => {
     if (active) return;
     setMenu(null);
-    setModalMode(null);
-    setCreateMenuClosing(false);
+    setCreateOpen(false);
     setEditingId(null);
   }, [active]);
   const menuPosition = useClampedFixedPosition(menuRef, {
@@ -143,20 +152,12 @@ export function CanvasManager({
   });
 
   const openCreate = () => {
-    if (modalMode === "create") {
-      closeModal();
-      return;
-    }
-
     setEditingId(null);
-    setCreateMenuClosing(false);
-    setDraft({
-      name: `Canvas ${canvases.length + 1}`,
-      width: 3000,
-      height: 3000,
-    });
-    setModalMode("create");
+    setCreateDraft({ name: `Canvas ${canvases.length + 1}`, width: 3000, height: 3000 });
+    setCreateSession((session) => session + 1);
+    setCreateOpen(true);
   };
+  const closeCreate = useCallback(() => setCreateOpen(false), []);
 
   const openEdit = (canvas: TaskCanvas) => {
     setEditingId(canvas.id);
@@ -170,20 +171,6 @@ export function CanvasManager({
       browserRuntimeRef.current?.scrollCardIntoView(canvas.id);
     });
   };
-
-  const closeModal = useCallback(() => {
-    if (!modalMode || createMenuClosing) {
-      return;
-    }
-
-    setCreateMenuClosing(true);
-    window.setTimeout(() => {
-      setModalMode(null);
-      setCreateMenuClosing(false);
-      setEditingId(null);
-      setDraft(DEFAULT_DRAFT);
-    }, 120);
-  }, [createMenuClosing, modalMode]);
 
   useEffect(() => {
     if (!editingId) {
@@ -225,25 +212,6 @@ export function CanvasManager({
     return () => window.removeEventListener("pointerdown", closeMenu, true);
   }, [menu]);
 
-  useEffect(() => {
-    if (!modalMode) {
-      return;
-    }
-
-    const closeCreateMenu = (event: PointerEvent) => {
-      if (
-        !(event.target as HTMLElement | null)?.closest(
-          "[data-new-canvas-menu], [data-new-canvas-trigger]",
-        )
-      ) {
-        closeModal();
-      }
-    };
-
-    window.addEventListener("pointerdown", closeCreateMenu, true);
-    return () => window.removeEventListener("pointerdown", closeCreateMenu, true);
-  }, [closeModal, modalMode]);
-
   const saveInlineEdit = () => {
     if (!editingId) {
       return;
@@ -263,23 +231,33 @@ export function CanvasManager({
     setDraft(DEFAULT_DRAFT);
   };
 
-  const submitModal = () => {
-    const nextDraft = {
-      name: draft.name.trim() || "Untitled canvas",
-      width: clampDraftSize(draft.width),
-      height: clampDraftSize(draft.height),
-    };
-
-    if (modalMode === "create") {
-      onCreateCanvas(nextDraft);
-      setModalMode(null);
-      setCreateMenuClosing(false);
-      setDraft(DEFAULT_DRAFT);
-      return;
-    }
+  const submitCreate = (nextDraft: CanvasDraft) => {
+    onCreateCanvas({
+      name: nextDraft.name.trim() || "Untitled canvas",
+      width: clampDraftSize(nextDraft.width),
+      height: clampDraftSize(nextDraft.height),
+    });
+    setCreateOpen(false);
   };
 
   const orderedIds = useStableCanvasOrder(canvases);
+  const previewWidth =
+    (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) * CANVAS_BROWSER_LAYOUT.previewAspectRatio;
+
+  useLayoutEffect(() => {
+    if (!controller || !workActive || minimalView) return;
+    let previous = controller.getSnapshot().viewport;
+    return controller.subscribe(() => {
+      const viewport = controller.getSnapshot().viewport;
+      if (viewport === previous) return;
+      previous = viewport;
+      const preview =
+        cardRefs.current[activeCanvasId]?.querySelector<HTMLElement>(".taskmap-canvas-preview");
+      const size = previewViewportSizesRef.current[activeCanvasId];
+      if (!preview || !size) return;
+      presentCanvasPreview(preview, canvasPreviewProjection(viewport, previewWidth, size.width));
+    });
+  }, [activeCanvasId, controller, minimalView, previewWidth, workActive]);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -395,7 +373,6 @@ export function CanvasManager({
             </span>
           </ToggleButton>
           <IconButton
-            data-new-canvas-trigger
             variant="ghost"
             size="compact"
             onClick={openCreate}
@@ -450,14 +427,12 @@ export function CanvasManager({
         }
 
         const previewViewport = previewViewportSizesRef.current[canvas.id];
-        const previewWidth =
-          (CANVAS_BROWSER_LAYOUT.cardHeight - previewGap * 2) *
-          CANVAS_BROWSER_LAYOUT.previewAspectRatio;
-        const safeZoom = Number.isFinite(canvas.zoom) && canvas.zoom > 0 ? canvas.zoom : 1;
-        const visibleWidth = previewViewport.width / safeZoom;
-        const visibleLeft = -canvas.pan.x / safeZoom;
-        const visibleTop = -canvas.pan.y / safeZoom;
-        const previewScale = previewWidth / visibleWidth;
+        // The active canvas follows the live camera; stored cameras lag until a document commit.
+        const projection = canvasPreviewProjection(
+          active && controller ? controller.getSnapshot().viewport : canvas,
+          previewWidth,
+          previewViewport.width,
+        );
 
         if (editingId === canvas.id) {
           return createPortal(
@@ -479,85 +454,13 @@ export function CanvasManager({
                 <span>Edit canvas</span>
               </div>
 
-              <Field label="Name">
-                <TextField
-                  ref={nameInputRef}
-                  value={draft.name}
-                  spellCheck={false}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, name: event.target.value }))
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      saveInlineEdit();
-                    }
-
-                    if (event.key === "Escape") {
-                      cancelInlineEdit();
-                    }
-                  }}
-                />
-              </Field>
-
-              <div className="taskmap-canvas-inline-editor__dimensions">
-                <Field
-                  label={
-                    <span className="flex items-center gap-1">
-                      <IconArrowsHorizontal size={13} stroke={2} />
-                      Width
-                    </span>
-                  }
-                >
-                  <TextField
-                    className="taskmap-canvas-inline-editor__number"
-                    type="number"
-                    min={600}
-                    max={10000}
-                    step={100}
-                    value={draft.width}
-                    spellCheck={false}
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, width: Number(event.target.value) }))
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        saveInlineEdit();
-                      }
-                    }}
-                    title="Canvas width"
-                  />
-                </Field>
-                <Field
-                  label={
-                    <span className="flex items-center gap-1">
-                      <IconArrowsVertical size={13} stroke={2} />
-                      Height
-                    </span>
-                  }
-                >
-                  <TextField
-                    className="taskmap-canvas-inline-editor__number"
-                    type="number"
-                    min={600}
-                    max={10000}
-                    step={100}
-                    value={draft.height}
-                    spellCheck={false}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        height: Number(event.target.value),
-                      }))
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        saveInlineEdit();
-                      }
-                    }}
-                    title="Canvas height"
-                  />
-                </Field>
-              </div>
+              <CanvasDraftFields
+                draft={draft}
+                nameRef={nameInputRef}
+                onChange={setDraft}
+                onSubmit={saveInlineEdit}
+                onCancel={cancelInlineEdit}
+              />
 
               <div className="taskmap-canvas-inline-editor__actions">
                 <Button
@@ -609,8 +512,9 @@ export function CanvasManager({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-base font-semibold text-white">{canvas.name}</div>
               </div>
-              <button
-                type="button"
+              <IconButton
+                variant="ghost"
+                size="compact"
                 data-canvas-menu-trigger
                 className="taskmap-canvas-browser-card__options"
                 aria-label="Canvas menu"
@@ -623,9 +527,8 @@ export function CanvasManager({
                   );
                 }}
                 title="Canvas menu"
-              >
-                <span className="taskmap-canvas-browser-card__options-dots" aria-hidden="true" />
-              </button>
+                icon={<IconDotsVertical size={16} stroke={2} />}
+              />
             </CanvasBrowserCard>,
             cardHost,
             canvas.id,
@@ -662,11 +565,17 @@ export function CanvasManager({
                     key={container.id}
                     data-canvas-preview-container={container.id}
                     className="absolute overflow-hidden rounded-[1px] border"
+                    {...{
+                      [PREVIEW_WORLD_ATTRIBUTE]: `${container.x} ${container.y} ${container.width} ${container.height}`,
+                    }}
                     style={{
-                      left: (container.x - visibleLeft) * previewScale,
-                      top: (container.y - visibleTop) * previewScale,
-                      width: Math.max(container.width * previewScale, 3),
-                      height: Math.max(container.height * previewScale, 3),
+                      ...previewItemStyle(
+                        projection,
+                        container.x,
+                        container.y,
+                        container.width,
+                        container.height,
+                      ),
                       zIndex: 20 + (container.layer ?? 0),
                       borderColor: container.accent,
                       backgroundColor: "#1b1b1e",
@@ -674,8 +583,9 @@ export function CanvasManager({
                   >
                     <div
                       className="absolute inset-x-0 top-0"
+                      {...{ [PREVIEW_HEADER_ATTRIBUTE]: 48 }}
                       style={{
-                        height: Math.max(2, 48 * previewScale),
+                        height: previewHeaderHeight(projection, 48),
                         backgroundColor: container.accent,
                       }}
                     />
@@ -687,11 +597,17 @@ export function CanvasManager({
                     key={element.id}
                     data-canvas-preview-text-block={element.id}
                     className="absolute overflow-hidden rounded-[1px] border"
+                    {...{
+                      [PREVIEW_WORLD_ATTRIBUTE]: `${element.x} ${element.y} ${element.width} ${element.height}`,
+                    }}
                     style={{
-                      left: (element.x - visibleLeft) * previewScale,
-                      top: (element.y - visibleTop) * previewScale,
-                      width: Math.max(element.width * previewScale, 3),
-                      height: Math.max(element.height * previewScale, 3),
+                      ...previewItemStyle(
+                        projection,
+                        element.x,
+                        element.y,
+                        element.width,
+                        element.height,
+                      ),
                       zIndex: 20 + (element.layer ?? 0),
                       borderColor: element.accent,
                       backgroundColor: "#1b1b1e",
@@ -699,8 +615,9 @@ export function CanvasManager({
                   >
                     <div
                       className="absolute inset-x-0 top-0"
+                      {...{ [PREVIEW_HEADER_ATTRIBUTE]: 40 }}
                       style={{
-                        height: Math.max(2, 40 * previewScale),
+                        height: previewHeaderHeight(projection, 40),
                         backgroundColor: element.accent,
                       }}
                     />
@@ -712,11 +629,11 @@ export function CanvasManager({
                     key={image.id}
                     data-canvas-preview-image={image.id}
                     className="absolute overflow-hidden rounded-[1px] border"
+                    {...{
+                      [PREVIEW_WORLD_ATTRIBUTE]: `${image.x} ${image.y} ${image.width} ${image.height}`,
+                    }}
                     style={{
-                      left: (image.x - visibleLeft) * previewScale,
-                      top: (image.y - visibleTop) * previewScale,
-                      width: Math.max(image.width * previewScale, 3),
-                      height: Math.max(image.height * previewScale, 3),
+                      ...previewItemStyle(projection, image.x, image.y, image.width, image.height),
                       zIndex: 20 + (image.layer ?? 0),
                       borderColor: image.accent,
                       backgroundColor: image.background === false ? "transparent" : "#1b1b1e",
@@ -731,8 +648,9 @@ export function CanvasManager({
                 {canvas.width} × {canvas.height}
               </span>
             </div>
-            <button
-              type="button"
+            <IconButton
+              variant="ghost"
+              size="compact"
               data-canvas-menu-trigger
               className="taskmap-canvas-browser-card__options"
               aria-label="Canvas menu"
@@ -745,9 +663,8 @@ export function CanvasManager({
                 );
               }}
               title="Canvas menu"
-            >
-              <span className="taskmap-canvas-browser-card__options-dots" aria-hidden="true" />
-            </button>
+              icon={<IconDotsVertical size={16} stroke={2} />}
+            />
           </CanvasBrowserCard>,
           cardHost,
           canvas.id,
@@ -792,93 +709,19 @@ export function CanvasManager({
           document.body,
         )}
 
-      {modalMode &&
-        createPortal(
-          <MaterialSurface
-            material="frosted-popup"
-            data-new-canvas-menu
-            className={`context-menu-panel fixed left-[318px] top-16 z-40 w-[300px] p-4 text-white ${
-              createMenuClosing ? "side-panel-exit pointer-events-none" : "side-panel-enter"
-            }`}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[16px] font-semibold">New canvas</h2>
-              <button
-                className="grid h-8 w-8 place-items-center rounded-md text-white/60 hover:bg-white/[0.10] hover:text-white"
-                onClick={closeModal}
-                title="Close"
-              >
-                <IconX size={17} stroke={2} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <input
-                className="h-10 w-full rounded-md border border-white/[0.12] bg-black/[0.18] px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/35"
-                value={draft.name}
-                autoFocus
-                spellCheck={false}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, name: event.target.value }))
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    submitModal();
-                  }
-                }}
-                placeholder="Canvas name"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  className="h-10 rounded-md border border-white/[0.12] bg-black/[0.18] px-3 text-sm text-white outline-none [appearance:textfield] focus:border-white/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  type="number"
-                  min={600}
-                  max={10000}
-                  step={100}
-                  value={draft.width}
-                  spellCheck={false}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, width: Number(event.target.value) }))
-                  }
-                  title="Canvas width"
-                />
-                <input
-                  className="h-10 rounded-md border border-white/[0.12] bg-black/[0.18] px-3 text-sm text-white outline-none [appearance:textfield] focus:border-white/35 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  type="number"
-                  min={600}
-                  max={10000}
-                  step={100}
-                  value={draft.height}
-                  spellCheck={false}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, height: Number(event.target.value) }))
-                  }
-                  title="Canvas height"
-                />
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                className="flex h-9 items-center gap-2 rounded-md px-3 text-sm text-white/70 transition-colors hover:bg-white/[0.10] hover:text-white"
-                onClick={closeModal}
-              >
-                <IconX size={17} stroke={2} />
-                <span>Cancel</span>
-              </button>
-              <button
-                className="flex h-9 items-center gap-2 rounded-md bg-white/[0.12] px-3 text-sm text-white transition-colors hover:bg-white/[0.18]"
-                onClick={submitModal}
-              >
-                <IconCheck size={17} stroke={2} />
-                <span>Create</span>
-              </button>
-            </div>
-          </MaterialSurface>,
-          document.body,
-        )}
+      {createPortal(
+        <div className="taskmap-target-theme">
+          <ModalPresence open={createOpen}>
+            <CanvasCreateDialog
+              key={createSession}
+              initialDraft={createDraft}
+              onCancel={closeCreate}
+              onCreate={submitCreate}
+            />
+          </ModalPresence>
+        </div>,
+        document.body,
+      )}
     </CanvasManagerShell>
   );
 }

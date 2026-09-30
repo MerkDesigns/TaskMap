@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { MaterialSurface } from "./MaterialSurface";
 import {
@@ -7,10 +8,22 @@ import {
   SharedSmallGlassPlane,
   writeSharedSmallGlassShapes,
 } from "./SharedSmallGlassPlane";
+import { SmallGlassOutputMaskEnabled } from "./sharedSmallOutputMask";
+
+/** Legacy root-clip path, retained as a Dev comparison behind the output-mask default. */
+const LegacyClip = ({ children }: { readonly children: ReactNode }) => (
+  <SmallGlassOutputMaskEnabled.Provider value={false}>
+    {children}
+  </SmallGlassOutputMaskEnabled.Provider>
+);
 
 describe("SharedSmallGlassPlane", () => {
   it("keeps full-size rounded geometry and stable SVG nodes while changing viewport intersection", () => {
-    const { container } = render(<SharedSmallGlassPlane />);
+    const { container } = render(
+      <LegacyClip>
+        <SharedSmallGlassPlane />
+      </LegacyClip>,
+    );
     const plane = container.querySelector<HTMLElement>("[data-shared-small-glass-plane]")!;
     const shape = {
       x: 12,
@@ -49,7 +62,7 @@ describe("SharedSmallGlassPlane", () => {
 
   it("reuses one active backdrop for multiple rounded Small surface clips", () => {
     const { container } = render(
-      <div>
+      <LegacyClip>
         <SharedSmallGlassPlane />
         <MaterialSurface material="acrylic-small" backdropSource="shared">
           Shared A
@@ -58,7 +71,7 @@ describe("SharedSmallGlassPlane", () => {
           Shared B
         </MaterialSurface>
         <MaterialSurface material="acrylic-large">Large</MaterialSurface>
-      </div>,
+      </LegacyClip>,
     );
     const plane = container.querySelector<HTMLElement>("[data-shared-small-glass-plane]")!;
 

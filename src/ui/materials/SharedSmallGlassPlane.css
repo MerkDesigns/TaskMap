@@ -11,6 +11,20 @@
   display: none;
 }
 
+.taskmap-shared-small-glass-plane[data-small-output-masked="true"] {
+  overflow: visible;
+  transform: none;
+}
+.taskmap-shared-small-glass-plane[data-small-output-masked="true"] > [data-native-filter-layer] {
+  mask-image: var(--taskmap-small-output-mask);
+  mask-position: var(--taskmap-small-output-mask-position, 0 0);
+  mask-size: var(--taskmap-small-output-mask-size, 100% 100%);
+  mask-composite: var(--taskmap-small-output-mask-composite, add);
+  mask-repeat: no-repeat;
+  transform: none;
+  backface-visibility: visible;
+}
+
 .taskmap-shared-small-glass-plane__definitions {
   position: absolute;
   width: 0;

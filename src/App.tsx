@@ -3700,9 +3700,7 @@ function App({
     }
 
     const target = event.target as HTMLElement | null;
-    if (quickExtensionsMenu && !target?.closest("[data-quick-extensions-menu]")) {
-      setQuickExtensionsMenu(null);
-    }
+    // Quick Extensions owns its outside-click close so its exit animation can run.
 
     if (!target?.closest("[data-text-block-content]") && !isEditableKeyboardTarget(target)) {
       window.getSelection()?.removeAllRanges();
@@ -7203,6 +7201,7 @@ function App({
                           sharedPanel
                           viewportWidth={stageWidth}
                           viewportHeight={stageHeight}
+                          controller={interactionController}
                           onMinimalViewChange={setCanvasManagerMinimalView}
                           onCreateCanvas={createCanvas}
                           onSelectCanvas={selectCanvas}

@@ -1,7 +1,10 @@
+/* Settled scroll-edge morph: the shell (body, rim, shadow, content mask) covers only the visible
+   slice while content keeps its logical position. Held cards receive their full slice. */
 .taskmap-canvas-browser-card {
   position: relative;
   width: 100%;
-  height: var(--taskmap-canvas-card-full-height, 84px);
+  height: var(--taskmap-canvas-card-visible-height, var(--taskmap-canvas-card-full-height, 84px));
+  transform: translate3d(0, var(--taskmap-canvas-card-clip-offset, 0px), 0);
   overflow: visible;
   color: rgb(255 255 255 / 88%);
   cursor: grab;
@@ -31,7 +34,10 @@
 
 .taskmap-canvas-browser-card__content {
   position: absolute;
-  top: calc(0px - var(--taskmap-material-content-clip-inset, 0px));
+  top: calc(
+    0px - var(--taskmap-material-content-clip-inset, 0px) -
+      var(--taskmap-canvas-card-clip-offset, 0px)
+  );
   left: calc(0px - var(--taskmap-material-content-clip-inset, 0px));
   display: flex;
   width: calc(
@@ -149,47 +155,23 @@
   white-space: normal;
 }
 
+/* Card overflow action: the shared compact IconButton, positioned only (UI guardrails section 6). */
 .taskmap-canvas-browser-card__options {
   position: absolute;
   z-index: 4;
   top: 50%;
-  right: 11px;
-  display: grid;
-  width: auto;
-  height: auto;
-  padding: 3px 2px;
+  right: var(--taskmap-space-1);
   transform: translateY(-50%);
-  place-items: center;
-  border: 0;
-  border-radius: 4px;
-  outline: 0;
-  color: rgb(255 255 255 / 78%);
-  background: transparent;
-  box-shadow: none;
-  cursor: pointer;
-  appearance: none;
+  color: var(--taskmap-muted);
 }
 
-.taskmap-canvas-browser-card__options:hover {
-  background: rgb(255 255 255 / 10%);
+/* 20% slimmer hit area horizontally (user direction 2026-09-30). */
+.taskmap-canvas-browser-card__options.taskmap-icon-button {
+  width: calc(var(--taskmap-control-height-compact) * 0.8);
 }
 
-.taskmap-canvas-browser-card__options:focus,
-.taskmap-canvas-browser-card__options:focus-visible,
-.taskmap-canvas-browser-card__options:active {
-  border: 0;
-  outline: 0;
-  box-shadow: none;
-}
-
-.taskmap-canvas-browser-card__options-dots {
-  width: 2.5px;
-  height: 2.5px;
-  border-radius: 50%;
-  background: currentcolor;
-  box-shadow:
-    0 -4.5px currentcolor,
-    0 4.5px currentcolor;
+.taskmap-canvas-browser-card__options:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.97);
 }
 
 .taskmap-canvas-inline-editor__eyebrow {

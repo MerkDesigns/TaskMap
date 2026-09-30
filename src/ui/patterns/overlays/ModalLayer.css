@@ -22,6 +22,14 @@
   transform-origin: center;
 }
 
+/* Nested dialogs compose root x nested presence so either can animate while the other rests;
+   ModalPresence writes both variables only while animating. */
+.taskmap-modal-presence-group[data-taskmap-modal-presence-level="nested"] {
+  --taskmap-material-presence-progress: calc(
+    var(--taskmap-modal-root-presence, 1) * var(--taskmap-modal-nested-presence, 1)
+  );
+}
+
 .taskmap-nested-modal-layer,
 .taskmap-nested-modal-scrim,
 .taskmap-nested-modal-content {

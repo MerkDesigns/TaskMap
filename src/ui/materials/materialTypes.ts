@@ -5,7 +5,8 @@ export type MaterialStrategy = "native-glass" | "opaque" | "css";
 export type MaterialPlane = "base" | "modal";
 export type MaterialElevation = "default" | "none";
 export type MaterialSurfaceEffect = "bright-selection";
-export type MaterialBackdropSource = "self" | "shared";
+/** `shell`: Minor body, rim and shadow without its own backdrop pass (contract section 6). */
+export type MaterialBackdropSource = "self" | "shared" | "shell";
 export type MaterialRgb = readonly [red: number, green: number, blue: number];
 
 export interface MaterialHighlightStop {

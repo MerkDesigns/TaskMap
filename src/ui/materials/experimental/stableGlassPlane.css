@@ -1,20 +1,3 @@
-.taskmap-stable-glass-plane {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-/* Fixed scene bounds; only each filter's output is masked. No masked ancestor. */
-.taskmap-stable-glass-plane > :is(.taskmap-native-glass-preblur, .taskmap-native-glass-backdrop) {
-  inset: 0;
-  transform: none;
-  backface-visibility: visible;
-  mask-image: var(--taskmap-plane-mask);
-  mask-size: 100% 100%;
-  mask-repeat: no-repeat;
-}
-
 .taskmap-stable-glass-surface > .taskmap-material-native-glass__highlight {
   z-index: -1;
 }

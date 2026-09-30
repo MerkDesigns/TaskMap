@@ -309,7 +309,7 @@ export function CommandRunnerSettingsModal({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col p-3">
-        <div className="json-editor-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+        <div className="taskmap-scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {draft.map((entry, index) => (
             <div key={index} className="rounded-lg border border-white/[0.10] bg-black/[0.14] p-3">
               <div className="mb-2 flex items-center gap-2">

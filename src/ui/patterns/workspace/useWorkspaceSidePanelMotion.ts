@@ -1,94 +1,94 @@
-import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import { useMotionFrameScheduler } from "../../motion/MotionProvider";
-import type { MotionFrameScheduler } from "../../motion/motionFrameScheduler";
-import { interpolate, normalizedProgress } from "../../motion/motionMath";
 import { useReducedMotion } from "../../motion/reducedMotionPreference";
+import {
+  createPresenceMotion,
+  type PresenceChannels,
+  type PresenceMotion,
+} from "../../motion/presenceMotion";
+import { presetChannels } from "../../motion/presencePresets";
+import { usePresencePreset, type SurfacePresenceName } from "../../motion/usePresenceMotion";
 import { refreshMaterialSurfaceBackdrop } from "../../materials/materialGeometryInvalidation";
 
-export const WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 240;
+/** Every side-panel preset keeps this duration; App's unmount timer depends on it. */
+export const WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 300;
 export const WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32;
+/** Scale while hidden for the default fade + slide + scale presence. */
+const SIDE_PANEL_SCALE = 0.94;
 
-type SlidePhase = "active" | "hidden" | "rest";
+/** Ease in and out in both directions (user direction 2026-09-30). */
+const easeInOutCubic = (progress: number) =>
+  progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+const TIMING = { durationMs: WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS, easing: easeInOutCubic };
 
+/**
+ * Side-panel presence through the shared presence controller. The default fades the panel's glass
+ * and content in from zero while sliding it in from off-screen and scaling it up; the workbench
+ * previews alternatives.
+ */
 export function useWorkspaceSidePanelMotion(
   panelRef: RefObject<HTMLElement | null>,
   closing: boolean,
 ): void {
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const translateXRef = useRef(0);
-  const initializedRef = useRef(false);
-
-  const writePanel = useCallback(
-    (translateX: number, phase: SlidePhase) => {
-      translateXRef.current = translateX;
-      const panel = panelRef.current;
-      if (!panel) return;
-
-      if (phase === "rest") {
-        delete panel.dataset.panelMotion;
-        panel.style.transform = "";
-        panel.style.willChange = "";
-        refreshMaterialSurfaceBackdrop(panel);
-      } else {
-        panel.dataset.panelMotion = phase;
-        panel.style.transform = `translate3d(${translateX}px, 0, 0)`;
-        panel.style.willChange = phase === "active" ? "transform" : "";
-      }
-    },
-    [panelRef],
-  );
+  const preset = usePresencePreset("sidePanel", "fadeScaleOffscreenSlide");
+  const motionRef = useRef<PresenceMotion | null>(null);
+  const presetRef = useRef(preset);
+  presetRef.current = preset;
 
   useLayoutEffect(() => {
-    const opening = !closing;
-    const offscreenX = getOffscreenTranslateX(panelRef.current);
-    const from = initializedRef.current ? translateXRef.current : opening ? offscreenX : 0;
-    const target = opening ? 0 : offscreenX;
-    initializedRef.current = true;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const motion = createPresenceMotion(panel, {
+      scheduler,
+      reducedMotion,
+      channels: sidePanelChannels(panel, presetRef.current),
+      enter: TIMING,
+      exit: TIMING,
+      initialProgress: 0,
+      onComplete: (endpoint) => {
+        if (endpoint === "visible") refreshMaterialSurfaceBackdrop(panel);
+      },
+    });
+    motionRef.current = motion;
+    return () => {
+      motion.destroy();
+      motionRef.current = null;
+    };
+  }, [panelRef, reducedMotion, scheduler]);
 
-    if (reducedMotion || from === target) {
-      writePanel(target, opening ? "rest" : "hidden");
-      return;
-    }
-
-    return subscribeSlideAnimation(scheduler, writePanel, from, target, opening);
-  }, [closing, panelRef, reducedMotion, scheduler, writePanel]);
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const motion = motionRef.current;
+    if (!panel || !motion) return;
+    motion.setChannels(sidePanelChannels(panel, preset));
+    if (closing) motion.hide();
+    else motion.show();
+  }, [closing, panelRef, preset]);
 }
 
-function subscribeSlideAnimation(
-  scheduler: MotionFrameScheduler,
-  writePanel: (translateX: number, phase: SlidePhase) => void,
-  from: number,
-  target: number,
-  opening: boolean,
-): () => void {
-  let elapsedMs = 0;
-  writePanel(from, "active");
-  return scheduler.subscribe(({ deltaMs }) => {
-    elapsedMs += deltaMs;
-    const progress = normalizedProgress(elapsedMs, 0, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS);
-    const easedProgress = opening ? easeInCubic(progress) : easeOutCubic(progress);
-    writePanel(interpolate(from, target, easedProgress), "active");
-    if (progress < 1) return true;
-    writePanel(target, opening ? "rest" : "hidden");
-    return false;
-  });
+function sidePanelChannels(panel: HTMLElement, preset: SurfacePresenceName): PresenceChannels {
+  if (preset === "offscreenSlide") return { slide: { x: offscreenTranslateX(panel) } };
+  if (preset === "fadeOffscreenSlide") {
+    return { materialFade: true, slide: { x: offscreenTranslateX(panel) } };
+  }
+  if (preset === "fadeScaleOffscreenSlide") {
+    return {
+      materialFade: true,
+      slide: { x: offscreenTranslateX(panel) },
+      scale: SIDE_PANEL_SCALE,
+    };
+  }
+  return presetChannels(preset, "materialFadeSlideLeft");
 }
 
-function getOffscreenTranslateX(panel: HTMLElement | null): number {
-  if (!panel) return 0;
-  const width = panel.getBoundingClientRect().width || panel.offsetWidth || 288;
+function offscreenTranslateX(panel: HTMLElement): number {
+  // Layout width ignores presence transforms (e.g. a scale preset mid-animation).
+  const width = panel.offsetWidth || panel.getBoundingClientRect().width || 288;
   const inlineInset = Number.parseFloat(
     window.getComputedStyle(panel).getPropertyValue("--taskmap-chrome-inset-inline"),
   );
   const left = Number.isFinite(inlineInset) ? inlineInset : 16;
   return -(width + left + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
-}
-
-function easeInCubic(progress: number): number {
-  return progress * progress * progress;
-}
-
-function easeOutCubic(progress: number): number {
-  return 1 - Math.pow(1 - progress, 3);
 }

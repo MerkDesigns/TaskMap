@@ -16,17 +16,8 @@
   border-radius: var(--taskmap-radius-medium);
 }
 
-.taskmap-extension-browser-filter.taskmap-icon-button {
-  width: var(--taskmap-control-height);
-  height: var(--taskmap-control-height);
+.taskmap-extension-browser-filter {
   flex: none;
-  border-radius: var(--taskmap-radius-medium);
-}
-
-.taskmap-extension-browser-filter[data-filter-active="true"] {
-  border-color: rgb(var(--taskmap-accent-rgb) / 0.48);
-  background: var(--taskmap-state-selected);
-  color: color-mix(in srgb, var(--taskmap-accent) 76%, white);
 }
 
 .taskmap-extension-browser-filter__status {
@@ -60,9 +51,12 @@
   gap: var(--taskmap-space-2);
 }
 
+/* The list extends into the panel's bottom padding so the last card's shadow has its gutter
+   inside the scroll clip; the visible gap below the last card is unchanged. */
 .taskmap-extension-browser-scroll-frame {
   position: relative;
   overflow: visible;
+  margin-bottom: calc(0px - var(--taskmap-panel-padding));
 }
 
 .taskmap-extension-browser-scroll-frame > .taskmap-shared-small-glass-plane {
@@ -73,6 +67,7 @@
   position: relative;
   z-index: 1;
   height: 100%;
+  padding-bottom: var(--taskmap-panel-padding);
 }
 
 .taskmap-extension-browser-section__heading {
@@ -109,11 +104,13 @@
   inset: 0;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard);
+  /* Hover highlight fades visibly: slightly longer fade-out than fade-in. */
+  transition: opacity var(--taskmap-motion-slow) ease;
 }
 
 .taskmap-extension-browser-card:hover::before {
   opacity: 0.5;
+  transition-duration: var(--taskmap-motion-normal);
 }
 
 .taskmap-extension-browser-card__content-mask {
@@ -128,7 +125,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 56px 10px 10px;
+  padding: 10px;
 }
 
 .taskmap-extension-browser-icon {
@@ -146,6 +143,8 @@
 
 .taskmap-extension-browser-card__title {
   display: block;
+  /* Only the title line shares the top-right corner with the card actions. */
+  padding-right: calc(var(--taskmap-extension-card-action-size) * 2);
   color: var(--taskmap-text);
   font-size: var(--taskmap-text-body-size);
   font-weight: 650;
@@ -164,48 +163,31 @@
 .taskmap-extension-browser-card__content > .taskmap-extension-browser-card__actions {
   position: absolute;
   z-index: 3;
-  top: 50%;
-  right: 6px;
+  top: 4px;
+  right: 4px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  transform: translateY(-50%);
+  gap: 0;
 }
 
-.taskmap-extension-info-button {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  border-radius: 0;
-  outline: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--taskmap-muted);
-  cursor: pointer;
-  appearance: none;
+/* Card actions sit in the top-right corner at 90% of the compact control (user direction
+   2026-09-30). */
+.taskmap-extension-browser-card {
+  --taskmap-extension-card-action-size: calc(var(--taskmap-control-height-compact) * 0.9);
 }
 
-.taskmap-extension-info-button:hover {
-  background: transparent;
-  color: var(--taskmap-text);
-}
-
+.taskmap-extension-info-button.taskmap-icon-button,
 .taskmap-extension-browser-favorite.taskmap-icon-button {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border-color: rgb(255 255 255 / 0.1);
-  border-radius: 6px;
-  background: rgb(0 0 0 / 0.2);
+  /* 90% of the 16px icon token. */
+  --taskmap-icon: 14.4px;
+
+  width: var(--taskmap-extension-card-action-size);
+  height: var(--taskmap-extension-card-action-size);
   color: var(--taskmap-muted);
 }
 
-.taskmap-extension-browser-favorite[data-favorited="true"] {
-  border-color: rgb(252 211 77 / 0.35);
-  background: rgb(252 211 77 / 0.12);
+/* Favorited is a content state: a filled gold star on the standard ghost button. */
+.taskmap-extension-browser-favorite[aria-pressed="true"] {
   color: rgb(253 230 138);
 }
 
