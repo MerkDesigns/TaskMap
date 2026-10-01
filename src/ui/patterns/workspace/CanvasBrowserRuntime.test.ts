@@ -4,6 +4,7 @@ import {
   CANVAS_CARD_SLOT_TRANSITION_MS,
   easeOutQuart,
 } from "./canvasBrowserInteraction";
+import { CANVAS_CARD_HELD_SCALE } from "./canvasBrowserHeldLift";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { dispatchPointer, runtimeFixture, wheel } from "./canvasBrowserRuntimeTestFixture";
 import { readSuppliedMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
@@ -204,31 +205,6 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 
-  it("releases the clipping ancestor only while a card is held (glass contract section 13)", () => {
-    const fixture = runtimeFixture(["a", "b"]);
-    const clipHost = document.createElement("div");
-    clipHost.dataset.heldItemClip = "";
-    document.body.append(clipHost);
-    clipHost.append(fixture.panel);
-
-    fixture.begin("a", 100);
-    dispatchPointer("pointermove", 103);
-    fixture.frames.fire(16);
-    // Below the drag threshold nothing is held yet.
-    expect(clipHost.dataset.heldItemClip).toBe("");
-    dispatchPointer("pointermove", 140);
-    fixture.frames.fire(32);
-    expect(clipHost.dataset.heldItemClip).toBe("released");
-
-    dispatchPointer("pointerup", 140);
-    fixture.frames.fire(200);
-    fixture.frames.fire(400);
-    expect(fixture.runtime.getSnapshot().dragActive).toBe(false);
-    expect(clipHost.dataset.heldItemClip).toBe("");
-    fixture.destroy();
-    clipHost.remove();
-  });
-
   it("requires 6px, leaves clicks untouched below threshold, and never clones", () => {
     const fixture = runtimeFixture(["a", "b"]);
     const cloneNode = vi.spyOn(Node.prototype, "cloneNode");
@@ -327,6 +303,40 @@ describe("production Canvas Browser runtime", () => {
     expect(fixture.runtime.getSnapshot().order).toEqual(["a", "b", "c", "d"]);
     expect(fixture.commitOrder).not.toHaveBeenCalled();
     expect(fixture.cards.get("b")?.host.parentElement).toBe(fixture.cardsLayer);
+    fixture.destroy();
+  });
+
+  it("lifts the held card, spreads its neighbours, and settles both back on drop", () => {
+    const fixture = runtimeFixture(["a", "b", "c", "d"]);
+    const cardY = (id: string) =>
+      Number.parseFloat(
+        fixture.cards.get(id)!.host.style.getPropertyValue("--taskmap-canvas-card-y"),
+      );
+    const held = fixture.cards.get("b")!.host;
+    const spread = (84 * (CANVAS_CARD_HELD_SCALE - 1)) / 2;
+    fixture.begin("b", 140);
+    dispatchPointer("pointermove", 150);
+    fixture.frames.fire(16);
+    fixture.frames.fire(16 + CANVAS_CARD_SLOT_TRANSITION_MS);
+
+    expect(Number(held.style.getPropertyValue("--taskmap-canvas-card-scale"))).toBeCloseTo(
+      CANVAS_CARD_HELD_SCALE,
+    );
+    // The first and last cards stay put; the card between absorbs half the push.
+    expect(cardY("a")).toBe(0);
+    expect(cardY("c")).toBeCloseTo(188 + spread / 2);
+    expect(cardY("d")).toBe(282);
+    const glass = fixture.dragGlassPlane.querySelector("[data-shared-small-glass-clip] > rect");
+    expect(glass).toHaveAttribute("width", String(Math.round(264 * CANVAS_CARD_HELD_SCALE)));
+
+    dispatchPointer("pointerup", 150);
+    fixture.frames.fire(300);
+    fixture.frames.fire(300 + CANVAS_CARD_SLOT_TRANSITION_MS);
+
+    expect(held.style.getPropertyValue("--taskmap-canvas-card-scale")).toBe("");
+    expect(cardY("a")).toBe(0);
+    expect(cardY("c")).toBe(188);
+    expect(fixture.commitOrder).not.toHaveBeenCalled();
     fixture.destroy();
   });
 });

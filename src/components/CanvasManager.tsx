@@ -20,13 +20,9 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  CONTEXT_MENU_PANEL_CLASS,
-  MENU_DANGER_ITEM_CLASS,
-  MENU_DIVIDER_CLASS,
-  MENU_ITEM_CLASS,
-} from "../constants";
+import {} from "../constants";
 import { TaskCanvas } from "../types";
+import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import type { CanvasInteractionController } from "../app/interactions/canvasInteractionTypes";
 import {
   canvasPreviewProjection,
@@ -46,7 +42,8 @@ import { useReducedMotion } from "../ui/motion/reducedMotionPreference";
 import { CanvasBrowserRuntime } from "../ui/patterns/workspace/CanvasBrowserRuntime";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
 import { Button, IconButton, ToggleButton } from "../ui/primitives/Button";
-import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import { ContextMenu } from "../ui/primitives/ContextMenu";
+import { ContextMenuDivider, ContextMenuItem } from "../ui/primitives/ContextMenuParts";
 import "../ui/patterns/workspace/CanvasBrowser.css";
 import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWork";
 
@@ -62,7 +59,6 @@ type CanvasManagerProps = {
   minimalView: boolean;
   panelRadius?: number;
   previewGap?: number;
-  smallGlassBlur?: number;
   viewportWidth: number;
   viewportHeight: number;
   /** Live camera source; the active card's preview follows pan/zoom frames without rerendering. */
@@ -106,7 +102,6 @@ export function CanvasManager({
   minimalView,
   panelRadius,
   previewGap = CANVAS_BROWSER_LAYOUT.previewInset,
-  smallGlassBlur,
   viewportWidth,
   viewportHeight,
   controller,
@@ -121,7 +116,8 @@ export function CanvasManager({
   const cardPortalHostsRef = useRef(new Map<string, HTMLDivElement>());
   const previewViewportSizesRef = useRef<Record<string, PreviewViewportSize>>({});
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuTriggerRef = useRef<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const cardsLayerRef = useRef<HTMLDivElement | null>(null);
@@ -146,10 +142,17 @@ export function CanvasManager({
     setCreateOpen(false);
     setEditingId(null);
   }, [active]);
+  // Keeps the last menu target through the primitive's exit animation.
+  const shownMenuRef = useRef(menu);
+  if (menu) shownMenuRef.current = menu;
+  const shownMenu = shownMenuRef.current;
   const menuPosition = useClampedFixedPosition(menuRef, {
-    left: menu?.left ?? 0,
-    top: menu?.top ?? 0,
+    left: shownMenu?.left ?? 0,
+    top: shownMenu?.top ?? 0,
   });
+  const handleMenuOpenChange = useCallback((open: boolean) => {
+    if (!open) setMenu(null);
+  }, []);
 
   const openCreate = () => {
     setEditingId(null);
@@ -193,25 +196,6 @@ export function CanvasManager({
     });
   }, [cycleHighlightCanvasId]);
 
-  useEffect(() => {
-    if (!menu) {
-      return;
-    }
-
-    const closeMenu = (event: PointerEvent) => {
-      if (
-        !(event.target as HTMLElement | null)?.closest(
-          "[data-context-menu], [data-canvas-menu-trigger]",
-        )
-      ) {
-        setMenu(null);
-      }
-    };
-
-    window.addEventListener("pointerdown", closeMenu, true);
-    return () => window.removeEventListener("pointerdown", closeMenu, true);
-  }, [menu]);
-
   const saveInlineEdit = () => {
     if (!editingId) {
       return;
@@ -248,16 +232,19 @@ export function CanvasManager({
     if (!controller || !workActive || minimalView) return;
     let previous = controller.getSnapshot().viewport;
     return controller.subscribe(() => {
-      const viewport = controller.getSnapshot().viewport;
+      const { canvasKey, viewport } = controller.getSnapshot();
       if (viewport === previous) return;
       previous = viewport;
+      // Present to the canvas this camera belongs to: on a switch the camera changes before the
+      // active id prop does, and writing it into the previous card would stick (React sees no
+      // change in that card's props and never rewrites it).
       const preview =
-        cardRefs.current[activeCanvasId]?.querySelector<HTMLElement>(".taskmap-canvas-preview");
-      const size = previewViewportSizesRef.current[activeCanvasId];
+        cardRefs.current[canvasKey]?.querySelector<HTMLElement>(".taskmap-canvas-preview");
+      const size = previewViewportSizesRef.current[canvasKey];
       if (!preview || !size) return;
       presentCanvasPreview(preview, canvasPreviewProjection(viewport, previewWidth, size.width));
     });
-  }, [activeCanvasId, controller, minimalView, previewWidth, workActive]);
+  }, [controller, minimalView, previewWidth, workActive]);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -338,16 +325,6 @@ export function CanvasManager({
       closing={closing}
       panelRadius={panelRadius}
       style={{ "--taskmap-canvas-preview-gap": `${previewGap}px` } as CSSProperties}
-      onPointerDownCapture={(event) => {
-        if (
-          menu &&
-          !(event.target as HTMLElement | null)?.closest(
-            "[data-context-menu], [data-canvas-menu-trigger]",
-          )
-        ) {
-          setMenu(null);
-        }
-      }}
     >
       <header className="taskmap-canvas-browser__header">
         <div className="taskmap-canvas-browser__header-copy">
@@ -396,13 +373,11 @@ export function CanvasManager({
         planeRef={sharedSmallGlassPlaneRef}
         materialEnabled={!embedded}
         batchId="canvas-browser-small"
-        blurPx={smallGlassBlur}
       >
         {!embedded && (
           <SharedSmallGlassPlane
             ref={dragSmallGlassPlaneRef}
             batchId="canvas-browser-small-drag"
-            blurPx={smallGlassBlur}
             kind="small-drag"
             className="taskmap-shared-small-glass-plane--canvas-drag"
           />
@@ -427,9 +402,10 @@ export function CanvasManager({
         }
 
         const previewViewport = previewViewportSizesRef.current[canvas.id];
-        // The active canvas follows the live camera; stored cameras lag until a document commit.
+        // The live camera is used only for the canvas it belongs to; others use their stored camera.
+        const liveCamera = controller?.getSnapshot();
         const projection = canvasPreviewProjection(
-          active && controller ? controller.getSnapshot().viewport : canvas,
+          liveCamera?.canvasKey === canvas.id ? liveCamera.viewport : canvas,
           previewWidth,
           previewViewport.width,
         );
@@ -520,6 +496,7 @@ export function CanvasManager({
                 aria-label="Canvas menu"
                 onClick={(event) => {
                   event.stopPropagation();
+                  menuTriggerRef.current = event.currentTarget;
                   setMenu((current) =>
                     current?.id === canvas.id
                       ? null
@@ -656,6 +633,7 @@ export function CanvasManager({
               aria-label="Canvas menu"
               onClick={(event) => {
                 event.stopPropagation();
+                menuTriggerRef.current = event.currentTarget;
                 setMenu((current) =>
                   current?.id === canvas.id
                     ? null
@@ -671,43 +649,37 @@ export function CanvasManager({
         );
       })}
 
-      {menu &&
-        createPortal(
-          <div
-            ref={menuRef}
-            data-context-menu
-            className={`${CONTEXT_MENU_PANEL_CLASS} context-menu-enter z-40`}
-            style={menuPosition}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className={MENU_ITEM_CLASS}
-              onClick={() => {
-                const canvas = canvases.find((current) => current.id === menu.id);
-                if (canvas) {
-                  openEdit(canvas);
-                }
-              }}
-            >
-              <IconPencil size={17} stroke={2} />
-              <span>Edit</span>
-            </button>
-            <div className={MENU_DIVIDER_CLASS} />
-            <button
-              className={`${MENU_DANGER_ITEM_CLASS} disabled:cursor-not-allowed disabled:opacity-35`}
-              onClick={() => {
-                setMenu(null);
-                onDeleteCanvas(menu.id);
-              }}
-              disabled={canvases.length <= 1}
-            >
-              <IconTrash size={17} stroke={2} />
-              <span>Delete</span>
-            </button>
-          </div>,
-          document.body,
-        )}
+      <ContextMenu
+        ref={menuRef}
+        portal
+        label="Canvas menu"
+        open={menu !== null}
+        onOpenChange={handleMenuOpenChange}
+        position={menuPosition}
+        returnFocusRef={menuTriggerRef}
+      >
+        <ContextMenuItem
+          icon={<IconPencil size={17} stroke={2} />}
+          onClick={() => {
+            const canvas = canvases.find((current) => current.id === shownMenu?.id);
+            if (canvas) openEdit(canvas);
+          }}
+        >
+          Edit
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          danger
+          icon={<IconTrash size={17} stroke={2} />}
+          disabled={canvases.length <= 1}
+          onClick={() => {
+            setMenu(null);
+            if (shownMenu) onDeleteCanvas(shownMenu.id);
+          }}
+        >
+          Delete
+        </ContextMenuItem>
+      </ContextMenu>
 
       {createPortal(
         <div className="taskmap-target-theme">

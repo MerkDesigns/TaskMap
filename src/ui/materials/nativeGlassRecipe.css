@@ -8,9 +8,9 @@
       calc(
         (
             var(--taskmap-material-presence-progress, 1) -
-              var(--taskmap-material-blur-presence-delay, 0.3)
+              var(--taskmap-material-blur-presence-delay, 0.2)
           ) /
-          (1 - var(--taskmap-material-blur-presence-delay, 0.3))
+          (1 - var(--taskmap-material-blur-presence-delay, 0.2))
       ),
       1
     ),

@@ -93,10 +93,10 @@ export function RadioGroup<Value extends string>({
   );
 }
 
-export type SliderProps = Omit<InputHTMLAttributes<HTMLInputElement>, "step" | "type">;
+export type SliderProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
 
 export const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
-  { className, ...props },
+  { className, step = "any", ...props },
   ref,
 ) {
   return (
@@ -104,7 +104,7 @@ export const Slider = forwardRef<HTMLInputElement, SliderProps>(function Slider(
       {...props}
       ref={ref}
       type="range"
-      step="any"
+      step={step}
       className={primitiveClassNames("taskmap-slider", className)}
     />
   );

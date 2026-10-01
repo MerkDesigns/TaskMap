@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 
-const DEFAULT_DELAY = 0.3;
+const DEFAULT_DELAY = 0.2;
 const DEFAULT_CURVE = 1;
 
 /**

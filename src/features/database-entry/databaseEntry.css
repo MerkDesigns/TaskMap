@@ -1,44 +1,60 @@
+/* The panel's top edge is anchored (not centred) and it keeps at least the unlock step's height,
+   so switching between the unlock step and the recent list never moves the logo or outline. */
 .taskmap-database-entry {
   display: grid;
-  place-items: center;
-  padding: var(--taskmap-space-8);
+  place-items: start center;
+  padding: max(var(--taskmap-space-8), calc(50vh - 170px)) var(--taskmap-space-8)
+    var(--taskmap-space-8);
   overflow: auto;
 }
 .taskmap-database-entry__panel {
-  width: min(100%, 480px);
-  padding: var(--taskmap-space-8);
+  width: min(100%, 520px);
+  min-height: 320px;
+  padding: 40px 44px;
   display: grid;
-  gap: var(--taskmap-space-5);
+  align-content: start;
+  gap: var(--taskmap-space-4);
+}
+.taskmap-database-entry__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  margin-bottom: var(--taskmap-space-3);
+}
+.taskmap-database-entry__title-image {
+  display: block;
+  height: 52px;
+  width: auto;
+  user-select: none;
+}
+.taskmap-database-entry__edition {
+  align-self: flex-end;
+  margin-bottom: 4px;
+  color: var(--taskmap-accent);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 650;
 }
 .taskmap-database-entry h1 {
   margin: 0;
-  font-size: var(--taskmap-text-heading-size);
-  line-height: var(--taskmap-text-heading-line);
-}
-.taskmap-database-entry h2 {
-  margin: 0;
   font-size: var(--taskmap-text-section-size);
+  font-weight: 650;
 }
 .taskmap-database-entry p {
   margin: 0;
-}
-.taskmap-database-entry .taskmap-database-entry__eyebrow {
-  color: var(--taskmap-accent);
-  margin-bottom: var(--taskmap-space-3);
-  font-weight: 600;
 }
 .taskmap-database-entry__hint {
   color: var(--taskmap-muted);
   font-size: var(--taskmap-text-small-size);
   line-height: var(--taskmap-text-small-line);
 }
-.taskmap-database-entry header .taskmap-database-entry__hint {
-  margin-top: var(--taskmap-space-3);
-}
 .taskmap-database-entry__privacy,
 .taskmap-database-entry__path {
   font-size: var(--taskmap-text-small-size);
   overflow-wrap: anywhere;
+}
+.taskmap-database-entry__path {
+  margin-top: calc(0px - var(--taskmap-space-1));
+  color: var(--taskmap-muted);
 }
 .taskmap-database-entry__error {
   color: var(--taskmap-danger);
@@ -48,13 +64,143 @@
   display: grid;
   gap: var(--taskmap-space-3);
 }
+.taskmap-database-entry__recent {
+  gap: var(--taskmap-space-2);
+}
+/* The heading is the visible label of the single unlock field. */
+.taskmap-database-entry__form[data-database-entry-form="unlock"] .taskmap-field__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .taskmap-database-entry__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--taskmap-space-2);
+  margin-top: var(--taskmap-space-2);
+}
+.taskmap-database-entry__submit {
+  margin-left: auto;
+}
+.taskmap-database-entry__recent .taskmap-button {
+  justify-content: flex-start;
 }
 .taskmap-database-entry__recent .taskmap-button__label {
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
+}
+/* Thin bar along the panel's bottom padding: takes no layout space, so it never shifts content. */
+.taskmap-database-entry__panel {
+  position: relative;
+}
+.taskmap-database-entry__progress {
+  position: absolute;
+  z-index: 2;
+  right: 44px;
+  bottom: 18px;
+  left: 44px;
+  height: 3px;
+}
+.taskmap-database-entry__progress-track {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--taskmap-radius-pill);
+  background: rgb(255 255 255 / 0.08);
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+.taskmap-database-entry__progress[data-stage="idle"] .taskmap-database-entry__progress-track {
+  opacity: 0;
+}
+.taskmap-database-entry__progress-track > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--taskmap-accent);
+  transform-origin: left center;
+  transition: transform 1400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.taskmap-database-entry__progress[data-stage="preparing"]
+  .taskmap-database-entry__progress-track
+  > span,
+.taskmap-database-entry__progress[data-stage="done"]
+  .taskmap-database-entry__progress-track
+  > span {
+  transition-duration: 300ms;
+}
+.taskmap-database-entry__progress[data-stage="idle"]
+  .taskmap-database-entry__progress-track
+  > span {
+  transition: none;
+}
+/* The backdrop is a separate layer (see useUnlockReveal); the root itself stays transparent. */
+.taskmap-database-entry {
+  position: relative;
+  background: transparent;
+}
+.taskmap-database-entry__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--taskmap-void-bg);
+}
+/* Over the freshly mounted workspace: below the window controls, above the workspace chrome. */
+.taskmap-database-entry[data-unlock-reveal] {
+  position: fixed;
+  z-index: calc(var(--taskmap-layer-workspace-chrome) + 10);
+  inset: 0;
+  overflow: hidden;
+}
+.taskmap-database-entry[data-unlock-reveal="revealing"] {
+  pointer-events: none;
+}
+/* TaskMap's own reveal toggle replaces WebView2's built-in one (see PasswordInput). */
+.taskmap-database-entry__password::-ms-reveal {
+  display: none;
+}
+.taskmap-database-entry__reveal {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  margin-right: -6px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--taskmap-radius-small);
+  background: transparent;
+  color: var(--taskmap-muted);
+  cursor: pointer;
+}
+.taskmap-database-entry__reveal:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--taskmap-text);
+}
+.taskmap-database-entry__reveal:focus-visible {
+  outline: 2px solid var(--taskmap-accent);
+  outline-offset: -2px;
+}
+.taskmap-database-entry__field-meta {
+  display: flex;
+  min-height: var(--taskmap-text-small-line);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-3);
+  margin-top: calc(0px - var(--taskmap-space-1));
+}
+.taskmap-database-entry__field-meta .taskmap-database-entry__path {
+  min-width: 0;
+  margin-top: 0;
+}
+.taskmap-database-entry__caps-lock {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  color: var(--taskmap-warning);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 600;
 }

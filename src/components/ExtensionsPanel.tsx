@@ -1,6 +1,5 @@
 import {
   IconBox,
-  IconCheck,
   IconFilter,
   IconInfoCircle,
   IconNotes,
@@ -37,6 +36,8 @@ import {
   WorkspaceSidePanel,
 } from "../ui/patterns/workspace";
 import { IconButton } from "../ui/primitives/Button";
+import { ContextMenu } from "../ui/primitives/ContextMenu";
+import { ContextMenuItem } from "../ui/primitives/ContextMenuParts";
 import { SearchField } from "../ui/primitives/FormControls";
 import { ScrollArea } from "../ui/primitives/Layout";
 import { ScrollIndicator } from "../ui/primitives/ScrollIndicator";
@@ -53,6 +54,7 @@ import "./QuickExtensionsMenu.css";
 export type { ExtensionId } from "../extensions/registry";
 
 type ExtensionsPanelProps = {
+  cardRadius?: number;
   availableExtensions?: readonly ExtensionDefinition[];
   active?: boolean;
   closing: boolean;
@@ -61,7 +63,6 @@ type ExtensionsPanelProps = {
   embedded?: boolean;
   panelRef?: RefObject<HTMLDivElement | null>;
   sharedPanel?: boolean;
-  smallGlassBlur?: number;
 };
 
 const TARGET_META: Record<ExtensionTargetType, { title: string; Icon: typeof IconBox }> = {
@@ -142,7 +143,7 @@ export function QuickExtensionsMenu({
   left,
   top,
   majorRadius = 17,
-  minorRadius = 9,
+  minorRadius = 11,
   iconRadius = 7,
   iconBackgroundOpacity = 0.75,
   onClose,
@@ -364,7 +365,7 @@ export function ExtensionsPanel({
   embedded = false,
   panelRef,
   sharedPanel = false,
-  smallGlassBlur,
+  cardRadius,
 }: ExtensionsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -375,10 +376,11 @@ export function ExtensionsPanel({
     useState<Partial<Record<ExtensionId, boolean>>>(loadExtensionFavorites);
   const localPanelRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
-  const filterMenuRef = useRef<HTMLDivElement | null>(null);
+  const filterMenuRef = useRef<HTMLElement | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const sharedSmallGlassPlaneRef = useRef<HTMLDivElement | null>(null);
-  const [filterPosition, setFilterPosition] = useState({ left: 0, top: 0 });
+  const [filterAnchor, setFilterAnchor] = useState({ left: 0, top: 0 });
+  const filterPosition = useClampedFixedPosition(filterMenuRef, filterAnchor);
   const activePanelRef = panelRef ?? localPanelRef;
   const workActive = useSettledPanelWork(active);
   useSharedSmallGlassList({
@@ -401,43 +403,6 @@ export function ExtensionsPanel({
   useEffect(() => {
     window.localStorage.setItem(EXTENSION_FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
   }, [favorites]);
-
-  useEffect(() => {
-    if (!filterOpen) {
-      return;
-    }
-
-    const updatePosition = () => {
-      const button = filterButtonRef.current;
-      if (!button) {
-        return;
-      }
-
-      const rect = button.getBoundingClientRect();
-      const width = filterMenuRef.current?.offsetWidth ?? 190;
-      const height = filterMenuRef.current?.offsetHeight ?? 152;
-      setFilterPosition({
-        left: Math.max(8, Math.min(rect.right + 8, window.innerWidth - width - 8)),
-        top: Math.max(8, Math.min(rect.top, window.innerHeight - height - 8)),
-      });
-    };
-    const closeOnOutsidePointer = (event: globalThis.PointerEvent) => {
-      const target = event.target as Node;
-      if (!filterButtonRef.current?.contains(target) && !filterMenuRef.current?.contains(target)) {
-        setFilterOpen(false);
-      }
-    };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-    };
-  }, [filterOpen]);
 
   const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconShieldLock;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -473,6 +438,7 @@ export function ExtensionsPanel({
       <ExtensionBrowserCard
         key={extension.id}
         embedded={embedded}
+        radius={cardRadius}
         geometryActive={workActive}
         data-extension-card-id={extension.id}
         onPointerDown={(event) => startExtensionDrag(event, extension.id)}
@@ -534,7 +500,11 @@ export function ExtensionsPanel({
           variant="secondary"
           className="taskmap-extension-browser-filter"
           data-selected={!allTargetsSelected || undefined}
-          onClick={() => setFilterOpen((current) => !current)}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setFilterAnchor({ left: rect.right + 8, top: rect.top });
+            setFilterOpen((current) => !current);
+          }}
           title="Filter by element"
           aria-label="Filter by element"
           aria-expanded={filterOpen}
@@ -547,53 +517,41 @@ export function ExtensionsPanel({
         />
       </div>
 
-      {filterOpen &&
-        createPortal(
-          <div
-            ref={filterMenuRef}
-            data-extension-filter-menu
-            className="taskmap-target-theme context-menu-panel context-menu-enter fixed z-[1001] w-[190px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-1 text-sm text-white shadow-[0_14px_34px_rgba(0,0,0,0.48)]"
-            style={filterPosition}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            {(Object.keys(TARGET_META) as ExtensionTargetType[]).map((target) => {
-              const selected = selectedTargets.includes(target);
-              const TargetIcon = TARGET_META[target].Icon;
-
-              return (
-                <button
-                  key={target}
-                  type="button"
-                  className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-white/76 transition-colors hover:bg-white/[0.10] hover:text-white"
-                  onClick={() =>
-                    setSelectedTargets((current) =>
-                      current.includes(target)
-                        ? current.filter((currentTarget) => currentTarget !== target)
-                        : [...current, target],
-                    )
-                  }
-                >
-                  <TargetIcon size={16} stroke={2} className="text-white/48" />
-                  <span className="flex-1">{TARGET_META[target].title}</span>
-                  <span
-                    className="taskmap-extension-filter-check"
-                    data-selected={selected || undefined}
-                  >
-                    <IconCheck size={12} stroke={2} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>,
-          document.body,
-        )}
+      <ContextMenu
+        ref={filterMenuRef}
+        portal
+        label="Filter by element"
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        position={filterPosition}
+        returnFocusRef={filterButtonRef}
+      >
+        {(Object.keys(TARGET_META) as ExtensionTargetType[]).map((target) => {
+          const TargetIcon = TARGET_META[target].Icon;
+          return (
+            <ContextMenuItem
+              key={target}
+              checked={selectedTargets.includes(target)}
+              icon={<TargetIcon size={16} stroke={2} />}
+              onClick={() =>
+                setSelectedTargets((current) =>
+                  current.includes(target)
+                    ? current.filter((currentTarget) => currentTarget !== target)
+                    : [...current, target],
+                )
+              }
+            >
+              {TARGET_META[target].title}
+            </ContextMenuItem>
+          );
+        })}
+      </ContextMenu>
 
       <GlassListFrame
         className="taskmap-extension-browser-scroll-frame min-h-0 flex-1"
         planeRef={sharedSmallGlassPlaneRef}
         materialEnabled={!embedded}
         batchId="extension-browser-small"
-        blurPx={smallGlassBlur}
         kind="small-extension"
       >
         <ScrollArea

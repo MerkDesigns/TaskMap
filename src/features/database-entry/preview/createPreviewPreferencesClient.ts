@@ -4,6 +4,7 @@ import type {
   PreferencesState,
   RememberedViews,
 } from "../../../platform/settings/preferenceContracts";
+import { DEFAULT_CHROME_RADII } from "../../../platform/settings/preferenceContracts";
 
 /** In-memory preview transport; no preferences/profile or native authority. */
 export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
@@ -16,6 +17,9 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       recentColors: [],
       toolbarButtonsVisible: false,
       privacyModeEnabled: false,
+      chromeAutoHideEnabled: false,
+      chromeAutoHideDelayMs: 3000,
+      chromeRadii: { ...DEFAULT_CHROME_RADII },
       dismissedUpdateVersion: null,
     },
   };

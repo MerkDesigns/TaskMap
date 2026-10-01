@@ -37,7 +37,9 @@ export function registerSmallOutputMask(plane: HTMLElement): () => void {
   const maskWriter = createLayeredMaskWriter(plane, MASK_PROPERTIES);
   const write = () => {
     const shapes = readSmallOutputShapes(plane);
-    const mask = layeredOutputMask(shapes, overscan) ?? {
+    const bounds =
+      width && height ? { width: width + overscan * 2, height: height + overscan * 2 } : undefined;
+    const mask = layeredOutputMask(shapes, overscan, bounds) ?? {
       image: outputMask(width + overscan * 2, height + overscan * 2, shapes, [], {
         x: -overscan,
         y: -overscan,

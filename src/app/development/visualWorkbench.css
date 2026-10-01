@@ -14,6 +14,14 @@
     12px/1.4 system-ui,
     sans-serif;
 }
+.taskmap-workbench[data-collapsed] {
+  width: auto;
+  padding: 4px;
+}
+.taskmap-workbench__toggle {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
 .taskmap-workbench nav {
   display: flex;
   align-items: center;
@@ -28,7 +36,7 @@
 .taskmap-workbench button[aria-pressed="true"] {
   background: #405a76;
 }
-.taskmap-workbench > label {
+.taskmap-workbench__body > label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -44,10 +52,10 @@
   background: #262d38;
   font: inherit;
 }
-.taskmap-workbench > label > input[type="range"] {
+.taskmap-workbench__body > label > input[type="range"] {
   flex: 1;
 }
-.taskmap-workbench > label > output {
+.taskmap-workbench__body > label > output {
   min-width: 32px;
   text-align: right;
   font-variant-numeric: tabular-nums;

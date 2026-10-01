@@ -97,9 +97,9 @@
    glass fades through the presence variable, glass-free content through
    `markMaterialPresenceContent`, nested dialogs compose root x nested in `ModalLayer.css`. DEV
    selectors: Minimap motion, Dialog motion. Blur timing (4.5E): the native glass recipe's blur presence
-   is `pow(clamp((p - delay) / (1 - delay)), curve)` with defaults delay 0.3 / curve 1; DEV "Blur
-   delay" / "Blur curve" sliders tune it live. Shared-plane Majors fade output as a unit (one filter
-   per plane), so the delay applies to recipe-rendered glass. Awaiting user tuning values (defaults kept).
+   is `pow(clamp((p - delay) / (1 - delay)), curve)` with defaults delay 0.2 / curve 1 (user-chosen
+   2026-09-30); DEV "Blur delay" / "Blur curve" sliders still tune it live. Shared-plane Majors fade output as a unit (one filter
+   per plane), so the delay applies to recipe-rendered glass.
    4.5F dialog shell (2026-09-30): `ModalDialogHeader` / `ModalDialogBody` / `ModalDialogActions`
    in `ui/patterns/overlays/ModalDialog.tsx`; Update, Clear Canvas, Password and the new Create
    Canvas dialog use them. Create Canvas is now a root Major Glass modal (`CanvasCreateDialog`)
@@ -109,8 +109,23 @@
    live again (camera subscription, no rerender). JSON editor is a non-modal Major Glass window
    (2026-09-30). Settings header now uses `ModalDialogHeader`
    ("Close settings" via `closeLabel`); the dialog-shell item is done. Scrollbar policy standardized (hidden for
-   glass panels, thin translucent elsewhere). Button audit and hit targets done. Next 4.5F:
-   local visual forks (legacy context menus/filter menu/colour picker onto primitives).
+   glass panels, thin translucent elsewhere). Button audit and hit targets done. Next 4.5F: local visual forks. The canvas card menu is
+   on the shared `ContextMenu` (portal + layered Escape); Extensions filter menu also migrated
+   (checkable items); canvas right-click menus (`ContextMenus.tsx`) now render
+   `ContextMenuSurface` + shared parts (legacy menu class constants removed); 4.5F complete (2026-09-30): the container
+   Copy/Paste JSON menu is on `ContextMenu`, the colour picker on primitives. Next: close 4.5D/4.5E loose
+   ends (blur timing values from the user), then 4.5G acceptance. Held canvas cards stay clipped to the panel (user decision).
+   Device preferences coalesce saves (fast picker drags no longer replay stale colours). 4.5H
+   started early: all removed-feature leftovers (Sorting, Daily reset, Pick a card, raw Command
+   Runner) are gone. The DEV workbench collapses to a single button. `npm run app:dev:mcp` now goes
+   through `scripts/dev-app.mjs`, which stops this checkout's stale Vite/tauri/debug processes first.
+   The unreachable dev visual tuner is gone; its accepted values are `.taskmap-workspace-root--canvas`
+   tokens. 4.5G automated checks (2026-09-30): resource stability passed across all retained 4.5
+   surfaces; round trip pixel-identical within 1/255; moving backdrop live with no residue.
+   The user passed glass acceptance on 2026-09-30 (dialogs switched to a plain fade). 4.5C closed
+   and 4.5D verified/consolidated the same day (production shared plane isolation 0/255; canonical
+   recipes incl. rim brightness; zero glass work on backdrop damage). Remaining: 4.5E Settings
+   scroll-edge morph (deferred to its redesign), 4.5G packaged coexistence, 4.5H cleanup.
 2. Keep the legacy root-clip Minor path only as a Dev comparison; remove it in 4.5H cleanup.
    Preserve the accepted Major and output-masked Minor defaults and the user's uncommitted work.
 

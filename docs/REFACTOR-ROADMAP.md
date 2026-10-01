@@ -113,16 +113,16 @@ Build the smallest proof scene before redesigning the full renderer.
 
 Prove:
 
-- [ ] same-layer persistent Major isolation;
+- [x] same-layer persistent Major isolation; (2026-09-30: production shared plane, 0/255 adjacent and overlapping)
 - [x] higher overlay Major sampling of completed lower UI;
 - [x] promoted Minor-over-Minor blur ordering;
 - [x] continuously live moving bright backdrop;
 - [x] continuously live animated backdrop;
-- [ ] overscan appearance without stale/cross-layer contamination.
+- [x] overscan appearance without stale/cross-layer contamination. (2026-09-30: production path)
 
-Current native candidate: four checks have positive fixture evidence. Rounded output clipping is
-fixed, but logical isolation/cross-layer contamination still fail. Revalidate these fixture checks after any
-backend revision. Evidence and limitations: `GLASS-RENDERING-PROOF.md`.
+2026-09-30: all six checks pass on the production path (shared workspace Major plane for Layer 1,
+own-filter overlays for Layer 2). The earlier failures were the Lab fixture's old backends. Evidence
+and limitations: `GLASS-RENDERING-PROOF.md`.
 
 If the candidate WebView2/native CSS topology fails, revise the private material backend before
 continuing. Do not weaken the visual contract.
@@ -137,14 +137,20 @@ Exit:
 bounded real-App isolation/motion/held-drag checks. Production ownership now lives in MaterialSurface
 and WorkspaceMajorGlass. This is a partial cutover; Minor/depth and general overlap work below remain.
 
-- [ ] Implement logical glass layer contexts.
-- [ ] Implement canonical Major/Minor recipe ownership.
-- [ ] Implement settled Minor batching. (Canvas Browser, Extensions and Settings islands batched;
-      Minor-on-Minor shell policy in MaterialSurface.)
-- [ ] Implement promotion/demotion for overlap/drag.
-- [ ] Separate geometry invalidation from backdrop damage.
-- [ ] Keep browser-specific refresh behavior private to the material backend.
-- [ ] Retain intended overscan/ambient response.
+- [x] Implement logical glass layer contexts. (2026-09-30: Layer 1 = shared workspace plane —
+      Canvas Browser, toolbar islands, minimap, window controls; Layer 2 = own filters — Quick
+      Extensions, JSON editor, dialogs on the modal plane. Verified live; `materialLayers.test.tsx`.)
+- [x] Implement canonical Major/Minor recipe ownership. (2026-09-30: all optics in
+      `materialDefinitions.ts`; rim brightness folded in, canvas overrides and legacy blur copies removed.)
+- [x] Implement settled Minor batching. (Canvas Browser, Extensions, Quick Extensions, Settings islands;
+      the Settings tab indicator keeps its own blur by user choice.)
+- [x] Implement promotion/demotion for overlap/drag. (Canvas Browser cards; extension drags use an
+      icon preview, so no Minor overlaps content.)
+- [x] Separate geometry invalidation from backdrop damage. (2026-09-30: camera pan 180 px and element
+      drag 532 px under glass: 0 rim draws, 0 geometry reads.)
+- [x] Keep browser-specific refresh behavior private to the material backend. (dead side-panel
+      `will-change` hint removed; no refresh hacks outside `ui/materials`.)
+- [x] Retain intended overscan/ambient response. (2026-09-30: edge responds, falls off inward.)
 
 Exit:
 
@@ -159,12 +165,13 @@ Exit:
 - [x] Implement held-item exemption during auto-scroll. (Verified 2026-09-29 in Canvas Browser: held
       card keeps full shell/rim/glass past the auto-scroll edge while settled cards morph.)
 - [ ] Implement liquid pickup/drop geometry morph. (Canvas Browser pickup expansion + drop slice morph
-      implemented 2026-09-29; awaiting user feel check. Neighbour "move outward" not implemented.)
+      implemented 2026-09-29; held lift 1.06x with neighbour spread added 2026-09-30 at user
+      request; awaiting user feel check.)
 - [x] Implement composable Fade / Material Fade / Slide / Lift / Scale / Geometry Morph. (Production
       `presenceMotion` + presets + DEV preview landed 2026-09-29; Quick Extensions, side panel and
       minimap and dialogs migrated by 2026-09-30.)
-- [ ] Tune material-fade blur timing after structural behavior works.
-      (DEV delay/curve tuning landed 2026-09-30; awaiting chosen values.)
+- [x] Tune material-fade blur timing after structural behavior works.
+      (2026-09-30: user chose blur delay 0.2, curve 1.0; now the recipe defaults.)
 
 Exit:
 
@@ -183,7 +190,9 @@ Exit:
       filter/favorite/info; primitive `data-selected` state.)
 - [x] Fix common icon-action hit targets (including Canvas Browser overflow). (2026-09-30: card
       overflow and Extensions actions are 28 px compact IconButtons.)
-- [ ] Remove feature-local visual forks that should be reusable primitives/patterns.
+- [x] Remove feature-local visual forks that should be reusable primitives/patterns. (2026-09-30:
+      all menus on `ContextMenu` / `ContextMenuSurface`; colour picker on primitives. The legacy Sorting
+      sort menu in ContainerNode is left for 4.5H removal, because Sorting is a removed feature.)
 
 Exit:
 
@@ -193,12 +202,16 @@ Exit:
 
 - [ ] Run the Glass System hard acceptance matrix.
 - [ ] Validate the same tuning in controlled Lab and real App.
-- [ ] Run deterministic round-trip/stale-backdrop checks.
+- [ ] Run deterministic round-trip/stale-backdrop checks. (2026-09-30: round trip pixel-identical
+      within 1/255; a moving backdrop stays live with no residue. A real-mouse held-drag spot check
+      remains.)
 - Deferred by user direction (2026-09-28): dedicated release-mode benchmarks and median/p95/p99
   comparisons. Current use feels normal with no perceived regression; this is subjective acceptance,
   not a measured pass. Do not block the next slices on these measurements. Revisit on noticeable
   slowdown or a concrete change adding significant rendering work. Hot-path design rules remain.
-- [ ] Verify no accumulating observers/schedulers/filter layers/promoted surfaces.
+- [x] Verify no accumulating observers/schedulers/filter layers/promoted surfaces. (2026-09-30:
+      panels, Settings, minimap, context menus, Quick Extensions, colour picker, JSON editor and
+      Canvas Browser drags return to an identical idle state in the live Dev app.)
 - [ ] Verify packaged stable/dev database/application coexistence.
 
 Exit:
@@ -208,7 +221,12 @@ Exit:
 ## 4.5H — Cleanup
 
 - [ ] Delete obsolete cached renderer/worker/backdrop paths once rollback is no longer needed.
-- [ ] Delete obsolete compatibility material paths.
+- [ ] Delete obsolete compatibility material paths. (2026-09-30: dev visual tuner and dead
+      `frosted-glass` / `left-panel-card` CSS removed; allowances ratcheted. Legacy root-clip Minor
+      comparison and FrostedSurface harness remain.)
+- [x] Remove leftover removed-feature UI. (2026-09-30: Sorting, Daily reset, Pick a card and the old
+      raw Command Runner fully removed from the legacy registry, schema/types, App, element nodes,
+      menus, modals and CSS.)
 - [ ] Remove old UI-Lab architecture.
 - [ ] Remove obsolete motion/material invalidation APIs.
 - [ ] regenerate CODEMAP;

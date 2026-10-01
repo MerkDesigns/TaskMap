@@ -90,10 +90,13 @@ it("falls back to one exact SVG mask when clips do not share a viewport", () => 
       10,
     ),
   ).toBeNull();
-  // Opacity is baked into a cached, quantised image instead of re-encoding a whole-plane SVG.
-  expect(
-    layeredOutputMask([{ x: 0, y: 0, width: 10, height: 10, radius: 2, opacity: 0.5 }], 0)?.image,
-  ).toContain(encodeURIComponent('fill-opacity="0.5"'));
+  // Fading shapes are generated gradients only: no mask image that could still be loading.
+  const fading = layeredOutputMask(
+    [{ x: 0, y: 0, width: 10, height: 10, radius: 2, opacity: 0.5 }],
+    0,
+  )?.image;
+  expect(fading).toContain("rgb(0 0 0 / 0.5)");
+  expect(fading).not.toContain("data:image");
   expect(
     layeredOutputMask([{ x: 0, y: 0, width: 10, height: 10, radius: 2, opacity: 0 }], 0)?.image,
   ).toContain("transparent");
@@ -141,4 +144,23 @@ it("morphs clipped scroll-edge shapes into rounded slices from cached corner cap
   expect(second.size).toBe("264px 13.5px, 264px 5px, 264px 13.5px, 264px 84px");
   // A strip thinner than two radii keeps both caps, each half its height.
   expect(slice(0, 10).size).toBe("264px 5px, 264px 5px, 264px 84px");
+});
+
+it("hides the whole output with a full-size layer when there are no shapes", () => {
+  // WebView2 ignores a zero-size mask layer and paints the unmasked filter output.
+  expect(layeredOutputMask([], 60)).toMatchObject({
+    image: "linear-gradient(transparent, transparent)",
+    size: "100% 100%",
+  });
+});
+
+it("hides the output instead of writing layers that all lie outside the element", () => {
+  // WebView2 ignores such a mask and blurs the whole plane (glass flying out past the edge).
+  const offscreen = [{ x: -300, y: -100, width: 200, height: 40, radius: 14, opacity: 0.3 }];
+  expect(layeredOutputMask(offscreen, 0, { width: 1000, height: 800 })).toMatchObject({
+    image: "linear-gradient(transparent, transparent)",
+    size: "100% 100%",
+  });
+  const partly = [{ x: -100, y: 10, width: 200, height: 40, radius: 14, opacity: 1 }];
+  expect(layeredOutputMask(partly, 0, { width: 1000, height: 800 })?.image).toContain("data:image");
 });

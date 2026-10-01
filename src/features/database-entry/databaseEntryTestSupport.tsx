@@ -6,6 +6,14 @@ import type { PlatformResult } from "../../platform/platformErrors";
 import type { DatabaseEntryRuntime } from "./databaseEntryTypes";
 import { DatabaseSessionGate } from "./DatabaseSessionGate";
 
+export const recentDatabases = (displayPath = "Recent.tmapdb") =>
+  success({
+    version: 1 as const,
+    edition: "development" as const,
+    recentDatabases: [{ authorizationToken: "recent-token", displayPath }],
+  });
+
+/** Starts without recent databases; tests opt into the startup auto-open with `recentDatabases`. */
 export function entrySetup() {
   const session = sessionSetup();
   const settingsClient = {
@@ -13,12 +21,7 @@ export function entrySetup() {
       async () => success({ authorizationToken: "chosen-token", displayPath: "Test.tmapdb" }),
     ),
     listRecentDatabases: vi.fn<DatabaseEntryRuntime["settingsClient"]["listRecentDatabases"]>(
-      async () =>
-        success({
-          version: 1,
-          edition: "development",
-          recentDatabases: [{ authorizationToken: "recent-token", displayPath: "Recent.tmapdb" }],
-        }),
+      async () => success({ version: 1, edition: "development", recentDatabases: [] }),
     ),
   };
   const initializeResources = vi.fn<DatabaseEntryRuntime["initializeResources"]>(async () =>
@@ -57,7 +60,7 @@ export function submitPassword(value = "test-only", confirmation?: string) {
   fireEvent.submit(passwordInput().closest("form")!);
 }
 export async function openEntry() {
-  fireEvent.click(expectButton("Open database"));
+  fireEvent.click(expectButton("Open existing database"));
   await screen.findByLabelText("Password *");
   await waitFor(() => expect(passwordInput()).toBeEnabled());
 }

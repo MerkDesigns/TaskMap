@@ -1,5 +1,6 @@
 import { CANVAS_CARD_SLOT_TRANSITION_MS, easeOutQuart } from "./canvasBrowserInteraction";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
+import type { CanvasCardHeldSpread } from "./canvasBrowserHeldLift";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 
 interface SlotAnimation {
@@ -25,11 +26,15 @@ export class CanvasBrowserSlotGeometry<Id extends string> {
     now: number,
     animate: boolean,
     excludedId: Id | null,
+    spread: CanvasCardHeldSpread<Id> | null = null,
   ) {
+    const heldIndex = spread ? order.indexOf(spread.id) : -1;
     order.forEach((id, index) => {
       const record = records.get(id);
       if (!record || id === excludedId) return;
-      const target = canvasCardSlotTop(order, index, records);
+      const target =
+        canvasCardSlotTop(order, index, records) +
+        canvasCardSpreadOffset(index, heldIndex, order.length, spread?.amount ?? 0);
       if (animate && record.y !== target) {
         this.animations.set(id, { from: record.y, to: target, startedAt: now });
         record.host.dataset.slotMotion = "true";
@@ -77,6 +82,23 @@ export class CanvasBrowserSlotGeometry<Id extends string> {
     if (record.y === y) return;
     record.y = y;
   }
+}
+
+/**
+ * Neighbours make room for the lifted card while the first and last cards stay put, so no card is
+ * pushed past the list edge (where its rim would be clipped). Each side absorbs the push evenly:
+ * the nearest card moves most, the outermost not at all, and that side's gaps stay equal.
+ */
+export function canvasCardSpreadOffset(
+  index: number,
+  heldIndex: number,
+  count: number,
+  amount: number,
+) {
+  if (heldIndex < 0 || index === heldIndex || amount === 0) return 0;
+  if (index < heldIndex) return (-amount * index) / heldIndex;
+  const below = count - 1 - heldIndex;
+  return (amount * (count - 1 - index)) / below;
 }
 
 export function canvasCardSlotTop<Id extends string>(

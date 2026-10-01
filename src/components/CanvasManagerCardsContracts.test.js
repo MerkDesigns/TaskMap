@@ -143,7 +143,8 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     // Create Canvas is a Major Glass dialog on the shared dialog structure (UI guardrails section 2).
     expect(manager).not.toContain("frosted-popup");
     expect(manager).toContain("<ModalPresence open={createOpen}>");
-    expect(manager).toContain("MENU_ITEM_CLASS");
+    expect(manager).toContain("<ContextMenu");
+    expect(manager).not.toContain("MENU_ITEM_CLASS");
     expect(extensions).toContain('placeholder="Search extensions"');
     expect(extensions).toContain("data-quick-extensions-menu");
     expect(manager).not.toMatch(/Minimap|SettingsModal/);

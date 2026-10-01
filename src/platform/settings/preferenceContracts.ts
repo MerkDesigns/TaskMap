@@ -2,6 +2,31 @@ import { z } from "zod";
 import { entityIdSchema } from "../../domain/document/documentSchema";
 
 const color = z.string().regex(/^#[0-9a-f]{6}$/i);
+const chromeRadius = z.number().int().min(0).max(32);
+export const chromeRadiiSchema = z
+  .object({
+    sidePanel: chromeRadius,
+    canvasCard: chromeRadius,
+    extensionCard: chromeRadius,
+    quickExtensions: chromeRadius,
+    quickExtensionsCard: chromeRadius,
+    chrome: chromeRadius,
+    settings: chromeRadius,
+    settingsIsland: chromeRadius,
+  })
+  .strict();
+export type ChromeRadii = z.infer<typeof chromeRadiiSchema>;
+/** Shipped chrome radii (mirrored by the Rust `ChromeRadii::default`). */
+export const DEFAULT_CHROME_RADII: ChromeRadii = Object.freeze({
+  sidePanel: 19,
+  canvasCard: 13,
+  extensionCard: 10,
+  quickExtensions: 17,
+  quickExtensionsCard: 11,
+  chrome: 14,
+  settings: 12,
+  settingsIsland: 8,
+});
 export const devicePreferencesSchema = z
   .object({
     defaultElementColors: z
@@ -10,6 +35,9 @@ export const devicePreferencesSchema = z
     recentColors: z.array(color).max(8),
     toolbarButtonsVisible: z.boolean(),
     privacyModeEnabled: z.boolean(),
+    chromeAutoHideEnabled: z.boolean(),
+    chromeAutoHideDelayMs: z.number().int().min(1000).max(15000),
+    chromeRadii: chromeRadiiSchema,
     dismissedUpdateVersion: z
       .string()
       .min(1)

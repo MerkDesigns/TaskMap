@@ -1,12 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import {
-  IconCheck,
-  IconLink,
-  IconPlayerPlayFilled,
-  IconPlayerStopFilled,
-  IconSettings,
-} from "@tabler/icons-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { IconCheck, IconLink } from "@tabler/icons-react";
+import { memo, useEffect, useRef } from "react";
 import type { MouseEvent, PointerEvent, ReactNode } from "react";
 import { getTextCardAccent } from "../constants";
 import { TextCardElement } from "../types";
@@ -30,7 +24,6 @@ type TextCardNodeProps = {
   entering?: boolean;
   deleting?: boolean;
   pulsing?: boolean;
-  glowing?: boolean;
   dragging?: boolean;
   dragAtTrueSize?: boolean;
   dragPrimary?: boolean;
@@ -53,9 +46,6 @@ type TextCardNodeProps = {
   onStartMove: (event: PointerEvent<HTMLElement>, card: TextCardElement) => void;
   onOpenMenu: (event: MouseEvent<HTMLElement>, card: TextCardElement) => void;
   onToggleCheckbox: (id: string) => void;
-  onRunCommands: (id: string) => void;
-  running: boolean;
-  onStopCommands: (id: string) => void;
 };
 
 function tintTowardWhite(hexColor: string, amount = 0.61) {
@@ -89,7 +79,6 @@ function TextCardNodeComponent({
   entering = false,
   deleting = false,
   pulsing = false,
-  glowing = false,
   dragging = false,
   dragAtTrueSize = false,
   dragPrimary = false,
@@ -112,23 +101,15 @@ function TextCardNodeComponent({
   onStartMove,
   onOpenMenu,
   onToggleCheckbox,
-  onRunCommands,
-  running,
-  onStopCommands,
 }: TextCardNodeProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
-  const commandAnimationTimeoutRef = useRef<number | null>(null);
-  const commandLaunchTimeoutRef = useRef<number | null>(null);
-  const [commandPlayAnimating, setCommandPlayAnimating] = useState(false);
   const accent = getTextCardAccent(card.accent);
   const selectedAccent = selected ? `color-mix(in srgb, ${accent} 72%, white 28%)` : accent;
   const linkedTextColor = tintTowardWhite(accent);
   const checkboxInstalled = card.kind !== "mindmap" && Boolean(card.extensions?.checkbox);
   const checkboxChecked = Boolean(card.extensions?.checkbox?.checked);
-  const commandRunnerInstalled = card.kind !== "mindmap" && Boolean(card.extensions?.commandRunner);
-  const hasCommands = Boolean(card.extensions?.commandRunner?.commands.length);
   const checkedTextClass = checkboxChecked ? "opacity-55 line-through" : "";
 
   useEffect(() => {
@@ -142,18 +123,6 @@ function TextCardNodeComponent({
       editor?.select();
     });
   }, [editing, multiline]);
-
-  useEffect(
-    () => () => {
-      if (commandAnimationTimeoutRef.current !== null) {
-        window.clearTimeout(commandAnimationTimeoutRef.current);
-      }
-      if (commandLaunchTimeoutRef.current !== null) {
-        window.clearTimeout(commandLaunchTimeoutRef.current);
-      }
-    },
-    [],
-  );
 
   useEffect(() => {
     const node = articleRef.current;
@@ -204,7 +173,7 @@ function TextCardNodeComponent({
             }`
       } ${dragging ? "" : "scale-100"} ${entering ? "text-card-enter" : ""} ${
         deleting ? "text-card-exit pointer-events-none" : ""
-      } ${pulsing ? "text-card-pulse" : ""} ${glowing ? "text-card-picked-glow" : ""} ${
+      } ${pulsing ? "text-card-pulse" : ""} ${
         interactionDisabled ? "pointer-events-none" : ""
       } ${forceInteractive ? "pointer-events-auto" : ""} ${
         privacyHidden ? "select-none blur-[5px]" : ""
@@ -272,65 +241,6 @@ function TextCardNodeComponent({
             <IconCheck size={16} stroke={2} />
           </span>
         </button>
-      )}
-      {commandRunnerInstalled && (
-        <div className="-my-[7px] -ml-[10px] mr-[5px] flex h-[32px] shrink-0 items-center">
-          <button
-            type="button"
-            className={`group grid h-[32px] w-[32px] place-items-center rounded text-white transition-[transform,background-color,box-shadow,color] duration-150 ease-out disabled:cursor-not-allowed disabled:text-white disabled:hover:bg-transparent ${
-              running ? "hover:bg-red-500/20 hover:text-red-300" : "hover:bg-white/[0.10]"
-            } ${commandPlayAnimating ? "command-runner-play-press" : ""}`}
-            style={running ? undefined : { color: "#ffffff", opacity: 1 }}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (running) {
-                onStopCommands(card.id);
-                return;
-              }
-              setCommandPlayAnimating(false);
-              window.requestAnimationFrame(() => setCommandPlayAnimating(true));
-              if (commandAnimationTimeoutRef.current !== null) {
-                window.clearTimeout(commandAnimationTimeoutRef.current);
-              }
-              if (commandLaunchTimeoutRef.current !== null) {
-                window.clearTimeout(commandLaunchTimeoutRef.current);
-              }
-              commandAnimationTimeoutRef.current = window.setTimeout(
-                () => setCommandPlayAnimating(false),
-                380,
-              );
-              commandLaunchTimeoutRef.current = window.setTimeout(
-                () => onRunCommands(card.id),
-                170,
-              );
-            }}
-            disabled={!hasCommands && !running}
-            aria-label={running ? "Stop commands" : "Run saved commands"}
-            title={
-              running ? "Stop commands" : hasCommands ? "Run saved commands" : "No saved commands"
-            }
-          >
-            {running ? (
-              <>
-                <IconSettings
-                  size={20.7}
-                  stroke={2}
-                  className="animate-spin group-hover:hidden"
-                  style={{ animationDuration: "1.3s" }}
-                />
-                <IconPlayerStopFilled size={17} stroke={2} className="hidden group-hover:block" />
-              </>
-            ) : (
-              <IconPlayerPlayFilled
-                size={18.4}
-                stroke={2}
-                color="#ffffff"
-                className="transition-transform duration-150 ease-out group-active:translate-x-[2px] group-active:scale-[0.88]"
-              />
-            )}
-          </button>
-        </div>
       )}
       {editing && multiline ? (
         <span className="relative grid min-w-[1ch] max-w-[484px]">

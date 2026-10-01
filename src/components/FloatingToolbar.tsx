@@ -1,8 +1,6 @@
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
-  IconChevronLeft,
-  IconChevronRight,
   IconEye,
   IconEyeOff,
   IconMap,
@@ -10,6 +8,8 @@ import {
   IconMenu2,
   IconPuzzle,
   IconSettings,
+  IconZzz,
+  IconZzzOff,
 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import {
@@ -25,12 +25,12 @@ export type FloatingToolbarProps = {
   extensionsOpen: boolean;
   minimapEnabled: boolean;
   privacyModeEnabled: boolean;
+  sleepModeEnabled: boolean;
   toolbarRadius?: number;
-  toolbarButtonsVisible: boolean;
   onMinimapEnabledChange: (enabled: boolean) => void;
   onPrivacyModeEnabledChange: (enabled: boolean) => void;
+  onSleepModeEnabledChange: (enabled: boolean) => void;
   onRedo: () => void;
-  onToolbarButtonsVisibleChange: (visible: boolean) => void;
   onToggleExtensions: () => void;
   onToggleCanvases: () => void;
   onUndo: () => void;
@@ -44,12 +44,12 @@ export function FloatingToolbar({
   extensionsOpen,
   minimapEnabled,
   privacyModeEnabled,
+  sleepModeEnabled,
   toolbarRadius,
-  toolbarButtonsVisible,
   onMinimapEnabledChange,
   onPrivacyModeEnabledChange,
+  onSleepModeEnabledChange,
   onRedo,
-  onToolbarButtonsVisibleChange,
   onToggleExtensions,
   onToggleCanvases,
   onUndo,
@@ -57,7 +57,7 @@ export function FloatingToolbar({
 }: FloatingToolbarProps) {
   const privacyTitle = privacyModeEnabled ? "Disable privacy mode" : "Enable privacy mode";
   const minimapTitle = minimapEnabled ? "Disable minimap" : "Enable minimap";
-  const visibilityTitle = toolbarButtonsVisible ? "Hide toolbar buttons" : "Show toolbar buttons";
+  const sleepTitle = sleepModeEnabled ? "Disable sleep mode" : "Enable sleep mode";
 
   return (
     <FloatingCanvasToolbar aria-label="Canvas toolbar">
@@ -82,50 +82,39 @@ export function FloatingToolbar({
           aria-label="Settings"
           icon={<IconSettings size={18} stroke={2} />}
         />
-        <IconButton
-          variant="ghost"
-          size="compact"
-          onClick={() => onToolbarButtonsVisibleChange(!toolbarButtonsVisible)}
-          title={visibilityTitle}
-          aria-label={visibilityTitle}
-          aria-expanded={toolbarButtonsVisible}
+        <ToolbarToggleButton
+          pressed={privacyModeEnabled}
+          onClick={() => onPrivacyModeEnabledChange(!privacyModeEnabled)}
+          title={privacyTitle}
           icon={
-            toolbarButtonsVisible ? (
-              <IconChevronLeft size={18} stroke={2} />
+            privacyModeEnabled ? (
+              <IconEyeOff size={18} stroke={2} />
             ) : (
-              <IconChevronRight size={18} stroke={2} />
+              <IconEye size={18} stroke={2} />
             )
           }
         />
-        <div
-          className="taskmap-floating-canvas-toolbar__optional-controls"
-          aria-hidden={!toolbarButtonsVisible}
-        >
-          <ToolbarToggleButton
-            pressed={privacyModeEnabled}
-            onClick={() => onPrivacyModeEnabledChange(!privacyModeEnabled)}
-            title={privacyTitle}
-            icon={
-              privacyModeEnabled ? (
-                <IconEyeOff size={18} stroke={2} />
-              ) : (
-                <IconEye size={18} stroke={2} />
-              )
-            }
-          />
-          <ToolbarToggleButton
-            pressed={minimapEnabled}
-            onClick={() => onMinimapEnabledChange(!minimapEnabled)}
-            title={minimapTitle}
-            icon={
-              minimapEnabled ? (
-                <IconMap size={18} stroke={2} />
-              ) : (
-                <IconMapOff size={18} stroke={2} />
-              )
-            }
-          />
-        </div>
+        <ToolbarToggleButton
+          pressed={minimapEnabled}
+          onClick={() => onMinimapEnabledChange(!minimapEnabled)}
+          title={minimapTitle}
+          icon={
+            minimapEnabled ? <IconMap size={18} stroke={2} /> : <IconMapOff size={18} stroke={2} />
+          }
+        />
+        {/* Sleep mode: the chrome fades out when idle and returns on any input. */}
+        <ToolbarToggleButton
+          pressed={sleepModeEnabled}
+          onClick={() => onSleepModeEnabledChange(!sleepModeEnabled)}
+          title={sleepTitle}
+          icon={
+            sleepModeEnabled ? (
+              <IconZzz size={18} stroke={2} />
+            ) : (
+              <IconZzzOff size={18} stroke={2} />
+            )
+          }
+        />
       </ToolbarGroup>
       <ToolbarGroup label="History controls" radius={toolbarRadius}>
         <IconButton

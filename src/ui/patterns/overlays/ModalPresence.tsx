@@ -20,6 +20,8 @@ export interface ModalPresenceProps {
   readonly open: boolean;
   readonly placement?: ModalPresencePlacement;
   readonly onExitComplete?: () => void;
+  /** Close on a press outside the dialog (root placement only); ignored while a nested dialog is open. */
+  readonly onDismiss?: () => void;
 }
 
 /** Root progress for nested composition, and a nested group's own progress (ModalLayer.css). */
@@ -33,6 +35,7 @@ const NESTED_PRESENCE_PROPERTY = "--taskmap-modal-nested-presence";
  */
 export function ModalPresence({
   children,
+  onDismiss,
   onExitComplete,
   open,
   placement = "root",
@@ -49,8 +52,10 @@ export function ModalPresence({
   exitCompleteRef.current = onExitComplete;
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  const preset = usePresencePreset("dialogs", "materialFadeSettle");
-  const channels = presetChannels(preset, "materialFadeSettle");
+  // Plain material fade (user choice 2026-09-30): scaling the dialog made its separately drawn
+  // shared-plane glass and DOM rim/controls land on different subpixels each frame (flicker).
+  const preset = usePresencePreset("dialogs", "materialFade");
+  const channels = presetChannels(preset, "materialFade");
   const channelsRef = useRef(channels);
   channelsRef.current = channels;
 
@@ -117,14 +122,40 @@ export function ModalPresence({
     // A recreated controller (scheduler/reduced-motion change) restarts from hidden.
   }, [open, present, reducedMotion, scheduler]);
 
+  // While a root modal is present the window drag strip rises above its scrim (WindowChrome.css).
+  useLayoutEffect(() => {
+    if (!present || placement !== "root") return;
+    return markRootModalOpen();
+  }, [placement, present]);
+
   if (!present) return null;
 
   const layerProps = { groupRef, phase, scrimRef, children: childrenRef.current };
   return placement === "root" ? (
-    <ModalLayer {...layerProps} />
+    <ModalLayer
+      {...layerProps}
+      onScrimPointerDown={
+        onDismiss && open
+          ? () => {
+              if (!isNestedModalPresenceBlocking()) onDismiss();
+            }
+          : undefined
+      }
+    />
   ) : (
     <NestedModalLayer {...layerProps} />
   );
+}
+
+let openRootModals = 0;
+
+function markRootModalOpen(): () => void {
+  openRootModals += 1;
+  document.documentElement.dataset.taskmapModalOpen = "true";
+  return () => {
+    openRootModals -= 1;
+    if (openRootModals === 0) delete document.documentElement.dataset.taskmapModalOpen;
+  };
 }
 
 /** A nested group's material presence comes from the composed CSS variable, not the controller. */

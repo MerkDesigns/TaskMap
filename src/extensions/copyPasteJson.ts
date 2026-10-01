@@ -119,9 +119,6 @@ export const replaceContainerFromAiJson = (
     return null;
   }
 
-  const previousCards = canvas.textCards
-    .filter((card) => card.containerId === containerId)
-    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
   const stackTop =
     container.y +
     options.headerHeight +
@@ -138,17 +135,7 @@ export const replaceContainerFromAiJson = (
     order: index,
     ...(container.extensions?.autoCheckbox ? { extensions: { checkbox: { checked: false } } } : {}),
   }));
-  const remapPickedCardId = (cardId?: string) => {
-    const index = previousCards.findIndex((card) => card.id === cardId);
-    return index >= 0 ? newCards[index]?.id : undefined;
-  };
   const extensions = structuredClone(container.extensions);
-  if (extensions.pickCard) {
-    extensions.pickCard = {
-      selectedCardId: remapPickedCardId(extensions.pickCard.selectedCardId),
-      lastCardId: remapPickedCardId(extensions.pickCard.lastCardId),
-    };
-  }
 
   return {
     ...canvas,

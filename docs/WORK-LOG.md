@@ -3078,3 +3078,658 @@ while sliding 0 → 16 px, unmount at ~190 ms.
   card.
 - New runtime test covers the release and restore; `npm run check`: 257 files / 1,740 tests,
   architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — First production use of the shared ContextMenu (4.5F local forks)
+
+- `ContextMenu` primitive: opt-in `portal` renders into a `taskmap-target-theme` wrapper on body,
+  so fixed positioning never resolves against a transformed ancestor. It carries
+  `data-context-menu` so App's pointer handler treats clicks inside as menu clicks. Viewport clamping
+  stays with the caller, through the forwarded ref (visual contract: no layout reads in the
+  primitive).
+- Canvas card Edit/Delete menu: the legacy Tailwind panel (`CONTEXT_MENU_PANEL_CLASS`,
+  `MENU_*_CLASS`), plus its window and shell outside-click listeners, is replaced by
+  `ContextMenu` + `ContextMenuItem` / `ContextMenuDivider` (opaque material, menuitem semantics,
+  roving focus, exit motion). The trigger acts as `returnFocusRef`, so clicking it toggles instead of
+  reopening. `useClampedFixedPosition` keeps the menu on screen.
+- Escape is layered: App's capture-phase Escape (which closes menus and panels at once) now skips
+  events from inside a shared `[role="menu"][data-context-menu]`. The first Escape closes the menu
+  and returns focus to its trigger; the next closes the panel.
+- Live (TEST123): the menu portals to body at the trigger, with focus on Edit. Trigger re-click,
+  Escape and outside click all close it, and the panel stays open after Escape. Edit opens the inline
+  editor.
+- Dev app: the dev main window had been closed; restarted only the dev build. The installed TaskMap
+  was also no longer running at that point. The stop command targeted only the dev build's
+  `target\debug` path.
+- `npm run check`: 257 files / 1,740 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Held canvas card keeps real blur outside the panel
+
+- User report: a card dragged outside the Canvas Browser showed no blur. Its glass is drawn by the
+  `small-drag` SharedSmallGlassPlane, whose filter output only exists within the plane box (the list
+  viewport) plus `--taskmap-shared-small-overscan`; outside that the card had only rim and shadow.
+- `extendSmallOutputReach(plane, px)` (sharedSmallOutputMask.ts) sets the plane's overscan and the
+  mask writer's origin together, so the filter output and the mask never disagree for a frame, and
+  returns a restore function. `CanvasBrowserSharedGlass.setHeld` widens the drag plane to the
+  window's larger dimension while a card is held; the runtime's `setHeld` pairs it with
+  `releaseHeldItemClip`. The plane is inactive (display: none) when nothing is held, so there is no
+  idle cost.
+- Kept `CanvasBrowserRuntime.ts` under 400 lines by moving the held-card reorder calculation into
+  `nextCanvasCardDragOrder` (canvasBrowserInteraction.ts, pure).
+- Live: with a temporary high-contrast striped probe under the panel, the held card fully blurred
+  the stripes. On drop, overscan returned to 85.5 px and the plane went inactive; reorder is
+  unchanged. The probe was removed; TEST123 order was restored.
+- `npm run check`: 257 files / 1,741 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Reverted held-card escape; Extensions filter on the shared menu
+
+- User direction: held canvas cards stay clipped to the panel ("saves on other complications").
+  Removed `releaseHeldItemClip`, the switcher's `data-held-item-clip` and its CSS release, the
+  drag-plane reach extension (`extendSmallOutputReach` / `CanvasBrowserSharedGlass.setHeld`) and
+  their tests. The two earlier "held card leaves the panel" and "keeps real blur outside the panel"
+  entries are superseded. The pure `nextCanvasCardDragOrder` extraction stays.
+- `ContextMenuItem` gains `checked` (→ `menuitemcheckbox` + `aria-checked` + a trailing accent check
+  box); the menu's roving focus and keyboard handling use `CONTEXT_MENU_ITEM_SELECTOR` (menuitem +
+  menuitemcheckbox).
+- Extensions filter: the legacy Tailwind portal panel, its resize/scroll repositioning and its
+  outside-click effect are replaced by `ContextMenu` (portal, `returnFocusRef` = filter button)
+  with checkable items. Position comes from the button rect on open, clamped by
+  `useClampedFixedPosition`. The local `.taskmap-extension-filter-check` styles are gone.
+- Dev: a burst of HMR invalidations left the page on "The canvas could not be opened" and later on a
+  stale ContextMenuParts module even after reload. A clean dev restart fixed both (dev build only).
+- Live: a dragged card is clipped at the panel edge (switcher `overflow: hidden`, reach 85.5 px). The
+  filter shows check boxes; toggling keeps the menu open and the filter button shows `data-selected`;
+  an outside click closes it.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — App canvas menus onto the shared menu surface (part 1)
+
+- `ContextMenuSurface` (ContextMenu.tsx) is the presentational half of the primitive: opaque
+  material, sizing and CSS enter/exit motion driven by `motionState`, plus `data-context-menu`.
+  `ContextMenu` now renders it. Menus whose lifecycle App owns (its own outside-click, Escape and
+  "closing copy" exit) render the surface directly, so App's lifecycle is unchanged.
+- New parts `ContextMenuSwatches` / `ContextMenuSwatch`, with the swatch styles promoted from the UI
+  Lab demo into `contextMenu.css`.
+- Migrated in ContextMenus.tsx: Canvas, Container, Container content and Mindmap connection menus.
+  The legacy `CONTEXT_MENU_PANEL_CLASS` / `MENU_*_CLASS` markup is replaced by `ContextMenuItem`,
+  `ContextMenuDivider`, `ContextMenuSection` ("Remove Extensions"), `ContextMenuActionGroup` +
+  `ContextMenuIconAction` (layer order, tooltips kept) and swatches, matching the UI Lab container
+  fixture. The Paste item loses its teal legacy text colour.
+- Live: empty-canvas right-click opens "Canvas menu" (six items, red Clear canvas); right-click in a
+  container opens "Container content menu"; the container "⋮" opens the full container menu with
+  the current swatch marked; clicking away plays the closing motion (`data-motion-state="closing"`).
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — App canvas menus onto the shared menu surface (part 2)
+
+- Migrated the Text block, Text card and Image menus: items, dividers, "Remove Extensions" sections,
+  swatches (with their `title` tooltips kept), layer-order action groups with tooltips, and
+  lock/background toggles as items with state-dependent icons.
+- The text card hyperlink sub-panel is now a `ContextMenuSurface` using the new generic
+  `taskmap-context-menu--wide` (230 px, above its opener) and `__form-row` styles, with the
+  `TextField` primitive and ghost compact `IconButton`s for save and close.
+- Removed `REMOVE_EXTENSIONS_TITLE_CLASS` and the legacy menu class imports from ContextMenus.tsx.
+- Live: right-click on a text card opens "Text card menu" (Edit Text, swatches, Hyperlink,
+  Cut/Copy, Remove Extensions → Checkbox, red Remove). Hyperlink opens a 230 px panel at z-index
+  201; its field takes focus and typing works; ✕ closes only the panel.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+- Removed the now-unused `MENU_ITEM_CLASS` / `MENU_DIVIDER_CLASS` / `CONTEXT_MENU_PANEL_CLASS` /
+  `MENU_DANGER_ITEM_CLASS` constants from constants.ts; the full check still passes.
+
+## 2026-09-30 — Dev start screen "check file and password" after an HMR wave; keydown guard
+
+- Symptom (user screenshot): Dev showed the start screen with "Check the selected file and password,
+  then try again" and no recent databases. Cause: touching constants.ts hot-updated App,
+  DatabaseApplication and others at once. The renderer returned to the start screen while the
+  backend session in the same process still held TEST123 (`.writer.lock`, same pid), so reopening
+  was refused behind the generic message. The file itself was intact.
+- A clean dev restart recovered it: the new process detected the stale lock (dead pid) and took it
+  over, and the database opened with its content.
+- The console also showed an uncaught error in App's keydown handler: `target?.closest` on a
+  non-element target (synthetic key events aimed at the document). The handler now narrows
+  `event.target` with `instanceof HTMLElement`.
+- Possible follow-up (not done): when the renderer restarts while the backend still holds a
+  session, the start screen could say that the database is already open in this app rather than
+  "check file and password".
+- `npm run check`: 257 files / 1,739 tests; `git diff --check` clean.
+
+## 2026-09-30 — Settings/window/shortcut fixes and extension card tweaks (user batch)
+
+- Hotkeys: `blockTabKeyNavigation` (main.tsx) called `stopImmediatePropagation()` on every Tab, so
+  App never received Tab / Shift+Tab / Ctrl+Tab, and dialog focus traps never ran in the real app
+  (tests do not install the blocker). It now only prevents native traversal. App shortcuts (Shift+E,
+  Tab, Delete, Hold C, undo/redo, copy/paste) yield only to text editing
+  (`isEditableKeyboardTarget`), not to a focused button, because buttons keep focus after a click.
+  The unused `isKeyboardFocusableControl` / `isInteractiveKeyboardTarget` helpers were removed.
+- Window drag with a modal open: root `ModalPresence` marks `:root[data-taskmap-modal-open]`, and
+  WindowChrome.css lifts the drag strip above the modal scrim while it is set.
+- Settings closes on a press outside the dialog: `ModalPresence onDismiss` (root placement; ignored
+  while a nested dialog is open) → scrim `onPointerDown`. Only Settings passes it.
+- Colour picker under Settings: a hardcoded Tailwind `z-[1002]` beat the portal-layer class. It is
+  replaced by `ColorPickerMenu aboveModals` → inline z-index `var(--taskmap-layer-modal-overlay)`;
+  the `.taskmap-modal-portal-layer` class is removed.
+- Settings swatches: Settings rows sit on fractional pixels (text line-heights), which left the
+  swatch's 1px bottom edge thin and dark; `will-change: transform` rasterizes it on whole pixels
+  (A/B pixel crops show even edges). The Visual tab fits without scrolling: colour rows 36 px and
+  6 px row gap (scroll 483/470 → 470/470).
+- Extension cards: radius +2 (main 8 → 10, Shift+E 9 → 11). Main panel info +3 px right (top-right
+  kept). Shift+E info centred on the right edge (6 px inset, centre offset 0).
+- Live verified all of the above. The outside-click check needs a real pointer press (the MCP
+  "click" sends only `click`).
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Toolbar: no collapse/slide; islands aligned to the side panel
+
+- Removed the toolbar's chevron and sliding optional-controls wrapper (the "morphing" glitch).
+  Workspace island: Canvases, Extensions, Settings, Privacy, Minimap and a disabled
+  `IconCircleDashed` placeholder ("Coming soon", 32% opacity). The `toolbarButtonsVisible`
+  preference stays in the stored schema for compatibility but no longer drives the toolbar.
+- Alignment: 8 buttons × 28 + 6 × 4 gaps + 4 × padding + 8 island gap = 288 (side panel width). The
+  single change is `--taskmap-toolbar-group-padding-inline` 6 → 8 px (shared with the window-controls
+  island). Live: islands 16→304, side panel 16→304; island widths 204 and 76.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Canvas previews no longer change after switching canvas
+
+- User report: after switching canvases, the previous canvas's preview changed. On a switch the
+  interaction controller's camera changes (`replaceCanvas`) before CanvasManager re-renders with the
+  new `activeCanvasId`, so the live-preview subscription wrote the new canvas's camera into the old
+  card. React then saw no change in that card's props and never rewrote it, so the wrong preview
+  stuck.
+- The subscription now presents to `cardRefs[snapshot.canvasKey]`, the canvas the camera belongs to.
+  Render uses the live camera only when `snapshot.canvasKey === canvas.id`; other cards use their
+  stored camera.
+- Live: after zooming, switching Canvas 1 → 4 → 1 leaves each previous card's preview geometry
+  identical before and after.
+- `npm run check`: 257 files / 1,739 tests; `git diff --check` clean.
+
+## 2026-09-30 — 4.5F finished: container JSON menu and colour picker
+
+- ContainerNode Copy/Paste JSON menu: the legacy Tailwind portal and its outside-click effect are
+  replaced by `ContextMenu` (portal, `returnFocusRef` = the `{ }` button, clamped with
+  `useClampedFixedPosition`, anchor kept through the exit animation). It still closes on window
+  resize or scroll.
+- ColorPickerMenu: the same positioning, dismissal, colour maths and callbacks, rebuilt on the
+  opaque `MaterialSurface`, `TextField` (hex, RGB), `Slider` (H/S/L) and a ghost `IconButton`, with
+  token-based `ColorPickerMenu.css`. `Slider` gains an optional `--taskmap-slider-track` (default
+  unchanged) for the hue rainbow.
+- Not migrated: the Sorting sort menu in ContainerNode. Sorting is a removed feature
+  (FEATURE-PARITY), and removal is recorded for 4.5H.
+- Live: the `{ }` menu opens at the button with focus on its first item, and "Open JSON editor"
+  works. The picker from Settings renders above the modal at z-index 10002 with four fields and
+  three sliders. A swatch sets #A74144 and Hex restores #476FA8.
+- `npm run check`: 257 files / 1,739 tests, architecture 604 files; `git diff --check` clean.
+
+## 2026-09-30 — Colour picker sliders no longer move on their own
+
+- User report: the picker sliders were buggy and sometimes moved by themselves. Causes:
+  1. H/S/L were derived from rounded RGB on every change, so dragging one slider drifted the others
+     and hue snapped to 0 at low saturation (the new `Slider`'s fractional `step="any"` made this
+     worse).
+  2. Callers persist each change and echo it back through `color` asynchronously. During fast drags
+     an older echo could arrive after newer changes and reset the editor.
+- Fix: H/S/L are picker state, set directly from slider input and re-derived only for genuine
+  external colours. Incoming colours that match any of the last 64 emitted values are ignored.
+  `Slider` now accepts `step` (default still `"any"`) and the picker uses `step={1}`.
+- New ColorPickerMenu.test.tsx covers steady sliders at saturation 0, out-of-order echoes and
+  external re-derivation.
+- Live: a fast Sat sweep 41 → 0 (42 inputs) kept hue 215 / light 47 and they stayed there for
+  700 ms. The default container colour was restored to #476FA8.
+- `npm run check`: 258 files / 1,742 tests; `git diff --check` clean.
+
+## 2026-09-30 — Colour picker: no late jumps on very fast drags; marker slider thumb
+
+- Still reproducible on very fast drags: the emitted-colour memory was capped at 64 entries, but a
+  fast hue drag emits hundreds of values, so old echoes fell out of the list and reset the editor
+  late. It is now an uncapped `Set` for the picker's lifetime (cleared on close). The test covers
+  300 hue changes followed by an echo of an early value.
+- New reusable `taskmap-slider--marker` variant (controls.css): a white dot with triangles above and
+  below pointing in at it (one SVG thumb, since range thumbs have no pseudo-elements). The colour
+  picker's H/S/L sliders use it.
+- Live: 602 rapid hue inputs (0 → 360 → 120) left hue 120 / sat 41 / light 47 unchanged for 1.2 s;
+  the zoomed screenshot shows the marker thumbs. The default container colour was restored.
+- `npm run check`: 258 files / 1,742 tests; `git diff --check` clean.
+
+## 2026-09-30 — Device preferences coalesce saves; picker marker and colour tracks
+
+- Root cause of the remaining "picker moves on its own later": `createDevicePreferences.update()`
+  queued one disk save per update, so a fast colour drag queued hundreds of saves that replayed
+  intermediate values for seconds, and a reload mid-queue persisted a stale colour. Updates that
+  arrive while a save is in flight are now merged into one save (patches applied in order,
+  functional patches evaluated against the merged value, every caller resolved with the batch
+  result). The edits-during-load test now expects one save; a new test sends 200 edits and checks
+  for at most 2 saves that end on the last value.
+- Marker slider is now a single white triangle above the track pointing down.
+- Sat and Light tracks show their real colour ranges at the current hue/sat/light, like Hue.
+- `npm run check`: 258 files / 1,743 tests; `git diff --check` clean. Live visual check of the
+  picker was left to the user (they were using the dev app).
+
+## 2026-09-30 — Collapsible DEV workbench; Sorting removed (4.5H)
+
+- The DEV workbench's "DEV" label is now a toggle that collapses the panel to one small button.
+  The body is hidden rather than unmounted, so the tuning state survives. The collapsed state is
+  remembered in localStorage as a per-developer convenience (try/catch; defaults to expanded).
+  Live: collapsed to 57×38 px; the workbench test covers collapse without resetting Major blur.
+- Sorting was already unreachable (the retained app lists only `retainedViewExtensions`; the
+  normalized projection rejects `sorting`), but dead code remained, contrary to FEATURE-PARITY
+  ("No code/schema/menu contribution remains"). Removed: registry entry and `ExtensionId`, the
+  legacy `ElementExtensions.sorting` type and appData schema field, the App sort pipeline and
+  `setContainerSort`, legacy text-card drop/placement sorting, the ContainerNode header button and
+  sort menu (renamed `getSortButtonClass` → `getHeaderButtonClass`), the "Remove Extensions → Sorting"
+  item, and Lab fixture labels. Tests: favorites samples use Counter; the side-panel glass count is 15.
+- Remaining 4.5H leftovers: Daily reset, Pick a Card and Command Runner dead legacy code.
+- `npm run check`: 258 files / 1,743 tests; `git diff --check` clean.
+
+## 2026-09-30 — Removed-feature leftovers gone; consistent dev launches
+
+- Daily reset, Pick a card and the old raw Command Runner were unreachable, but their legacy code
+  remained, contrary to FEATURE-PARITY/AGENTS. Removed: registry entries (plus the legacy
+  `conflicts`/`EXTENSION_CONFLICTS` machinery, whose only pair was Checkbox/Command Runner), legacy
+  schema/types, `src/utils/date.ts`, the App daily-reset interval, pick-card filter/toggle/glow,
+  command run/stop/status polling (the Rust commands were already gone), the conflict and settings
+  modals (`CommandRunnerModals.tsx`), ContainerNode/TextCardNode buttons, context-menu items, Lab
+  fixtures and their CSS animations. The normalized `conflictsWith` model is unchanged.
+- Dev launch reliability: stopping `tauri dev` on Windows left this checkout's tauri CLI, Vite and
+  debug `taskmap.exe` running, so the next launch failed with "Port 6969 is already in use".
+  `scripts/dev-app.mjs` (used by `app:dev`, `app:dev:mcp`, `app:stable`) stops only this
+  checkout's Vite/tauri-CLI node processes and `src-tauri/target` builds, waits for 6969 (and 9223
+  for MCP builds), and names any foreign port owner instead of killing it. Verified: forced stop
+  left all three processes; the next launch stopped them and started cleanly; the installed app
+  was untouched.
+- Vite `server.watch.awaitWriteFinish` (150 ms) so formatter/bulk rewrites are not read mid-write
+  (the cached empty-module breakage).
+- `npm run check`: 257 files / 1,734 tests (removed-feature tests deleted); `git diff --check` clean.
+
+## 2026-09-30 — Retired dev visual tuner and dead legacy material CSS (4.5H)
+
+- `FrostedGlassTuner*` (6 files) rendered only when `!retained`, and the only `!retained` mount
+  (`LegacyApplication`) is unused (the cutover check asserts it), so it was unreachable. The
+  production frosted-glass tuner is also on the removed-features list. Deleted.
+- Its accepted defaults still fed the live canvas workspace through App state and an inline style.
+  They are now constants (radii 19/13/14, preview gap 9) plus CSS tokens on the new
+  `.taskmap-workspace-root--canvas` modifier: same values, same element, so the entry screen and
+  UI Lab are unaffected. Legacy-only blur overrides stay inline for the `!retained` path.
+- Removed dead CSS: `.frosted-glass`, `.frosted-glass-toolbar`, `.left-panel-card*` and their
+  `--frosted-*` / `--left-panel-card-*` variables (no component used them). The material
+  architecture allowances are ratcheted to the real counts: `src/index.css` no longer has
+  backdrop filters, the only Tailwind backdrop blur is ToastStack, and the frosted class allowance
+  is zero.
+- Live: computed workspace tokens equal the former inline values, there is no inline style, and the
+  Canvas Browser looks unchanged. `npm run check` passed (exit 0): 256 files / 1,730 tests,
+  architecture, build and production inspection.
+
+## 2026-09-30 — 4.5G resource-stability probe (partial)
+
+- Live Dev app, instrumented page: `ResizeObserver` (live targets) and `requestAnimationFrame`
+  (idle calls/s) wrapped; DOM nodes, native-glass surfaces, glass backdrops, SVG masks/filters and
+  computed `backdrop-filter` elements counted.
+- 15 cycles of Canvas Browser, Extensions panel, Settings open/close and minimap off/on (about 60 s),
+  then 5 more cycles starting from the settled idle state. Settled idle before and after the 5-cycle
+  round was identical: 492 nodes, 3 native-glass surfaces (the two toolbar islands and window
+  controls), 2 backdrop-filter elements, 0 live ResizeObserver targets, 0 idle rAF/s, no menus or
+  dialogs left behind. No accumulation.
+- Then 10 cycles each of the canvas and container right-click menus and Shift+E Quick Extensions,
+  all confirmed open, closed with Escape or outside press. The idle state was identical again.
+- Then 10 cycles each of the Settings colour picker and the container JSON editor (opened and
+  closed without applying): identical idle state again.
+- Then 8 Canvas Browser card drags (pickup, 140 px travel, return, drop in place; order
+  unchanged). Open panel before/after: 985 nodes, 19 native-glass surfaces, 38 backdrop-filter
+  elements, 1 observer target, 0 idle rAF/s. After closing: back to the 492-node baseline.
+- Result: no accumulating observers, animation loops, glass layers, promoted surfaces or leftover
+  temporary owners across every retained 4.5 surface. Probe code lived only in the Dev page.
+
+## 2026-09-30 — 4.5G deterministic round trip and stale-backdrop checks
+
+- Round trip, live Dev app with the Canvas Browser open: screenshot, then 3 rounds of
+  in-place card drags, panel switching, Settings and the canvas context menu, then the same state
+  again. 27 of 1,005,995 pixels differ, each by 1/255 (blur rounding inside the panel). No visible
+  difference.
+- Moving backdrop: Container 2 animated under the Canvas Browser over 24 frames (style `translate`
+  only; no document change). The panel region changed in 93,666 pixels (max 27/255: the blurred
+  container shows through), and after it moved back the panel region was pixel-identical to
+  before (0 changed pixels): live, with no stale backdrop.
+- Limitation: a scripted container drag cannot start because the canvas move path calls
+  `setPointerCapture` on the stage, which throws for synthetic pointer IDs. The "mouse-up does not
+  fix the material" part needs a real-mouse spot check.
+
+## 2026-09-30 — Blur timing chosen (4.5E)
+
+- The user tuned the material-fade blur live and chose delay 0.2, curve 1.0. The native glass
+  recipe fallback (`nativeGlassRecipe.css`) and the DEV slider default now use delay 0.2; the curve
+  stays 1. The recipe contract test was updated to match.
+
+## 2026-09-30 — Canvas Browser held-card lift with neighbour spread (4.5E)
+
+- User request: the picked-up canvas card grows a bit and pushes the others aside, then settles
+  back on drop. New `canvasBrowserHeldLift.ts`: `CANVAS_CARD_HELD_SCALE = 1.06`, eased in over the
+  190 ms slot transition after pickup and back to 1 during the drop snap.
+- The host transform composes `scale(var(--taskmap-canvas-card-scale, 1))`. Slot geometry takes an
+  optional held spread: cards above the held slot move up and cards below move down by half the
+  held card's extra height (about 2.5 px each), following the slot through reorders. The spread
+  closes during the drop, and cancel returns to the initial order.
+- Held glass scales around the same centre; sizes and radius are rounded, so the layered mask
+  cache stays bounded during the lift.
+- Test: lift scale, neighbour spread, scaled drag-glass width, and settle with no leftover scale.
+  Live: held card 280×89 at scale 1.06; the card below moved about 2.5 px; after drop all cards are
+  264 px wide, 94 px apart, with no leftover scale.
+- Note: the test database's canvas order changed during earlier scripted probes (Canvas 6 is
+  now second). The test data is disposable.
+- `npm run check` passed (exit 0): 256 files / 1,731 tests. The runtime is 399 lines.
+
+## 2026-09-30 — Held-lift spread keeps list ends fixed; canvas card hover highlight
+
+- Bug: the uniform spread pushed the last card 2.5 px past the list edge, so its scroll-edge slice
+  clipped the bottom rim while a card was held. `canvasCardSpreadOffset` now keeps the first and
+  last cards fixed. Each side absorbs the push evenly: the nearest card moves most, the outermost
+  not at all, and that side's gaps stay equal. Live, holding the first of six cards: the others
+  moved 2 / 1.5 / 1 / 0.5 / 0 px, the last card stayed at full 84 px height, and its rim is intact.
+- Canvas Browser cards got the Extensions-style fading hover highlight: a `::before` layer over
+  the glass, under the content, using the card radius and following the visible slice. It is
+  hidden on the held card.
+- Tests: spread offsets (fixed ends, even gaps, edge neighbours) and the updated lift test.
+
+## 2026-09-30 — Canvas card hover glow follows the pointer
+
+- User request: the hover highlight is now a radial gradient centred on the mouse pointer and
+  clipped to the card's rounded visible slice. `CanvasBrowserCard` writes
+  `--taskmap-card-glow-x/y` on pointer move (mouse only, no React state, the caller's handler still
+  runs).
+- Follow-up tuning from the user: no fade-in (it follows the pointer; fade-out on leave remains);
+  the gradient is 30% softer (radius 150 → 195 px, wider mid stop) and 20% lower opacity (centre
+  alpha 0.1 → 0.08). The held card keeps the glow at the grab point, 20% lighter while dragging
+  (`--taskmap-card-glow-strength: 1.2`).
+- Live: glow position follows the card-relative pointer; while dragging, opacity 1 with centre
+  alpha about 0.094; after the drop, cards settle normally. Test: glow variables for mouse input,
+  touch ignored, and the caller's handler preserved. Contract updated: hover may only change the
+  glow overlay, never the card material.
+- Follow-up: glow made 70% less visible at the user's request (centre alpha 0.08 → 0.024, mid
+  0.028 → 0.0084); the 1.2× drag boost is unchanged.
+- Reverted at the user's request: all Canvas Browser card hover highlight work removed (CSS
+  overlay, pointer tracking, its test). `CanvasBrowserCard.tsx/.css` match HEAD again and the
+  contract forbids card hover styles once more. The held lift and neighbour spread remain.
+  `npm run check` passed (exit 0): 1,734 tests.
+
+## 2026-09-30 — Settings breakage investigation; dialogs switch to plain material fade
+
+- Settings looked broken (header hidden, dark rectangle past the dialog edges). Cause: the Settings
+  island Minor batch had an empty output mask while still active, so its filter layers painted
+  unmasked across the plane and its overscan, covering the header. The geometry projection itself
+  returned the four island shapes correctly; the page had been through many HMR updates and probe
+  instrumentation (duplicate module instances are the likely cause). The app was relaunched cleanly;
+  verification is pending the user's unlock.
+- Hardening: an empty layered output mask now covers the element with a transparent layer
+  (`100% 100%`). WebView2 ignores zero-size mask layers and painted the unmasked output. Test added.
+- User acceptance: glass passes from the user's side, except dialog open/close felt janky
+  (subpixel rim flicker during the scale, toggle knobs slightly out of sync). The shared-plane glass
+  and the DOM rim/controls are rendered by different paths and land on different subpixels while
+  scaling (the knob is also its own compositing layer). By user choice, dialogs default to
+  "Material fade" (no slide/scale); "Material fade + Settle" stays selectable in DEV.
+- `npm run check` passed (exit 0).
+
+## 2026-09-30 — Canvas view survives remounts; Settings verified after clean relaunch
+
+- "The canvas could not be opened" after hot reloads: `RetainedCanvasApplication` disposes its
+  binding in a microtask (StrictMode-safe), so a replaced instance (hot reload, key change) mounting
+  in the same commit hit `bindCanvas` while the old binding was still registered. The runtime
+  refused, and the swallowed error became the failure screen. Now that specific case
+  (`CANVAS_BINDING_ALREADY_MOUNTED`) retries once after the pending disposal; other failures still
+  show the alert, and Dev builds log the static reason (never document content). The new remount
+  test fails on the previous component and passes with the fix.
+- Clean relaunch through `scripts/dev-app.mjs` and unlock: the canvas opened, and Settings renders
+  correctly (header and close visible; island batch mask has 4 island layers plus the viewport; no
+  dark overscan rectangle), which confirms the earlier breakage was HMR-induced. Dialog group
+  transform is empty (plain fade).
+
+## 2026-09-30 — Toggle switches fade with dialogs; slower dialog appear
+
+- Toggle tracks stuck out during dialog fades: presence marking fades the largest glass-free
+  subtrees, but the track contains the glass knob, so its own background, border and shadow were
+  never faded (it cannot take opacity without breaking the knob's glass). The track paint moved to
+  a `::before` layer with `opacity: var(--taskmap-material-presence-progress, 1)`; the knob's
+  highlight, rim and tint already follow presence. Live: across 200 opening frames and the closing
+  frames, the track and content opacity match on every frame.
+- Dialog enter slowed 20% (180 → 216 ms, ease-out); exit unchanged at 120 ms (smoothstep).
+
+## 2026-09-30 — Animation latency and smoothness pass
+
+- New `npm run app:profile:mcp`: the dev Tauri shell with the MCP bridge, serving a production-built
+  renderer (`preview:app` = `vite build` + `vite preview` on 6969, via
+  `src-tauri/tauri.profile.conf.json`). Dev numbers are 3–4× worse (dev React plus StrictMode's
+  double render), so performance is judged here.
+- First Tab took ~306 ms versus ~35 ms later: CanvasManager, the Extensions panel, Quick
+  Extensions and Settings/Clear/Update dialogs were `React.lazy`, and React's ~300 ms Suspense
+  reveal throttle held the first open. They are now regular imports (the app loads from local
+  disk). Production: first Tab 26 ms, first Settings about 21 ms. The dev-only FPS counter and the
+  Markdown renderer stay lazy.
+- Motion scheduler: the first frame of a run assumed 16.7 ms (60 Hz), so on the 360 Hz display
+  every presence animation skipped ahead one 60 Hz frame (ease-out: the Settings fade popped to
+  about 0.2 in one frame). First-frame delta is now 0; later frames use real timestamps. Five
+  animation tests now fire one clock-start frame; new scheduler test.
+- Production measurements (360 Hz, median frame 2.8 ms): React work per toggle is 11–24 ms because
+  the whole legacy App re-renders (Phase 5 moves this state out); the side panel now starts
+  smoothly. The first Settings fade per session has one ~22 ms frame from first-use decoding of
+  the quantised opacity mask images. Later opens peak at the 8 ms mount frame. Candidate fix:
+  generated gradient opacity layers instead of decoded images (renderer change, not done yet).
+- `npm run check` passed (exit 0): 1,737 tests.
+
+## 2026-09-30 — 4.5C rendering proof closed; 4.5D architecture verified and consolidated
+
+- 4.5C: the open isolation/overscan checks were measured on the Lab fixture's old backends. On the
+  production shared workspace plane, filling a Layer-1 Major's foreground with opaque red changes
+  neighbouring glass by 0.00 mean / 0 max, both adjacent (toolbar vs Canvas Browser 15 px and
+  History 8 px) and overlapping (History island moved over the Canvas Browser). Evidence saved in
+  `docs/evidence/glass-proof/production-*.png`; `GLASS-RENDERING-PROOF.md` updated.
+- Layers: every Major is already on the right path (Layer 1 shared plane; Layer 2 Quick
+  Extensions, JSON editor and dialogs with own filters sampling completed Layer-1 UI). New
+  `materialLayers.test.tsx` locks the placement rule.
+- Canonical recipes: the canvas workspace overrode rim brightness (Major 0.98, Minor 1.15; the
+  canonical value was 1), so Settings, Quick Extensions and dialogs rendered different rims from the
+  Canvas Browser. `borderBrightness` is now part of the recipe definitions with the accepted canvas
+  values; the workspace material overrides and the dead legacy blur copies (`!retained` path,
+  `smallGlassBlur` props) were removed. Live: all surfaces resolve 0.98 / 1.15.
+- Backdrop damage vs geometry: a real camera pan (180 px and back, `setPointerCapture` stubbed for
+  scripting) and a container drag 532 px under the Canvas Browser caused 0 rim draws and 0 material
+  geometry reads. The wheel input's minimap reveal does measure, which is legitimate appearance
+  geometry.
+- Refresh behaviour: the only feature-level compositing hint (`will-change: backdrop-filter` on the
+  side panel's private filter layer) was dead on the shared plane and was removed.
+- Ambient/overscan: a bright container 37 px outside the Canvas Browser changes its edge strip by
+  3.1/255, the inner strip by 0.3 and the far strip by 0.
+- Batching/promotion: only the Settings tab indicator keeps its own Minor filter (user choice);
+  Canvas Browser cards promote on drag; extension drags use an icon preview.
+
+## 2026-10-01 — Sleep mode for the workspace chrome; new app icon
+
+- Sleep mode (user request): after 3 s without input, both toolbar islands and the window controls
+  fade out (500 ms) and become inert, and an open side panel closes; any pointer movement, press,
+  key or wheel inside the window wakes them (180 ms). It stays awake while the pointer is over the
+  chrome, a button is held, or a dialog, menu, Quick Extensions or colour picker is open.
+  `chromeSleep.ts` holds the shared asleep state (only the switch re-renders, not pointer
+  movement) and the idle detector (activity just stamps a time; one self-re-arming timer).
+  `useChromeSleepMotion` fades surfaces through the presence controller (material fade, content
+  presence marks). The toolbar placeholder became the toggle ("Enable/Disable sleep mode",
+  `IconZzz` / `IconZzzOff`), stored in the new device preference `chromeAutoHideEnabled` (TS
+  schema plus the Rust struct with `#[serde(default)]`, so older preference files load with it
+  off; Rust test added).
+- Disabled buttons now multiply their dim with an enclosing material fade instead of overriding it
+  (found because disabled Undo/Redo stayed faintly visible while asleep; dialogs had the same gap).
+- Live: asleep after 3 s (islands and window controls at presence 0 and inert, panel closed), awake
+  within 250 ms of a pointer move (panel stays closed), disabled Undo fades to 0. Sleep mode was
+  left off afterwards.
+- App icon: `Assets/TaskMap_App_Icon.png` (256 px, transparent background) replaced the bundle
+  icons via `tauri icon` (only the configured 32/128/256/512 PNGs and the `.ico` were copied). The
+  incremental build kept the old embedded icon until `build.rs` was touched; the rebuilt exe's icon
+  has transparent corners and the new logo.
+- `npm run check` passed (exit 0): 1,741 tests.
+- Follow-up (user request): sleep mode now flies the chrome out and in diagonally with the
+  material fade, using the side panel's timing (300 ms ease-in-out both ways). The toolbar islands
+  leave past the top-left corner and the window controls past the top-right, each on its own
+  diagonal to 32 px beyond the window edge. Distances are measured at rest and anchored to the
+  corner's edges. Live: Workspace island (16,16) ↔ (-236,-72), History (228,16) ↔ (-108,-72),
+  window controls (1039,16) ↔ (1195,-72); 94 frames over about 260 ms.
+- Bug (user): the whole canvas blurred for a split second during the sleep animation. Fading shapes
+  used per-opacity SVG data-URL mask images; a frame that references an image still loading or
+  decoding is treated as unmasked by WebView2, so the shared plane's blur covered the window.
+  Fading shapes (alpha < 1) are now built from generated gradients only (four quarter-disc corners
+  plus three edge-to-edge bands, no overlap), so no load or decode is involved. Resting images are
+  kept decoded through retained `Image` elements. This also removes the first-fade decode frame
+  noted for dialogs. Live: across 189 fading frames, image layers appear only at progress ≥ 0.993
+  (the decoded resting image); a frozen 60 % mask renders clean rounded corners with no seams.
+- The flash persisted after the gradient change. Native screen capture of the window (about one
+  frame every 3 ms; blur detected by edge energy) found ~95 ms of full-canvas Major blur at the end
+  of the fly-out and the start of the fly-in. Isolated in place: toggling the plane mask to the
+  full-size empty mask never blurs, but moving every mask layer outside the element blurs the whole
+  plane for as long as they stay there. WebView2 treats a mask with no layer inside the element as
+  no mask. `layeredOutputMask` now takes the element bounds and drops layers that miss them,
+  falling back to the full-size empty mask; both the shared Major plane and the Minor output masks
+  pass their bounds. Two capture runs across a wake and sleep cycle: 0 blur frames out of about
+  2,500 each. Regression test added.
+- Follow-up (user request): the side panel now comes back on wake if sleep closed it. App remembers
+  which panel was open (Canvases or Extensions) and reopens it via the wake callback of
+  `useChromeAutoHide`. Live: open → closed while asleep → reopened after a pointer move.
+
+## 2026-10-01 — Temporary corner-radius tuner (DEV)
+
+- User request: a temporary DEV-workbench tuner for chrome corner radii. `workspaceRadii.ts` is a
+  small store whose defaults are the shipped values (side panel 19, canvas cards 13, side-panel
+  extension cards 10, Quick Extensions panel 17 and cards 11, toolbar islands 14, window controls
+  23); only the workbench's "Corner radii (temporary)" section writes to it, and it resets on reset
+  or when the workbench unmounts. App, the Extensions panel, Quick Extensions and WindowChrome read
+  it, so production renders the defaults unchanged. Radii stay props, so the glass mask, rim and
+  shared-plane shape follow live. The App radius constants were folded into the store.
+- Live: tuning the side panel 6, canvas cards 3, toolbar 4 and window controls 6 updated every
+  surface's material radius immediately; reset restored the defaults. Test added.
+
+## 2026-10-01 — Corner radii and sleep delay in Settings → Visual
+
+- User request: the temporary DEV radius tuner became real Settings. New "Interface" island in the
+  Visual tab (`SettingsInterfaceIsland.tsx`): side panel, canvas cards, extension cards, Quick
+  Extensions panel and cards, "Top bar" (toolbar islands and window buttons, now one value,
+  default 14; the window buttons were 23), plus "Sleep mode delay" (1–15 s, default 3 s). The DEV
+  tuner was removed.
+- Saved in device preferences: `chromeRadii` (whole pixels 0–32) and `chromeAutoHideDelayMs`
+  (1000–15000), with TS schema and `DEFAULT_CHROME_RADII`, and the Rust `ChromeRadii` struct with
+  serde defaults and range validation (older files load with the shipped values; Rust test
+  extended). `workspaceRadii.ts` holds the applied radii: App writes the saved preference, and
+  Settings previews drags live there.
+- Sliders show and preview immediately and save once on release (pointer up, key up or blur), so a
+  drag never queues per-pixel saves or lags behind the saved snapshot. `useChromeAutoHide` takes
+  the idle delay.
+- Live: side panel dragged to 25 → panel rendered 25 px, and reopening Settings showed the saved
+  25; sleep delay 1.5 s → chrome fell asleep 1,535 ms after the last input. Both were reset to the
+  defaults afterwards. The Visual tab now scrolls (about 250 px more content).
+- `npm run check` passed (exit 0): 1,744 tests.
+
+## 2026-10-01 — Settings radii and scroll-edge morph for Settings
+
+- Settings → Visual → Interface gains "Settings window" (default 12 px) and "Settings islands"
+  (default 8 px) radius sliders. `ChromeRadii` adds `settings`/`settingsIsland` on both sides; the
+  Rust struct uses a container `#[serde(default)]` so saved radii without them still load (test
+  `saved_radii_without_settings_radii_load_with_their_defaults`).
+- The Settings island list now uses the settled scroll-edge morph (glass contract section 12) like
+  the workspace browser lists, replacing the old guillotine clip at the scroll edges: island content
+  sits in the shared `.taskmap-glass-list__content` mask (island padding moved onto the mask), and
+  `useSharedSmallGlassList` runs with `morph: true`. The Settings mask fills the island, so it sets
+  `--taskmap-material-content-clip-inset: 0px` to stop the slice clip reaching 2 px past the rim.
+- `useSharedSmallGlassList` leaves zero-size (not yet laid out) cards unsliced instead of hiding
+  them as scrolled out.
+- Live check (dev app, scrolled Visual tab): top/bottom islands slice at the viewport content box
+  (rim at y 236/674); row brightness scan shows no content painted outside the rims. Settings radii
+  20/14 saved, applied and reloaded after reopening. `npm run check` passes (1,744 tests).
+
+## 2026-10-01 — Database entry redesign (user mockup)
+
+- Startup opens the most recent database straight to its unlock step, once per app run
+  (`useDatabaseEntry` auto-open waits for the first recent list and an idle session). The unlock
+  step shows the TaskMap title image, "Enter password", the field, the database path (Windows `\?\`
+  verbatim prefix hidden) and New database / Change database / Unlock. "Change database" closes the
+  locked database and shows the recent list with New database / Open existing database; "New
+  database" from the unlock step closes first, then opens the create picker.
+- The media-encryption notice now sits on the create step (SECURITY.md requires it on database
+  creation); the creation flow is otherwise unchanged.
+- The entry panel uses the side-panel radius; device preferences are edition-local and readable
+  before unlock, so the gate loads them to apply the saved radii (optional `preferences` on
+  `DatabaseEntryRuntime`).
+- Title asset: `Assets/TaskMap_Title.png` downscaled to 459×112 (`taskmapTitle.png`, 46 KB).
+- Live check: cold start → unlock screen for TEST123 (radius 22 px); Change database → list → recent
+  → unlock → workspace. `npm run check` passes (1,746 tests).
+
+## 2026-10-01 — Database entry: open latency and clean step transitions
+
+- Measured dev unlock of TEST123: 2.6 s in `unlock_database`. Cause 1: unoptimized Argon2id in dev
+  builds — `src-tauri/Cargo.toml` now sets `opt-level = 3` for argon2/blake2/chacha20/poly1305/
+  chacha20poly1305 in the dev profile only (unlock 2.6 s → 0.79 s). Cause 2: wiping the 64 MiB
+  Argon2 work memory through `Zeroizing<Vec<Block>>` took ~650 ms unoptimized (hash itself
+  ~50 ms); `derive_key` now owns it in `WorkMemory`, whose `Drop` wipes each block with the
+  block's own `Zeroize` (~2–14 ms). Result: `unlock_database` 83 ms; submit → workspace committed in
+  ~160 ms, one React commit with no blank frames (DOM sampling). Release builds benefit from the
+  wipe change too; security behaviour is unchanged (every block is still zeroed, including on early
+  return).
+- Transitions: a native capture of list ↔ unlock switching showed intermediate states (emptied
+  recent list, "Cancel opening" flashing, "Please wait…" label, dimming) plus a ~25 px height
+  change that moved the centred logo. Now: the last recent list is held as inert display-only rows
+  while fresh one-use authorizations load; controls dim and Cancel appears only after 450 ms of
+  work (submission is still blocked immediately); the Unlock label is stable; preparing keeps the
+  submitted form until the workspace mounts (status + Cancel return after 1 s); the panel's top edge
+  is anchored with the unlock step's height as its minimum. Re-capture: each click is one clean
+  state change; outline, logo, heading and first row stay in place.
+- Loading bar (`DatabaseEntryProgress`): staged (unlocking → 70 %, preparing → 92 %), shown only
+  when opening takes over 250 ms, so typical ~150 ms opens don't flash it.
+- A failed recent open now refetches the recent list instead of leaving it empty.
+- Dev pitfall seen repeatedly: hot-reloading entry modules while a session is open leaves the gate
+  holding a disposed runtime ("Check the selected file and password" on every open); a full reload
+  fixes it. Not reachable without HMR.
+
+## 2026-10-01 — Unlock reveal (iPhone-style)
+
+- On unlock the workspace mounts under the unlock screen, which stays as a fixed overlay
+  (`data-unlock-reveal`) until the reveal has played: the panel scales to 1.12 and dissolves through
+  the presence controller (material fade + scale; native-glass self-backdrop, so scaling is safe),
+  the dark backdrop — now its own sibling layer, never an ancestor of the glass — fades out, and the
+  canvas layer (`WorkspaceBackdropLayer`) settles from scale 1.08 with a compositor-driven
+  animation. At 260 ms the chrome arrives: the toolbar islands fly in through the sleep-mode motion
+  (`useChromeSleepMotion(..., { intro: true })`; window controls excluded since they are already on
+  screen) and the Canvas Browser opens with its own slide-in (`useWorkspaceIntroArrival` in App).
+- Shared state: `ui/patterns/workspace/workspaceIntro.ts` (phases covered → revealing → arriving →
+  idle, plus a mounted-canvas registration). The reveal waits for the canvas layer to mount (the dev
+  workbench lazy-loads the workspace ~300 ms after the session is ready), with a 4 s fallback.
+  Reduced motion skips straight to the arrived state.
+- The progress bar fills to 100 % when loading finishes and dissolves with the panel.
+- Measured (DOM sampling, dev): canvas 1.08 → 1.000 over ~900 ms, panel presence 1 → 0 in ~380 ms,
+  backdrop 1 → 0 in ~620 ms, Canvas Browser sliding in from ~240 ms after the reveal start. Its
+  mount costs ~60 ms of main thread, timed after the panel has nearly faded so it only meets
+  compositor-driven motion. No console errors. `npm run check` passes (1,747 tests).
+
+## 2026-10-01 — Lock animation, password field polish, WebView2 autofill off
+
+- Lock plays the unlock reveal in reverse before the session locks (locking purges the document, so
+  it cannot animate afterwards): Settings closes, toolbars fly out, the side panel slides out
+  (`useWorkspaceIntroDeparture`), the canvas zooms to 1.08, the dark backdrop fades in and the
+  unlock panel descends from 1.12 and solidifies (presence controller). `beginWorkspaceOutro()`
+  resolves after ~650 ms, then `controller.lock()` runs; the overlay is already the unlock screen,
+  so the locked state takes over without a jump. A failed lock uncovers the workspace again; with no
+  entry mounted to play it, the outro resolves immediately. Native/forced locks stay instant.
+- Unlock reveal: content swaps (slow-loading status, Cancel) are frozen once the workspace is
+  ready, the progress bar no longer pops in during the reveal, and the bar's show/hide moved to an
+  inner track so it fades with the panel. A MutationObserver re-marks presence content mid-reveal.
+- Password field: TaskMap's own reveal toggle (crossed eye while hidden, 18 px), WebView2's
+  `::-ms-reveal` hidden; not a Tab stop. Caps Lock indicator on the path line (no layout shift),
+  read from key/pointer modifier state. Native Tab traversal is now off on the entry screen too;
+  the create form keeps Tab between its two password fields.
+- WebView2 general autofill ("Saved info") and password autosave are turned off per window
+  (`src-tauri/src/webview_autofill.rs`, `ICoreWebView2Settings4`); direct deps `webview2-com` /
+  `windows-core` reuse the versions Tauri already ships. Password inputs use `autocomplete="off"`.
+- Verified in the dev app: lock sequence (DOM sampling: concealing → entry at ~670 ms), unlock
+  after lock, Tab keeps focus in the password field, no autofill errors in the native log.
+  `npm run check` passes (1,750 tests).
+
+## 2026-10-01 — Side panel height clamped mid slide-in
+
+- Symptom: after waking from sleep mode the Canvas Browser's bottom card ran into the panel edge
+  (no scroll-edge slice). Cause: `clampPanelViewHeight` used `getBoundingClientRect().top`, which
+  includes the presence transform (slide + scale from ~0.96 about the centre). Measured during the
+  slide-in the top read ~13 px low, so the switcher was clamped to 431 px while its content kept
+  444 px; the canvas-browser viewport then reached past the panel's rim and cards were sliced on
+  the panel border. Now the clamp uses the layout position (`offsetParent` top + `offsetTop`).
+- Verified in the dev app (678×531 window): three sleep/wake cycles, switcher height equals content
+  height (444/444; before 431/444), bottom card ends 12 px above the panel rim. `npm run check`
+  passes.

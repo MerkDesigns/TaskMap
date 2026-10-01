@@ -20,7 +20,6 @@ const container: ContainerElement = {
   extensions: {
     copyPasteJson: { enabled: true },
     lock: { enabled: true },
-    pickCard: { selectedCardId: "card-a" },
   },
 };
 
@@ -155,7 +154,6 @@ describe("Copy/Paste JSON extension", () => {
       extensions: {
         copyPasteJson: { enabled: true },
         lock: { enabled: true },
-        pickCard: { selectedCardId: "new-card-0" },
       },
     });
     expect(result?.textCards).toEqual([

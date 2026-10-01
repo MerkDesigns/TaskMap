@@ -11,7 +11,7 @@ export interface ExtensionBrowserCardProps extends HTMLAttributes<HTMLDivElement
 
 export const ExtensionBrowserCard = forwardRef<HTMLDivElement, ExtensionBrowserCardProps>(
   function ExtensionBrowserCard(
-    { children, className, embedded, geometryActive = true, radius = 8, ...props },
+    { children, className, embedded, geometryActive = true, radius = 10, ...props },
     ref,
   ) {
     return (

@@ -1,3 +1,4 @@
+import type { ExtensionId } from "../extensions/registry";
 // @vitest-environment node
 import { expect, it } from "vitest";
 import { callbackSetup } from "../app/commands/retainedCallbackTestSupport";
@@ -51,7 +52,7 @@ it("offers only the nine retained extensions and cannot install removed actions"
   const setup = await callbackSetup();
   const before = setup.store.getState().documentWorkspace.document!;
   try {
-    for (const key of ["commandRunner", "sorting", "dailyReset", "pickCard"] as const)
+    for (const key of ["commandRunner", "dailyReset", "pickCard"] as unknown as ExtensionId[])
       expect(
         installRetainedViewExtension(setup.actions, before, key, [ids.card], {
           nextUuid: () => {

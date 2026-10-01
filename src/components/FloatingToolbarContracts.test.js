@@ -45,10 +45,7 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
 
   it("fits hover radius to its island while pressed buttons retain their resting tint", async () => {
     const patternCss = await readFile(patternCssPath, "utf8");
-    const pressedRule = patternCss.slice(
-      patternCss.indexOf('[aria-pressed="true"]'),
-      patternCss.indexOf(".taskmap-floating-canvas-toolbar__optional-controls"),
-    );
+    const pressedRule = patternCss.slice(patternCss.indexOf('[aria-pressed="true"]'));
 
     expect(pressedRule).toContain("border-color: transparent");
     expect(pressedRule).toContain("background: transparent");
@@ -78,7 +75,9 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(toolbarBoundary).not.toMatch(
       /backdrop-filter|z-index|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
     );
-    expect(patternCss).toContain("var(--taskmap-motion-fast)");
+    // No collapsing/sliding controls: six plain buttons, the last one toggling sleep mode.
+    expect(patternCss).not.toMatch(/transition|optional-controls/);
+    expect(toolbarSource).not.toContain("toolbarButtonsVisible");
     expect(toolbarSource).not.toContain("useMaterialSurfaceGeometryInvalidation");
     expect(appShellSource.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });

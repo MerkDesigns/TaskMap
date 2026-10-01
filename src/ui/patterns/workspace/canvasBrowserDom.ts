@@ -133,6 +133,7 @@ export function restoreSettledCardHost<Id extends string>(record: CanvasBrowserC
   record.host.style.top = "";
   record.host.style.width = "";
   record.host.style.height = `${record.height}px`;
+  record.host.style.removeProperty("--taskmap-canvas-card-scale");
   delete record.host.dataset.dragging;
 }
 
@@ -173,14 +174,4 @@ export function reorderCanvasBrowserHosts<Id extends string>(
     const host = records.get(id)?.host;
     if (host && host.parentElement === cardsLayer) cardsLayer.append(host);
   });
-}
-
-/**
- * Held-item exemption (glass contract section 13): an ancestor that clips for its own reasons
- * (e.g. the side-panel view switcher) declares `data-held-item-clip` and releases its clip while a
- * card is held, so the card can be dragged past the panel. Settled cards clip themselves.
- */
-export function releaseHeldItemClip(panel: HTMLElement, held: boolean) {
-  const host = panel.closest<HTMLElement>("[data-held-item-clip]");
-  if (host) host.dataset.heldItemClip = held ? "released" : "";
 }

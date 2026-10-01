@@ -6,6 +6,20 @@
   font-family: var(--taskmap-font-family);
 }
 
+/* Canvas workspace layout tokens (the accepted defaults of the retired dev visual tuner). Material
+   optics are not overridden here: every recipe value lives in `materialDefinitions.ts`. */
+.taskmap-workspace-root--canvas {
+  --taskmap-chrome-inset-inline: 16px;
+  --taskmap-chrome-inset-top: 16px;
+  --taskmap-side-panel-gap: 15px;
+  --taskmap-canvas-preview-tint-rgb: 12 12 13;
+  --taskmap-canvas-preview-tint-opacity: 0.665;
+  --taskmap-canvas-preview-border-width: 1px;
+  --taskmap-canvas-preview-border-rgb: 115 111 123;
+  --taskmap-canvas-preview-border-opacity: 0.29;
+  --taskmap-canvas-preview-gap: 9px;
+}
+
 /* Canvas descendants may own large local z-indices. This backdrop-only
    stacking context keeps all of them below the shared compositor output. */
 .taskmap-workspace-backdrop-layer {

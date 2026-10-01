@@ -138,7 +138,6 @@ export function WorkspaceSidePanelContentSwitcher({
       {...props}
       className={["taskmap-workspace-side-panel-switcher", className].filter(Boolean).join(" ")}
       data-height-ready={height === null ? undefined : true}
-      data-held-item-clip=""
       style={{ ...style, height: height === null ? undefined : `${height}px` }}
     >
       {views.map((view, index) => {
@@ -192,10 +191,12 @@ function clampPanelViewHeight(view: HTMLElement, contentHeight: number): number 
   const bottomInset = Number.parseFloat(
     window.getComputedStyle(panel).getPropertyValue("--taskmap-chrome-inset-bottom"),
   );
+  // Layout position, not the rendered one: measured mid slide-in (opening, waking from sleep) the
+  // panel's transform moved its rect, clamping it shorter than its content so the bottom card ran
+  // into the panel edge.
+  const layoutTop = (panel.offsetParent?.getBoundingClientRect().top ?? 0) + panel.offsetTop;
   const availableHeight =
-    window.innerHeight -
-    panel.getBoundingClientRect().top -
-    (Number.isFinite(bottomInset) ? bottomInset : 16);
+    window.innerHeight - layoutTop - (Number.isFinite(bottomInset) ? bottomInset : 16);
   return Math.ceil(Math.min(contentHeight, Math.max(0, availableHeight)));
 }
 

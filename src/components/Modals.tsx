@@ -10,6 +10,8 @@ import {
   IconSettings,
   IconUpload,
 } from "@tabler/icons-react";
+import { SettingsInterfaceIsland } from "./SettingsInterfaceIsland";
+import type { ChromeRadii } from "../platform/settings/preferenceContracts";
 import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
 import { commandErrorMessage } from "../app/commandError";
 import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
@@ -62,6 +64,10 @@ type SettingsModalProps = {
   onFpsCounterVisibleChange: (visible: boolean) => void;
   privacyModeEnabled: boolean;
   onPrivacyModeEnabledChange: (enabled: boolean) => void;
+  chromeRadii: ChromeRadii;
+  onChromeRadiusChange: (key: keyof ChromeRadii, radius: number) => void;
+  sleepDelayMs: number;
+  onSleepDelayChange: (delayMs: number) => void;
   temporaryPanelsVisible: boolean;
   onTemporaryPanelsVisibleChange: (visible: boolean) => void;
   onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
@@ -151,6 +157,10 @@ export function SettingsModal({
   onFpsCounterVisibleChange,
   privacyModeEnabled,
   onPrivacyModeEnabledChange,
+  chromeRadii,
+  onChromeRadiusChange,
+  sleepDelayMs,
+  onSleepDelayChange,
   temporaryPanelsVisible,
   onTemporaryPanelsVisibleChange,
   onCheckForUpdate,
@@ -382,6 +392,12 @@ export function SettingsModal({
                       </div>
                     </div>
                   </SettingsIsland>
+                  <SettingsInterfaceIsland
+                    radii={chromeRadii}
+                    onRadiusChange={onChromeRadiusChange}
+                    sleepDelayMs={sleepDelayMs}
+                    onSleepDelayChange={onSleepDelayChange}
+                  />
                   <SettingsIsland>
                     <div className="taskmap-settings-section-heading">
                       <IconPalette size={16} stroke={2} />
@@ -553,7 +569,7 @@ export function SettingsModal({
       </SettingsShell>
       {defaultColorPicker && (
         <ColorPickerMenu
-          className="taskmap-modal-portal-layer"
+          aboveModals
           key={defaultColorPicker.elementType}
           color={defaultElementColors[defaultColorPicker.elementType]}
           left={defaultColorPicker.left}

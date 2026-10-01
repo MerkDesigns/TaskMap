@@ -7,12 +7,27 @@ export interface ModalLayerProps {
   readonly groupRef: RefObject<HTMLDivElement | null>;
   readonly phase: string;
   readonly scrimRef: RefObject<HTMLDivElement | null>;
+  /** Primary-button press on the scrim (outside the dialog). */
+  readonly onScrimPointerDown?: () => void;
 }
 
-export function ModalLayer({ children, groupRef, phase, scrimRef }: ModalLayerProps) {
+export function ModalLayer({
+  children,
+  groupRef,
+  onScrimPointerDown,
+  phase,
+  scrimRef,
+}: ModalLayerProps) {
   return (
     <MaterialPlaneProvider plane="modal">
-      <div ref={scrimRef} aria-hidden="true" className="taskmap-modal-scrim" />
+      <div
+        ref={scrimRef}
+        aria-hidden="true"
+        className="taskmap-modal-scrim"
+        onPointerDown={(event) => {
+          if (event.button === 0) onScrimPointerDown?.();
+        }}
+      />
       <div className="taskmap-modal-content-layer">
         <ModalPresenceGroup ref={groupRef} level="root" phase={phase}>
           {children}

@@ -80,7 +80,8 @@
   --taskmap-chrome-gap: 8px;
   --taskmap-panel-width: 290px;
   --taskmap-toolbar-height: 40px;
-  --taskmap-toolbar-group-padding-inline: 6px;
+  /* Toolbar islands line up with the 288px side panel: 204 + 8 gap + 76 (user direction). */
+  --taskmap-toolbar-group-padding-inline: 8px;
   --taskmap-panel-padding: 12px;
   --taskmap-modal-padding: 20px;
   --taskmap-icon-small: 14px;

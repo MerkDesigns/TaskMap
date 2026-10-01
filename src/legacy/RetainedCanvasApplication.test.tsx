@@ -77,7 +77,7 @@ it("removes an unsaved editor and its portals before native revocation returns",
       clientX: 500,
       clientY: 300,
     });
-    fireEvent.click(await screen.findByRole("button", { name: "Create container" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create container" }));
     fireEvent.change(screen.getByDisplayValue("Container 1"), {
       target: { value: "private-unsaved-draft" },
     });
@@ -108,13 +108,13 @@ it("copies through menus and shortcuts, consumes Paste, and clears availability 
     await screen.findByRole("button", { name: "Canvases" });
     const stage = mounted.container.querySelector("[data-grid-style]")!;
     fireEvent.contextMenu(stage, { clientX: 500, clientY: 300 });
-    fireEvent.click(await screen.findByRole("button", { name: "Create container" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create container" }));
     fireEvent.keyDown(screen.getByDisplayValue("Container 1"), { key: "Enter" });
     fireEvent.click(screen.getByTitle("Container menu"));
-    fireEvent.click(await screen.findByRole("button", { name: "Copy" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Copy" }));
     const before = runtime.controller.store.getState().documentWorkspace;
     fireEvent.contextMenu(stage, { clientX: 800, clientY: 500 });
-    fireEvent.click(await screen.findByRole("button", { name: "Paste" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Paste" }));
     expect(
       Object.values(runtime.controller.store.getState().documentWorkspace.document!.elements),
     ).toHaveLength(2);
@@ -122,7 +122,7 @@ it("copies through menus and shortcuts, consumes Paste, and clears availability 
       before.history.past.length + 1,
     );
     fireEvent.keyDown(document.body, { key: "v", ctrlKey: true });
-    expect(screen.queryByRole("button", { name: "Paste" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Paste" })).toBeNull();
     fireEvent.keyDown(document.body, { key: "c", ctrlKey: true });
     fireEvent.keyDown(document.body, { key: "v", ctrlKey: true });
     expect(
@@ -197,7 +197,7 @@ it("mounts the actual canvas once in StrictMode and routes creation/history with
     await screen.findByRole("button", { name: "Canvases" });
     const stage = mounted.container.querySelector("[data-grid-style]")!;
     fireEvent.contextMenu(stage, { clientX: 500, clientY: 300 });
-    fireEvent.click(await screen.findByRole("button", { name: "Create container" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create container" }));
     const state = runtime.controller.store.getState().documentWorkspace;
     expect(Object.values(state.document!.elements)).toHaveLength(1);
     expect(state.history.past).toHaveLength(1);
@@ -211,7 +211,7 @@ it("mounts the actual canvas once in StrictMode and routes creation/history with
     ).toHaveLength(1);
     const content = mounted.container.querySelector("article [class*='--container-bg']")!;
     fireEvent.contextMenu(content, { clientX: 510, clientY: 380 });
-    fireEvent.click(await screen.findByRole("button", { name: "Create text card" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create text card" }));
     const withCard = runtime.controller.store.getState().documentWorkspace;
     const card = Object.values(withCard.document!.elements).find(
       ({ type }) => type === "text-card",
@@ -238,6 +238,25 @@ it("mounts the actual canvas once in StrictMode and routes creation/history with
     ).toEqual({ containerId: container.id, order: 0 });
   } finally {
     mounted.unmount();
+    await runtime.controller.dispose();
+  }
+});
+
+it("rebinds when a replaced view instance still holds the canvas binding (remount, hot reload)", async () => {
+  const runtime = createDatabaseEntryPreview();
+  await runtime.controller.resume();
+  await runtime.controller.create("preview-token", "test-only");
+  await runtime.initializeResources();
+  const mounted = render(<RetainedCanvasApplication key="first" runtime={runtime} />);
+  try {
+    await screen.findByRole("button", { name: "Canvases" });
+    // The first instance releases its binding in a microtask; the second mounts before that.
+    mounted.rerender(<RetainedCanvasApplication key="second" runtime={runtime} />);
+    await screen.findByRole("button", { name: "Canvases" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  } finally {
+    mounted.unmount();
+    await act(async () => {});
     await runtime.controller.dispose();
   }
 });

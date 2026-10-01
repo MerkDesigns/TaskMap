@@ -66,6 +66,8 @@ export interface NativeGlassMaterialDefinition extends MaterialDefinitionBase {
   readonly saturation: number;
   readonly brightness: number;
   readonly contrast: number;
+  /** Rim brightness multiplier; the single source for every surface of this recipe. */
+  readonly borderBrightness: number;
   readonly overscanRatio: number;
   readonly tint: {
     readonly rgb: MaterialRgb;

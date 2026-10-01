@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import App from "../App";
+import { CANVAS_BINDING_ALREADY_MOUNTED } from "../app/database/createApplicationDatabaseRuntime";
 import { useRetainedCanvasSettings } from "./useRetainedCanvasSettings";
 import {
   RetainedCanvasContext,
@@ -25,28 +26,55 @@ export function RetainedCanvasApplication({
     attached.current = true;
     const lifetime = generation;
     lifetime.current++;
+    const bind = () => {
+      const binding = runtime.bindCanvas({
+        viewport: {
+          pan: { x: -520, y: -420 },
+          zoom: 1,
+          screen: { width: window.innerWidth, height: window.innerHeight },
+        },
+        panFrameScheduler: {
+          schedule: (callback) => window.requestAnimationFrame(callback),
+          cancel: (handle) => window.cancelAnimationFrame(handle),
+        },
+        onRevoke() {
+          owner.current = null;
+          // Native/session revocation must remove editors and portals before returning.
+          if (attached.current && host.current) flushSync(() => setView(null));
+          else if (attached.current) setView(null);
+        },
+      });
+      owner.current = { runtime, binding };
+      return owner.current;
+    };
+    const fail = (error: unknown) => {
+      // Static binding/projection reasons only; never document content.
+      if (import.meta.env.DEV) {
+        console.error(
+          "Retained canvas binding failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+      setFailed(true);
+    };
     if (!owner.current) {
       try {
-        const binding = runtime.bindCanvas({
-          viewport: {
-            pan: { x: -520, y: -420 },
-            zoom: 1,
-            screen: { width: window.innerWidth, height: window.innerHeight },
-          },
-          panFrameScheduler: {
-            schedule: (callback) => window.requestAnimationFrame(callback),
-            cancel: (handle) => window.cancelAnimationFrame(handle),
-          },
-          onRevoke() {
-            owner.current = null;
-            // Native/session revocation must remove editors and portals before returning.
-            if (attached.current && host.current) flushSync(() => setView(null));
-            else if (attached.current) setView(null);
-          },
-        });
-        owner.current = { runtime, binding };
-      } catch {
-        setFailed(true);
+        bind();
+      } catch (error) {
+        if (error instanceof Error && error.message === CANVAS_BINDING_ALREADY_MOUNTED) {
+          // A replaced instance (remount, hot reload) releases its binding in a microtask queued
+          // during its cleanup; bind once more after it instead of failing the whole view.
+          queueMicrotask(() => {
+            if (!attached.current || owner.current) return;
+            try {
+              setView(bind());
+            } catch (retryError) {
+              fail(retryError);
+            }
+          });
+        } else {
+          fail(error);
+        }
       }
     }
     setView(owner.current);

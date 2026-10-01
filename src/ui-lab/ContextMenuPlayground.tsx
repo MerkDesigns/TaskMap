@@ -124,14 +124,12 @@ export function ContextMenuPlayground() {
             }
             onUpdateAccent={(_, accent) => setElement((current) => ({ ...current, accent }))}
             onRememberRecentColor={() => undefined}
-            onTogglePickCard={() => undefined}
             onCopyJsonForAi={async () => undefined}
             onPasteJsonFromAi={async () => undefined}
             onOpenJsonEditor={() => undefined}
             onHeaderButtonsVisibleChange={(_, visible) =>
               setElement((current) => ({ ...current, headerButtonsVisible: visible }))
             }
-            onSetSort={() => undefined}
             onSearchChange={(_, query) =>
               setElement((current) => ({
                 ...current,
@@ -163,14 +161,11 @@ export function ContextMenuPlayground() {
           onCopy={closeMenu}
           onRemovePrivacyExtension={() => removeExtension("privacy")}
           onRemoveSearchExtension={() => removeExtension("search")}
-          onRemoveSortingExtension={() => removeExtension("sorting")}
           onRemoveLockExtension={() => removeExtension("lock")}
           onRemoveColorPickerExtension={() => removeExtension("colorPicker")}
           onRemoveAutoCheckboxExtension={() => removeExtension("autoCheckbox")}
-          onRemoveDailyResetExtension={() => removeExtension("dailyReset")}
           onRemoveCounterExtension={() => removeExtension("counter")}
           onRemoveInheritCardColorExtension={() => removeExtension("inheritCardColor")}
-          onRemovePickCardExtension={() => removeExtension("pickCard")}
           onRemoveCopyPasteJsonExtension={() => removeExtension("copyPasteJson")}
           onMoveLayer={closeMenu}
           onDelete={closeMenu}

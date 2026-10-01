@@ -40,16 +40,27 @@ export function syncCanvasBrowserDragGlass<Id extends string>(
   const x = finiteStyleNumber(record.host, "left");
   const y = finiteStyleNumber(record.host, "--taskmap-canvas-card-y");
   const width = finiteStyleNumber(record.host, "width") || CANVAS_BROWSER_LAYOUT.cardWidth;
-  // Held glass follows the liquid pickup/drop slice written on the host.
+  // Held glass follows the liquid pickup/drop slice and the held lift scale written on the host.
   const { offset, visible } = readCanvasBrowserCardSlice(record);
+  const scale = finiteStyleNumber(record.host, "--taskmap-canvas-card-scale") || 1;
+  const centerX = x + width / 2;
+  const centerY = y + record.height / 2;
+  // Whole-pixel sizes keep the cached mask images bounded while the lift animates.
+  const scaled = (start: number, size: number, center: number) => {
+    const next = Math.round(size * scale);
+    return { start: center + (start + size / 2 - center) * scale - next / 2, size: next };
+  };
+  const shapeX = scaled(x, width, centerX);
+  const shapeY = scaled(y, record.height, centerY);
+  const clipY = scaled(y + offset, visible, centerY);
   writeSharedSmallGlassShapes(plane, [
     {
-      x,
-      y,
-      width,
-      height: record.height,
-      radius,
-      clip: { left: x, top: y + offset, width, height: visible },
+      x: shapeX.start,
+      y: shapeY.start,
+      width: shapeX.size,
+      height: shapeY.size,
+      radius: Math.round(radius * scale * 2) / 2,
+      clip: { left: shapeX.start, top: clipY.start, width: shapeX.size, height: clipY.size },
       morph: true,
     },
   ]);

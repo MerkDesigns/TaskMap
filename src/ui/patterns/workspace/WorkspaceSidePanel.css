@@ -23,13 +23,6 @@
   pointer-events: none;
 }
 
-/* Retained WebView2 stability hint for this one large retained layer; never per list card. */
-.taskmap-workspace-side-panel
-  > .taskmap-material-native-glass__clip
-  > .taskmap-material-native-glass__backdrop {
-  will-change: backdrop-filter;
-}
-
 .taskmap-workspace-side-panel--switching {
   width: 288px;
   padding: 0;
@@ -42,13 +35,6 @@
   overflow: hidden;
   border-radius: inherit;
   transition: height 200ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* A held list item may leave the panel (glass contract section 13); settled items clip themselves. */
-.taskmap-workspace-side-panel-switcher[data-held-item-clip="released"],
-.taskmap-workspace-side-panel-switcher[data-held-item-clip="released"]
-  > .taskmap-workspace-side-panel-switcher__view[data-active] {
-  overflow: visible;
 }
 
 .taskmap-workspace-side-panel-switcher__view {

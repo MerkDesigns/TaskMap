@@ -124,7 +124,8 @@
   width: 264px;
   height: 84px;
   pointer-events: none;
-  transform: translate3d(0, var(--taskmap-canvas-card-y, 0px), 0);
+  transform: translate3d(0, var(--taskmap-canvas-card-y, 0px), 0)
+    scale(var(--taskmap-canvas-card-scale, 1));
 }
 
 .taskmap-canvas-browser-card-host[data-slot-motion="true"] {

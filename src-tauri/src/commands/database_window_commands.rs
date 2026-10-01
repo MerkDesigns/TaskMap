@@ -106,6 +106,7 @@ pub(crate) fn reopen_main_window(app: &tauri::AppHandle) -> Result<(), tauri::Er
         WebviewWindowBuilder::from_config(app, config)?
             .build()
             .and_then(|window| {
+                crate::webview_autofill::disable_webview_autofill(&window);
                 if let Err(error) = crate::window_state::restore_window_state(&window) {
                     eprintln!("Failed to restore window state: {error}");
                 }

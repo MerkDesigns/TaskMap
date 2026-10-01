@@ -21,13 +21,10 @@ export const LAB_CONTAINER_ACCENTS = Object.freeze([
 export const LAB_CONTAINER_EXTENSION_LABELS = Object.freeze([
   "Privacy",
   "Search",
-  "Sorting",
   "Lock",
   "Extra colors",
   "Auto checkboxes",
-  "Daily Resets",
   "Counter",
   "Inherit Card Color",
-  "Pick a Card",
   "Copy/Paste JSON",
 ] as const);

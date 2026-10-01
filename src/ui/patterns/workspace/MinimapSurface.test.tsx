@@ -34,6 +34,8 @@ describe("MinimapSurface", () => {
     expect(surface).toHaveAttribute("data-presence-phase", "showing");
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
+    // The first frame starts the presence clock (zero delta); the second one advances it.
+    act(() => driver.fire());
     act(() => driver.fire());
     expect(
       Number(surface.style.getPropertyValue("--taskmap-material-presence-progress")),

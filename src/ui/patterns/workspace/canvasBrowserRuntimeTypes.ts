@@ -25,6 +25,10 @@ export interface CanvasCardDragState<Id extends string> {
   pickupStartedAt: number | null;
   pickupFrom: CanvasBrowserCardSlice;
   snapFromSlice: CanvasBrowserCardSlice;
+  /** Held lift: current scale, when the lift began, and the scale the drop shrinks from. */
+  scale: number;
+  liftStartedAt: number | null;
+  snapFromScale: number;
 }
 
 export interface CanvasBrowserFrameDriver {

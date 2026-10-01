@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
+import { DEFAULT_CHROME_RADII } from "../platform/settings/preferenceContracts";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { ModalPresence } from "../ui/patterns/overlays";
 import { ClearCanvasModal, SettingsModal } from "./Modals";
@@ -75,6 +76,10 @@ describe("modal keyboard behavior", () => {
             onFpsCounterVisibleChange={vi.fn()}
             privacyModeEnabled={false}
             onPrivacyModeEnabledChange={vi.fn()}
+            chromeRadii={DEFAULT_CHROME_RADII}
+            onChromeRadiusChange={vi.fn()}
+            sleepDelayMs={3000}
+            onSleepDelayChange={vi.fn()}
             temporaryPanelsVisible={false}
             onTemporaryPanelsVisibleChange={vi.fn()}
             onCheckForUpdate={vi.fn(async () => null)}

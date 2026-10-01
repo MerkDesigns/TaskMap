@@ -1,5 +1,4 @@
 import {
-  CSSProperties,
   PointerEvent,
   SetStateAction,
   Suspense,
@@ -37,11 +36,6 @@ import {
 } from "./legacy/retainedViewClipboard";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { WindowChrome } from "./components/WindowChrome";
-import type {
-  GlassMaterialValues,
-  PreviewTuningValues,
-  WorkspaceGeometryValues,
-} from "./components/FrostedGlassTuner";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageNode } from "./components/ImageNode";
 import { RetainedImageNode } from "./legacy/RetainedImageNode";
@@ -66,9 +60,6 @@ import {
 import { clamp, getVirtualRowRange, isVirtualRowInRange } from "./canvasMath";
 import {
   AppData,
-  CommandRunnerCommand,
-  CommandRunStatus,
-  CommandStartResult,
   ContainerElement,
   ContainerMenuState,
   CopiedCanvasItem,
@@ -83,12 +74,7 @@ import {
   ToastMessage,
 } from "./types";
 import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
-import {
-  cloneExtensions,
-  getLocalDateKey,
-  normalizeAppData,
-  remapContainerExtensions,
-} from "./app/appData";
+import { cloneExtensions, normalizeAppData } from "./app/appData";
 import { commandErrorMessage, isRecoverableStorageError } from "./app/commandError";
 import { planCanvasDeletion, updateCanvasDetails } from "./app/canvasDocument";
 import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY, DEFAULT_PAN } from "./app/defaultData";
@@ -113,7 +99,6 @@ import {
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import {
   EXTENSION_COMPATIBLE_TARGETS,
-  EXTENSION_CONFLICTS,
   EXTENSION_REGISTRY,
   addAutomaticCheckbox,
   type ExtensionId,
@@ -156,7 +141,6 @@ import {
 import { getLegacyTextCardDragRenderPosition } from "./legacy/interactions/legacyTextCardDragPresentation";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import { getLegacyTextCardPreviewRowOffset } from "./legacy/interactions/legacyTextCardPlacement";
-import { notifyMaterialTuningChanged } from "./ui/materials/materialGeometryInvalidation";
 import {
   CanvasFrame,
   MINIMAP_VISIBILITY_DURATION_MS,
@@ -168,71 +152,41 @@ import {
   WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
 } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
+import { useChromeAutoHide } from "./ui/patterns/workspace/chromeSleep";
+import { setWorkspaceRadii, useWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
+import {
+  beginWorkspaceOutro,
+  cancelWorkspaceOutro,
+  useWorkspaceIntroArrival,
+  useWorkspaceIntroDeparture,
+} from "./ui/patterns/workspace/workspaceIntro";
+import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
+import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
+import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 
-const CanvasManager = lazy(() =>
-  import("./components/CanvasManager").then(({ CanvasManager }) => ({
-    default: memo(
-      CanvasManager,
-      (previous, next) =>
-        previous.active === next.active &&
-        previous.canvases === next.canvases &&
-        previous.activeCanvasId === next.activeCanvasId &&
-        previous.cycleHighlightCanvasId === next.cycleHighlightCanvasId &&
-        previous.cardRadius === next.cardRadius &&
-        previous.closing === next.closing &&
-        previous.embedded === next.embedded &&
-        previous.sharedPanel === next.sharedPanel &&
-        previous.minimalView === next.minimalView &&
-        previous.panelRadius === next.panelRadius &&
-        previous.viewportWidth === next.viewportWidth &&
-        previous.viewportHeight === next.viewportHeight,
-    ),
-  })),
-);
-const ExtensionsPanel = lazy(() =>
-  import("./components/ExtensionsPanel").then(({ ExtensionsPanel }) => ({
-    default: ExtensionsPanel,
-  })),
-);
-const QuickExtensionsMenu = lazy(() =>
-  import("./components/ExtensionsPanel").then(({ QuickExtensionsMenu }) => ({
-    default: QuickExtensionsMenu,
-  })),
-);
-const ClearCanvasModal = lazy(() =>
-  import("./components/Modals").then(({ ClearCanvasModal }) => ({ default: ClearCanvasModal })),
-);
-const SettingsModal = lazy(() =>
-  import("./components/Modals").then(({ SettingsModal }) => ({ default: SettingsModal })),
-);
-const CommandRunnerSettingsModal = lazy(() =>
-  import("./components/CommandRunnerModals").then(({ CommandRunnerSettingsModal }) => ({
-    default: CommandRunnerSettingsModal,
-  })),
-);
-const ExtensionConflictModal = lazy(() =>
-  import("./components/CommandRunnerModals").then(({ ExtensionConflictModal }) => ({
-    default: ExtensionConflictModal,
-  })),
-);
-const UpdateAvailableModal = lazy(() =>
-  import("./components/Modals").then(({ UpdateAvailableModal }) => ({
-    default: UpdateAvailableModal,
-  })),
+// Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
+// throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
+const CanvasManager = memo(
+  CanvasManagerView,
+  (previous, next) =>
+    previous.active === next.active &&
+    previous.canvases === next.canvases &&
+    previous.activeCanvasId === next.activeCanvasId &&
+    previous.cycleHighlightCanvasId === next.cycleHighlightCanvasId &&
+    previous.cardRadius === next.cardRadius &&
+    previous.closing === next.closing &&
+    previous.embedded === next.embedded &&
+    previous.sharedPanel === next.sharedPanel &&
+    previous.minimalView === next.minimalView &&
+    previous.panelRadius === next.panelRadius &&
+    previous.viewportWidth === next.viewportWidth &&
+    previous.viewportHeight === next.viewportHeight,
 );
 const DevelopmentFpsCounter = import.meta.env.DEV
   ? lazy(() =>
       import("./components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
     )
   : null;
-const DevelopmentFrostedGlassTuner = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/FrostedGlassTuner").then(({ FrostedGlassTuner }) => ({
-        default: FrostedGlassTuner,
-      })),
-    )
-  : null;
-
 type ExtensionDropRipple = {
   id: string;
   extensionId: ExtensionId;
@@ -289,13 +243,6 @@ type StorageErrorState = {
   canReset: boolean;
 };
 
-type PendingExtensionConflict = {
-  extensionId: ExtensionId;
-  targetIds: string[];
-  conflictIds: ExtensionId[];
-  affectedCount: number;
-};
-
 const createStorageError = (prefix: string, error: unknown): StorageErrorState => ({
   message: `${prefix}: ${commandErrorMessage(error)}`,
   canReset: isRecoverableStorageError(error),
@@ -312,14 +259,6 @@ const imageHistoryTransaction = (imageId: string) => `image:${imageId}`;
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
-const isKeyboardFocusableControl = (target: HTMLElement | null) =>
-  Boolean(target?.closest("button, [role='button'], a, select, [tabindex]"));
-const isInteractiveKeyboardTarget = (target: HTMLElement | null) =>
-  Boolean(
-    target?.closest(
-      "input, textarea, select, button, a[href], summary, [role='button'], [contenteditable], [tabindex]",
-    ),
-  );
 const CONTAINER_HEADER_HEIGHT = 48;
 const CONTAINER_SEARCH_HEIGHT = 42;
 const CONTAINER_TEXT_CARD_PADDING = 17;
@@ -339,33 +278,8 @@ type CanvasElementShadow = Rectangle & {
   strength: "shell" | "card";
 };
 
-const DEFAULT_GLASS_MATERIAL_VALUES: GlassMaterialValues = {
-  large: { tintColor: "#babec4", tintOpacity: 0.075, blur: 60, borderBrightness: 0.98 },
-  small: { tintColor: "#b6b7c3", tintOpacity: 0, blur: 23.5, borderBrightness: 1.15 },
-};
-const DEFAULT_WORKSPACE_GEOMETRY_VALUES: WorkspaceGeometryValues = {
-  canvasBrowserRadius: 19,
-  canvasCardRadius: 13,
-  topBarRadius: 14,
-  sideInset: 16,
-  topInset: 16,
-  panelGap: 15,
-};
-const DEFAULT_PREVIEW_TUNING_VALUES: PreviewTuningValues = {
-  tintColor: "#0c0c0d",
-  tintOpacity: 0.665,
-  borderThickness: 1,
-  borderOpacity: 0.29,
-  borderColor: "#736f7b",
-  gap: 9,
-};
-
-function hexColorToRgbChannels(color: string): string {
-  const normalized = /^#[0-9a-f]{6}$/i.test(color) ? color.slice(1) : "000000";
-  return [0, 2, 4]
-    .map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16))
-    .join(" ");
-}
+// Canvas workspace geometry. The matching CSS tokens live on `.taskmap-workspace-root--canvas`.
+const CANVAS_PREVIEW_GAP = 9;
 
 const getWindowPreviewViewport = () => ({
   width: window.innerWidth,
@@ -813,6 +727,12 @@ function App({
     setPrivacyModeEnabled,
     toolbarButtonsVisible,
     setToolbarButtonsVisible,
+    chromeAutoHideEnabled,
+    setChromeAutoHideEnabled,
+    chromeAutoHideDelayMs,
+    setChromeAutoHideDelayMs,
+    chromeRadii,
+    setChromeRadii,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit,
@@ -820,10 +740,6 @@ function App({
   } = useSettings();
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [commandRunnerEditorCardId, setCommandRunnerEditorCardId] = useState<string | null>(null);
-  const [pendingExtensionConflict, setPendingExtensionConflict] =
-    useState<PendingExtensionConflict | null>(null);
-  const [runningCommandRuns, setRunningCommandRuns] = useState<Record<string, string[]>>({});
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -837,14 +753,6 @@ function App({
     left: number;
     top: number;
   } | null>(null);
-  const [glassMaterialValues, setGlassMaterialValues] = useState(DEFAULT_GLASS_MATERIAL_VALUES);
-  const [workspaceGeometryValues, setWorkspaceGeometryValues] = useState(
-    DEFAULT_WORKSPACE_GEOMETRY_VALUES,
-  );
-  const [previewTuningValues, setPreviewTuningValues] = useState(DEFAULT_PREVIEW_TUNING_VALUES);
-  useLayoutEffect(() => {
-    if (import.meta.env.DEV) notifyMaterialTuningChanged();
-  }, [glassMaterialValues]);
   const [storageError, setStorageError] = useState<StorageErrorState | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
@@ -852,7 +760,6 @@ function App({
   const [enteringTextCardIds, setEnteringTextCardIds] = useState<string[]>([]);
   const [deletingTextCardIds, setDeletingTextCardIds] = useState<string[]>([]);
   const [pulsingTextCardIds, setPulsingTextCardIds] = useState<string[]>([]);
-  const [glowingTextCardIds, setGlowingTextCardIds] = useState<string[]>([]);
   const [enteringImageIds, setEnteringImageIds] = useState<string[]>([]);
   const [deletingImageIds, setDeletingImageIds] = useState<string[]>([]);
   const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
@@ -880,55 +787,6 @@ function App({
     [],
   );
 
-  useEffect(() => {
-    const resetDailyCheckboxes = () => {
-      if (retained) return;
-      const today = getLocalDateKey();
-      const dueContainerIds = elements
-        .filter(
-          (element) =>
-            element.extensions?.dailyReset && element.extensions.dailyReset.lastResetDate !== today,
-        )
-        .map((element) => element.id);
-      if (dueContainerIds.length === 0) {
-        return;
-      }
-
-      const dueContainerIdSet = new Set(dueContainerIds);
-      setElements((current) =>
-        current.map((element) =>
-          dueContainerIdSet.has(element.id) && element.extensions?.dailyReset
-            ? {
-                ...element,
-                extensions: {
-                  ...element.extensions,
-                  dailyReset: { lastResetDate: today },
-                },
-              }
-            : element,
-        ),
-      );
-      setTextCards((current) =>
-        current.map((card) =>
-          card.containerId &&
-          dueContainerIdSet.has(card.containerId) &&
-          card.extensions?.checkbox?.checked
-            ? {
-                ...card,
-                extensions: {
-                  ...card.extensions,
-                  checkbox: { checked: false },
-                },
-              }
-            : card,
-        ),
-      );
-    };
-
-    resetDailyCheckboxes();
-    const interval = window.setInterval(resetDailyCheckboxes, 60_000);
-    return () => window.clearInterval(interval);
-  }, [elements, setElements, setTextCards, retained]);
   const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
   containerScrollOffsetsRef.current = containerScrollOffsets;
 
@@ -960,11 +818,9 @@ function App({
         event.metaKey ||
         event.altKey ||
         isEditableKeyboardTarget(target) ||
-        isKeyboardFocusableControl(target) ||
         settingsOpen ||
         clearModalOpen ||
-        isModalPresenceBlocking() ||
-        Boolean(pendingExtensionConflict)
+        isModalPresenceBlocking()
       ) {
         return;
       }
@@ -985,7 +841,7 @@ function App({
       window.removeEventListener("keyup", stopConnectionMode, true);
       window.removeEventListener("blur", handleBlur);
     };
-  }, [clearModalOpen, pendingExtensionConflict, settingsOpen]);
+  }, [clearModalOpen, settingsOpen]);
 
   useEffect(
     () => () => {
@@ -1120,45 +976,6 @@ function App({
     },
     [dismissToast],
   );
-
-  useEffect(() => {
-    const runIds = Object.values(runningCommandRuns).flat();
-    if (runIds.length === 0) {
-      return;
-    }
-
-    let disposed = false;
-    const refreshStatuses = async () => {
-      try {
-        const statuses = await invoke<CommandRunStatus[]>("get_saved_command_run_status", {
-          runIds,
-        });
-        if (disposed) return;
-        const runningIds = new Set(
-          statuses.filter((status) => status.running).map((status) => status.runId),
-        );
-        setRunningCommandRuns((current) => {
-          let changed = false;
-          const next: Record<string, string[]> = {};
-          Object.entries(current).forEach(([cardId, cardRunIds]) => {
-            const active = cardRunIds.filter((runId) => runningIds.has(runId));
-            if (active.length > 0) next[cardId] = active;
-            if (active.length !== cardRunIds.length) changed = true;
-          });
-          return changed ? next : current;
-        });
-      } catch (error) {
-        console.error("Failed to query saved command status", error);
-      }
-    };
-
-    void refreshStatuses();
-    const interval = window.setInterval(refreshStatuses, 500);
-    return () => {
-      disposed = true;
-      window.clearInterval(interval);
-    };
-  }, [runningCommandRuns]);
 
   const persistAppData = (data: AppData, forceAllCanvases = false): Promise<void> => {
     if (retained) throw new Error("Legacy persistence is unavailable for this session.");
@@ -1859,45 +1676,11 @@ function App({
     const searchedCards = query
       ? orderedCards.filter((card) => card.text.toLowerCase().includes(query))
       : orderedCards;
-    const selectedCardId = container.extensions?.pickCard?.selectedCardId;
-    const filtered = selectedCardId
-      ? searchedCards.filter((card) => card.id === selectedCardId)
-      : searchedCards;
 
-    // Match the render pipeline exactly (filter, then sort) so a card's index
-    // in this list is the same slot it visually occupies. Drag math relies on
-    // this — using the unfiltered/unsorted order makes a card snap to the wrong
-    // slot the instant it is grabbed (notably with the search extension).
-    return getSortedContainerTextCards(container, filtered);
-  };
-
-  const getAlphabetSortKey = (text: string) => text.replace(/[*_]/g, "").trim().toLocaleLowerCase();
-
-  const getSortGroup = (value: string) => (/^[a-z]/i.test(value) ? 0 : 1);
-
-  const getSortedContainerTextCards = (container: ContainerElement, cards: TextCardElement[]) => {
-    const sorting = container.extensions?.sorting;
-    if (!sorting?.mode) {
-      return cards;
-    }
-
-    return [...cards].sort((left, right) => {
-      const leftValue =
-        sorting.mode === "alphabet"
-          ? getAlphabetSortKey(left.text)
-          : left.accent.toLocaleLowerCase();
-      const rightValue =
-        sorting.mode === "alphabet"
-          ? getAlphabetSortKey(right.text)
-          : right.accent.toLocaleLowerCase();
-      const groupDifference =
-        sorting.mode === "alphabet" ? getSortGroup(leftValue) - getSortGroup(rightValue) : 0;
-      const valueDifference = leftValue.localeCompare(rightValue);
-      const stableDifference = (left.order ?? 0) - (right.order ?? 0);
-      const direction = sorting.direction === "asc" ? 1 : -1;
-
-      return groupDifference || (valueDifference || stableDifference) * direction;
-    });
+    // Match the render pipeline exactly so a card's index in this list is the same slot it
+    // visually occupies. Drag math relies on this — using the unfiltered order makes a card snap
+    // to the wrong slot the instant it is grabbed (notably with the search extension).
+    return searchedCards;
   };
 
   const getContainerViewportHeight = (container: ContainerElement) =>
@@ -2072,7 +1855,7 @@ function App({
     draggingId: string,
     currentIndex?: number,
   ) => {
-    // Index against the visible (filtered + sorted) list, minus the dragged
+    // Index against the visible (filtered) list, minus the dragged
     // card, so a drop slot matches what the user actually sees. When no search
     // is active this is just the full ordered list.
     const visibleCards = getContainerVisibleTextCards(container, cards).filter(
@@ -2357,13 +2140,6 @@ function App({
     window.setTimeout(() => {
       setPulsingTextCardIds((current) => current.filter((pulsingId) => pulsingId !== id));
     }, 260);
-  };
-
-  const glowTextCard = (id: string) => {
-    setGlowingTextCardIds((current) => [...current.filter((glowingId) => glowingId !== id), id]);
-    window.setTimeout(() => {
-      setGlowingTextCardIds((current) => current.filter((glowingId) => glowingId !== id));
-    }, 720);
   };
 
   const pulseTextBlock = (id: string) => {
@@ -2714,14 +2490,11 @@ function App({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
+      // Key events can target the document itself; only elements have closest().
+      const target = event.target instanceof HTMLElement ? event.target : null;
       const isEditingText = isEditableKeyboardTarget(target);
       const modalOpen =
-        settingsOpen ||
-        clearModalOpen ||
-        updateModalOpen ||
-        isModalPresenceBlocking() ||
-        Boolean(pendingExtensionConflict);
+        settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking();
 
       if (modalOpen || target?.closest("[role='dialog'], [aria-modal='true']")) {
         return;
@@ -2733,8 +2506,7 @@ function App({
         !event.ctrlKey &&
         !event.metaKey &&
         event.key.toLowerCase() === "e" &&
-        !isEditingText &&
-        !isKeyboardFocusableControl(target)
+        !isEditingText
       ) {
         event.preventDefault();
         event.stopPropagation();
@@ -2750,7 +2522,6 @@ function App({
       if (
         event.key === "Tab" &&
         !isEditingText &&
-        !isKeyboardFocusableControl(target) &&
         !event.altKey &&
         !event.ctrlKey &&
         !event.metaKey
@@ -2788,10 +2559,11 @@ function App({
       if (
         !isEditingText &&
         event.key === "Escape" &&
+        // Shared menus close themselves first; the next Escape closes panels.
+        !target?.closest('[role="menu"][data-context-menu]') &&
         !settingsOpen &&
         !clearModalOpen &&
-        !updateModalOpen &&
-        !pendingExtensionConflict
+        !updateModalOpen
       ) {
         event.preventDefault();
         event.stopPropagation();
@@ -2803,7 +2575,8 @@ function App({
         return;
       }
 
-      if (event.key !== "Delete" || isEditingText || isKeyboardFocusableControl(target)) {
+      // A button keeps focus after a click; shortcuts yield only to text editing.
+      if (event.key !== "Delete" || isEditingText) {
         return;
       }
 
@@ -2826,7 +2599,6 @@ function App({
     extensionsClosing,
     extensionsOpen,
     imagesById,
-    pendingExtensionConflict,
     selectedIds,
     settingsOpen,
     switchLeftPanel,
@@ -4779,7 +4551,7 @@ function App({
         name: `${copiedContainer.name} copy`,
         x: clamp(point.x - copiedContainer.width / 2, 0, canvasWidth - copiedContainer.width),
         y: clamp(point.y - 28, 0, canvasHeight - copiedContainer.height),
-        extensions: remapContainerExtensions(copiedContainer.extensions, textCardIdMap),
+        extensions: cloneExtensions(copiedContainer.extensions),
       };
 
       setElements((current) => [...current, duplicate]);
@@ -4928,10 +4700,7 @@ function App({
           name: `${container.name} copy`,
           x: clamp((container.x ?? point.x) + offsetX, 0, canvasWidth - container.width),
           y: clamp((container.y ?? point.y) + offsetY, 0, canvasHeight - container.height),
-          extensions: remapContainerExtensions(
-            container.extensions,
-            containerTextCardIdMaps[index],
-          ),
+          extensions: cloneExtensions(container.extensions),
         };
       });
       const pastedContainerCards = pastedContainers.flatMap((container, containerIndex) =>
@@ -5145,16 +4914,12 @@ function App({
     return {
       privacy: ids.some((id) => hasExtension(id, "privacy")),
       search: ids.some((id) => hasExtension(id, "search")),
-      sorting: ids.some((id) => hasExtension(id, "sorting")),
       lock: ids.some((id) => hasExtension(id, "lock")),
       colorPicker: ids.some((id) => hasExtension(id, "colorPicker")),
       checkbox: ids.some((id) => hasExtension(id, "checkbox")),
-      commandRunner: ids.some((id) => hasExtension(id, "commandRunner")),
       autoCheckbox: ids.some((id) => hasExtension(id, "autoCheckbox")),
-      dailyReset: ids.some((id) => hasExtension(id, "dailyReset")),
       counter: ids.some((id) => hasExtension(id, "counter")),
       inheritCardColor: ids.some((id) => hasExtension(id, "inheritCardColor")),
-      pickCard: ids.some((id) => hasExtension(id, "pickCard")),
       copyPasteJson: ids.some((id) => hasExtension(id, "copyPasteJson")),
     };
   };
@@ -5259,7 +5024,7 @@ function App({
     setTextBlocks((current) => current.map(strip));
     setTextCards((current) => current.map(strip));
     setImages((current) => current.map(strip));
-    if (key === "search" || key === "sorting") {
+    if (key === "search") {
       setContainerScrollOffsets((current) => {
         const next = { ...current };
         actionSet.forEach((actionId) => {
@@ -5274,13 +5039,6 @@ function App({
       actionSet.has(containerJsonEditor.containerId)
     ) {
       setContainerJsonEditor(null);
-    }
-    if (
-      key === "commandRunner" &&
-      commandRunnerEditorCardId &&
-      actionSet.has(commandRunnerEditorCardId)
-    ) {
-      setCommandRunnerEditorCardId(null);
     }
     closeContextMenus();
   };
@@ -5397,7 +5155,7 @@ function App({
         (!event.ctrlKey && !event.metaKey) ||
         event.altKey ||
         event.shiftKey ||
-        isInteractiveKeyboardTarget(event.target as HTMLElement | null)
+        isEditableKeyboardTarget(event.target as HTMLElement | null)
       ) {
         return;
       }
@@ -5424,7 +5182,7 @@ function App({
     return () => window.removeEventListener("keydown", handleClipboardShortcut, true);
   }, [clipboardShortcutActions, copiedItem, retained, hasRetainedCopy]);
 
-  const installExtensions = (extensionId: ExtensionId, ids: string[], replaceConflicts = false) => {
+  const installExtensions = (extensionId: ExtensionId, ids: string[]) => {
     if (retained) {
       const installed = installRetainedViewExtension(
         retained.runtime.callbacks,
@@ -5446,37 +5204,6 @@ function App({
       return false;
     }
 
-    const conflictIds = EXTENSION_CONFLICTS[extensionId];
-    if (!replaceConflicts && conflictIds.size > 0) {
-      const presentConflicts = new Set<ExtensionId>();
-      let affectedCount = 0;
-      targetIds.forEach((id) => {
-        const item =
-          containersById.get(id) ??
-          textBlocksById.get(id) ??
-          textCardsById.get(id) ??
-          imagesById.get(id);
-        const itemConflicts = [...conflictIds].filter(
-          (conflictId) => item?.extensions?.[conflictId] !== undefined,
-        );
-        if (itemConflicts.length > 0) {
-          affectedCount += 1;
-          itemConflicts.forEach((conflictId) => presentConflicts.add(conflictId));
-        }
-      });
-
-      if (affectedCount > 0) {
-        setPendingExtensionConflict({
-          extensionId,
-          targetIds: [...targetIds],
-          conflictIds: [...presentConflicts],
-          affectedCount,
-        });
-        closeContextMenus();
-        return false;
-      }
-    }
-
     const install = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
       if (!targetIds.has(item.id)) {
         return item;
@@ -5484,14 +5211,6 @@ function App({
 
       const extensions: ElementExtensions = { ...item.extensions };
       let changed = false;
-      if (replaceConflicts) {
-        conflictIds.forEach((conflictId) => {
-          if (extensions[conflictId] !== undefined) {
-            delete extensions[conflictId];
-            changed = true;
-          }
-        });
-      }
       if (extensions[extensionId] === undefined) {
         Object.assign(extensions, {
           [extensionId]: EXTENSION_REGISTRY[extensionId].createDefault(),
@@ -5739,43 +5458,6 @@ function App({
     setImages((current) => current.map(toggle));
   };
 
-  const togglePickedContainerCard = (id: string) => {
-    const container = containersById.get(id);
-    if (!container?.extensions?.pickCard) {
-      return;
-    }
-
-    const selectedCardId = container.extensions.pickCard.selectedCardId;
-    const lastCardId = container.extensions.pickCard.lastCardId;
-    const allCards = getOrderedContainerTextCards(id);
-    const availableCards = allCards.filter((card) => card.id !== lastCardId);
-    const randomPool = availableCards.length > 0 ? availableCards : allCards;
-    const nextSelectedCardId = selectedCardId
-      ? undefined
-      : randomPool[Math.floor(Math.random() * randomPool.length)]?.id;
-
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id && element.extensions?.pickCard
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                pickCard: {
-                  selectedCardId: nextSelectedCardId,
-                  lastCardId: selectedCardId ?? nextSelectedCardId ?? lastCardId,
-                },
-              },
-            }
-          : element,
-      ),
-    );
-    setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
-    if (nextSelectedCardId) {
-      window.requestAnimationFrame(() => glowTextCard(nextSelectedCardId));
-    }
-  };
-
   const toggleTextCardCheckbox = (id: string) => {
     if (retained) {
       retained.runtime.callbacks.captureExtensionToggle("checkbox", id as ElementId)?.complete();
@@ -5796,93 +5478,6 @@ function App({
           : card,
       ),
     );
-  };
-
-  const openCommandRunnerSettings = (id: string) => {
-    if (!textCardsById.get(id)?.extensions?.commandRunner) {
-      return;
-    }
-    closeContextMenus();
-    setCommandRunnerEditorCardId(id);
-  };
-
-  const saveCommandRunnerSettings = (cardText: string, commands: CommandRunnerCommand[]) => {
-    if (!commandRunnerEditorCardId) {
-      return;
-    }
-    const cardId = commandRunnerEditorCardId;
-    setTextCards((current) =>
-      current.map((card) =>
-        card.id === cardId && card.extensions?.commandRunner
-          ? {
-              ...card,
-              text: cardText,
-              extensions: {
-                ...card.extensions,
-                commandRunner: { commands },
-              },
-            }
-          : card,
-      ),
-    );
-  };
-
-  const runTextCardCommands = async (id: string) => {
-    const commands = textCardsById.get(id)?.extensions?.commandRunner?.commands ?? [];
-    if (commands.length === 0) {
-      return;
-    }
-
-    try {
-      const results = await invoke<CommandStartResult[]>("run_saved_commands", { commands });
-      const runIds = results.flatMap((result) =>
-        result.started && result.runId ? [result.runId] : [],
-      );
-      if (runIds.length > 0) {
-        setRunningCommandRuns((current) => ({ ...current, [id]: runIds }));
-      }
-      const failures = results.filter((result) => !result.started);
-      if (failures.length === 0) {
-        return;
-      }
-
-      showToast({
-        tone: "error",
-        title: `${failures.length} ${failures.length === 1 ? "command" : "commands"} could not start`,
-        message: failures
-          .map((failure) => {
-            const command = commands[failure.index]?.command ?? "Unknown command";
-            return `#${failure.index + 1} ${command}: ${failure.error ?? "Could not spawn"}`;
-          })
-          .join(" · "),
-        duration: 7000,
-      });
-    } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Could not run saved commands",
-        message: commandErrorMessage(error),
-      });
-    }
-  };
-
-  const stopTextCardCommands = async (id: string) => {
-    const runIds = runningCommandRuns[id] ?? [];
-    if (runIds.length === 0) return;
-    setRunningCommandRuns((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
-    try {
-      await invoke("stop_saved_commands", { runIds });
-    } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Could not stop saved commands",
-        message: commandErrorMessage(error),
-      });
-    }
   };
 
   const updateContainerSearchQuery = (id: string, query: string) => {
@@ -5907,33 +5502,6 @@ function App({
             }
           : element,
       ),
-    );
-    setContainerScrollOffsets((current) => ({
-      ...current,
-      [id]: 0,
-    }));
-  };
-
-  const setContainerSort = (
-    id: string,
-    mode: "alphabet" | "color" | null,
-    direction: "asc" | "desc" = "asc",
-  ) => {
-    setElements((current) =>
-      current.map((element) => {
-        const sorting = element.extensions?.sorting;
-        if (element.id !== id || !sorting) {
-          return element;
-        }
-
-        return {
-          ...element,
-          extensions: {
-            ...element.extensions,
-            sorting: { mode, direction },
-          },
-        };
-      }),
     );
     setContainerScrollOffsets((current) => ({
       ...current,
@@ -6107,12 +5675,7 @@ function App({
       }
     }
 
-    if (
-      extensionId === "lock" ||
-      extensionId === "colorPicker" ||
-      extensionId === "checkbox" ||
-      extensionId === "commandRunner"
-    ) {
+    if (extensionId === "lock" || extensionId === "colorPicker" || extensionId === "checkbox") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const targetType = card.kind === "mindmap" ? "mindmap" : "text-card";
         if (!EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType)) {
@@ -6436,14 +5999,10 @@ function App({
     const handleHistoryKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const modalOpen =
-        settingsOpen ||
-        clearModalOpen ||
-        updateModalOpen ||
-        isModalPresenceBlocking() ||
-        Boolean(pendingExtensionConflict);
+        settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking();
 
       if (
-        isInteractiveKeyboardTarget(target) ||
+        isEditableKeyboardTarget(target) ||
         modalOpen ||
         target?.closest("[role='dialog'], [aria-modal='true']") ||
         (!event.ctrlKey && !event.metaKey) ||
@@ -6470,7 +6029,7 @@ function App({
 
     window.addEventListener("keydown", handleHistoryKeyDown);
     return () => window.removeEventListener("keydown", handleHistoryKeyDown);
-  }, [clearModalOpen, historyActions, pendingExtensionConflict, settingsOpen, updateModalOpen]);
+  }, [clearModalOpen, historyActions, settingsOpen, updateModalOpen]);
 
   const exportData = (password: string) =>
     invoke<boolean>("export_app_data", {
@@ -6830,6 +6389,40 @@ function App({
     };
   }, [canvasCycleActions]);
 
+  const radii = useWorkspaceRadii();
+  // Sleep mode: the side panel closes with the chrome islands and reopens when they wake.
+  const sleptSidePanel = useRef<"canvases" | "extensions" | null>(null);
+  useChromeAutoHide(
+    Boolean(retained) && chromeAutoHideEnabled,
+    () => {
+      sleptSidePanel.current = null;
+      if (canvasManagerOpen && !canvasManagerClosing) {
+        sleptSidePanel.current = "canvases";
+        closeCanvasManager();
+      } else if (extensionsOpen && !extensionsClosing) {
+        sleptSidePanel.current = "extensions";
+        closeExtensionsPanel();
+      }
+    },
+    () => {
+      const panel = sleptSidePanel.current;
+      sleptSidePanel.current = null;
+      if (panel) switchLeftPanel(panel);
+    },
+    chromeAutoHideDelayMs,
+  );
+  // The unlock reveal ends with the Canvas Browser sliding in alongside the toolbars.
+  useWorkspaceIntroArrival(() => switchLeftPanel("canvases"));
+  // Locking plays the reveal in reverse; the side panel slides out with the toolbars.
+  useWorkspaceIntroDeparture(() => {
+    if (canvasManagerOpen && !canvasManagerClosing) closeCanvasManager();
+    if (extensionsOpen && !extensionsClosing) closeExtensionsPanel();
+  });
+  // Saved radii drive the shared store; Settings previews slider drags there before saving.
+  useLayoutEffect(() => {
+    setWorkspaceRadii(chromeRadii);
+  }, [chromeRadii]);
+
   const toggleCanvasManager = () => {
     if (canvasManagerOpen && !canvasManagerClosing) {
       closeCanvasManager();
@@ -6881,7 +6474,6 @@ function App({
     saveTextBlockEdit,
     saveTextCardEdit,
     selectCanvasElement,
-    setContainerSort,
     startContainerContentSelection,
     startImageMove,
     startImageResize,
@@ -6889,13 +6481,10 @@ function App({
     startResize,
     startTextBlockEdit,
     startTextCardMove,
-    stopTextCardCommands,
     toggleLockExtension,
     toggleMenu,
-    togglePickedContainerCard,
     togglePrivacyExtension,
     toggleTextCardCheckbox,
-    runTextCardCommands,
     updateContainerAccent,
     updateContainerHeaderButtonsVisible,
     updateContainerSearchQuery,
@@ -6916,7 +6505,6 @@ function App({
     activeTextCardPresentation,
     textCardInteractionSnapshot.release,
     enteringTextCardIds,
-    glowingTextCardIds,
     outlinedIds,
     pulsingTextCardIds,
     selectedIds.length,
@@ -7091,45 +6679,6 @@ function App({
   const draggedCanvasElementShadows = canvasElementShadows.filter((shadow) =>
     draggedShadowIds.has(shadow.id),
   );
-  const workspaceStyle = {
-    "--frosted-bg-opacity": 0,
-    "--frosted-bg-brightness": 0,
-    "--frosted-border-opacity": 0.16,
-    "--frosted-blur": "4px",
-    "--frosted-shadow-opacity": 0.55,
-    "--frosted-shadow-y": "10px",
-    "--frosted-shadow-blur": "32px",
-    "--left-panel-card-bg-opacity": 1,
-    "--left-panel-card-outline-opacity": 0.13,
-    // The database-backed view inherits session-only workbench blur overrides.
-    ...(!retained
-      ? {
-          "--taskmap-material-large-blur-override": `${glassMaterialValues.large.blur}px`,
-          "--taskmap-material-small-blur-override": `${glassMaterialValues.small.blur}px`,
-        }
-      : {}),
-    "--taskmap-material-large-tint-rgb-override": hexColorToRgbChannels(
-      glassMaterialValues.large.tintColor,
-    ),
-    "--taskmap-material-large-tint-opacity-override": glassMaterialValues.large.tintOpacity,
-    "--taskmap-material-large-border-brightness-override":
-      glassMaterialValues.large.borderBrightness,
-    "--taskmap-material-small-tint-rgb-override": hexColorToRgbChannels(
-      glassMaterialValues.small.tintColor,
-    ),
-    "--taskmap-material-small-tint-opacity-override": glassMaterialValues.small.tintOpacity,
-    "--taskmap-material-small-border-brightness-override":
-      glassMaterialValues.small.borderBrightness,
-    "--taskmap-chrome-inset-inline": `${workspaceGeometryValues.sideInset}px`,
-    "--taskmap-chrome-inset-top": `${workspaceGeometryValues.topInset}px`,
-    "--taskmap-side-panel-gap": `${workspaceGeometryValues.panelGap}px`,
-    "--taskmap-canvas-preview-tint-rgb": hexColorToRgbChannels(previewTuningValues.tintColor),
-    "--taskmap-canvas-preview-tint-opacity": previewTuningValues.tintOpacity,
-    "--taskmap-canvas-preview-border-width": `${previewTuningValues.borderThickness}px`,
-    "--taskmap-canvas-preview-border-rgb": hexColorToRgbChannels(previewTuningValues.borderColor),
-    "--taskmap-canvas-preview-border-opacity": previewTuningValues.borderOpacity,
-    "--taskmap-canvas-preview-gap": `${previewTuningValues.gap}px`,
-  } as CSSProperties;
   const leftPanelOpen = canvasManagerOpen || extensionsOpen;
   const leftPanelClosing = canvasManagerClosing || extensionsClosing;
   const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
@@ -7151,28 +6700,13 @@ function App({
   return (
     <TransientInteractionProvider service={interactionController}>
       <WorkspaceRoot
+        className="taskmap-workspace-root--canvas"
         spellCheck={false}
-        style={workspaceStyle}
         onContextMenu={suppressContextMenu}
         onPointerDownCapture={handleMainPointerDownCapture}
       >
         <div className="h-full">
           <section className="relative h-full overflow-hidden">
-            {import.meta.env.DEV &&
-              !retained &&
-              temporaryPanelsVisible &&
-              DevelopmentFrostedGlassTuner && (
-                <Suspense fallback={null}>
-                  <DevelopmentFrostedGlassTuner
-                    materialValues={glassMaterialValues}
-                    previewValues={previewTuningValues}
-                    geometryValues={workspaceGeometryValues}
-                    onMaterialChange={setGlassMaterialValues}
-                    onPreviewChange={setPreviewTuningValues}
-                    onGeometryChange={setWorkspaceGeometryValues}
-                  />
-                </Suspense>
-              )}
             <WorkspaceChromeLayer>
               {leftPanelOpen && (
                 <Suspense fallback={null}>
@@ -7181,7 +6715,7 @@ function App({
                     backdropRevision={activeCanvas.id}
                     closing={leftPanelClosing}
                     label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
-                    radius={workspaceGeometryValues.canvasBrowserRadius}
+                    radius={radii.sidePanel}
                     className="taskmap-workspace-side-panel--switching"
                   >
                     <WorkspaceSidePanelContentSwitcher
@@ -7194,9 +6728,8 @@ function App({
                           activeCanvasId={activeCanvas.id}
                           cycleHighlightCanvasId={canvasCycleHighlightId}
                           closing={leftPanelClosing}
-                          cardRadius={workspaceGeometryValues.canvasCardRadius}
-                          previewGap={previewTuningValues.gap}
-                          smallGlassBlur={retained ? undefined : glassMaterialValues.small.blur}
+                          cardRadius={radii.canvasCard}
+                          previewGap={CANVAS_PREVIEW_GAP}
                           minimalView={canvasManagerMinimalView}
                           sharedPanel
                           viewportWidth={stageWidth}
@@ -7215,8 +6748,8 @@ function App({
                           active={leftPanelActiveIndex === 1}
                           closing={leftPanelClosing}
                           panelRef={leftPanelRef}
+                          cardRadius={radii.extensionCard}
                           sharedPanel
-                          smallGlassBlur={retained ? undefined : glassMaterialValues.small.blur}
                           onDropExtension={dropExtensionOnCanvas}
                         />,
                       ]}
@@ -7240,7 +6773,7 @@ function App({
                   onResetZoom={resetZoom}
                 />
               )}
-              {!retained && <WindowChrome radius={workspaceGeometryValues.topBarRadius} />}
+              {!retained && <WindowChrome radius={radii.chrome} />}
               <FloatingToolbar
                 canRedo={historyState.canRedo}
                 canUndo={historyState.canUndo}
@@ -7248,12 +6781,12 @@ function App({
                 extensionsOpen={extensionsOpen && !extensionsClosing}
                 minimapEnabled={minimapEnabled}
                 privacyModeEnabled={privacyModeEnabled}
-                toolbarRadius={workspaceGeometryValues.topBarRadius}
-                toolbarButtonsVisible={toolbarButtonsVisible}
+                sleepModeEnabled={chromeAutoHideEnabled}
+                onSleepModeEnabledChange={setChromeAutoHideEnabled}
+                toolbarRadius={radii.chrome}
                 onMinimapEnabledChange={setMinimapEnabled}
                 onPrivacyModeEnabledChange={setPrivacyModeEnabled}
                 onRedo={redo}
-                onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
                 onToggleExtensions={toggleExtensionsPanel}
                 onToggleCanvases={toggleCanvasManager}
                 onUndo={undo}
@@ -7271,6 +6804,8 @@ function App({
                   availableExtensions={retained ? retainedViewExtensions : undefined}
                   left={quickExtensionsMenu.left}
                   top={quickExtensionsMenu.top}
+                  majorRadius={radii.quickExtensions}
+                  minorRadius={radii.quickExtensionsCard}
                   onClose={() => setQuickExtensionsMenu(null)}
                   onDropExtension={dropExtensionOnCanvas}
                 />
@@ -7497,14 +7032,12 @@ function App({
                               onToggleLock={canvasNodeActions.toggleLockExtension}
                               onUpdateAccent={canvasNodeActions.updateContainerAccent}
                               onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                              onTogglePickCard={canvasNodeActions.togglePickedContainerCard}
                               onCopyJsonForAi={canvasNodeActions.copyContainerJsonForAi}
                               onPasteJsonFromAi={canvasNodeActions.pasteContainerJsonFromAi}
                               onOpenJsonEditor={canvasNodeActions.openContainerJsonEditor}
                               onHeaderButtonsVisibleChange={
                                 canvasNodeActions.updateContainerHeaderButtonsVisible
                               }
-                              onSetSort={canvasNodeActions.setContainerSort}
                               onSearchChange={canvasNodeActions.updateContainerSearchQuery}
                               onOpenContentMenu={canvasNodeActions.openContainerContentMenu}
                               onWheelContent={canvasNodeActions.handleContainerWheel}
@@ -7537,8 +7070,7 @@ function App({
                                   editingTextCardId === card.id ||
                                   enteringTextCardIds.includes(card.id) ||
                                   deletingTextCardIds.includes(card.id) ||
-                                  pulsingTextCardIds.includes(card.id) ||
-                                  glowingTextCardIds.includes(card.id);
+                                  pulsingTextCardIds.includes(card.id);
                                 if (
                                   !animationPinned &&
                                   !isVirtualRowInRange(
@@ -7581,7 +7113,6 @@ function App({
                                     entering={enteringTextCardIds.includes(card.id)}
                                     deleting={deletingTextCardIds.includes(card.id)}
                                     pulsing={pulsingTextCardIds.includes(card.id)}
-                                    glowing={glowingTextCardIds.includes(card.id)}
                                     moving={draggedShadowIds.has(card.id)}
                                     selected={outlinedIds.includes(card.id)}
                                     interactionDisabled={containerMultiSelected}
@@ -7594,9 +7125,6 @@ function App({
                                     onStartMove={canvasNodeActions.startTextCardMove}
                                     onOpenMenu={canvasNodeActions.openTextCardMenu}
                                     onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                                    onRunCommands={canvasNodeActions.runTextCardCommands}
-                                    running={Boolean(runningCommandRuns[card.id]?.length)}
-                                    onStopCommands={canvasNodeActions.stopTextCardCommands}
                                   />
                                 );
                               })}
@@ -7670,7 +7198,6 @@ function App({
                               entering={enteringTextCardIds.includes(card.id)}
                               deleting={deletingTextCardIds.includes(card.id)}
                               pulsing={pulsingTextCardIds.includes(card.id)}
-                              glowing={glowingTextCardIds.includes(card.id)}
                               dragging={draggedShadowIds.has(card.id)}
                               dragPrimary={
                                 interactionSnapshot.activeInteraction?.kind === "move" &&
@@ -7691,9 +7218,6 @@ function App({
                               onStartMove={canvasNodeActions.startTextCardMove}
                               onOpenMenu={canvasNodeActions.openTextCardMenu}
                               onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                              onRunCommands={canvasNodeActions.runTextCardCommands}
-                              running={Boolean(runningCommandRuns[card.id]?.length)}
-                              onStopCommands={canvasNodeActions.stopTextCardCommands}
                             />
                           );
                         })}
@@ -7779,9 +7303,6 @@ function App({
                         onStartMove={canvasNodeActions.startTextCardMove}
                         onOpenMenu={canvasNodeActions.openTextCardMenu}
                         onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                        onRunCommands={canvasNodeActions.runTextCardCommands}
-                        running={Boolean(runningCommandRuns[id]?.length)}
-                        onStopCommands={canvasNodeActions.stopTextCardCommands}
                       />
                     );
                   })}
@@ -7819,9 +7340,6 @@ function App({
                       onStartMove={canvasNodeActions.startTextCardMove}
                       onOpenMenu={canvasNodeActions.openTextCardMenu}
                       onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                      onRunCommands={canvasNodeActions.runTextCardCommands}
-                      running={Boolean(runningCommandRuns[card.id]?.length)}
-                      onStopCommands={canvasNodeActions.stopTextCardCommands}
                     />
                   ))}
                 </div>
@@ -7901,16 +7419,13 @@ function App({
                 onCopy={copyContainer}
                 onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
                 onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
-                onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
                 onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
                 onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
                 onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
-                onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
                 onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
                 onRemoveInheritCardColorExtension={(id) =>
                   stripContextExtension(id, "inheritCardColor")
                 }
-                onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
                 onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
                 onMoveLayer={moveCanvasLayers}
                 onDelete={deleteContextSelection}
@@ -7933,16 +7448,13 @@ function App({
                 onCopy={copyContainer}
                 onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
                 onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
-                onRemoveSortingExtension={(id) => stripContextExtension(id, "sorting")}
                 onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
                 onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
                 onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
-                onRemoveDailyResetExtension={(id) => stripContextExtension(id, "dailyReset")}
                 onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
                 onRemoveInheritCardColorExtension={(id) =>
                   stripContextExtension(id, "inheritCardColor")
                 }
-                onRemovePickCardExtension={(id) => stripContextExtension(id, "pickCard")}
                 onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
                 onMoveLayer={moveCanvasLayers}
                 onDelete={deleteContextSelection}
@@ -7982,7 +7494,6 @@ function App({
                   getContextActionIds(textCardContextElement.id),
                 )}
                 onStartEdit={startTextCardEdit}
-                onEditCommand={openCommandRunnerSettings}
                 onUpdateAccent={updateContextAccent}
                 recentColors={recentColors}
                 onRememberRecentColor={canvasNodeActions.rememberRecentColor}
@@ -7993,7 +7504,6 @@ function App({
                 onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
                 onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
                 onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
-                onRemoveCommandRunnerExtension={(id) => stripContextExtension(id, "commandRunner")}
                 onMoveLayer={moveCanvasLayers}
                 onDelete={deleteContextSelection}
               />
@@ -8010,7 +7520,6 @@ function App({
                   getContextActionIds(closingTextCardContextElement.id),
                 )}
                 onStartEdit={startTextCardEdit}
-                onEditCommand={openCommandRunnerSettings}
                 onUpdateAccent={updateContextAccent}
                 recentColors={recentColors}
                 onRememberRecentColor={canvasNodeActions.rememberRecentColor}
@@ -8021,7 +7530,6 @@ function App({
                 onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
                 onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
                 onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
-                onRemoveCommandRunnerExtension={(id) => stripContextExtension(id, "commandRunner")}
                 onMoveLayer={moveCanvasLayers}
                 onDelete={deleteContextSelection}
               />
@@ -8164,46 +7672,6 @@ function App({
               </Suspense>
             </ModalPresence>
 
-            {commandRunnerEditorCardId &&
-              textCardsById.get(commandRunnerEditorCardId)?.extensions?.commandRunner && (
-                <Suspense fallback={null}>
-                  <CommandRunnerSettingsModal
-                    cardText={textCardsById.get(commandRunnerEditorCardId)?.text ?? "Text card"}
-                    commands={
-                      textCardsById.get(commandRunnerEditorCardId)?.extensions?.commandRunner
-                        ?.commands ?? []
-                    }
-                    onCancel={() => setCommandRunnerEditorCardId(null)}
-                    onSave={saveCommandRunnerSettings}
-                  />
-                </Suspense>
-              )}
-
-            {pendingExtensionConflict && (
-              <Suspense fallback={null}>
-                <ExtensionConflictModal
-                  requestedLabel={EXTENSION_REGISTRY[pendingExtensionConflict.extensionId].label}
-                  existingLabels={pendingExtensionConflict.conflictIds.map(
-                    (id) => EXTENSION_REGISTRY[id].label,
-                  )}
-                  affectedCount={pendingExtensionConflict.affectedCount}
-                  targetCount={pendingExtensionConflict.targetIds.length}
-                  removesSavedCommands={pendingExtensionConflict.conflictIds.includes(
-                    "commandRunner",
-                  )}
-                  onCancel={() => setPendingExtensionConflict(null)}
-                  onConfirm={() => {
-                    installExtensions(
-                      pendingExtensionConflict.extensionId,
-                      pendingExtensionConflict.targetIds,
-                      true,
-                    );
-                    setPendingExtensionConflict(null);
-                  }}
-                />
-              </Suspense>
-            )}
-
             {containerJsonEditor &&
               containersById.get(containerJsonEditor.containerId)?.extensions?.copyPasteJson && (
                 <ContainerJsonEditorWindow
@@ -8223,13 +7691,27 @@ function App({
                 />
               )}
 
-            <ModalPresence open={settingsOpen}>
+            <ModalPresence
+              open={settingsOpen}
+              onDismiss={() => {
+                gridOpacityEdit?.cancel();
+                setSettingsOpen(false);
+              }}
+            >
               <Suspense fallback={null}>
                 <SettingsModal
                   databaseActions={
                     retained
                       ? {
-                          lock: async () => (await retained.runtime.controller.lock()).ok,
+                          lock: async () => {
+                            // The animation plays before the lock: locking purges the document,
+                            // so afterwards there would be no canvas left to animate.
+                            setSettingsOpen(false);
+                            await beginWorkspaceOutro();
+                            const locked = (await retained.runtime.controller.lock()).ok;
+                            if (!locked) cancelWorkspaceOutro();
+                            return locked;
+                          },
                           close: async () => (await retained.runtime.controller.close()).ok,
                         }
                       : undefined
@@ -8266,6 +7748,12 @@ function App({
                   onFpsCounterVisibleChange={setFpsCounterVisible}
                   privacyModeEnabled={privacyModeEnabled}
                   onPrivacyModeEnabledChange={setPrivacyModeEnabled}
+                  chromeRadii={chromeRadii}
+                  onChromeRadiusChange={(key, radius) =>
+                    setChromeRadii((current) => ({ ...current, [key]: radius }))
+                  }
+                  sleepDelayMs={chromeAutoHideDelayMs}
+                  onSleepDelayChange={setChromeAutoHideDelayMs}
                   temporaryPanelsVisible={temporaryPanelsVisible}
                   onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
                   onCheckForUpdate={checkForAppUpdate}

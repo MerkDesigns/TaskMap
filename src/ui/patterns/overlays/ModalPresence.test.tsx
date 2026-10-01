@@ -18,7 +18,7 @@ afterEach(cleanup);
 
 describe("ModalPresence", () => {
   it("keeps the accepted enter/exit durations and curves", () => {
-    expect(MODAL_PRESENCE_TIMING.enter.durationMs).toBe(180);
+    expect(MODAL_PRESENCE_TIMING.enter.durationMs).toBe(216);
     expect(MODAL_PRESENCE_TIMING.exit.durationMs).toBe(120);
     expect(MODAL_PRESENCE_TIMING.enter.easing(0.5)).toBeCloseTo(0.875, 10);
     expect(MODAL_PRESENCE_TIMING.exit.easing(0.5)).toBeCloseTo(0.5, 10);
@@ -52,11 +52,14 @@ describe("ModalPresence", () => {
     const group = presenceGroup();
     expect(presenceValue(group)).toBe("0");
     expect(group.style.opacity).toBe("");
-    expect(group.style.transform).toBe("translate3d(0px, 6px, 0) scale(0.98)");
+    // Plain material fade: the group never moves or scales.
+    expect(group.style.transform).toBe("");
     expect(scrim().style.opacity).toBe("0");
     expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot().subscriberCount).toBe(1);
 
+    // The first frame starts the presence clock (zero delta); the second one advances it.
+    act(() => harness.driver.fire());
     act(() => harness.driver.fire());
     expect(harness.notifyGeometry).not.toHaveBeenCalled();
     expect(Number(presenceValue(group))).toBeGreaterThan(0);
@@ -73,13 +76,12 @@ describe("ModalPresence", () => {
     rerender(view(false));
     expect(group).toHaveAttribute("data-motion-state", "closing");
     act(() => harness.driver.fire());
+    act(() => harness.driver.fire());
     expect(Number(presenceValue(group))).toBeLessThan(1);
     expect(group.style.opacity).toBe("");
     act(() => harness.driver.flush());
     expect(exitMasks).toEqual([[]]);
-    expect(exitStyles).toEqual([
-      { opacity: "", transform: "translate3d(0px, 6px, 0) scale(0.98)", presence: "0" },
-    ]);
+    expect(exitStyles).toEqual([{ opacity: "", transform: "", presence: "0" }]);
     expect(screen.queryByRole("dialog", { name: "Motion dialog" })).not.toBeInTheDocument();
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     expect(harness.notifyGeometry).not.toHaveBeenCalled();
@@ -128,6 +130,7 @@ describe("ModalPresence", () => {
     const { rerender } = render(view(true));
     act(() => harness.driver.flush());
     rerender(view(false));
+    act(() => harness.driver.fire());
     act(() => harness.driver.fire());
     const closingPresence = Number(presenceValue(presenceGroup()));
     expect(closingPresence).toBeLessThan(1);

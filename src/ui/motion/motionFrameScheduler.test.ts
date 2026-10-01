@@ -82,4 +82,18 @@ describe("motion frame scheduler", () => {
     driver.fire(10_000);
     expect(deltas[1]).toBe(MOTION_MAX_FRAME_DELTA_MS);
   });
+
+  it("starts each run from its first painted frame instead of assuming a 60 Hz frame", () => {
+    const driver = new ControlledFrameDriver();
+    const scheduler = createMotionFrameScheduler(driver);
+    const deltas: number[] = [];
+    scheduler.subscribe(({ deltaMs }) => {
+      deltas.push(deltaMs);
+      return deltas.length < 3;
+    });
+    driver.fire(100);
+    driver.fire(102.8);
+    driver.fire(105.6);
+    expect(deltas.map((delta) => Number(delta.toFixed(1)))).toEqual([0, 2.8, 2.8]);
+  });
 });

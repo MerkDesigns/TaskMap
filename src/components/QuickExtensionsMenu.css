@@ -156,8 +156,23 @@
 .taskmap-quick-extensions-menu__card .taskmap-extension-browser-card__title {
   overflow: hidden;
   flex: 1;
+  padding-right: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Shift+E menu: its single info action is centred on the right edge (the main panel keeps it in
+   the top-right corner). */
+.taskmap-quick-extensions-menu__card
+  .taskmap-extension-browser-card__content
+  > .taskmap-extension-browser-card__actions {
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+.taskmap-quick-extensions-menu__card .taskmap-extension-info-button.taskmap-icon-button {
+  left: 0;
 }
 
 .taskmap-quick-extensions-menu__fade-content,

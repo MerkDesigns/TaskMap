@@ -97,7 +97,7 @@ export function createWorkspaceMajorOwner(
     // Layered per-shape images: slides only move mask positions and fades reuse cached opacity
     // levels, so presence frames never re-encode a full-window SVG (measured 2026-09-30).
     planeMaskWriter(plane).write(
-      layeredOutputMask(visible, 0) ?? {
+      layeredOutputMask(visible, 0, { width, height }) ?? {
         image: outputMask(width, height, visible, []),
         position: "0 0",
         size: "100% 100%",

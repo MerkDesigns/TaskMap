@@ -24,18 +24,18 @@ describe("canvas context menu", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
-    expect(buttons[0]).toHaveTextContent("Paste");
-    expect(within(buttons[0]).getByText("Paste")).toHaveClass("text-[#7debe1]");
-    expect(buttons[1]).toHaveTextContent("Create text card");
-    expect(within(buttons[1]).getByText("Create text card")).toBeInTheDocument();
-    expect(buttons[1].querySelector(".tabler-icon-text-size")).toBeInTheDocument();
+    const items = screen.getAllByRole("menuitem");
+    expect(items[0]).toHaveTextContent("Paste");
+    expect(items[1]).toHaveTextContent("Create text card");
+    expect(within(items[1]).getByText("Create text card")).toBeInTheDocument();
+    expect(items[1].querySelector(".tabler-icon-text-size")).toBeInTheDocument();
     expect(screen.getByText("Create container")).toBeInTheDocument();
     expect(screen.getByText("Create text block")).toBeInTheDocument();
     expect(screen.getByText("Create mindmap")).toBeInTheDocument();
-    expect(screen.getByText("Create mindmap").closest("[data-context-menu]")).toHaveClass(
-      "z-[200]",
-    );
+    // The App-driven menu renders on the shared ContextMenuSurface.
+    const surface = screen.getByRole("menu", { name: "Canvas menu" });
+    expect(surface).toHaveClass("taskmap-context-menu");
+    expect(surface).toHaveAttribute("data-material", "opaque");
     fireEvent.click(screen.getByText("Create mindmap"));
     expect(onCreateMindmap).toHaveBeenCalledWith(100, 100);
     expect(screen.getByText("Create image")).toBeInTheDocument();
@@ -62,7 +62,6 @@ describe("text card context menu", () => {
         card={card}
         closing={false}
         onStartEdit={vi.fn()}
-        onEditCommand={vi.fn()}
         onUpdateAccent={onUpdateAccent}
         recentColors={[]}
         onRememberRecentColor={onRememberRecentColor}
@@ -73,14 +72,13 @@ describe("text card context menu", () => {
         onRemoveLockExtension={vi.fn()}
         onRemoveColorPickerExtension={vi.fn()}
         onRemoveCheckboxExtension={vi.fn()}
-        onRemoveCommandRunnerExtension={vi.fn()}
         onMoveLayer={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
 
-    const editText = screen.getByRole("button", { name: "Edit Text" });
-    const openPicker = screen.getByRole("button", { name: "Open color picker" });
+    const editText = screen.getByRole("menuitem", { name: "Edit Text" });
+    const openPicker = screen.getByRole("menuitem", { name: "Open color picker" });
     expect(screen.getByText("Hyperlink")).toBeInTheDocument();
     expect(editText.compareDocumentPosition(openPicker) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -112,7 +110,6 @@ describe("text card context menu", () => {
         card={card}
         closing={false}
         onStartEdit={vi.fn()}
-        onEditCommand={vi.fn()}
         onUpdateAccent={vi.fn()}
         recentColors={[]}
         onRememberRecentColor={vi.fn()}
@@ -123,7 +120,6 @@ describe("text card context menu", () => {
         onRemoveLockExtension={vi.fn()}
         onRemoveColorPickerExtension={vi.fn()}
         onRemoveCheckboxExtension={vi.fn()}
-        onRemoveCommandRunnerExtension={vi.fn()}
         onMoveLayer={vi.fn()}
         onDelete={vi.fn()}
       />,
@@ -152,7 +148,6 @@ describe("text card context menu", () => {
         closing={false}
         isMultiTarget
         onStartEdit={vi.fn()}
-        onEditCommand={vi.fn()}
         onUpdateAccent={vi.fn()}
         recentColors={[]}
         onRememberRecentColor={vi.fn()}
@@ -163,13 +158,12 @@ describe("text card context menu", () => {
         onRemoveLockExtension={vi.fn()}
         onRemoveColorPickerExtension={vi.fn()}
         onRemoveCheckboxExtension={vi.fn()}
-        onRemoveCommandRunnerExtension={vi.fn()}
         onMoveLayer={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
 
-    const toggle = screen.getByRole("button", { name: "Locked" });
+    const toggle = screen.getByRole("menuitem", { name: "Locked" });
     expect(toggle.querySelector(".tabler-icon-lock")).toBeInTheDocument();
     const firstSwatch = screen.getAllByTitle("Text card color")[0];
     expect(toggle.compareDocumentPosition(firstSwatch) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
@@ -211,7 +205,7 @@ describe("image context menu", () => {
       />,
     );
 
-    const toggle = screen.getByRole("button", { name: "Unlocked" });
+    const toggle = screen.getByRole("menuitem", { name: "Unlocked" });
     expect(toggle.querySelector(".tabler-icon-lock-open")).toBeInTheDocument();
     const firstSwatch = screen.getAllByTitle("Image frame color")[0];
     expect(toggle.compareDocumentPosition(firstSwatch) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(

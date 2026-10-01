@@ -34,7 +34,7 @@ describe("database entry cancellation and resource admission", () => {
         return result;
       };
       await mountEntry(setup);
-      fireEvent.click(expectButton("Open database"));
+      fireEvent.click(expectButton("Open existing database"));
       const control = fails
         ? await screen.findByRole("button", { name: "Retry session cleanup" })
         : await screen.findByLabelText("Password *");
@@ -44,7 +44,8 @@ describe("database entry cancellation and resource admission", () => {
           busy: false,
         }),
       );
-      expect(control).toBeDisabled();
+      // Controls dim only once work is slow; submission is blocked immediately either way.
+      await waitFor(() => expect(control).toBeDisabled());
       if (fails) fireEvent.click(control);
       else submitPassword();
       expect(setup.client.unlockDatabase).not.toHaveBeenCalled();
@@ -95,11 +96,11 @@ describe("database entry cancellation and resource admission", () => {
     await openEntry();
     submitPassword();
     await waitFor(() => expect(setup.client.unlockDatabase).toHaveBeenCalledOnce());
-    fireEvent.click(expectButton("Cancel opening"));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel opening" }));
     expect(screen.queryByLabelText("Password *")).not.toBeInTheDocument();
     expect(setup.controller.getSnapshot().phase).toBe("blocked");
     await act(async () => pending.resolve(success(loadedSessionDocument)));
-    await screen.findByRole("button", { name: "Open database" });
+    await screen.findByRole("button", { name: "Open existing database" });
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
     expect(setup.initializeResources).not.toHaveBeenCalled();
   });
@@ -108,8 +109,8 @@ describe("database entry cancellation and resource admission", () => {
     const pending = deferred<PlatformResult<AuthorizedDatabasePath | null>>();
     setup.settingsClient.chooseDatabasePath.mockReturnValue(pending.promise);
     const view = await mountEntry(setup);
-    fireEvent.click(expectButton("Open database"));
-    fireEvent.click(expectButton("Open database"));
+    fireEvent.click(expectButton("Open existing database"));
+    fireEvent.click(expectButton("Open existing database"));
     expect(setup.settingsClient.chooseDatabasePath).toHaveBeenCalledOnce();
     view.unmount();
     await act(async () =>
@@ -123,7 +124,7 @@ describe("database entry cancellation and resource admission", () => {
     const pending = deferred<PlatformResult<AuthorizedDatabasePath | null>>();
     setup.settingsClient.chooseDatabasePath.mockReturnValue(pending.promise);
     await mountEntry(setup);
-    fireEvent.click(expectButton("Open database"));
+    fireEvent.click(expectButton("Open existing database"));
     await act(() => setup.controller.cancel());
     await act(async () =>
       pending.resolve(success({ authorizationToken: "late", displayPath: "Late.tmapdb" })),
@@ -141,8 +142,8 @@ describe("database entry cancellation and resource admission", () => {
     const input = passwordInput();
     submitPassword();
     expect(input).toHaveValue("");
-    expect(input).toBeDisabled();
     fireEvent.submit(input.closest("form")!);
+    await waitFor(() => expect(input).toBeDisabled());
     await waitFor(() => expect(setup.client.unlockDatabase).toHaveBeenCalledOnce());
     expect(setup.initializeResources).not.toHaveBeenCalled();
     await act(async () => pending.resolve(success(loadedSessionDocument)));
@@ -157,11 +158,12 @@ describe("database entry cancellation and resource admission", () => {
     await mountEntry(setup);
     await openEntry();
     submitPassword();
-    await screen.findByText("Loading preferences and remembered views…");
+    // Slow preparation (over a second) offers the status and a way out.
+    await screen.findByText("Loading preferences and remembered views…", {}, { timeout: 3000 });
     await waitFor(() => expect(setup.initializeResources).toHaveBeenCalledOnce());
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
     fireEvent.click(expectButton("Cancel opening"));
-    await screen.findByRole("button", { name: "Open database" });
+    await screen.findByRole("button", { name: "Open existing database" });
     await act(async () => pending.resolve(success(undefined)));
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
     expect(setup.controller.getSnapshot().phase).toBe("closed");
@@ -205,12 +207,12 @@ describe("database entry cancellation and resource admission", () => {
     setup.client.openDatabase.mockResolvedValueOnce(failure());
     setup.client.closeDatabase.mockResolvedValueOnce(failure());
     await mountEntry(setup);
-    fireEvent.click(expectButton("Open database"));
+    fireEvent.click(expectButton("Open existing database"));
     await screen.findByRole("button", { name: "Retry session cleanup" });
     await waitFor(() => expect(expectButton("Retry session cleanup")).toBeEnabled());
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
     fireEvent.click(expectButton("Retry session cleanup"));
-    await screen.findByRole("button", { name: "Open database" });
+    await screen.findByRole("button", { name: "Open existing database" });
     expect(setup.controller.getSnapshot().phase).toBe("closed");
   });
 });

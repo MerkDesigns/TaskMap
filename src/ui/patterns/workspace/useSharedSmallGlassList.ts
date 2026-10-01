@@ -101,9 +101,12 @@ const SLICE_PROPERTIES = ["top", "right", "bottom", "left"] as const;
 
 function sliceWriter(card: GlassListSlice, written: Map<HTMLElement, string>) {
   const insets = glassListSliceInsets(card);
-  const key = insets ? insets.join(",") : "hidden";
+  const unmeasured = card.size.width === 0 || card.size.height === 0;
+  const key = insets ? insets.join(",") : unmeasured ? "unmeasured" : "hidden";
   if (written.get(card.element) === key) return;
   written.set(card.element, key);
+  // A card without layout (not rendered yet) has nothing to slice; leave it untouched.
+  if (!insets && unmeasured) return () => clearSlice(card.element);
   // Cards wholly outside the visible area (e.g. in the shadow gutter) are hidden, not stale.
   if (!insets) return () => (card.element.dataset.glassListSlice = "hidden");
   return () => {

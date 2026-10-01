@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { ApplicationPreferencesClient } from "../../platform/settings/applicationPreferencesClient";
 import type { PreferencesState } from "../../platform/settings/preferenceContracts";
+import { DEFAULT_CHROME_RADII } from "../../platform/settings/preferenceContracts";
 export const preferencesFixture = (): PreferencesState => ({
   version: 1,
   edition: "development",
@@ -16,6 +17,9 @@ export const preferencesFixture = (): PreferencesState => ({
     recentColors: [],
     privacyModeEnabled: false,
     toolbarButtonsVisible: true,
+    chromeAutoHideEnabled: false,
+    chromeAutoHideDelayMs: 3000,
+    chromeRadii: { ...DEFAULT_CHROME_RADII },
     dismissedUpdateVersion: null,
   },
 });

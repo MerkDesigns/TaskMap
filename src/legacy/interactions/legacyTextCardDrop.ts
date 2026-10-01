@@ -129,23 +129,7 @@ function visibleCards(
   const searched = query
     ? ordered.filter((card) => card.text.toLowerCase().includes(query))
     : ordered;
-  const selectedId = container.extensions?.pickCard?.selectedCardId;
-  const filtered = selectedId ? searched.filter((card) => card.id === selectedId) : searched;
-  const sorting = container.extensions?.sorting;
-  if (!sorting?.mode) return filtered;
-  return [...filtered].sort((left, right) => {
-    const value = (card: TextCardElement) =>
-      sorting.mode === "alphabet"
-        ? card.text.replace(/[*_]/g, "").trim().toLocaleLowerCase()
-        : card.accent.toLocaleLowerCase();
-    const leftValue = value(left);
-    const rightValue = value(right);
-    const group = (item: string) => (/^[a-z]/i.test(item) ? 0 : 1);
-    const groupDifference = sorting.mode === "alphabet" ? group(leftValue) - group(rightValue) : 0;
-    const stableDifference = (left.order ?? 0) - (right.order ?? 0);
-    const direction = sorting.direction === "asc" ? 1 : -1;
-    return groupDifference || (leftValue.localeCompare(rightValue) || stableDifference) * direction;
-  });
+  return searched;
 }
 
 function resolveRealIndex(

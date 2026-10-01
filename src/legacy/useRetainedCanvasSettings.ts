@@ -153,6 +153,12 @@ export function useRetainedCanvasSettings(): ReturnType<typeof useLegacyCanvasSe
     },
     toolbarButtonsVisible: preferences.toolbarButtonsVisible,
     setToolbarButtonsVisible: preferenceSetter("toolbarButtonsVisible"),
+    chromeAutoHideEnabled: preferences.chromeAutoHideEnabled,
+    setChromeAutoHideEnabled: preferenceSetter("chromeAutoHideEnabled"),
+    chromeAutoHideDelayMs: preferences.chromeAutoHideDelayMs,
+    setChromeAutoHideDelayMs: preferenceSetter("chromeAutoHideDelayMs"),
+    chromeRadii: preferences.chromeRadii,
+    setChromeRadii: preferenceSetter("chromeRadii"),
     dismissedUpdateVersion: preferences.dismissedUpdateVersion ?? undefined,
     setDismissedUpdateVersion(value) {
       void runtime.preferences

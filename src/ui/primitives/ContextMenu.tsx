@@ -7,13 +7,16 @@ import {
   useState,
   type FocusEvent as ReactFocusEvent,
   type ForwardedRef,
+  type HTMLAttributes,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { MaterialSurface } from "../materials/MaterialSurface";
 import { MOTION_DURATION_MS } from "../motion/motionTokens";
 import { useReducedMotion } from "../motion/reducedMotionPreference";
+import { CONTEXT_MENU_ITEM_SELECTOR } from "./ContextMenuParts";
 import "./contextMenu.css";
 
 type ContextMenuMotionState = "open" | "closing";
@@ -31,10 +34,15 @@ export interface ContextMenuProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly position: ContextMenuPosition;
   readonly returnFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * Render into a themed portal on body so fixed positioning never resolves against a transformed
+   * ancestor (e.g. an animating side panel). Callers own viewport clamping via the forwarded ref.
+   */
+  readonly portal?: boolean;
 }
 
 export const ContextMenu = forwardRef<HTMLElement, ContextMenuProps>(function ContextMenu(
-  { children, label, onOpenChange, open, position, returnFocusRef },
+  { children, label, onOpenChange, open, portal = false, position, returnFocusRef },
   forwardedRef,
 ) {
   const menuRef = useRef<HTMLElement | null>(null);
@@ -140,35 +148,72 @@ export const ContextMenu = forwardRef<HTMLElement, ContextMenuProps>(function Co
   );
 
   const handleFocusCapture = useCallback((event: ReactFocusEvent<HTMLElement>) => {
-    const item = (event.target as HTMLElement).closest<HTMLElement>('[role="menuitem"]');
+    const item = (event.target as HTMLElement).closest<HTMLElement>(CONTEXT_MENU_ITEM_SELECTOR);
     if (item && menuRef.current?.contains(item) && isEnabledMenuItem(item)) {
       setRovingTabStop(menuRef.current, item);
     }
   }, []);
 
   if (!rendered) return null;
-  return (
-    <MaterialSurface
+  const menu = (
+    <ContextMenuSurface
       ref={setMenuRef}
-      as="nav"
-      material="opaque"
-      radius={8}
-      role="menu"
-      aria-label={label}
-      data-motion-state={motionState}
-      data-reduced-motion={reducedMotion}
-      className="taskmap-context-menu taskmap-scrollbar-thin"
-      style={{ left: position.left, top: position.top }}
+      label={label}
+      motionState={motionState}
+      position={position}
       onKeyDown={handleKeyDown}
       onFocusCapture={handleFocusCapture}
     >
       {children}
-    </MaterialSurface>
+    </ContextMenuSurface>
   );
+  return portal
+    ? createPortal(<div className="taskmap-target-theme">{menu}</div>, document.body)
+    : menu;
 });
 
+export interface ContextMenuSurfaceProps extends HTMLAttributes<HTMLElement> {
+  readonly label: string;
+  readonly position: ContextMenuPosition;
+  readonly motionState?: ContextMenuMotionState;
+}
+
+/**
+ * The shared menu surface: opaque material, sizing, and CSS enter/exit motion driven by
+ * `motionState`. `ContextMenu` builds focus/dismiss behaviour on it; menus whose lifecycle is owned
+ * elsewhere (App's canvas menus) render it directly.
+ */
+export const ContextMenuSurface = forwardRef<HTMLElement, ContextMenuSurfaceProps>(
+  function ContextMenuSurface(
+    { className, label, motionState = "open", position, style, ...props },
+    ref,
+  ) {
+    const reducedMotion = useReducedMotion();
+    return (
+      <MaterialSurface
+        {...props}
+        ref={ref}
+        as="nav"
+        material="opaque"
+        radius={8}
+        role="menu"
+        aria-label={label}
+        data-motion-state={motionState}
+        data-reduced-motion={reducedMotion}
+        data-context-menu=""
+        className={["taskmap-context-menu taskmap-scrollbar-thin", className]
+          .filter(Boolean)
+          .join(" ")}
+        style={{ ...style, left: position.left, top: position.top }}
+      />
+    );
+  },
+);
+
 function getEnabledMenuItems(menu: HTMLElement): HTMLElement[] {
-  return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(isEnabledMenuItem);
+  return [...menu.querySelectorAll<HTMLElement>(CONTEXT_MENU_ITEM_SELECTOR)].filter(
+    isEnabledMenuItem,
+  );
 }
 
 function isEnabledMenuItem(item: HTMLElement): boolean {
@@ -176,7 +221,7 @@ function isEnabledMenuItem(item: HTMLElement): boolean {
 }
 
 function setRovingTabStop(menu: HTMLElement, activeItem: HTMLElement) {
-  for (const item of menu.querySelectorAll<HTMLElement>('[role="menuitem"]')) {
+  for (const item of menu.querySelectorAll<HTMLElement>(CONTEXT_MENU_ITEM_SELECTOR)) {
     item.tabIndex = item === activeItem ? 0 : -1;
   }
 }

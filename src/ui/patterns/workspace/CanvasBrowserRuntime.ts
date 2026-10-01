@@ -2,13 +2,10 @@ import {
   CANVAS_CARD_DRAG_THRESHOLD,
   CANVAS_CARD_SLOT_TRANSITION_MS,
   calculateCanvasCardAutoScroll,
-  calculateCanvasCardInsertionIndex,
-  calculateCanvasCardInteractionCenter,
   easeOutQuart,
   haveSameCanvasCardIds,
-  reorderCanvasCardToIndex,
+  nextCanvasCardDragOrder,
 } from "./canvasBrowserInteraction";
-import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { CanvasBrowserFrameClock, CanvasBrowserScrollState } from "./canvasBrowserScrollState";
 import {
   canvasBrowserCardRectangle,
@@ -17,12 +14,12 @@ import {
   readCanvasBrowserDragFrame,
   measureCanvasBrowserCard,
   reorderCanvasBrowserHosts,
-  releaseHeldItemClip,
   restoreSettledCardHost,
   writeCanvasBrowserCardViewport,
   writeDraggingCardHost,
   writeDraggingCardTop,
 } from "./canvasBrowserDom";
+import { canvasCardHeldSpread, tickCanvasCardLift } from "./canvasBrowserHeldLift";
 import { tickCanvasCardPickup, writeCanvasCardDropSlice } from "./canvasBrowserLiquidSlice";
 import { CanvasCardPointerSession } from "./canvasCardPointerSession";
 import { canvasCardSlotTop, CanvasBrowserSlotGeometry } from "./canvasBrowserSlotGeometry";
@@ -116,6 +113,7 @@ export class CanvasBrowserRuntime<Id extends string> {
       performance.now(),
       false,
       this.drag?.active ? this.drag.id : null,
+      this.heldSpread(),
     );
     if (!this.drag?.active) {
       reorderCanvasBrowserHosts(this.displayOrder, this.records, this.options.cardsLayer);
@@ -165,6 +163,9 @@ export class CanvasBrowserRuntime<Id extends string> {
       pickupStartedAt: null,
       pickupFrom: { offset: 0, visible: record.height },
       snapFromSlice: { offset: 0, visible: record.height },
+      scale: 1,
+      liftStartedAt: null,
+      snapFromScale: 1,
     };
     this.pointerSession.begin(
       element,
@@ -267,11 +268,12 @@ export class CanvasBrowserRuntime<Id extends string> {
     writeDraggingCardHost(record, rectangle, frame.rectangle(this.options.viewport));
     drag.pickupFrom = pickupFrom;
     drag.pickupStartedAt = now;
+    drag.liftStartedAt = now;
     writeCanvasBrowserCardViewport(record, pickupFrom.offset, pickupFrom.visible, true);
     this.viewport.sync(drag.id);
     this.sharedGlass.sync(this.scroll.currentScrollY, drag.id);
     drag.active = true;
-    releaseHeldItemClip(this.options.panel, true);
+    this.geometry.position(drag.order, this.records, now, true, drag.id, this.heldSpread());
     drag.snapFromY = rectangle.top;
     this.scroll.synchronizeTarget();
     this.suppressedClickId = drag.id;
@@ -286,41 +288,34 @@ export class CanvasBrowserRuntime<Id extends string> {
     const top = drag.pointerY - drag.pointerOffsetY - frame.rectangle(this.options.viewport).top;
     writeDraggingCardTop(record, top);
     tickCanvasCardPickup(drag, record, now, this.reducedMotion);
+    tickCanvasCardLift(drag, record, now, this.reducedMotion);
     if (drag.finish) {
       drag.pickupStartedAt = null;
       drag.snapFromSlice = readCanvasBrowserCardSlice(record);
+      drag.snapFromScale = drag.scale;
       if (drag.finish === "cancel") {
         drag.order = drag.initialOrder;
         this.displayOrder = drag.initialOrder;
-        this.geometry.position(drag.initialOrder, this.records, now, true, drag.id);
       }
+      // Neighbours close the lift gap while the card shrinks back into its slot.
+      this.geometry.position(drag.order, this.records, now, true, drag.id);
       this.scroll.synchronizeTarget();
       drag.snapFromY = top;
       drag.snapStartedAt = now;
       return true;
     }
 
-    const { top: listTop, bottom: listBottom } = frame.rectangle(this.options.viewport);
-    const center = calculateCanvasCardInteractionCenter(
-      drag.pointerY,
-      drag.pointerOffsetY,
-      listTop,
-      listBottom,
-      drag.cardHeight,
-    );
-    const targetIndex = calculateCanvasCardInsertionIndex(
-      drag.order,
-      drag.id,
-      center,
-      listTop,
+    const list = frame.rectangle(this.options.viewport);
+    const nextOrder = nextCanvasCardDragOrder(
+      drag,
+      list.top,
+      list.bottom,
       this.scroll.currentScrollY,
-      drag.cardHeight + CANVAS_BROWSER_LAYOUT.cardGap,
     );
-    const nextOrder = reorderCanvasCardToIndex(drag.order, drag.id, targetIndex);
     if (nextOrder !== drag.order) {
       drag.order = nextOrder;
       this.displayOrder = nextOrder;
-      this.geometry.position(nextOrder, this.records, now, true, drag.id);
+      this.geometry.position(nextOrder, this.records, now, true, drag.id, this.heldSpread());
     }
     return true;
   }
@@ -338,6 +333,7 @@ export class CanvasBrowserRuntime<Id extends string> {
     const eased = easeOutQuart(progress);
     writeDraggingCardTop(record, drag.snapFromY + (target - drag.snapFromY) * eased);
     writeCanvasCardDropSlice(drag, record, target, this.viewport.height(), eased);
+    tickCanvasCardLift(drag, record, now, this.reducedMotion);
     if (progress < 1) return true;
     this.completeDrag(drag, record);
     return true;
@@ -350,7 +346,6 @@ export class CanvasBrowserRuntime<Id extends string> {
     this.displayOrder = finalOrder;
     this.geometry.settle(finalOrder, this.records);
     restoreSettledCardHost(record);
-    releaseHeldItemClip(this.options.panel, false);
     reorderCanvasBrowserHosts(finalOrder, this.records, this.options.cardsLayer);
     this.scroll.synchronizeTarget();
     this.drag = null;
@@ -370,13 +365,18 @@ export class CanvasBrowserRuntime<Id extends string> {
     if (record) {
       restoreSettledCardHost(record);
     }
-    releaseHeldItemClip(this.options.panel, false);
     this.drag = null;
     this.suppressedClickId = null;
     this.scroll.synchronizeTarget();
     this.pointerSession.release(drag.pointerId);
     this.viewport.sync();
     this.sharedGlass.sync(this.scroll.currentScrollY, null);
+  }
+
+  private heldSpread() {
+    const drag = this.drag?.active && this.drag.snapStartedAt === null ? this.drag : null;
+    const record = drag ? this.records.get(drag.id) : undefined;
+    return drag && record ? canvasCardHeldSpread(drag, record) : null;
   }
 
   private dragAutoScroll(frame: MaterialGeometryFrame) {

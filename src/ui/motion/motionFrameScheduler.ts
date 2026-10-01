@@ -1,4 +1,4 @@
-import { MOTION_DEFAULT_FRAME_DELTA_MS, MOTION_MAX_FRAME_DELTA_MS } from "./motionTokens";
+import { MOTION_MAX_FRAME_DELTA_MS } from "./motionTokens";
 
 export interface MotionFrame {
   readonly timestampMs: number;
@@ -37,8 +37,9 @@ export function createMotionFrameScheduler(driver: MotionFrameDriver): MotionFra
   const runFrame = (timestampMs: number) => {
     frameHandle = null;
     if (disposed) return;
-    const rawDelta =
-      previousTimestamp === null ? MOTION_DEFAULT_FRAME_DELTA_MS : timestampMs - previousTimestamp;
+    // A run starts from its first painted frame. Assuming a 60 Hz frame here made every new
+    // animation skip ahead 16.7 ms on high-refresh displays (ease-out curves visibly popped).
+    const rawDelta = previousTimestamp === null ? 0 : timestampMs - previousTimestamp;
     previousTimestamp = timestampMs;
     const deltaMs = Math.max(0, Math.min(MOTION_MAX_FRAME_DELTA_MS, rawDelta));
     const frame = Object.freeze({ timestampMs, deltaMs });

@@ -5,4 +5,6 @@ export type DatabaseApplicationRuntime = Extract<RuntimeResult, { ok: true }>["v
 export type DatabaseEntryRuntime = Pick<
   DatabaseApplicationRuntime,
   "controller" | "initializeResources" | "settingsClient" | "edition"
->;
+> &
+  // Read before unlock only for the saved panel radius.
+  Partial<Pick<DatabaseApplicationRuntime, "preferences">>;

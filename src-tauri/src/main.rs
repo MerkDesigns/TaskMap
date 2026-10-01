@@ -9,6 +9,7 @@ mod phase2_error;
 mod session;
 mod settings;
 mod storage_preview;
+mod webview_autofill;
 mod window_state;
 
 use commands::database_commands;
@@ -137,6 +138,7 @@ fn main() {
             }
 
             if let Some(window) = app.get_webview_window("main") {
+                webview_autofill::disable_webview_autofill(&window);
                 windows_session_notifications::install(&window).map_err(std::io::Error::other)?;
                 if let Err(error) = restore_window_state(&window) {
                     eprintln!("Failed to restore window state: {error}");

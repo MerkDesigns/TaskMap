@@ -1,0 +1,149 @@
+/* Extra colors popover: the shared opaque menu surface with primitive fields and sliders. */
+.taskmap-color-picker {
+  position: fixed;
+  display: grid;
+  width: 286px;
+  gap: var(--taskmap-space-2);
+  padding: var(--taskmap-space-3);
+  color: var(--taskmap-text);
+  animation: taskmap-context-menu-enter var(--taskmap-motion-fast) var(--taskmap-ease-emphasized)
+    both;
+}
+
+.taskmap-color-picker > * {
+  position: relative;
+  z-index: 2;
+}
+
+.taskmap-color-picker__header {
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  margin-bottom: var(--taskmap-space-1);
+}
+
+.taskmap-color-picker__native {
+  width: 48px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--taskmap-radius-medium);
+  background: transparent;
+  cursor: pointer;
+}
+
+.taskmap-color-picker__identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.taskmap-color-picker__title {
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 650;
+}
+
+.taskmap-color-picker__value,
+.taskmap-color-picker__section-label {
+  color: var(--taskmap-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.taskmap-color-picker__section-label {
+  margin-bottom: 6px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.taskmap-color-picker__row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-color-picker__row--rgb {
+  grid-template-columns: 44px repeat(3, minmax(0, 1fr));
+}
+
+.taskmap-color-picker__label {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 600;
+}
+
+.taskmap-color-picker__hex {
+  text-transform: uppercase;
+}
+
+.taskmap-color-picker__hex,
+.taskmap-color-picker__number {
+  height: 32px;
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-color-picker__number {
+  padding-inline: var(--taskmap-space-1);
+  text-align: center;
+  appearance: textfield;
+}
+
+.taskmap-color-picker__number::-webkit-inner-spin-button,
+.taskmap-color-picker__number::-webkit-outer-spin-button {
+  appearance: none;
+}
+
+.taskmap-color-picker__sliders {
+  display: grid;
+  gap: var(--taskmap-space-1);
+  margin-top: var(--taskmap-space-1);
+}
+
+.taskmap-color-picker__slider-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 34px;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-color-picker__slider-value {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.taskmap-color-picker__swatches {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  padding-top: var(--taskmap-space-3);
+  border-top: 1px solid rgb(255 255 255 / 0.09);
+}
+
+.taskmap-color-picker__swatches--plain {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.taskmap-color-picker__recent {
+  padding-top: var(--taskmap-space-2);
+  border-top: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.taskmap-color-picker__swatch {
+  height: 24px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 4px;
+  outline: 0;
+  cursor: pointer;
+  transition: transform var(--taskmap-motion-fast) var(--taskmap-ease-standard);
+}
+
+.taskmap-color-picker__swatch:hover {
+  transform: scale(1.1);
+}
+
+.taskmap-color-picker__swatch:focus-visible {
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.28);
+}

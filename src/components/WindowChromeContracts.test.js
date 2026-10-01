@@ -53,9 +53,9 @@ describe("frameless window chrome contracts", () => {
     ]);
 
     expect(appSource).toMatch(
-      /<WorkspaceChromeLayer>[\s\S]*<WindowChrome radius=\{workspaceGeometryValues\.topBarRadius\}\s*\/>[\s\S]*<FloatingToolbar/,
+      /<WorkspaceChromeLayer>[\s\S]*<WindowChrome radius=\{radii\.chrome\}\s*\/>[\s\S]*<FloatingToolbar/,
     );
-    expect(appSource).toContain("toolbarRadius={workspaceGeometryValues.topBarRadius}");
+    expect(appSource).toContain("toolbarRadius={radii.chrome}");
     expect(componentSource).toContain('material="acrylic-large"');
     expect(componentSource).toContain('elevation="none"');
     expect(componentSource).toContain('aria-label="Window controls"');

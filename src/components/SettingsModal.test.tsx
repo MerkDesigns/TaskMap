@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CHROME_RADII } from "../platform/settings/preferenceContracts";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { ComponentProps } from "react";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
@@ -28,12 +29,12 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(dialog).toHaveAttribute("data-material-plane", "modal");
     expect(dialog.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
     expect(document.querySelector(".taskmap-modal-scrim")).toBeInTheDocument();
-    expect(document.querySelectorAll(".taskmap-settings-island")).toHaveLength(4);
+    expect(document.querySelectorAll(".taskmap-settings-island")).toHaveLength(5);
 
     expect(document.querySelectorAll("[data-material='acrylic-large']")).toHaveLength(1);
     expect(
       document.querySelectorAll(".taskmap-material-surface[data-material='acrylic-small']"),
-    ).toHaveLength(7);
+    ).toHaveLength(8);
     // Islands share one settled Minor batch; knobs on islands are shells; the tab indicator sits
     // directly on the shell (first Minor depth) and keeps its own blur.
     expect(document.querySelectorAll("[data-glass-batch-id='settings-small']")).toHaveLength(1);
@@ -41,7 +42,11 @@ describe("Phase 4.5C3A primary Settings", () => {
       [...document.querySelectorAll(".taskmap-settings-island")].map((island) =>
         island.getAttribute("data-material-backdrop-source"),
       ),
-    ).toEqual(["shared", "shared", "shared", "shared"]);
+    ).toEqual(["shared", "shared", "shared", "shared", "shared"]);
+    // Island content sits in the shared list mask so scroll edges morph instead of guillotining.
+    document.querySelectorAll(".taskmap-settings-island").forEach((island) => {
+      expect(island.querySelector(":scope > .taskmap-glass-list__content")).not.toBeNull();
+    });
     const knobs = [...document.querySelectorAll(".taskmap-liquid-toggle__knob")];
     expect(knobs.length).toBeGreaterThan(0);
     knobs.forEach((knob) => {
@@ -233,12 +238,14 @@ describe("Phase 4.5C3A primary Settings", () => {
     const groupSurfaces = () =>
       [...group.querySelectorAll("[data-material-strategy='native-glass']")] as HTMLElement[];
 
-    expect(groupSurfaces()).toHaveLength(8);
+    expect(groupSurfaces()).toHaveLength(9);
     expect(groupSurfaces().every((surface) => surface.dataset.materialPlane === "modal")).toBe(
       true,
     );
     expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
     expect(registry.getSnapshot().surfaces).toEqual([]);
+    // The first frame starts the presence clock (zero delta); the second one advances it.
+    act(() => driver.fire());
     act(() => driver.fire());
     expect(
       Number(group.style.getPropertyValue("--taskmap-material-presence-progress")),
@@ -375,6 +382,10 @@ function settingsProps(
     onFpsCounterVisibleChange: vi.fn(),
     privacyModeEnabled: false,
     onPrivacyModeEnabledChange: vi.fn(),
+    chromeRadii: DEFAULT_CHROME_RADII,
+    onChromeRadiusChange: vi.fn(),
+    sleepDelayMs: 3000,
+    onSleepDelayChange: vi.fn(),
     temporaryPanelsVisible: false,
     onTemporaryPanelsVisibleChange: vi.fn(),
     onCheckForUpdate: vi.fn(async () => null),

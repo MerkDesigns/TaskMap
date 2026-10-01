@@ -8,7 +8,6 @@ const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const modalsPath = new URL("./Modals.tsx", import.meta.url);
 const dialogsPath = new URL("./ProductionDialogs.tsx", import.meta.url);
 const colorPickerPath = new URL("./ColorPickerMenu.tsx", import.meta.url);
-const commandDialogsPath = new URL("./CommandRunnerModals.tsx", import.meta.url);
 const contextMenusPath = new URL("./ContextMenus.tsx", import.meta.url);
 const extensionsPath = new URL("./ExtensionsPanel.tsx", import.meta.url);
 const toastPath = new URL("./ToastStack.tsx", import.meta.url);
@@ -29,7 +28,8 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
       readFile(presencePath, "utf8"),
     ]);
     expect(app).toContain("<ModalPresence open={clearModalOpen}>");
-    expect(app).toContain("<ModalPresence open={settingsOpen}>");
+    // Settings also closes on a press outside the dialog.
+    expect(app).toMatch(/<ModalPresence\s+open=\{settingsOpen\}\s+onDismiss=/);
     expect(app).toContain(
       "<ModalPresence open={updateModalOpen && Boolean(availableUpdate) && !settingsOpen}>",
     );
@@ -55,6 +55,8 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
     expect(presets).toContain(
       "materialFadeSettle: { materialFade: true, slide: { y: 6 }, scale: 0.98 }",
     );
+    // Dialogs default to a plain material fade; Settle stays selectable in DEV for comparison.
+    expect(presence).toContain('usePresencePreset("dialogs", "materialFade")');
     expect(layerCss).toContain(
       "var(--taskmap-modal-root-presence, 1) * var(--taskmap-modal-nested-presence, 1)",
     );
@@ -99,7 +101,6 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
       app,
       appShell,
       colorPicker,
-      commandDialogs,
       contextMenus,
       extensions,
       toast,
@@ -109,7 +110,6 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
       readFile(appPath, "utf8"),
       readFile(appShellPath, "utf8"),
       readFile(colorPickerPath, "utf8"),
-      readFile(commandDialogsPath, "utf8"),
       readFile(contextMenusPath, "utf8"),
       readFile(extensionsPath, "utf8"),
       readFile(toastPath, "utf8"),
@@ -119,9 +119,12 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
     expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
     expect(materialTypes).toMatch(/MaterialPlane\s*=\s*"base"\s*\|\s*"modal"/);
     expect(compositorCss).toContain("z-index: var(--taskmap-layer-modal-compositor)");
-    expect(colorPicker).toContain("context-menu-enter fixed z-[1002]");
-    expect(commandDialogs).toContain("CommandRunnerSettingsModal");
-    expect(commandDialogs).toContain("ExtensionConflictModal");
+    expect(colorPicker).toContain('className={["taskmap-color-picker", className]');
+    expect(colorPicker).toContain(
+      'zIndex: aboveModals ? "var(--taskmap-layer-modal-overlay)" : 1002',
+    );
+    // The old raw Command Runner and its conflict dialog are removed features.
+    expect(app).not.toMatch(/CommandRunnerSettingsModal|ExtensionConflictModal/);
     expect(contextMenus).toContain("CanvasContextMenu");
     expect(extensions).toContain("QuickExtensionsMenu");
     expect(toast).toContain("ToastStack");

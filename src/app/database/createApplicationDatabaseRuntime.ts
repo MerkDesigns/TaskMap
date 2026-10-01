@@ -18,6 +18,9 @@ type Platform = Extract<
   Awaited<ReturnType<typeof createTauriApplicationDatabase>>,
   { ok: true }
 >["value"];
+/** Thrown while a previous canvas binding (e.g. a replaced view instance) is still mounted. */
+export const CANVAS_BINDING_ALREADY_MOUNTED = "The session already has a mounted canvas binding.";
+
 export interface DatabaseRuntimeOptions {
   readonly purgeDocumentResources: () => void;
   readonly scheduler?: PersistenceScheduler;
@@ -111,7 +114,7 @@ export function createApplicationDatabaseRuntime(
           "actions" | "session" | "views"
         >,
       ) {
-        if (canvasBinding) throw new Error("The session already has a mounted canvas binding.");
+        if (canvasBinding) throw new Error(CANVAS_BINDING_ALREADY_MOUNTED);
         canvasBinding = createRetainedCanvasBinding({
           ...input,
           session: controller,

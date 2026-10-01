@@ -45,9 +45,10 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     ]);
 
     expect(settingsPattern).toContain('material="acrylic-large"');
-    expect(settingsPattern).toContain("radius={12}");
+    // Radii come from Settings → Visual → Interface (defaults 12 and 8).
+    expect(settingsPattern).toContain("radius={useWorkspaceRadii().settings}");
     expect(settingsPattern).toContain('material="acrylic-small"');
-    expect(settingsPattern).toContain("radius={8}");
+    expect(settingsPattern).toContain("useWorkspaceRadii().settingsIsland");
     expect(settingsCss).toContain("width: 528px");
     expect(settingsCss).toContain("height: 632px");
     expect(settingsCss).toContain("max-height: calc(100vh - 2rem)");
@@ -89,7 +90,7 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
     expect(modals).toContain('event.target.value = ""');
     expect(modals).toContain("left: rect.right + 8");
     expect(modals).toContain("top: rect.top");
-    expect(modals).toContain('className="taskmap-modal-portal-layer"');
+    expect(modals).toContain("aboveModals");
     expect(modals.match(/label: "/g)?.length).toBeGreaterThanOrEqual(20);
     expect(modals).toContain('{ label: "Connect mindmaps", keys: ["Hold C", "Drag point"] }');
   });
@@ -116,13 +117,12 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
       /requestAnimationFrame|backdrop-filter|createBrowserAcrylicRuntime|acrylicCache|Redux|persistence|database|domain|tauri/i,
     );
     expect(colorPicker).toContain("createPortal(");
-    expect(colorPicker).toContain("context-menu-enter fixed z-[1002]");
+    expect(colorPicker).toContain('className={["taskmap-color-picker", className]');
     for (const retained of [
       "ClearCanvasModal",
       "QuickExtensionsMenu",
       "ToastStack",
       "storageError",
-      "CommandRunnerSettingsModal",
     ]) {
       expect(app).toContain(retained);
     }

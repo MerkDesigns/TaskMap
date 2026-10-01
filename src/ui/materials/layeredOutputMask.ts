@@ -19,9 +19,10 @@ export interface LayeredOutputMask {
 export function layeredOutputMask(
   shapes: readonly NativeGlassShape[],
   overscan: number,
+  bounds?: { readonly width: number; readonly height: number },
 ): LayeredOutputMask | null {
   if (!shapes.length) {
-    return { image: EMPTY_LAYER, position: "0 0", size: "0 0", composite: "add" };
+    return EMPTY_MASK;
   }
   const morphing = shapes.filter((shape) => shape.morph && shape.clip);
   const flat = shapes.filter((shape) => !(shape.morph && shape.clip));
@@ -32,7 +33,7 @@ export function layeredOutputMask(
   if (viewport && !flat.every((shape) => sameRectangle(shape.clip!, clipTo(shape, viewport)))) {
     return null;
   }
-  const layers: MaskLayer[] = [
+  const shapeLayers: MaskLayer[] = [
     ...flat.flatMap(fullLayer),
     ...morphing.flatMap((shape) =>
       sameRectangle(shape.clip!, {
@@ -45,10 +46,15 @@ export function layeredOutputMask(
         : capLayers(morphed(shape)),
     ),
   ];
-  if (viewport) layers.unshift({ image: SOLID_LAYER, ...viewport, composite: "intersect" });
+  // WebView2 treats a mask whose layers all lie outside the element as no mask and paints the
+  // unmasked filter output over the whole plane (e.g. glass flying out past the window edge).
+  const layers = bounds
+    ? shapeLayers.filter((layer) => intersectsBounds(layer, overscan, bounds))
+    : shapeLayers;
   if (!layers.length) {
-    return { image: EMPTY_LAYER, position: "0 0", size: "0 0", composite: "add" };
+    return EMPTY_MASK;
   }
+  if (viewport) layers.unshift({ image: SOLID_LAYER, ...viewport, composite: "intersect" });
   return {
     image: layers.map((layer) => layer.image).join(", "),
     position: layers
@@ -67,6 +73,9 @@ interface MaskLayer extends MaterialRectangle {
 function fullLayer(shape: NativeGlassShape): MaskLayer[] {
   const alpha = quantizedOpacity(shape.opacity);
   if (alpha === 0) return [];
+  // Fading shapes are pure gradients: a frame must never reference a mask image that is still
+  // loading, because WebView2 then paints the unmasked filter output across the whole plane.
+  if (alpha < 1) return gradientRoundedLayers(shape, alpha);
   return [
     {
       image: roundedRectangleImage(shape.width, shape.height, shape.radius, alpha),
@@ -77,6 +86,42 @@ function fullLayer(shape: NativeGlassShape): MaskLayer[] {
       composite: "add",
     },
   ];
+}
+
+/**
+ * A translucent rounded rectangle from generated layers only: four quarter-disc corners and three
+ * edge-to-edge bands. Nothing overlaps, so additive alpha stays uniform.
+ */
+function gradientRoundedLayers(
+  { x, y, width, height, radius }: NativeGlassShape,
+  alpha: number,
+): MaskLayer[] {
+  if (width <= 0 || height <= 0) return [];
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  const fill = solidLayer(alpha);
+  const layer = (image: string, left: number, top: number, w: number, h: number): MaskLayer => ({
+    image,
+    left,
+    top,
+    width: w,
+    height: h,
+    composite: "add",
+  });
+  if (r === 0) return [layer(fill, x, y, width, height)];
+  const corner = (at: string) =>
+    `radial-gradient(circle at ${at}, rgb(0 0 0 / ${alpha}) ${Math.max(0, r - 0.5)}px, transparent ${r}px)`;
+  const layers = [
+    layer(corner("100% 100%"), x, y, r, r),
+    layer(corner("0 100%"), x + width - r, y, r, r),
+    layer(corner("100% 0"), x, y + height - r, r, r),
+    layer(corner("0 0"), x + width - r, y + height - r, r, r),
+  ];
+  if (width > 2 * r) {
+    layers.push(layer(fill, x + r, y, width - 2 * r, r));
+    layers.push(layer(fill, x + r, y + height - r, width - 2 * r, r));
+  }
+  if (height > 2 * r) layers.push(layer(fill, x, y + r, width, height - 2 * r));
+  return layers;
 }
 
 /** Rounded top cap, solid middle and rounded bottom cap; only sizes change as height changes. */
@@ -106,6 +151,16 @@ function capLayers({ x, y, width, height, radius, opacity }: NativeGlassShape): 
 
 const SOLID_LAYER = "linear-gradient(#000, #000)";
 const EMPTY_LAYER = "linear-gradient(transparent, transparent)";
+/**
+ * Hides the whole output. The layer must cover the element: WebView2 ignores a zero-size mask
+ * layer and would paint the unmasked filter output (a blurred rectangle over the plane).
+ */
+const EMPTY_MASK: LayeredOutputMask = Object.freeze({
+  image: EMPTY_LAYER,
+  position: "0 0",
+  size: "100% 100%",
+  composite: "add",
+});
 /** Sizes x opacity levels (fades); cleared wholesale when exceeded. */
 const MAX_CACHED_IMAGES = 512;
 /** Fade opacity is quantised so a fading surface reuses a bounded set of decoded images. */
@@ -121,6 +176,25 @@ function solidLayer(alpha: number): string {
     : `linear-gradient(rgb(0 0 0 / ${alpha}), rgb(0 0 0 / ${alpha}))`;
 }
 const roundedRectangleImages = new Map<string, string>();
+/** Keeps cached mask images decoded so a returning shape never references a loading image. */
+const decodedImages = new Map<string, HTMLImageElement>();
+
+function cacheMaskImage(key: string, svg: string): string {
+  if (roundedRectangleImages.size >= MAX_CACHED_IMAGES) {
+    roundedRectangleImages.clear();
+    decodedImages.clear();
+  }
+  const source = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const image = `url("${source}")`;
+  roundedRectangleImages.set(key, image);
+  if (typeof Image !== "undefined") {
+    const element = new Image();
+    element.src = source;
+    element.decode?.().catch(() => undefined);
+    decodedImages.set(key, element);
+  }
+  return image;
+}
 
 function roundedRectangleImage(
   width: number,
@@ -130,13 +204,12 @@ function roundedRectangleImage(
 ): string {
   const r = Math.max(0, Math.min(radius, width / 2, height / 2));
   const key = `${width}x${height}r${r}a${alpha}`;
-  let image = roundedRectangleImages.get(key);
+  const image = roundedRectangleImages.get(key);
   if (image) return image;
-  if (roundedRectangleImages.size >= MAX_CACHED_IMAGES) roundedRectangleImages.clear();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><rect width="${width}" height="${height}" rx="${r}" fill="white" fill-opacity="${alpha}"/></svg>`;
-  image = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  roundedRectangleImages.set(key, image);
-  return image;
+  return cacheMaskImage(
+    key,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><rect width="${width}" height="${height}" rx="${r}" fill="white" fill-opacity="${alpha}"/></svg>`,
+  );
 }
 
 function cornerCapImage(
@@ -146,14 +219,25 @@ function cornerCapImage(
   alpha: number,
 ): string {
   const key = `${width}r${radius}${edge}a${alpha}`;
-  let image = roundedRectangleImages.get(key);
+  const image = roundedRectangleImages.get(key);
   if (image) return image;
-  if (roundedRectangleImages.size >= MAX_CACHED_IMAGES) roundedRectangleImages.clear();
   const y = edge === "top" ? 0 : -radius;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${radius}" viewBox="0 0 ${width} ${radius}" preserveAspectRatio="none"><rect y="${y}" width="${width}" height="${radius * 2}" rx="${radius}" fill="white" fill-opacity="${alpha}"/></svg>`;
-  image = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  roundedRectangleImages.set(key, image);
-  return image;
+  return cacheMaskImage(
+    key,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${radius}" viewBox="0 0 ${width} ${radius}" preserveAspectRatio="none"><rect y="${y}" width="${width}" height="${radius * 2}" rx="${radius}" fill="white" fill-opacity="${alpha}"/></svg>`,
+  );
+}
+
+function intersectsBounds(
+  layer: MaskLayer,
+  overscan: number,
+  bounds: { readonly width: number; readonly height: number },
+): boolean {
+  const left = layer.left + overscan;
+  const top = layer.top + overscan;
+  return (
+    left < bounds.width && top < bounds.height && left + layer.width > 0 && top + layer.height > 0
+  );
 }
 
 function boundingRectangle(rectangles: readonly MaterialRectangle[]): MaterialRectangle {

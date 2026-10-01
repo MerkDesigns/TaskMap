@@ -1,10 +1,7 @@
 import {
   IconArrowDownRight,
-  IconArrowsShuffle,
-  IconArrowsSort,
   IconBox,
   IconBraces,
-  IconCalendarRepeat,
   IconChevronLeft,
   IconChevronRight,
   IconPalette,
@@ -14,13 +11,10 @@ import {
   IconEye,
   IconEyeOff,
   IconEdit,
-  IconCheck,
   IconLock,
   IconLockOpen,
   IconPuzzle,
   IconSearch,
-  IconSortAZ,
-  IconSortZA,
   IconX,
 } from "@tabler/icons-react";
 import {
@@ -33,19 +27,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { ContainerElement } from "../types";
 import { ColorPickerMenu } from "./ColorPickerMenu";
+import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import { ContextMenu } from "../ui/primitives/ContextMenu";
+import { ContextMenuDivider, ContextMenuItem } from "../ui/primitives/ContextMenuParts";
 
-type ContainerHeaderExtensionKey =
-  | "lock"
-  | "privacy"
-  | "sorting"
-  | "colorPicker"
-  | "dailyReset"
-  | "counter"
-  | "pickCard"
-  | "copyPasteJson";
+type ContainerHeaderExtensionKey = "lock" | "privacy" | "colorPicker" | "counter" | "copyPasteJson";
 
 type ContainerNodeProps = {
   element: ContainerElement;
@@ -69,12 +57,10 @@ type ContainerNodeProps = {
   onToggleLock: (id: string) => void;
   onUpdateAccent: (id: string, accent: string) => void;
   onRememberRecentColor: (color?: string) => void;
-  onTogglePickCard: (id: string) => void;
   onCopyJsonForAi: (id: string) => Promise<void>;
   onPasteJsonFromAi: (id: string) => Promise<void>;
   onOpenJsonEditor: (id: string) => void;
   onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
-  onSetSort: (id: string, mode: "alphabet" | "color" | null, direction?: "asc" | "desc") => void;
   onSearchChange: (id: string, query: string) => void;
   onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, element: ContainerElement) => void;
   onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
@@ -107,12 +93,10 @@ function ContainerNodeComponent({
   onToggleLock,
   onUpdateAccent,
   onRememberRecentColor,
-  onTogglePickCard,
   onCopyJsonForAi,
   onPasteJsonFromAi,
   onOpenJsonEditor,
   onHeaderButtonsVisibleChange,
-  onSetSort,
   onSearchChange,
   onOpenContentMenu,
   onWheelContent,
@@ -126,30 +110,19 @@ function ContainerNodeComponent({
   const lockEnabled = Boolean(element.extensions?.lock?.enabled);
   const searchInstalled = Boolean(element.extensions?.search);
   const searchQuery = element.extensions?.search?.query ?? "";
-  const sorting = element.extensions?.sorting;
-  const sortingInstalled = Boolean(sorting);
   const colorPickerInstalled = Boolean(element.extensions?.colorPicker);
-  const dailyResetInstalled = Boolean(element.extensions?.dailyReset);
   const counterInstalled = Boolean(element.extensions?.counter);
-  const pickCardInstalled = Boolean(element.extensions?.pickCard);
   const copyPasteJsonInstalled = Boolean(element.extensions?.copyPasteJson);
-  const pickedCardActive = Boolean(element.extensions?.pickCard?.selectedCardId);
   const selectedAccent = selected
     ? `color-mix(in srgb, ${element.accent} 72%, white 28%)`
     : element.accent;
-  const alphabetSortActive = sorting?.mode === "alphabet";
-  const colorSortActive = sorting?.mode === "color";
-  const sortActive = Boolean(sorting?.mode);
   const counterHeaderWidth = counterInstalled ? Math.max(36, String(cardCount).length * 8 + 26) : 0;
   const headerExtensionItems = useMemo(() => {
     const items: Array<{ key: ContainerHeaderExtensionKey; width: number }> = [];
     if (lockInstalled) items.push({ key: "lock", width: 36 });
     if (privacyInstalled) items.push({ key: "privacy", width: 36 });
-    if (sortingInstalled) items.push({ key: "sorting", width: 36 });
     if (colorPickerInstalled) items.push({ key: "colorPicker", width: 36 });
-    if (dailyResetInstalled) items.push({ key: "dailyReset", width: 36 });
     if (counterInstalled) items.push({ key: "counter", width: counterHeaderWidth });
-    if (pickCardInstalled) items.push({ key: "pickCard", width: 36 });
     if (copyPasteJsonInstalled) items.push({ key: "copyPasteJson", width: 36 });
     return items;
   }, [
@@ -157,11 +130,8 @@ function ContainerNodeComponent({
     copyPasteJsonInstalled,
     counterHeaderWidth,
     counterInstalled,
-    dailyResetInstalled,
     lockInstalled,
-    pickCardInstalled,
     privacyInstalled,
-    sortingInstalled,
   ]);
   const headerExtensionWidth = headerExtensionItems.reduce((total, item) => total + item.width, 0);
   const headerExtensionButtonCount = headerExtensionItems.length;
@@ -172,9 +142,6 @@ function ContainerNodeComponent({
     left: number;
     top: number;
   } | null>(null);
-  const [sortMenuPosition, setSortMenuPosition] = useState<{ left: number; top: number } | null>(
-    null,
-  );
   const [colorMenuPosition, setColorMenuPosition] = useState<{ left: number; top: number } | null>(
     null,
   );
@@ -187,10 +154,15 @@ function ContainerNodeComponent({
   const headerTitleRef = useRef<HTMLDivElement | null>(null);
   const overflowButtonRef = useRef<HTMLButtonElement | null>(null);
   const overflowMenuRef = useRef<HTMLDivElement | null>(null);
-  const sortButtonRef = useRef<HTMLButtonElement | null>(null);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const copyPasteJsonButtonRef = useRef<HTMLButtonElement | null>(null);
-  const copyPasteJsonMenuRef = useRef<HTMLDivElement | null>(null);
+  const copyPasteJsonMenuRef = useRef<HTMLElement | null>(null);
+  // Keeps the last anchor through the shared menu's exit animation.
+  const copyPasteJsonAnchorRef = useRef({ left: 0, top: 0 });
+  if (copyPasteJsonMenuPosition) copyPasteJsonAnchorRef.current = copyPasteJsonMenuPosition;
+  const copyPasteJsonPosition = useClampedFixedPosition(
+    copyPasteJsonMenuRef,
+    copyPasteJsonAnchorRef.current,
+  );
   const visibleExtensionItems = headerExtensionItems.slice(0, visibleExtensionCount);
   const overflowExtensionItems = extensionButtonsVisible
     ? headerExtensionItems.slice(visibleExtensionCount)
@@ -286,72 +258,26 @@ function ContainerNodeComponent({
   }, [overflowMenuPosition]);
 
   useEffect(() => {
-    if (!sortMenuPosition) {
-      return;
-    }
-
-    const closeSortMenu = (event: globalThis.PointerEvent) => {
-      const target = event.target as Node;
-      if (!sortButtonRef.current?.contains(target) && !sortMenuRef.current?.contains(target)) {
-        setSortMenuPosition(null);
-      }
-    };
-    const repositionSortMenu = () => setSortMenuPosition(null);
-
-    window.addEventListener("pointerdown", closeSortMenu);
-    window.addEventListener("resize", repositionSortMenu);
-    window.addEventListener("scroll", repositionSortMenu, true);
-    return () => {
-      window.removeEventListener("pointerdown", closeSortMenu);
-      window.removeEventListener("resize", repositionSortMenu);
-      window.removeEventListener("scroll", repositionSortMenu, true);
-    };
-  }, [sortMenuPosition]);
-
-  useEffect(() => {
     if (!copyPasteJsonMenuPosition) {
       return;
     }
 
-    const closeCopyPasteJsonMenu = (event: globalThis.PointerEvent) => {
-      const target = event.target as Node;
-      if (
-        !copyPasteJsonButtonRef.current?.contains(target) &&
-        !copyPasteJsonMenuRef.current?.contains(target)
-      ) {
-        setCopyPasteJsonMenuPosition(null);
-      }
-    };
+    // The shared menu handles outside presses and Escape; the container can move away on resize or
+    // scroll, so close then.
     const repositionCopyPasteJsonMenu = () => setCopyPasteJsonMenuPosition(null);
 
-    window.addEventListener("pointerdown", closeCopyPasteJsonMenu);
     window.addEventListener("resize", repositionCopyPasteJsonMenu);
     window.addEventListener("scroll", repositionCopyPasteJsonMenu, true);
     return () => {
-      window.removeEventListener("pointerdown", closeCopyPasteJsonMenu);
       window.removeEventListener("resize", repositionCopyPasteJsonMenu);
       window.removeEventListener("scroll", repositionCopyPasteJsonMenu, true);
     };
   }, [copyPasteJsonMenuPosition]);
 
-  const getSortButtonClass = (active: boolean) =>
+  const getHeaderButtonClass = (active: boolean) =>
     `grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-white/10 hover:text-white active:bg-white/15 ${
       active ? "bg-white/10 text-white" : "text-white/70"
     }`;
-
-  const openSortMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (sortMenuPosition) {
-      setSortMenuPosition(null);
-      return;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    setSortMenuPosition({
-      left: Math.min(rect.right + 6, window.innerWidth - 202),
-      top: Math.min(rect.top, window.innerHeight - 226),
-    });
-  };
 
   const toggleOverflowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -382,10 +308,7 @@ function ContainerNodeComponent({
     }
 
     const rect = event.currentTarget.getBoundingClientRect();
-    setCopyPasteJsonMenuPosition({
-      left: Math.min(rect.right + 6, window.innerWidth - 238),
-      top: Math.min(rect.top, window.innerHeight - 128),
-    });
+    setCopyPasteJsonMenuPosition({ left: rect.right + 6, top: rect.top });
     setOverflowMenuPosition(null);
   };
 
@@ -394,7 +317,7 @@ function ContainerNodeComponent({
       return (
         <button
           key={key}
-          className={getSortButtonClass(false)}
+          className={getHeaderButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             onToggleLock(element.id);
@@ -411,7 +334,7 @@ function ContainerNodeComponent({
       return (
         <button
           key={key}
-          className={getSortButtonClass(false)}
+          className={getHeaderButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             onTogglePrivacy(element.id);
@@ -424,32 +347,11 @@ function ContainerNodeComponent({
       );
     }
 
-    if (key === "sorting") {
-      return (
-        <button
-          key={key}
-          ref={sortButtonRef}
-          className={getSortButtonClass(sortActive)}
-          onClick={openSortMenu}
-          onPointerDown={(event) => event.stopPropagation()}
-          title="Sort cards"
-        >
-          {colorSortActive ? (
-            <IconPalette size={22} stroke={2} />
-          ) : alphabetSortActive && sorting?.direction === "desc" ? (
-            <IconSortZA size={25} stroke={2} />
-          ) : (
-            <IconArrowsSort size={23} stroke={2} />
-          )}
-        </button>
-      );
-    }
-
     if (key === "colorPicker") {
       return (
         <button
           key={key}
-          className={getSortButtonClass(false)}
+          className={getHeaderButtonClass(false)}
           onClick={(event) => {
             event.stopPropagation();
             const rect = event.currentTarget.getBoundingClientRect();
@@ -462,20 +364,6 @@ function ContainerNodeComponent({
           title="Open color picker"
         >
           <IconPalette size={22} stroke={2} />
-        </button>
-      );
-    }
-
-    if (key === "dailyReset") {
-      return (
-        <button
-          key={key}
-          className={getSortButtonClass(false)}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-          title="Checkboxes reset daily"
-        >
-          <IconCalendarRepeat size={22} stroke={2} />
         </button>
       );
     }
@@ -493,33 +381,16 @@ function ContainerNodeComponent({
       );
     }
 
-    if (key === "copyPasteJson") {
-      return (
-        <button
-          key={key}
-          ref={copyPasteJsonButtonRef}
-          className={getSortButtonClass(Boolean(copyPasteJsonMenuPosition))}
-          onClick={toggleCopyPasteJsonMenu}
-          onPointerDown={(event) => event.stopPropagation()}
-          title="Copy/Paste JSON"
-        >
-          <IconBraces size={22} stroke={2} />
-        </button>
-      );
-    }
-
     return (
       <button
         key={key}
-        className={getSortButtonClass(pickedCardActive)}
-        onClick={(event) => {
-          event.stopPropagation();
-          onTogglePickCard(element.id);
-        }}
+        ref={copyPasteJsonButtonRef}
+        className={getHeaderButtonClass(Boolean(copyPasteJsonMenuPosition))}
+        onClick={toggleCopyPasteJsonMenu}
         onPointerDown={(event) => event.stopPropagation()}
-        title={pickedCardActive ? "Show all cards" : "Pick a random card"}
+        title="Copy/Paste JSON"
       >
-        <IconArrowsShuffle size={22} stroke={2} />
+        <IconBraces size={22} stroke={2} />
       </button>
     );
   };
@@ -735,119 +606,47 @@ function ContainerNodeComponent({
           </span>
         </div>
       )}
-      {sortMenuPosition &&
-        createPortal(
-          <div
-            ref={sortMenuRef}
-            data-context-menu
-            className="fixed z-[1002] w-[196px] rounded-md border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
-            style={sortMenuPosition}
-            onPointerDown={(event) => event.stopPropagation()}
-            onContextMenu={(event) => event.preventDefault()}
-          >
-            {[
-              {
-                label: "Alphabet: A to Z",
-                mode: "alphabet" as const,
-                direction: "asc" as const,
-                icon: IconSortAZ,
-              },
-              {
-                label: "Alphabet: Z to A",
-                mode: "alphabet" as const,
-                direction: "desc" as const,
-                icon: IconSortZA,
-              },
-              {
-                label: "Color: ascending",
-                mode: "color" as const,
-                direction: "asc" as const,
-                icon: IconPalette,
-              },
-              {
-                label: "Color: descending",
-                mode: "color" as const,
-                direction: "desc" as const,
-                icon: IconPalette,
-              },
-            ].map((option) => {
-              const selected =
-                sorting?.mode === option.mode && sorting.direction === option.direction;
-              const OptionIcon = option.icon;
-              return (
-                <button
-                  key={`${option.mode}-${option.direction}`}
-                  className="flex h-9 w-full items-center gap-2 rounded px-2 text-left text-sm text-white/78 transition-colors hover:bg-white/10 hover:text-white"
-                  onClick={() => {
-                    onSetSort(element.id, option.mode, option.direction);
-                    setSortMenuPosition(null);
-                  }}
-                >
-                  <OptionIcon size={18} stroke={2} />
-                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                  {selected && <IconCheck size={17} stroke={2} className="text-white" />}
-                </button>
-              );
-            })}
-            <div className="my-1 border-t border-white/10" />
-            <button
-              className="flex h-9 w-full items-center gap-2 rounded px-2 text-left text-sm text-red-300/85 transition-colors hover:bg-red-500/10 hover:text-red-200"
-              onClick={() => {
-                onSetSort(element.id, null);
-                setSortMenuPosition(null);
-              }}
-            >
-              <IconX size={18} stroke={2} />
-              <span className="flex-1">Clear sorting</span>
-            </button>
-          </div>,
-          document.body,
-        )}
-      {copyPasteJsonMenuPosition &&
-        createPortal(
-          <div
-            ref={copyPasteJsonMenuRef}
-            data-context-menu
-            className="fixed z-[1002] w-[232px] rounded-md border border-white/[0.15] bg-[#1b1b1e] p-1 shadow-[0_14px_32px_rgba(0,0,0,0.52)]"
-            style={copyPasteJsonMenuPosition}
-            onPointerDown={(event) => event.stopPropagation()}
-            onContextMenu={(event) => event.preventDefault()}
-          >
-            <button
-              className="flex h-9 w-full items-center gap-2 rounded px-2 text-left text-sm text-white/78 transition-colors hover:bg-white/10 hover:text-white"
-              onClick={() => {
-                setCopyPasteJsonMenuPosition(null);
-                void onCopyJsonForAi(element.id);
-              }}
-            >
-              <IconClipboardCopy size={18} stroke={2} />
-              <span>Copy JSON for AI</span>
-            </button>
-            <div className="my-1 border-t border-white/10" />
-            <button
-              className="flex h-9 w-full items-center gap-2 rounded px-2 text-left text-sm text-white/78 transition-colors hover:bg-white/10 hover:text-white"
-              onClick={() => {
-                setCopyPasteJsonMenuPosition(null);
-                void onPasteJsonFromAi(element.id);
-              }}
-            >
-              <IconClipboardText size={18} stroke={2} />
-              <span>Paste JSON from AI</span>
-            </button>
-            <div className="my-1 border-t border-white/10" />
-            <button
-              className="flex h-9 w-full items-center gap-2 rounded px-2 text-left text-sm text-white/78 transition-colors hover:bg-white/10 hover:text-white"
-              onClick={() => {
-                setCopyPasteJsonMenuPosition(null);
-                onOpenJsonEditor(element.id);
-              }}
-            >
-              <IconEdit size={18} stroke={2} />
-              <span>Open JSON editor</span>
-            </button>
-          </div>,
-          document.body,
-        )}
+      <ContextMenu
+        ref={copyPasteJsonMenuRef}
+        portal
+        label="Copy/Paste JSON"
+        open={copyPasteJsonMenuPosition !== null}
+        onOpenChange={(open) => {
+          if (!open) setCopyPasteJsonMenuPosition(null);
+        }}
+        position={copyPasteJsonPosition}
+        returnFocusRef={copyPasteJsonButtonRef}
+      >
+        <ContextMenuItem
+          icon={<IconClipboardCopy size={17} stroke={2} />}
+          onClick={() => {
+            setCopyPasteJsonMenuPosition(null);
+            void onCopyJsonForAi(element.id);
+          }}
+        >
+          Copy JSON for AI
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon={<IconClipboardText size={17} stroke={2} />}
+          onClick={() => {
+            setCopyPasteJsonMenuPosition(null);
+            void onPasteJsonFromAi(element.id);
+          }}
+        >
+          Paste JSON from AI
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon={<IconEdit size={17} stroke={2} />}
+          onClick={() => {
+            setCopyPasteJsonMenuPosition(null);
+            onOpenJsonEditor(element.id);
+          }}
+        >
+          Open JSON editor
+        </ContextMenuItem>
+      </ContextMenu>
       {colorMenuPosition && (
         <ColorPickerMenu
           color={element.accent}

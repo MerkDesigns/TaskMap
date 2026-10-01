@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { blockTabKeyNavigation } from "./blockTabKeyNavigation";
 
 describe("blockTabKeyNavigation", () => {
-  it("blocks Tab and modified Tab events completely", () => {
+  it("cancels native Tab traversal but lets app shortcuts and focus traps receive the event", () => {
     for (const init of [{}, { shiftKey: true }, { ctrlKey: true }]) {
       const event = new KeyboardEvent("keydown", { key: "Tab", cancelable: true, ...init });
       const stopImmediatePropagation = vi.spyOn(event, "stopImmediatePropagation");
       blockTabKeyNavigation(event);
       expect(event.defaultPrevented).toBe(true);
-      expect(stopImmediatePropagation).toHaveBeenCalledOnce();
+      expect(stopImmediatePropagation).not.toHaveBeenCalled();
     }
   });
 

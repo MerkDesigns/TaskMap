@@ -27,7 +27,6 @@ export const SPRING = Object.freeze({
 });
 
 export const MOTION_MAX_FRAME_DELTA_MS = 48;
-export const MOTION_DEFAULT_FRAME_DELTA_MS = 1000 / 60;
 
 function spring(
   stiffness: number,

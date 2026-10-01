@@ -24,12 +24,30 @@ it("serializes load and captured preference edits without losing concurrent fiel
   expect((await loading).ok).toBe(true);
   expect((await first).ok).toBe(true);
   expect((await second).ok).toBe(true);
-  expect(client.save.mock.calls.map(([revision]) => revision)).toEqual([0, 1]);
+  // Edits queued behind the load coalesce into one save that carries both fields.
+  expect(client.save.mock.calls.map(([revision]) => revision)).toEqual([0]);
   expect(prefs.getSnapshot()?.preferences).toMatchObject({
     toolbarButtonsVisible: false,
     privacyModeEnabled: true,
   });
   expect(Object.isFrozen(prefs.getSnapshot()?.preferences)).toBe(true);
+  prefs.dispose();
+});
+
+it("coalesces a burst of edits into few saves that end on the latest value", async () => {
+  const { client } = preferencesClientFixture();
+  const prefs = createDevicePreferences(client);
+  await prefs.load();
+  const updates = Array.from({ length: 200 }, (_, index) =>
+    prefs.update({ privacyModeEnabled: index % 2 === 0 }),
+  );
+  const results = await Promise.all(updates);
+  expect(results.every((result) => result.ok)).toBe(true);
+  expect(client.save.mock.calls.length).toBeLessThanOrEqual(2);
+  expect(prefs.getSnapshot()?.preferences.privacyModeEnabled).toBe(false);
+  expect(client.save.mock.calls[client.save.mock.calls.length - 1]?.[1].privacyModeEnabled).toBe(
+    false,
+  );
   prefs.dispose();
 });
 

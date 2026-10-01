@@ -3,7 +3,7 @@ use crate::database::limits::validate_password;
 use crate::phase2_error::{Phase2Failure, Phase2Result};
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use serde::{Deserialize, Serialize};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 pub(crate) const KDF_ALGORITHM: &str = "argon2id";
 pub(crate) const KDF_SALT_BYTES: usize = 16;
@@ -29,6 +29,17 @@ impl Default for KdfParameters {
     }
 }
 
+/// Argon2 work memory, wiped block by block on drop (including early returns). `Zeroizing<Vec<_>>`
+/// wipes through a generic path that unoptimized dev builds ran ~650 ms per unlock; each block's
+/// own `Zeroize` takes a few milliseconds.
+struct WorkMemory(Vec<Block>);
+
+impl Drop for WorkMemory {
+    fn drop(&mut self) {
+        self.0.iter_mut().for_each(Zeroize::zeroize);
+    }
+}
+
 pub(crate) fn derive_key(
     password: &[u8],
     salt: &[u8],
@@ -49,9 +60,9 @@ pub(crate) fn derive_key(
     let block_count = params.block_count();
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut output = Zeroizing::new([0_u8; DOCUMENT_KEY_BYTES]);
-    let mut work_memory = Zeroizing::new(vec![Block::default(); block_count]);
+    let mut work_memory = WorkMemory(vec![Block::default(); block_count]);
     argon2
-        .hash_password_into_with_memory(password, salt, output.as_mut(), work_memory.as_mut_slice())
+        .hash_password_into_with_memory(password, salt, output.as_mut(), &mut work_memory.0)
         .map_err(|_| Phase2Failure::Crypto)?;
     Ok(SecretKey::from_zeroizing(output))
 }

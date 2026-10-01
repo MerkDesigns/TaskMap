@@ -122,6 +122,17 @@
   opacity: 0.52;
 }
 
+/* Disabled dimming multiplies with an enclosing material fade instead of overriding it. */
+.taskmap-control:disabled[data-material-presence-content] {
+  opacity: calc(
+    var(--taskmap-state-disabled-opacity) * var(--taskmap-material-presence-progress, 1)
+  );
+}
+
+.taskmap-control.taskmap-button:disabled[data-material-presence-content] {
+  opacity: calc(0.52 * var(--taskmap-material-presence-progress, 1));
+}
+
 .taskmap-button__icon,
 .taskmap-button__icon > svg,
 .taskmap-icon-button svg {
@@ -294,7 +305,8 @@
 .taskmap-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: var(--taskmap-radius-pill);
-  background: rgb(255 255 255 / 0.14);
+  /* Tracks that encode a value range (e.g. hue) can supply their own background. */
+  background: var(--taskmap-slider-track, rgb(255 255 255 / 0.14));
 }
 
 .taskmap-slider::-webkit-slider-thumb {
@@ -311,6 +323,24 @@
 .taskmap-slider:focus-visible {
   outline: none;
   filter: drop-shadow(0 0 3px rgb(var(--taskmap-accent-rgb) / 0.72));
+}
+
+/* Marker variant (colour pickers): one white triangle above the track pointing down at the value
+   (tip 1.5px off the track). Range thumbs have no pseudo-elements, so it is an SVG background. */
+.taskmap-slider.taskmap-slider--marker {
+  height: 18px;
+}
+
+.taskmap-slider.taskmap-slider--marker::-webkit-slider-thumb {
+  width: 12px;
+  height: 18px;
+  margin-top: -7px;
+  border: 0;
+  border-radius: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18' viewBox='0 0 12 18'%3E%3Cpath d='M1.5 0.5h9L6 5.5z' fill='white'/%3E%3C/svg%3E")
+    center / 12px 18px no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
 }
 
 .taskmap-segmented {

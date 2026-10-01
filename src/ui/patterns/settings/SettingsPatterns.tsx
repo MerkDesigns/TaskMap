@@ -13,6 +13,7 @@ import { ScrollArea } from "../../primitives/Layout";
 import { LiquidToggleSwitch } from "../../primitives/LiquidToggleSwitch";
 import { GlassListFrame } from "../workspace/GlassListFrame";
 import { useSharedSmallGlassList } from "../workspace/useSharedSmallGlassList";
+import { useWorkspaceRadii } from "../workspace/workspaceRadii";
 import "./SettingsPatterns.css";
 
 const SettingsIslandBatch = createContext(false);
@@ -24,7 +25,7 @@ export const SettingsShell = forwardRef<HTMLDivElement, HTMLAttributes<HTMLEleme
         {...props}
         ref={ref as ForwardedRef<HTMLElement>}
         material="acrylic-large"
-        radius={12}
+        radius={useWorkspaceRadii().settings}
         className={["taskmap-settings-shell", className].filter(Boolean).join(" ")}
       />
     );
@@ -32,8 +33,9 @@ export const SettingsShell = forwardRef<HTMLDivElement, HTMLAttributes<HTMLEleme
 );
 
 export const SettingsIsland = forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(
-  function SettingsIsland({ className, ...props }, ref) {
+  function SettingsIsland({ children, className, ...props }, ref) {
     const batched = useContext(SettingsIslandBatch);
+    const radius = useWorkspaceRadii().settingsIsland;
     return (
       <MaterialSurface
         {...props}
@@ -42,17 +44,23 @@ export const SettingsIsland = forwardRef<HTMLElement, HTMLAttributes<HTMLElement
         backdropSource={batched ? "shared" : undefined}
         geometrySource={batched ? "owner" : undefined}
         data-settings-island={batched || undefined}
-        radius={8}
+        radius={radius}
         as="section"
         className={["taskmap-settings-island", className].filter(Boolean).join(" ")}
-      />
+      >
+        {/* Clipped to the island silhouette, and to its visible slice at the scroll edges. */}
+        <div className="taskmap-glass-list__content taskmap-settings-island__content">
+          {children}
+        </div>
+      </MaterialSurface>
     );
   },
 );
 
 /**
- * Scrollable Settings content. Its islands share one settled Minor batch over the Settings shell;
- * Minors nested on an island (toggle knobs) render as shells per the glass contract.
+ * Scrollable Settings content. Its islands share one settled Minor batch over the Settings shell
+ * and morph to their visible slice at the scroll edges, like the workspace browser lists; Minors
+ * nested on an island (toggle knobs) render as shells per the glass contract.
  */
 export const SettingsIslandList = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   function SettingsIslandList({ children, className, ...props }, ref) {
@@ -61,6 +69,7 @@ export const SettingsIslandList = forwardRef<HTMLDivElement, HTMLAttributes<HTML
     useSharedSmallGlassList({
       active: true,
       cardSelector: "[data-settings-island]",
+      morph: true,
       planeRef,
       viewportRef,
     });

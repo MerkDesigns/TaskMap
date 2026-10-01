@@ -23,6 +23,7 @@ export default function DevelopmentVisualWorkbench({
   readonly runtime: DatabaseApplicationRuntime;
 }) {
   const [view, setView] = useState<"app" | "lab">("app");
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const [sharedMajor, setSharedMajor] = useState(true);
   const [outputMaskedMinor, setOutputMaskedMinor] = useState(true);
   const [quickExtensionsPreset, setQuickExtensionsPreset] =
@@ -30,7 +31,7 @@ export default function DevelopmentVisualWorkbench({
   const [sidePanelPreset, setSidePanelPreset] =
     useState<SurfacePresenceName>("fadeScaleOffscreenSlide");
   const [minimapPreset, setMinimapPreset] = useState<PresencePresetName>("materialFade");
-  const [dialogPreset, setDialogPreset] = useState<PresencePresetName>("materialFadeSettle");
+  const [dialogPreset, setDialogPreset] = useState<PresencePresetName>("materialFade");
   const presenceOverrides = useMemo(
     () => ({
       quickExtensions: quickExtensionsPreset,
@@ -56,82 +57,123 @@ export default function DevelopmentVisualWorkbench({
         </WorkspaceMajorGlassEnabled.Provider>
         <aside
           className="taskmap-workbench"
+          data-collapsed={collapsed || undefined}
           data-native-tab-navigation="true"
           aria-label="Development workbench"
           onKeyDown={(event) => event.stopPropagation()}
         >
           <nav aria-label="Development view">
-            <span>DEV</span>
-            <button type="button" aria-pressed={view === "app"} onClick={() => setView("app")}>
-              App
+            <button
+              type="button"
+              className="taskmap-workbench__toggle"
+              aria-expanded={!collapsed}
+              aria-label={
+                collapsed ? "Expand development workbench" : "Collapse development workbench"
+              }
+              title={collapsed ? "Expand" : "Collapse"}
+              onClick={() => {
+                setCollapsed(!collapsed);
+                writeCollapsed(!collapsed);
+              }}
+            >
+              DEV
             </button>
-            <button type="button" aria-pressed={view === "lab"} onClick={() => setView("lab")}>
-              UI Lab
-            </button>
+            {collapsed ? null : (
+              <>
+                <button type="button" aria-pressed={view === "app"} onClick={() => setView("app")}>
+                  App
+                </button>
+                <button type="button" aria-pressed={view === "lab"} onClick={() => setView("lab")}>
+                  UI Lab
+                </button>
+              </>
+            )}
           </nav>
-          <WorkbenchTools />
-          <label>
-            <input
-              type="checkbox"
-              checked={sharedMajor}
-              onChange={(e) => setSharedMajor(e.target.checked)}
-            />
-            Shared workspace Major glass
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={outputMaskedMinor}
-              onChange={(e) => setOutputMaskedMinor(e.target.checked)}
-            />
-            Output-masked Minor glass
-          </label>
-          <label>
-            Quick Extensions motion
-            <select
-              value={quickExtensionsPreset}
-              onChange={(e) => setQuickExtensionsPreset(e.target.value as PresencePresetName)}
-            >
-              {presetOptions()}
-            </select>
-          </label>
-          <label>
-            Side panel motion
-            <select
-              value={sidePanelPreset}
-              onChange={(e) => setSidePanelPreset(e.target.value as SurfacePresenceName)}
-            >
-              <option value="fadeScaleOffscreenSlide">
-                Material fade + Off-screen slide + Scale
-              </option>
-              <option value="fadeOffscreenSlide">Material fade + Off-screen slide</option>
-              <option value="offscreenSlide">Off-screen slide</option>
-              {presetOptions()}
-            </select>
-          </label>
-          <label>
-            Minimap motion
-            <select
-              value={minimapPreset}
-              onChange={(e) => setMinimapPreset(e.target.value as PresencePresetName)}
-            >
-              {presetOptions()}
-            </select>
-          </label>
-          <label>
-            Dialog motion
-            <select
-              value={dialogPreset}
-              onChange={(e) => setDialogPreset(e.target.value as PresencePresetName)}
-            >
-              {presetOptions()}
-            </select>
-          </label>
-          <BlurPresenceTuning />
+          {/* Hidden, not unmounted: the tuning controls keep their state while collapsed. */}
+          <div className="taskmap-workbench__body" hidden={collapsed}>
+            <WorkbenchTools />
+            <label>
+              <input
+                type="checkbox"
+                checked={sharedMajor}
+                onChange={(e) => setSharedMajor(e.target.checked)}
+              />
+              Shared workspace Major glass
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={outputMaskedMinor}
+                onChange={(e) => setOutputMaskedMinor(e.target.checked)}
+              />
+              Output-masked Minor glass
+            </label>
+            <label>
+              Quick Extensions motion
+              <select
+                value={quickExtensionsPreset}
+                onChange={(e) => setQuickExtensionsPreset(e.target.value as PresencePresetName)}
+              >
+                {presetOptions()}
+              </select>
+            </label>
+            <label>
+              Side panel motion
+              <select
+                value={sidePanelPreset}
+                onChange={(e) => setSidePanelPreset(e.target.value as SurfacePresenceName)}
+              >
+                <option value="fadeScaleOffscreenSlide">
+                  Material fade + Off-screen slide + Scale
+                </option>
+                <option value="fadeOffscreenSlide">Material fade + Off-screen slide</option>
+                <option value="offscreenSlide">Off-screen slide</option>
+                {presetOptions()}
+              </select>
+            </label>
+            <label>
+              Minimap motion
+              <select
+                value={minimapPreset}
+                onChange={(e) => setMinimapPreset(e.target.value as PresencePresetName)}
+              >
+                {presetOptions()}
+              </select>
+            </label>
+            <label>
+              Dialog motion
+              <select
+                value={dialogPreset}
+                onChange={(e) => setDialogPreset(e.target.value as PresencePresetName)}
+              >
+                {presetOptions()}
+              </select>
+            </label>
+            <BlurPresenceTuning />
+          </div>
         </aside>
       </MotionProvider>
     </ReducedMotionProvider>
   );
+}
+
+const COLLAPSED_KEY = "taskmap.dev.workbenchCollapsed";
+
+/** Per-developer convenience only; storage may be unavailable, so failures fall back to expanded. */
+function readCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+  } catch {
+    /* Remembering the collapsed state is optional. */
+  }
 }
 
 function presetOptions() {

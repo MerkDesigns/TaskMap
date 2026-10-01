@@ -29,9 +29,9 @@ describe("Quick extensions menu", () => {
 
     const search = screen.getByPlaceholderText("Search extensions");
     await waitFor(() => expect(search).toHaveFocus());
-    await user.type(search, "command");
+    await user.type(search, "counter");
 
-    expect(screen.getByText("Command Runner")).toBeInTheDocument();
+    expect(screen.getByText("Counter")).toBeInTheDocument();
     expect(screen.queryByText("Checkbox")).not.toBeInTheDocument();
   });
 });
@@ -97,7 +97,9 @@ describe("C2E Extensions panel", () => {
     expect(icons).toHaveLength(EXTENSIONS.length);
     for (const card of cards) {
       expect(card).toHaveAttribute("data-material", "acrylic-small");
-      expect((card as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe("8px");
+      expect((card as HTMLElement).style.getPropertyValue("--taskmap-material-radius")).toBe(
+        "10px",
+      );
     }
     for (const icon of icons) {
       expect(icon).toHaveAttribute("data-material", "cutout");
@@ -131,7 +133,7 @@ describe("C2E Extensions panel", () => {
     await user.type(search, "text cards");
 
     expect(screen.getByText("Checkbox")).toBeInTheDocument();
-    expect(screen.getByText("Command Runner")).toBeInTheDocument();
+    expect(screen.queryByText("Command Runner")).not.toBeInTheDocument();
     expect(screen.queryByText("Privacy")).not.toBeInTheDocument();
 
     await user.clear(search);
@@ -140,7 +142,7 @@ describe("C2E Extensions panel", () => {
     expect(screen.queryByText("Lock")).not.toBeInTheDocument();
   });
 
-  it("preserves target filtering and keeps the legacy filter portal outside the panel", async () => {
+  it("preserves target filtering with the shared filter menu portaled outside the panel", async () => {
     const user = userEvent.setup();
     render(<ExtensionsPanel closing={false} onDropExtension={vi.fn()} />);
     const panel = screen.getByLabelText("Extensions panel");
@@ -151,13 +153,16 @@ describe("C2E Extensions panel", () => {
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
-    const filterMenu = document.body.querySelector("[data-extension-filter-menu]") as HTMLElement;
-    expect(filterMenu).toHaveClass("context-menu-panel", "taskmap-target-theme");
-    expect(filterMenu).not.toHaveAttribute("data-material");
+    const filterMenu = screen.getByRole("menu", { name: "Filter by element" });
+    expect(filterMenu).toHaveAttribute("data-material", "opaque");
+    expect(filterMenu.parentElement).toHaveClass("taskmap-target-theme");
     expect(panel.contains(filterMenu)).toBe(false);
 
     for (const label of ["Containers", "Text blocks", "Text cards", "Images"]) {
-      await user.click(within(filterMenu).getByRole("button", { name: label }));
+      const item = within(filterMenu).getByRole("menuitemcheckbox", { name: label });
+      expect(item).toHaveAttribute("aria-checked", "true");
+      await user.click(item);
+      expect(item).toHaveAttribute("aria-checked", "false");
     }
     expect(trigger).toHaveAttribute("data-selected", "true");
     expect(screen.getByText("Lock")).toBeInTheDocument();
@@ -166,12 +171,12 @@ describe("C2E Extensions panel", () => {
 
     fireEvent.pointerDown(document.body);
     await waitFor(() =>
-      expect(document.body.querySelector("[data-extension-filter-menu]")).toBeNull(),
+      expect(screen.queryByRole("menu", { name: "Filter by element" })).toBeNull(),
     );
   });
 
   it("preserves Favorites and Extensions grouping in registry order", () => {
-    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify({ sorting: true, privacy: true }));
+    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify({ counter: true, privacy: true }));
     const { container } = render(
       <ExtensionsPanel closing={false} embedded onDropExtension={vi.fn()} />,
     );
@@ -179,7 +184,7 @@ describe("C2E Extensions panel", () => {
 
     expect(sections).toHaveLength(2);
     expect(within(sections[0] as HTMLElement).getByText("Favorites")).toBeInTheDocument();
-    expect(extensionIds(sections[0] as HTMLElement)).toEqual(["privacy", "sorting"]);
+    expect(extensionIds(sections[0] as HTMLElement)).toEqual(["privacy", "counter"]);
     expect(within(sections[1] as HTMLElement).getByText("Extensions")).toBeInTheDocument();
     expect(extensionIds(sections[1] as HTMLElement).slice(0, 2)).toEqual(["lock", "colorPicker"]);
   });
@@ -188,7 +193,7 @@ describe("C2E Extensions panel", () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
       FAVORITES_KEY,
-      JSON.stringify({ privacy: true, lock: true, colorPicker: true, search: true, sorting: true }),
+      JSON.stringify({ privacy: true, lock: true, colorPicker: true, search: true, counter: true }),
     );
     const { container } = render(
       <ExtensionsPanel closing={false} embedded onDropExtension={vi.fn()} />,

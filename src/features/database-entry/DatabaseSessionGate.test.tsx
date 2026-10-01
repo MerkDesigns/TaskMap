@@ -10,16 +10,20 @@ import {
   mountEntry,
   openEntry,
   passwordInput,
+  recentDatabases,
   submitPassword,
 } from "./databaseEntryTestSupport";
 
 afterEach(cleanup);
 
 describe("database entry with the real application session controller", () => {
-  it("resumes once in StrictMode, discloses media privacy, and does not mount a workspace", async () => {
+  it("resumes once in StrictMode, discloses media privacy on creation, and does not mount a workspace", async () => {
     const setup = entrySetup();
     await mountEntry(setup);
     expect(setup.client.getSessionStatus).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Recent databases" })).toBeInTheDocument();
+    fireEvent.click(expectButton("New database"));
+    await screen.findByLabelText("Confirm password *");
     expect(screen.getByText(/Images and GIFs are not encrypted/)).toBeInTheDocument();
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
     expect(setup.initializeResources).not.toHaveBeenCalled();
@@ -30,8 +34,8 @@ describe("database entry with the real application session controller", () => {
     const setup = entrySetup();
     setup.settingsClient.chooseDatabasePath.mockResolvedValue(success(null));
     await mountEntry(setup);
-    fireEvent.click(expectButton("Open database"));
-    await waitFor(() => expect(expectButton("Open database")).toBeEnabled());
+    fireEvent.click(expectButton("Open existing database"));
+    await waitFor(() => expect(expectButton("Open existing database")).toBeEnabled());
     expect(setup.client.openDatabase).not.toHaveBeenCalled();
     expect(setup.client.createDatabase).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -102,14 +106,14 @@ describe("database entry with the real application session controller", () => {
     expect(passwordInput()).toHaveValue("");
   });
 
-  it("returns Back to the picker without retaining typed passwords", async () => {
+  it("returns Change database to the picker without retaining typed passwords", async () => {
     const setup = entrySetup();
     await mountEntry(setup);
     await openEntry();
     const input = passwordInput();
     fireEvent.change(input, { target: { value: "test-only" } });
-    fireEvent.click(expectButton("Back"));
-    await screen.findByRole("button", { name: "Open database" });
+    fireEvent.click(expectButton("Change database"));
+    await screen.findByRole("button", { name: "Open existing database" });
     expect(input).toHaveValue("");
     expect(setup.client.closeDatabase).toHaveBeenCalledOnce();
   });
@@ -129,37 +133,63 @@ describe("database entry with the real application session controller", () => {
     expect(setup.client.openDatabase).not.toHaveBeenCalled();
   });
 
-  it("opens a recent authorization once and obtains fresh ones after returning", async () => {
+  it("opens the most recent database once at start and lists fresh authorizations after Change database", async () => {
     const setup = entrySetup();
+    setup.settingsClient.listRecentDatabases.mockResolvedValue(
+      recentDatabases(String.raw`\\?\D:\Work\Recent.tmapdb`),
+    );
     await mountEntry(setup);
-    fireEvent.click(await screen.findByRole("button", { name: "Recent.tmapdb" }));
     await screen.findByLabelText("Password *");
     expect(setup.client.openDatabase).toHaveBeenCalledExactlyOnceWith({
       authorizationToken: "recent-token",
     });
+    // The verbatim Windows prefix is not shown.
+    expect(screen.getByText(String.raw`D:\Work\Recent.tmapdb`)).toBeInTheDocument();
     const reads = setup.settingsClient.listRecentDatabases.mock.calls.length;
-    fireEvent.click(expectButton("Back"));
-    await screen.findByRole("button", { name: "Recent.tmapdb" });
+    await waitFor(() => expect(expectButton("Change database")).toBeEnabled());
+    fireEvent.click(expectButton("Change database"));
+    const recent = await screen.findByRole("button", { name: String.raw`D:\Work\Recent.tmapdb` });
     expect(setup.settingsClient.listRecentDatabases.mock.calls.length).toBeGreaterThan(reads);
+    expect(setup.client.openDatabase).toHaveBeenCalledOnce();
+    fireEvent.click(recent);
+    await screen.findByLabelText("Password *");
+    expect(setup.client.openDatabase).toHaveBeenCalledTimes(2);
   });
 
-  it("allows native Tab/Shift+Tab through the password form without changing canvas shortcuts", async () => {
+  it("releases the locked database before choosing where to create a new one", async () => {
+    const setup = entrySetup();
+    await mountEntry(setup);
+    await openEntry();
+    fireEvent.click(expectButton("New database"));
+    await screen.findByLabelText("Confirm password *");
+    expect(setup.client.closeDatabase).toHaveBeenCalledOnce();
+    expect(setup.settingsClient.chooseDatabasePath).toHaveBeenLastCalledWith("create");
+    expect(setup.controller.getSnapshot().phase).toBe("closed");
+  });
+
+  it("blocks native Tab traversal, except between the two new-password fields", async () => {
     window.addEventListener("keydown", blockTabKeyNavigation, true);
     try {
       const user = userEvent.setup();
       await mountEntry(entrySetup());
       expect(expectButton("New database")).toHaveFocus();
       await user.tab();
-      expect(expectButton("Open database")).toHaveFocus();
+      expect(expectButton("New database")).toHaveFocus();
       fireEvent.click(expectButton("New database"));
       await screen.findByLabelText("Confirm password *");
       await waitFor(() => expect(passwordInput()).toHaveFocus());
       await user.tab();
       expect(screen.getByLabelText("Confirm password *")).toHaveFocus();
       await user.tab();
-      expect(expectButton("Back")).toHaveFocus();
+      expect(passwordInput()).toHaveFocus();
       await user.tab({ shift: true });
       expect(screen.getByLabelText("Confirm password *")).toHaveFocus();
+      // The reveal toggles are never Tab stops, and password fields never autofill.
+      expect(screen.getAllByRole("button", { name: "Show password" })[0]).toHaveAttribute(
+        "tabindex",
+        "-1",
+      );
+      expect(passwordInput()).toHaveAttribute("autocomplete", "off");
     } finally {
       window.removeEventListener("keydown", blockTabKeyNavigation, true);
     }

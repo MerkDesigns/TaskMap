@@ -7,7 +7,7 @@ export function TopBarControlsPrototype() {
   const [extensionsOpen, setExtensionsOpen] = useState(true);
   const [minimapEnabled, setMinimapEnabled] = useState(true);
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
-  const [toolbarButtonsVisible, setToolbarButtonsVisible] = useState(true);
+  const [sleepModeEnabled, setSleepModeEnabled] = useState(false);
 
   return (
     <section
@@ -28,11 +28,11 @@ export function TopBarControlsPrototype() {
           extensionsOpen={extensionsOpen}
           minimapEnabled={minimapEnabled}
           privacyModeEnabled={privacyModeEnabled}
-          toolbarButtonsVisible={toolbarButtonsVisible}
+          sleepModeEnabled={sleepModeEnabled}
+          onSleepModeEnabledChange={setSleepModeEnabled}
           onMinimapEnabledChange={setMinimapEnabled}
           onPrivacyModeEnabledChange={setPrivacyModeEnabled}
           onRedo={() => undefined}
-          onToolbarButtonsVisibleChange={setToolbarButtonsVisible}
           onToggleExtensions={() => setExtensionsOpen((open) => !open)}
           onToggleCanvases={() => setCanvasesOpen((open) => !open)}
           onUndo={() => undefined}

@@ -148,7 +148,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(extensionsPanel).toContain("createPortal(dragPreview, document.body)");
     expect(extensionsPanel).toContain('placeholder="Search extensions"');
     expect(extensionsPanel).toContain("<ExtensionBrowserCard");
-    expect(extensionsPanel).toContain("data-extension-filter-menu");
+    expect(extensionsPanel).toContain('label="Filter by element"');
     expect(canvasManager).toContain("data-canvas-card-id");
   });
 });

@@ -25,6 +25,7 @@ vi.mock("../../ui-lab/UiLabApp", () => ({ UiLabApp: () => <div>Synthetic Lab sce
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.clearAllMocks();
 });
 
@@ -97,6 +98,12 @@ it("keeps tuning across views and removes the Lab and overrides on session lock"
     const before = runtime.controller.store.getState().documentWorkspace;
     fireEvent.change(screen.getByLabelText("Major blur"), { target: { value: "30" } });
     fireEvent.click(screen.getByLabelText(/Material bounds/));
+    // Collapsing hides the controls without resetting them.
+    fireEvent.click(screen.getByRole("button", { name: "Collapse development workbench" }));
+    expect(screen.queryByRole("button", { name: "UI Lab" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Major blur")).not.toBeVisible();
+    expect(document.documentElement.style.getPropertyValue(property)).toBe("30px");
+    fireEvent.click(screen.getByRole("button", { name: "Expand development workbench" }));
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "UI Lab" })));
     expect(document.documentElement.style.getPropertyValue(property)).toBe("30px");
     expect(runtime.controller.store.getState().documentWorkspace).toBe(before);

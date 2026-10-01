@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DEFAULT_CHROME_RADII, type ChromeRadii } from "../platform/settings/preferenceContracts";
 import type { CanvasGridStyle, DefaultElementColors } from "../types";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import { DEFAULT_GRID_OPACITY } from "../app/defaultData";
@@ -24,6 +25,9 @@ export function useLegacyCanvasSettings() {
   const [minimapEnabled, setMinimapEnabled] = useState(true);
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toolbarButtonsVisible, setToolbarButtonsVisible] = useState(false);
+  const [chromeAutoHideEnabled, setChromeAutoHideEnabled] = useState(false);
+  const [chromeAutoHideDelayMs, setChromeAutoHideDelayMs] = useState(3000);
+  const [chromeRadii, setChromeRadii] = useState<ChromeRadii>(DEFAULT_CHROME_RADII);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
     undefined,
   );
@@ -50,6 +54,12 @@ export function useLegacyCanvasSettings() {
     setPrivacyModeEnabled,
     toolbarButtonsVisible,
     setToolbarButtonsVisible,
+    chromeAutoHideEnabled,
+    setChromeAutoHideEnabled,
+    chromeAutoHideDelayMs,
+    setChromeAutoHideDelayMs,
+    chromeRadii,
+    setChromeRadii,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit: undefined as SettingsGesture | undefined,

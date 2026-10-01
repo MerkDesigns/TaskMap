@@ -8,7 +8,6 @@ import {
 import { quantizeZoom } from "../canvasMath";
 import { DEFAULT_CANVAS, DEFAULT_ELEMENTS, DEFAULT_GRID_OPACITY, DEFAULT_PAN } from "./defaultData";
 import { APP_DATA_SCHEMA_VERSION, validateAppData } from "./appDataSchema";
-export { getLocalDateKey } from "../utils/date";
 
 type LegacyAppData = Partial<AppData> & {
   containers?: ContainerElement[];
@@ -19,29 +18,6 @@ type LegacyAppData = Partial<AppData> & {
 
 export const cloneExtensions = (extensions?: ElementExtensions) =>
   extensions ? structuredClone(extensions) : undefined;
-
-export const remapContainerExtensions = (
-  extensions: ElementExtensions | undefined,
-  textCardIdMap: Map<string, string>,
-) => {
-  const cloned = cloneExtensions(extensions);
-  if (!cloned?.pickCard) {
-    return cloned;
-  }
-
-  return {
-    ...cloned,
-    pickCard: {
-      ...cloned.pickCard,
-      selectedCardId: cloned.pickCard.selectedCardId
-        ? textCardIdMap.get(cloned.pickCard.selectedCardId)
-        : undefined,
-      lastCardId: cloned.pickCard.lastCardId
-        ? textCardIdMap.get(cloned.pickCard.lastCardId)
-        : undefined,
-    },
-  };
-};
 
 type UnknownRecord = Record<string, unknown>;
 

@@ -1,7 +1,7 @@
 # Glass rendering proof observations
 
 Non-normative evidence for Phase 4.5C. Requirements remain in `GLASS-SYSTEM-CONTRACT.md`.
-The current backend **fails the gate**. These fixture observations do not accept production glass.
+The Lab fixture backends below fail isolation; the production shared-plane path passes it (see the 2026-09-30 section).
 
 2026-09-27 follow-up: a selectable stable-depth plane candidate now exists beside the original
 backend. See `GLASS-STABLE-PLANE-CANDIDATE.md` for exact implementation, measurements and blockers.
@@ -19,6 +19,29 @@ The later Lab-only occlusion follow-up has zero-change overlapping-Major evidenc
 exposed lower foreground, higher-overlay sampling and promoted-Minor blur. See the dated update in
 `GLASS-STABLE-PLANE-CANDIDATE.md`. The original/default backend still fails isolation, including the
 normal main-App toolbar/Canvas Browser arrangement. Overall Phase 4.5C acceptance remains open.
+
+## 2026-09-30: production shared-plane isolation (supersedes the isolation failure below)
+
+The two failing rows below were measured on the Lab fixture's old local/stable backends. The
+production path is now the shared workspace Major plane (accepted 2026-09-29): all Layer-1 Majors
+are shapes of one filter plane that samples only the workspace scene beneath it, and their
+foreground content sits above the plane. Measured in the real App (dev build, native WebView2,
+1163 × 969, DPR 1) by filling a Major's foreground with opaque red and diffing native screenshots:
+
+| Case                                                                          | Sanity (inked Major) | Neighbouring glass                                                                      | Result |
+| ----------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------- | ------ |
+| Adjacent: toolbar ink, Canvas Browser 15 px below, History island 8 px beside | mean 96.6/255        | Canvas Browser top and header, History island, adjacent workspace: **0.00 mean, 0 max** | Pass   |
+| Overlapping: History island moved over the Canvas Browser, island ink         | mean 99.7/255        | Canvas Browser glass left of, above and below the island: **0.00 mean, 0 max**          | Pass   |
+
+Evidence: [adjacent off](evidence/glass-proof/production-adjacent-ink-off.png) /
+[adjacent on](evidence/glass-proof/production-adjacent-ink-on.png),
+[overlap off](evidence/glass-proof/production-overlap-ink-off.png) /
+[overlap on](evidence/glass-proof/production-overlap-ink-on.png). Overscan cross-layer
+contamination is covered by the same measurements (changes well inside blur and overscan reach do
+not appear in neighbouring glass); stale-backdrop freshness passed the 2026-09-30 moving-backdrop
+check (the panel region returned to pixel-identical after the object left). Layer-2 overlays
+(Quick Extensions, dialogs) keep their own filters and sample completed Layer-1 UI. The Lab
+fixture's backends are no longer the production path.
 
 ## Environment and reproduction
 

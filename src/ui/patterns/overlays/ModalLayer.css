@@ -50,8 +50,3 @@
   display: grid;
   place-items: center;
 }
-
-/* Placement-only adapter for deferred body-owned overlays opened by modal content. */
-.taskmap-modal-portal-layer {
-  z-index: var(--taskmap-layer-modal-overlay);
-}

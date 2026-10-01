@@ -82,15 +82,15 @@ describe("UI Lab Surface architecture", () => {
     expect(materialCss).toContain("--taskmap-material-presence-progress");
   });
 
-  it("delays only material blur and preblur by a tunable delay (default 0.3) and curve", async () => {
+  it("delays only material blur and preblur by a tunable delay (default 0.2, user-chosen 2026-09-30) and curve", async () => {
     const materialCss = await read("src/ui/materials/nativeGlassRecipe.css");
     const compact = materialCss.replace(/\s+/g, " ");
 
     expect(compact).toContain("--taskmap-material-blur-presence-progress: pow( clamp( 0,");
     expect(compact).toContain(
-      "var(--taskmap-material-presence-progress, 1) - var(--taskmap-material-blur-presence-delay, 0.3)",
+      "var(--taskmap-material-presence-progress, 1) - var(--taskmap-material-blur-presence-delay, 0.2)",
     );
-    expect(compact).toContain("(1 - var(--taskmap-material-blur-presence-delay, 0.3))");
+    expect(compact).toContain("(1 - var(--taskmap-material-blur-presence-delay, 0.2))");
     expect(compact).toContain("var(--taskmap-material-blur-presence-curve, 1) );");
     expect(materialCss.match(/var\(--taskmap-material-blur-presence-progress\)/g)).toHaveLength(4);
     expect(materialCss).toContain(

@@ -1,10 +1,19 @@
 import { IconCopy, IconMinus, IconSquare, IconX } from "@tabler/icons-react";
-import { useCallback, useEffect, useState, type MouseEvent, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { windowChromeActions, type WindowChromeActions } from "../app/windowChrome";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { WorkspaceMajorGlassBridge } from "../ui/materials/WorkspaceMajorGlass";
 import { IconButton } from "../ui/primitives/Button";
+import { useChromeSleepMotion } from "../ui/patterns/workspace/useChromeSleepMotion";
+import { useWorkspaceRadii } from "../ui/patterns/workspace/workspaceRadii";
 import "../ui/patterns/workspace/ChromeControlGroup.css";
 import "../ui/patterns/workspace/WindowChrome.css";
 
@@ -13,8 +22,15 @@ interface WindowChromeProps {
   readonly radius?: number;
 }
 
-export function WindowChrome({ actions = windowChromeActions, radius }: WindowChromeProps) {
+export function WindowChrome({
+  actions = windowChromeActions,
+  radius: radiusProp,
+}: WindowChromeProps) {
+  const tunedRadius = useWorkspaceRadii().chrome;
+  const radius = radiusProp ?? tunedRadius;
   const [maximized, setMaximized] = useState(false);
+  const controlsRef = useRef<HTMLElement | null>(null);
+  useChromeSleepMotion(controlsRef, "top-right");
 
   const refreshMaximized = useCallback(async () => {
     setMaximized(await actions.isMaximized());
@@ -76,6 +92,7 @@ export function WindowChrome({ actions = windowChromeActions, radius }: WindowCh
             material="acrylic-large"
             elevation="none"
             radius={radius}
+            ref={controlsRef}
             role="group"
             aria-label="Window controls"
             className="taskmap-chrome-control-group taskmap-window-controls"

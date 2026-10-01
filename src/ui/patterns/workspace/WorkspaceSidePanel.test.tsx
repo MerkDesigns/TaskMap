@@ -52,6 +52,8 @@ describe("WorkspaceSidePanel motion", () => {
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
 
+    // The first frame starts the presence clock (zero delta); the second one advances it.
+    act(() => expect(driver.fire()).toBe(true));
     act(() => expect(driver.fire()).toBe(true));
     expect(readTranslateX(panel)).toBeGreaterThan(offscreenX);
     expect(readTranslateX(panel)).toBeLessThan(0);
@@ -76,6 +78,7 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
     act(() => expect(driver.fire()).toBe(true));
+    act(() => expect(driver.fire()).toBe(true));
     const interruptedCloseX = readTranslateX(panel);
     expect(interruptedCloseX).toBeLessThan(0);
     expect(interruptedCloseX).toBeGreaterThan(offscreenX);
@@ -84,6 +87,7 @@ describe("WorkspaceSidePanel motion", () => {
     rerender(renderPanel(false));
     expect(screen.getByLabelText("Test panel")).toBe(panel);
     expect(readTranslateX(panel)).toBe(interruptedCloseX);
+    act(() => expect(driver.fire()).toBe(true));
     act(() => expect(driver.fire()).toBe(true));
     expect(readTranslateX(panel)).toBeGreaterThan(interruptedCloseX);
     act(() => driver.flush());

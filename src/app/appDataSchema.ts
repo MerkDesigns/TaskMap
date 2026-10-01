@@ -14,48 +14,13 @@ const extensionsSchema = z
     lock: z.object({ enabled: z.boolean() }).optional(),
     colorPicker: z.object({ enabled: z.boolean() }).optional(),
     checkbox: z.object({ checked: z.boolean() }).optional(),
-    commandRunner: z
-      .object({
-        commands: z.array(
-          z.object({
-            command: z.string().refine((value) => value.trim().length > 0, {
-              message: "Command must not be empty",
-            }),
-            workingDirectory: z.string().optional(),
-            runMode: z.enum(["terminal", "background"]),
-            runAsAdmin: z.boolean().optional(),
-          }),
-        ),
-      })
-      .optional(),
     autoCheckbox: z.object({ enabled: z.boolean() }).optional(),
-    dailyReset: z.object({ lastResetDate: z.string() }).optional(),
     counter: z.object({ enabled: z.boolean() }).optional(),
     inheritCardColor: z.object({ enabled: z.boolean() }).optional(),
     copyPasteJson: z.object({ enabled: z.boolean() }).optional(),
-    pickCard: z
-      .object({
-        selectedCardId: z.string().optional(),
-        lastCardId: z.string().optional(),
-      })
-      .optional(),
     search: z.object({ query: z.string() }).optional(),
-    sorting: z
-      .object({
-        mode: z.enum(["alphabet", "color"]).nullable(),
-        direction: z.enum(["asc", "desc"]),
-      })
-      .optional(),
   })
-  .passthrough()
-  .superRefine((extensions, context) => {
-    if (extensions.checkbox && extensions.commandRunner) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Checkbox and Command Runner cannot both be installed",
-      });
-    }
-  });
+  .passthrough();
 
 const containerSchema = z
   .object({

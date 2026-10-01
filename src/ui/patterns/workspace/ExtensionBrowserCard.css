@@ -30,22 +30,6 @@
   background: var(--taskmap-accent);
 }
 
-.taskmap-extension-filter-check {
-  display: grid;
-  width: 16px;
-  height: 16px;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 4px;
-  color: transparent;
-}
-
-.taskmap-extension-filter-check[data-selected="true"] {
-  border-color: rgb(var(--taskmap-accent-rgb) / 0.55);
-  background: rgb(var(--taskmap-accent-rgb) / 0.18);
-  color: color-mix(in srgb, var(--taskmap-accent) 76%, white);
-}
-
 .taskmap-extension-browser-section {
   display: grid;
   gap: var(--taskmap-space-2);
@@ -168,6 +152,12 @@
   display: flex;
   align-items: center;
   gap: 0;
+}
+
+/* Main panel: the info action sits 3px further right, closer to the favourite (user direction). */
+.taskmap-extension-info-button.taskmap-icon-button {
+  position: relative;
+  left: 3px;
 }
 
 /* Card actions sit in the top-right corner at 90% of the compact control (user direction

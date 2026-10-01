@@ -81,7 +81,27 @@
 
 .taskmap-context-menu__item-copy {
   display: grid;
+  min-width: 0;
+  flex: 1;
   gap: 1px;
+}
+
+/* Checkable items (menuitemcheckbox): a trailing check box that fills with the accent. */
+.taskmap-context-menu__check {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 4px;
+  color: transparent;
+}
+
+.taskmap-context-menu__item[aria-checked="true"] > .taskmap-context-menu__check {
+  border-color: rgb(var(--taskmap-accent-rgb) / 0.55);
+  background: rgb(var(--taskmap-accent-rgb) / 0.18);
+  color: color-mix(in srgb, var(--taskmap-accent) 76%, white);
 }
 
 .taskmap-context-menu__item-copy small,
@@ -133,6 +153,52 @@
 .taskmap-context-menu__icon-action svg {
   width: 20px;
   height: 20px;
+}
+
+/* Wider menu for inline forms (e.g. a hyperlink editor); sits above the menu that opened it. */
+.taskmap-context-menu.taskmap-context-menu--wide {
+  z-index: 201;
+  width: 230px;
+}
+
+.taskmap-context-menu__form-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px 4px 4px;
+}
+
+.taskmap-context-menu__form-row > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.taskmap-context-menu__swatches {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 4px 8px;
+}
+
+.taskmap-context-menu__swatch {
+  position: relative;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 3px;
+  outline: 0;
+  cursor: pointer;
+}
+
+.taskmap-context-menu__swatch[aria-pressed="true"]::after {
+  position: absolute;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.92);
+  content: "";
+  inset: 4px;
+}
+
+.taskmap-context-menu__swatch:focus-visible {
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.28);
 }
 
 @keyframes taskmap-context-menu-enter {

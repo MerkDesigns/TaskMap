@@ -127,12 +127,13 @@ source comments and may retain historical phase wording; they are navigation hin
 | `scripts/check-phase2-production-exclusion.mjs`                            |    83 | Repository maintenance script                                                                      |
 | `scripts/check-storage-preview.mjs`                                        |    69 | Repository maintenance script                                                                      |
 | `scripts/check-version.mjs`                                                |    56 | Repository maintenance script                                                                      |
+| `scripts/dev-app.mjs`                                                      |   131 | Consistent Tauri development launches on Windows.                                                  |
 | `scripts/generate-baseline-fixtures.mjs`                                   |   115 | Repository maintenance script                                                                      |
 | `scripts/generate-codemap.mjs`                                             |   103 | Repository maintenance script                                                                      |
 | `scripts/glass-benchmark.test.mjs`                                         |    53 | Offline generated-fixture contract: run the Python generator first to exercise each profile.       |
 | `scripts/glass-pan-probe.mjs`                                              |   107 | Synthetic events have no OS pointer capture. Scope the shim to this stage only.                    |
 | `scripts/glass-pan-probe.test.mjs`                                         |    97 | Tests for the adjacent module                                                                      |
-| `scripts/material-architecture-rules.mjs`                                  |   143 | Repository maintenance script                                                                      |
+| `scripts/material-architecture-rules.mjs`                                  |   129 | Repository maintenance script                                                                      |
 | `scripts/material-architecture-rules.test.mjs`                             |   158 | Tests for the adjacent module                                                                      |
 | `scripts/report-file-sizes.mjs`                                            |    46 | Repository maintenance script                                                                      |
 | `src-tauri/src/commands.rs`                                                |    11 | Rust backend module                                                                                |
@@ -142,11 +143,11 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src-tauri/src/commands/database_command_types.rs`                         |    95 | Rust backend module                                                                                |
 | `src-tauri/src/commands/database_commands.rs`                              |   307 | Rust backend module                                                                                |
 | `src-tauri/src/commands/database_edition.rs`                               |    43 | Rust backend module                                                                                |
-| `src-tauri/src/commands/database_window_commands.rs`                       |   203 | / Called only after the frontend has completed its save-before-close guard.                        |
+| `src-tauri/src/commands/database_window_commands.rs`                       |   204 | / Called only after the frontend has completed its save-before-close guard.                        |
 | `src-tauri/src/commands/phase2_database_commands.rs`                       |   149 | Development harness aliases only; application handlers own the bounded IPC implementation.         |
 | `src-tauri/src/commands/phase2_ipc.rs`                                     |    50 | Rust backend module                                                                                |
 | `src-tauri/src/crypto/document_cipher.rs`                                  |   140 | Rust backend module                                                                                |
-| `src-tauri/src/crypto/key_derivation.rs`                                   |   106 | Rust backend module                                                                                |
+| `src-tauri/src/crypto/key_derivation.rs`                                   |   117 | / Argon2 work memory, wiped block by block on drop (including early returns). `Zeroizing<Vec<_>>`  |
 | `src-tauri/src/crypto/mod.rs`                                              |     4 | Rust backend module                                                                                |
 | `src-tauri/src/crypto/secret_key.rs`                                       |    43 | Rust backend module                                                                                |
 | `src-tauri/src/database/backup_repository.rs`                              |    94 | Rust backend module                                                                                |
@@ -164,7 +165,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src-tauri/src/files/mod.rs`                                               |     3 | Rust backend module                                                                                |
 | `src-tauri/src/image_processing.rs`                                        |   231 | / Longest edge (px) a raster image is downscaled to on import. Matches the                         |
 | `src-tauri/src/images.rs`                                                  |   458 | / Metadata returned to the frontend after an image is stored. The frontend                         |
-| `src-tauri/src/main.rs`                                                    |   174 | Check before single-instance/plugin setup: a misconfigured preview must not contact the old app.   |
+| `src-tauri/src/main.rs`                                                    |   176 | Check before single-instance/plugin setup: a misconfigured preview must not contact the old app.   |
 | `src-tauri/src/model.rs`                                                   |  1105 | Rust backend module                                                                                |
 | `src-tauri/src/phase2_error.rs`                                            |   178 | Rust backend module                                                                                |
 | `src-tauri/src/portable.rs`                                                |   312 | / The decrypted body of an export. Images are bundled so the file is portable                      |
@@ -187,18 +188,19 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src-tauri/src/session/session_support.rs`                                 |    82 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_types.rs`                                   |   103 | Rust backend module                                                                                |
 | `src-tauri/src/session/session_view_state.rs`                              |    57 | Opaque, encrypted device-local view cache. No canvas IDs/coordinates in filenames or plaintext     |
-| `src-tauri/src/settings/device_preferences.rs`                             |   130 | Rust backend module                                                                                |
+| `src-tauri/src/settings/device_preferences.rs`                             |   212 | / Corner radii of the workspace chrome in whole pixels (Settings → Visual → Interface).            |
 | `src-tauri/src/settings/mod.rs`                                            |     4 | Rust backend module                                                                                |
 | `src-tauri/src/settings/recent_databases.rs`                               |   193 | Rust backend module                                                                                |
 | `src-tauri/src/settings/settings_file.rs`                                  |    46 | Rust backend module                                                                                |
 | `src-tauri/src/storage_preview.rs`                                         |    64 | Disposable UI baseline only. Never a product storage mode or a legacy migration path.              |
 | `src-tauri/src/storage.rs`                                                 |   730 | Only the built-in empty UI baseline. This is not a successful load from any database.              |
+| `src-tauri/src/webview_autofill.rs`                                        |    33 | WebView2's own form autofill ("Saved info" suggestions) and password saving are browser            |
 | `src-tauri/src/window_state.rs`                                            |   107 | Clamp the saved geometry so the window can never restore off-screen or                             |
 | `src-tauri/src/windows_session_notifications.rs`                           |    99 | WTS notifications belong to native window lifetime, including the hidden session keeper.           |
-| `src/App.tsx`                                                              |  8335 | Latest image drop/paste handlers, refreshed each render so the once-mounted                        |
-| `src/app/appData.test.ts`                                                  |   355 | Tests for the adjacent module                                                                      |
-| `src/app/appData.ts`                                                       |   299 | TypeScript application module                                                                      |
-| `src/app/appDataSchema.ts`                                                 |   274 | TypeScript application module                                                                      |
+| `src/App.tsx`                                                              |  7823 | Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal   |
+| `src/app/appData.test.ts`                                                  |   333 | Tests for the adjacent module                                                                      |
+| `src/app/appData.ts`                                                       |   275 | TypeScript application module                                                                      |
+| `src/app/appDataSchema.ts`                                                 |   239 | TypeScript application module                                                                      |
 | `src/app/AppProviders.tsx`                                                 |    28 | React component or typed UI module                                                                 |
 | `src/app/AppShell.test.tsx`                                                |    71 | Tests for the adjacent module                                                                      |
 | `src/app/AppShell.tsx`                                                     |    37 | React component or typed UI module                                                                 |
@@ -292,7 +294,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/createWindowCloseController.test.ts`                              |   104 | @vitest-environment node                                                                           |
 | `src/app/createWindowCloseController.ts`                                   |    59 | TypeScript application module                                                                      |
 | `src/app/database/acceptRetainedDocument.ts`                               |    15 | Reuse the staged adapter's module schemas and relationship checks as one acceptance authority.     |
-| `src/app/database/createApplicationDatabaseRuntime.ts`                     |   132 | TypeScript application module                                                                      |
+| `src/app/database/createApplicationDatabaseRuntime.ts`                     |   135 | TypeScript application module                                                                      |
 | `src/app/database/createDatabaseSessionController.ts`                      |   310 | Required ownership hook for view/interaction/media caches; synchronous revocation before awaits.   |
 | `src/app/database/createDatabaseWorkspace.test.ts`                         |   210 | @vitest-environment node                                                                           |
 | `src/app/database/createDatabaseWorkspace.ts`                              |    85 | Supplied by application edition composition, never by a document or picker response.               |
@@ -312,8 +314,8 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/database/retainedDocumentAcceptance.test.ts`                      |   238 | @vitest-environment node                                                                           |
 | `src/app/defaultData.ts`                                                   |    36 | TypeScript application module                                                                      |
 | `src/app/development/BlurPresenceTuning.tsx`                               |    53 | React component or typed UI module                                                                 |
-| `src/app/development/DevelopmentVisualWorkbench.test.tsx`                  |   119 | Keep the real session, gate and canvas-binding lifetime; only replace the large presentation tree. |
-| `src/app/development/DevelopmentVisualWorkbench.tsx`                       |   144 | React component or typed UI module                                                                 |
+| `src/app/development/DevelopmentVisualWorkbench.test.tsx`                  |   126 | Keep the real session, gate and canvas-binding lifetime; only replace the large presentation tree. |
+| `src/app/development/DevelopmentVisualWorkbench.tsx`                       |   186 | React component or typed UI module                                                                 |
 | `src/app/development/WorkbenchDiagnostics.tsx`                             |    46 | React component or typed UI module                                                                 |
 | `src/app/development/WorkbenchTools.tsx`                                   |   101 | Root ownership includes portals and window chrome. Restore inherited values on lock/unmount.       |
 | `src/app/errors/ApplicationErrorBoundary.test.tsx`                         |    62 | Tests for the adjacent module                                                                      |
@@ -353,11 +355,11 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/persistence/documentPersistenceFailures.test.ts`                  |   348 | @vitest-environment node                                                                           |
 | `src/app/persistence/persistenceErrors.ts`                                 |    36 | TypeScript application module                                                                      |
 | `src/app/persistence/persistenceScheduler.ts`                              |    16 | TypeScript application module                                                                      |
-| `src/app/preferences/applicationPreferences.test.ts`                       |   177 | @vitest-environment node                                                                           |
-| `src/app/preferences/createDevicePreferences.ts`                           |    90 | Copy object patches now; evaluate functional edits against the latest queued revision.             |
+| `src/app/preferences/applicationPreferences.test.ts`                       |   195 | @vitest-environment node                                                                           |
+| `src/app/preferences/createDevicePreferences.ts`                           |   128 | Edits that arrive while a save is running are coalesced into one save: a fast colour drag used     |
 | `src/app/preferences/createRememberedViews.ts`                             |   170 | Connect only to the existing controller's onViewportSettled, never its frame subscription.         |
 | `src/app/preferences/createWindowPrivacy.ts`                               |    49 | TypeScript application module                                                                      |
-| `src/app/preferences/preferencesTestSupport.ts`                            |    37 | TypeScript application module                                                                      |
+| `src/app/preferences/preferencesTestSupport.ts`                            |    41 | TypeScript application module                                                                      |
 | `src/app/preferences/windowPrivacy.test.ts`                                |    74 | Tests for the adjacent module                                                                      |
 | `src/app/selectors/applicationSelectors.ts`                                |     5 | TypeScript application module                                                                      |
 | `src/app/selectors/workspaceSelectors.test.ts`                             |    68 | @vitest-environment node                                                                           |
@@ -398,30 +400,24 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/canvasMath.ts`                                                        |   128 | TypeScript application module                                                                      |
 | `src/components/CanvasCreateDialog.tsx`                                    |    68 | React component or typed UI module                                                                 |
 | `src/components/CanvasDraftFields.tsx`                                     |    91 | React component or typed UI module                                                                 |
-| `src/components/CanvasManager.tsx`                                         |   783 | The active canvas follows the live camera; stored cameras lag until a document commit.             |
+| `src/components/CanvasManager.tsx`                                         |   755 | Keeps the last menu target through the primitive's exit animation.                                 |
 | `src/components/CanvasManagerCards.test.tsx`                               |   536 | Tests for the adjacent module                                                                      |
 | `src/components/canvasPreviewProjection.test.ts`                           |    35 | 100 px preview of a 1000 px viewport at zoom 2 panned by (-200, -100).                             |
 | `src/components/canvasPreviewProjection.ts`                                |    70 | TypeScript application module                                                                      |
-| `src/components/ColorPickerMenu.tsx`                                       |   340 | React component or typed UI module                                                                 |
-| `src/components/CommandRunnerModals.test.tsx`                              |   141 | Tests for the adjacent module                                                                      |
-| `src/components/CommandRunnerModals.tsx`                                   |   612 | React component or typed UI module                                                                 |
+| `src/components/ColorPickerMenu.test.tsx`                                  |   107 | Grey at zero saturation used to snap hue to 0 through the RGB round trip.                          |
+| `src/components/ColorPickerMenu.tsx`                                       |   357 | Every colour this picker emitted while open. Callers persist each change and echo it back later,   |
 | `src/components/ContainerJsonEditorWindow.test.tsx`                        |    65 | Tests for the adjacent module                                                                      |
 | `src/components/ContainerJsonEditorWindow.tsx`                             |   305 | Close and Escape play the exit; a successful Apply is closed by its owner.                         |
-| `src/components/ContainerNode.tsx`                                         |   877 | React component or typed UI module                                                                 |
-| `src/components/ContextMenus.test.tsx`                                     |   224 | Tests for the adjacent module                                                                      |
-| `src/components/ContextMenus.tsx`                                          |  1143 | React component or typed UI module                                                                 |
+| `src/components/ContainerNode.tsx`                                         |   676 | Keeps the last anchor through the shared menu's exit animation.                                    |
+| `src/components/ContextMenus.test.tsx`                                     |   218 | The App-driven menu renders on the shared ContextMenuSurface.                                      |
+| `src/components/ContextMenus.tsx`                                          |  1056 | React component or typed UI module                                                                 |
 | `src/components/DatabaseSettingsActions.tsx`                               |    60 | React component or typed UI module                                                                 |
 | `src/components/ExtensionDropEffect.tsx`                                   |   203 | React component or typed UI module                                                                 |
-| `src/components/ExtensionsPanel.test.tsx`                                  |   352 | Tests for the adjacent module                                                                      |
-| `src/components/ExtensionsPanel.tsx`                                       |   663 | Sole owner of outside-click closing; capture phase so canvas handlers cannot swallow it.           |
-| `src/components/FloatingToolbar.test.tsx`                                  |   167 | Tests for the adjacent module                                                                      |
-| `src/components/FloatingToolbar.tsx`                                       |   176 | React component or typed UI module                                                                 |
+| `src/components/ExtensionsPanel.test.tsx`                                  |   357 | Tests for the adjacent module                                                                      |
+| `src/components/ExtensionsPanel.tsx`                                       |   621 | Sole owner of outside-click closing; capture phase so canvas handlers cannot swallow it.           |
+| `src/components/FloatingToolbar.test.tsx`                                  |   131 | Tests for the adjacent module                                                                      |
+| `src/components/FloatingToolbar.tsx`                                       |   165 | React component or typed UI module                                                                 |
 | `src/components/FpsCounter.tsx`                                            |    34 | React component or typed UI module                                                                 |
-| `src/components/FrostedGlassTuner.test.tsx`                                |   139 | Tests for the adjacent module                                                                      |
-| `src/components/FrostedGlassTuner.tsx`                                     |   196 | React component or typed UI module                                                                 |
-| `src/components/FrostedGlassTunerControls.tsx`                             |    96 | React component or typed UI module                                                                 |
-| `src/components/FrostedGlassTunerPanels.tsx`                               |   167 | React component or typed UI module                                                                 |
-| `src/components/FrostedGlassTunerState.ts`                                 |   105 | React component or typed UI module                                                                 |
 | `src/components/ImageNode.tsx`                                             |   153 | Background extension off: only show the image, no frame/border/shell, so a                         |
 | `src/components/MarkdownContent.tsx`                                       |    92 | React component or typed UI module                                                                 |
 | `src/components/MindmapConnections.test.tsx`                               |    44 | Tests for the adjacent module                                                                      |
@@ -430,19 +426,21 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/components/MindmapConnectors.tsx`                                     |    56 | React component or typed UI module                                                                 |
 | `src/components/Minimap.test.tsx`                                          |   191 | Tests for the adjacent module                                                                      |
 | `src/components/Minimap.tsx`                                               |   244 | React component or typed UI module                                                                 |
-| `src/components/Modals.test.tsx`                                           |   114 | Tests for the adjacent module                                                                      |
-| `src/components/Modals.tsx`                                                |   593 | React component or typed UI module                                                                 |
+| `src/components/Modals.test.tsx`                                           |   119 | Tests for the adjacent module                                                                      |
+| `src/components/Modals.tsx`                                                |   609 | React component or typed UI module                                                                 |
 | `src/components/ProductionDialogs.test.tsx`                                |   204 | Shared scheduler drains the retained modal presence.                                               |
 | `src/components/ProductionDialogs.tsx`                                     |   228 | React component or typed UI module                                                                 |
-| `src/components/SettingsModal.test.tsx`                                    |   386 | Islands share one settled Minor batch; knobs on islands are shells; the tab indicator sits         |
+| `src/components/SettingsInterfaceIsland.test.tsx`                          |    56 | Tests for the adjacent module                                                                      |
+| `src/components/SettingsInterfaceIsland.tsx`                               |   125 | React component or typed UI module                                                                 |
+| `src/components/SettingsModal.test.tsx`                                    |   397 | Islands share one settled Minor batch; knobs on islands are shells; the tab indicator sits         |
 | `src/components/TextBlockNode.tsx`                                         |   561 | React component or typed UI module                                                                 |
-| `src/components/TextCardNode.test.tsx`                                     |   246 | Tests for the adjacent module                                                                      |
-| `src/components/TextCardNode.tsx`                                          |   482 | React component or typed UI module                                                                 |
+| `src/components/TextCardNode.test.tsx`                                     |   190 | Tests for the adjacent module                                                                      |
+| `src/components/TextCardNode.tsx`                                          |   392 | React component or typed UI module                                                                 |
 | `src/components/ToastStack.tsx`                                            |    53 | React component or typed UI module                                                                 |
 | `src/components/WindowChrome.test.tsx`                                     |    90 | Tests for the adjacent module                                                                      |
-| `src/components/WindowChrome.tsx`                                          |   123 | React component or typed UI module                                                                 |
-| `src/components/WorkspacePanels.test.tsx`                                  |   222 | Tests for the adjacent module                                                                      |
-| `src/constants.ts`                                                         |    58 | TypeScript application module                                                                      |
+| `src/components/WindowChrome.tsx`                                          |   140 | React component or typed UI module                                                                 |
+| `src/components/WorkspacePanels.test.tsx`                                  |   221 | Tests for the adjacent module                                                                      |
+| `src/constants.ts`                                                         |    51 | TypeScript application module                                                                      |
 | `src/domain/commands/commandExecution.stress.test.ts`                      |    64 | @vitest-environment node                                                                           |
 | `src/domain/commands/commandExecution.test.ts`                             |   204 | @vitest-environment node                                                                           |
 | `src/domain/commands/commandHandler.ts`                                    |    43 | TypeScript application module                                                                      |
@@ -523,33 +521,40 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/extensions/checkbox/checkboxDefinition.ts`                            |    20 | TypeScript application module                                                                      |
 | `src/extensions/color-picker/colorPickerDefinition.ts`                     |    20 | TypeScript application module                                                                      |
 | `src/extensions/copy-paste-json/copyPasteJsonDefinition.ts`                |    20 | TypeScript application module                                                                      |
-| `src/extensions/copyPasteJson.test.ts`                                     |   216 | Tests for the adjacent module                                                                      |
-| `src/extensions/copyPasteJson.ts`                                          |   171 | TypeScript application module                                                                      |
+| `src/extensions/copyPasteJson.test.ts`                                     |   214 | Tests for the adjacent module                                                                      |
+| `src/extensions/copyPasteJson.ts`                                          |   158 | TypeScript application module                                                                      |
 | `src/extensions/counter/counterDefinition.ts`                              |    20 | TypeScript application module                                                                      |
 | `src/extensions/extensionDefinition.ts`                                    |    20 | TypeScript application module                                                                      |
 | `src/extensions/inherit-card-color/inheritCardColorDefinition.ts`          |    20 | TypeScript application module                                                                      |
 | `src/extensions/lock/lockDefinition.ts`                                    |    20 | TypeScript application module                                                                      |
 | `src/extensions/privacy/privacyDefinition.ts`                              |    20 | TypeScript application module                                                                      |
-| `src/extensions/registry.test.ts`                                          |    55 | Tests for the adjacent module                                                                      |
-| `src/extensions/registry.ts`                                               |   203 | TypeScript application module                                                                      |
+| `src/extensions/registry.test.ts`                                          |    46 | Tests for the adjacent module                                                                      |
+| `src/extensions/registry.ts`                                               |   143 | TypeScript application module                                                                      |
 | `src/extensions/retainedDefinitions.test.ts`                               |    75 | @vitest-environment node                                                                           |
 | `src/extensions/retainedExtensionDefinition.ts`                            |    54 | A typed compatibility projection attached to the existing registry definition, not a renderer.     |
 | `src/extensions/search/searchDefinition.ts`                                |    21 | TypeScript application module                                                                      |
 | `src/extensions/useExtensionDrag.ts`                                       |   117 | TypeScript application module                                                                      |
 | `src/features/database-entry/databaseEntryErrors.ts`                       |    32 | TypeScript application module                                                                      |
-| `src/features/database-entry/DatabaseEntryRaces.test.tsx`                  |   217 | Tests for the adjacent module                                                                      |
-| `src/features/database-entry/databaseEntryTestSupport.tsx`                 |    77 | TypeScript application module                                                                      |
-| `src/features/database-entry/databaseEntryTypes.ts`                        |     9 | TypeScript application module                                                                      |
-| `src/features/database-entry/DatabasePasswordForm.tsx`                     |    88 | React component or typed UI module                                                                 |
-| `src/features/database-entry/DatabaseSessionGate.test.tsx`                 |   168 | Tests for the adjacent module                                                                      |
-| `src/features/database-entry/DatabaseSessionGate.tsx`                      |   181 | React component or typed UI module                                                                 |
+| `src/features/database-entry/DatabaseEntryProgress.tsx`                    |    48 | Unlocking (key derivation + document read) has no measurable progress, so the bar eases toward a   |
+| `src/features/database-entry/DatabaseEntryRaces.test.tsx`                  |   219 | Controls dim only once work is slow; submission is blocked immediately either way.                 |
+| `src/features/database-entry/databaseEntryTestSupport.tsx`                 |    80 | TypeScript application module                                                                      |
+| `src/features/database-entry/databaseEntryTypes.ts`                        |    11 | Read before unlock only for the saved panel radius.                                                |
+| `src/features/database-entry/DatabasePasswordForm.tsx`                     |   153 | Native Tab traversal is off app-wide; creating keeps Tab between its two password fields.          |
+| `src/features/database-entry/DatabaseSessionGate.test.tsx`                 |   198 | The verbatim Windows prefix is not shown.                                                          |
+| `src/features/database-entry/DatabaseSessionGate.tsx`                      |   301 | Work shorter than this never dims controls or shows a cancel button, so quick steps stay still.    |
 | `src/features/database-entry/DatabaseWindowChrome.tsx`                     |    51 | React component or typed UI module                                                                 |
+| `src/features/database-entry/PasswordInput.test.tsx`                       |    43 | Tests for the adjacent module                                                                      |
+| `src/features/database-entry/PasswordInput.tsx`                            |    47 | Like the native reveal button: not a Tab stop, so Tab moves field to field.                        |
 | `src/features/database-entry/preview/createDatabaseEntryPreview.ts`        |   163 | In-memory transport only: this fixture cannot invoke native databases, preferences or keyring.     |
 | `src/features/database-entry/preview/createPreviewMediaClient.ts`          |    79 | The simulated picker returns an obvious built-in fixture, never a user file.                       |
-| `src/features/database-entry/preview/createPreviewPreferencesClient.ts`    |    47 | TypeScript application module                                                                      |
+| `src/features/database-entry/preview/createPreviewPreferencesClient.ts`    |    51 | TypeScript application module                                                                      |
 | `src/features/database-entry/preview/databaseEntryPreview.test.ts`         |    34 | Tests for the adjacent module                                                                      |
 | `src/features/database-entry/preview/main.tsx`                             |    42 | TypeScript application module                                                                      |
-| `src/features/database-entry/useDatabaseEntry.ts`                          |   191 | View flow only. The injected application controller remains the sole session/workspace owner.      |
+| `src/features/database-entry/readableDatabasePath.test.ts`                 |    11 | Tests for the adjacent module                                                                      |
+| `src/features/database-entry/unlockReveal.test.tsx`                        |    96 | Same render as the workspace's first frame: the unlock screen is still on top.                     |
+| `src/features/database-entry/useCapsLock.ts`                               |    21 | TypeScript application module                                                                      |
+| `src/features/database-entry/useDatabaseEntry.ts`                          |   253 | View flow only. The injected application controller remains the sole session/workspace owner.      |
+| `src/features/database-entry/useUnlockReveal.ts`                           |   187 | iPhone-style unlock: the panel lifts toward the viewer and dissolves while the dark backdrop       |
 | `src/features/minimap/minimapProjection.test.ts`                           |    25 | @vitest-environment node                                                                           |
 | `src/features/minimap/minimapProjection.ts`                                |    52 | TypeScript application module                                                                      |
 | `src/features/phase2-database/DevelopmentPhase2Entry.test.tsx`             |    14 | Tests for the adjacent module                                                                      |
@@ -589,13 +594,13 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/legacy/interactions/legacySelectionCompatibility.ts`                  |    12 | TypeScript application module                                                                      |
 | `src/legacy/interactions/legacyTextCardDragPresentation.test.ts`           |    39 | @vitest-environment node                                                                           |
 | `src/legacy/interactions/legacyTextCardDragPresentation.ts`                |    19 | TypeScript application module                                                                      |
-| `src/legacy/interactions/legacyTextCardDrop.ts`                            |   183 | TypeScript application module                                                                      |
+| `src/legacy/interactions/legacyTextCardDrop.ts`                            |   167 | TypeScript application module                                                                      |
 | `src/legacy/interactions/legacyTextCardInteraction.test.ts`                |   351 | @vitest-environment node                                                                           |
 | `src/legacy/interactions/legacyTextCardInteraction.ts`                     |   257 | TypeScript application module                                                                      |
 | `src/legacy/interactions/legacyTextCardModifierTransition.test.ts`         |   118 | @vitest-environment node                                                                           |
 | `src/legacy/interactions/legacyTextCardModifierTransition.ts`              |    38 | TypeScript application module                                                                      |
 | `src/legacy/interactions/legacyTextCardPlacement.test.ts`                  |    53 | @vitest-environment node                                                                           |
-| `src/legacy/interactions/legacyTextCardPlacement.ts`                       |   312 | TypeScript application module                                                                      |
+| `src/legacy/interactions/legacyTextCardPlacement.ts`                       |   297 | TypeScript application module                                                                      |
 | `src/legacy/interactions/retainedDropIntegration.test.ts`                  |   210 | @vitest-environment node                                                                           |
 | `src/legacy/interactions/retainedDropTestSupport.ts`                       |   140 | TypeScript application module                                                                      |
 | `src/legacy/interactions/retainedInteractionGeometry.test.ts`              |   111 | @vitest-environment node                                                                           |
@@ -607,21 +612,21 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/legacy/materials/legacyBackdropScene.test.ts`                         |   262 | Tests for the adjacent module                                                                      |
 | `src/legacy/materials/legacyBackdropScene.ts`                              |   250 | TypeScript application module                                                                      |
 | `src/legacy/materials/legacyBackdropSceneRevision.ts`                      |    35 | TypeScript application module                                                                      |
-| `src/legacy/RetainedCanvasApplication.test.tsx`                            |   244 | Tests for the adjacent module                                                                      |
-| `src/legacy/RetainedCanvasApplication.tsx`                                 |    77 | Native/session revocation must remove editors and portals before returning.                        |
+| `src/legacy/RetainedCanvasApplication.test.tsx`                            |   263 | The first instance releases its binding in a microtask; the second mounts before that.             |
+| `src/legacy/RetainedCanvasApplication.tsx`                                 |   105 | Native/session revocation must remove editors and portals before returning.                        |
 | `src/legacy/RetainedCanvasContext.tsx`                                     |    70 | React component or typed UI module                                                                 |
 | `src/legacy/RetainedImageNode.test.tsx`                                    |   124 | Tests for the adjacent module                                                                      |
 | `src/legacy/RetainedImageNode.tsx`                                         |    38 | React component or typed UI module                                                                 |
 | `src/legacy/retainedViewClipboard.test.ts`                                 |   116 | @vitest-environment node                                                                           |
 | `src/legacy/retainedViewClipboard.ts`                                      |   145 | TypeScript application module                                                                      |
 | `src/legacy/retainedViewCreation.ts`                                       |   101 | TypeScript application module                                                                      |
-| `src/legacy/retainedViewExtensions.test.ts`                                |    67 | @vitest-environment node                                                                           |
+| `src/legacy/retainedViewExtensions.test.ts`                                |    68 | @vitest-environment node                                                                           |
 | `src/legacy/retainedViewExtensions.ts`                                     |    60 | TypeScript application module                                                                      |
 | `src/legacy/retainedViewJsonEdit.test.ts`                                  |    59 | @vitest-environment node                                                                           |
 | `src/legacy/retainedViewJsonEdit.ts`                                       |    39 | TypeScript application module                                                                      |
-| `src/legacy/useLegacyCanvasSettings.ts`                                    |    59 | TypeScript application module                                                                      |
+| `src/legacy/useLegacyCanvasSettings.ts`                                    |    69 | TypeScript application module                                                                      |
 | `src/legacy/useRetainedCanvasSettings.test.tsx`                            |    86 | Tests for the adjacent module                                                                      |
-| `src/legacy/useRetainedCanvasSettings.ts`                                  |   171 | TypeScript application module                                                                      |
+| `src/legacy/useRetainedCanvasSettings.ts`                                  |   177 | TypeScript application module                                                                      |
 | `src/main.tsx`                                                             |    14 | TypeScript application module                                                                      |
 | `src/mindmapMath.test.ts`                                                  |    42 | Tests for the adjacent module                                                                      |
 | `src/mindmapMath.ts`                                                       |    83 | TypeScript application module                                                                      |
@@ -646,7 +651,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/platform/platformErrors.ts`                                           |    30 | TypeScript application module                                                                      |
 | `src/platform/settings/applicationPreferencesClient.test.ts`               |    55 | @vitest-environment node                                                                           |
 | `src/platform/settings/applicationPreferencesClient.ts`                    |    90 | TypeScript application module                                                                      |
-| `src/platform/settings/preferenceContracts.ts`                             |    58 | TypeScript application module                                                                      |
+| `src/platform/settings/preferenceContracts.ts`                             |    86 | TypeScript application module                                                                      |
 | `src/platform/settings/settingsClient.ts`                                  |    14 | TypeScript application module                                                                      |
 | `src/platform/settings/settingsTypes.ts`                                   |    14 | TypeScript application module                                                                      |
 | `src/platform/settings/tauriSettingsClient.ts`                             |    16 | TypeScript application module                                                                      |
@@ -659,8 +664,8 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/platform/workflow/workflowTypes.ts`                                   |    20 | TypeScript application module                                                                      |
 | `src/test/domHitTesting.test.ts`                                           |     6 | Tests for the adjacent module                                                                      |
 | `src/test/setup.ts`                                                        |    33 | jsdom has no layout/hit testing. For ordinary dispatched clicks, the event target is the           |
-| `src/types.ts`                                                             |   418 | TypeScript application module                                                                      |
-| `src/ui-lab/ContextMenuPlayground.tsx`                                     |   197 | React component or typed UI module                                                                 |
+| `src/types.ts`                                                             |   385 | TypeScript application module                                                                      |
+| `src/ui-lab/ContextMenuPlayground.tsx`                                     |   192 | React component or typed UI module                                                                 |
 | `src/ui-lab/DraggableTextBlockFixture.test.tsx`                            |    90 | Tests for the adjacent module                                                                      |
 | `src/ui-lab/DraggableTextBlockFixture.tsx`                                 |   207 | React component or typed UI module                                                                 |
 | `src/ui-lab/FormControlsPrototype.test.tsx`                                |    64 | Tests for the adjacent module                                                                      |
@@ -692,7 +697,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/dev/acrylicPlaygroundModel.test.ts`                                |    95 | Tests for the adjacent module                                                                      |
 | `src/ui/dev/acrylicPlaygroundModel.ts`                                     |   202 | TypeScript application module                                                                      |
 | `src/ui/dev/ButtonMaterialTests.tsx`                                       |   163 | React component or typed UI module                                                                 |
-| `src/ui/dev/containerContextMenuFixture.ts`                                |    34 | TypeScript application module                                                                      |
+| `src/ui/dev/containerContextMenuFixture.ts`                                |    31 | TypeScript application module                                                                      |
 | `src/ui/dev/ContextMenuDemo.tsx`                                           |   198 | React component or typed UI module                                                                 |
 | `src/ui/dev/contextMenuMaterialIntegration.test.tsx`                       |    47 | Tests for the adjacent module                                                                      |
 | `src/ui/dev/DevelopmentUiLab.test.tsx`                                     |   121 | Tests for the adjacent module                                                                      |
@@ -750,7 +755,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/materials/FrostedSurface.test.tsx`                                 |    22 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/FrostedSurface.tsx`                                      |    15 | React component or typed UI module                                                                 |
 | `src/ui/materials/frostedSurfaceTypes.ts`                                  |     6 | TypeScript application module                                                                      |
-| `src/ui/materials/layeredOutputMask.ts`                                    |   210 | Opaque layers overlap by 1px to hide seams; translucent ones must not (additive alpha).            |
+| `src/ui/materials/layeredOutputMask.ts`                                    |   294 | WebView2 treats a mask whose layers all lie outside the element as no mask and paints the          |
 | `src/ui/materials/legacyCachedAcrylicDefinitions.ts`                       |    71 | TypeScript application module                                                                      |
 | `src/ui/materials/MajorGlassLayer.tsx`                                     |    37 | Mounted workspace planes, most recent last. Base Majors rendered outside the workspace subtree     |
 | `src/ui/materials/MaterialAcrylicProof.tsx`                                |    16 | React component or typed UI module                                                                 |
@@ -761,16 +766,17 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/materials/materialCompositorDiagnostics.ts`                        |    72 | TypeScript application module                                                                      |
 | `src/ui/materials/materialCompositorPresentation.ts`                       |    47 | TypeScript application module                                                                      |
 | `src/ui/materials/MaterialCompositorProvider.tsx`                          |    17 | React component or typed UI module                                                                 |
-| `src/ui/materials/materialDefinitions.ts`                                  |   125 | TypeScript application module                                                                      |
+| `src/ui/materials/materialDefinitions.ts`                                  |   127 | TypeScript application module                                                                      |
 | `src/ui/materials/materialGeometryInvalidation.test.ts`                    |    25 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/materialGeometryInvalidation.ts`                         |   107 | Native backdrop invalidation follows real scene/style changes. This bounded settlement             |
 | `src/ui/materials/materialGeometryScheduler.test.ts`                       |   240 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/materialGeometryScheduler.ts`                            |   185 | TypeScript application module                                                                      |
+| `src/ui/materials/materialLayers.test.tsx`                                 |    51 | Glass contract section 7: Layer-1 persistent Majors share the workspace plane (isolated from       |
 | `src/ui/materials/materialPerformanceDiagnostics.ts`                       |    23 | TypeScript application module                                                                      |
 | `src/ui/materials/MaterialPlane.tsx`                                       |    18 | React component or typed UI module                                                                 |
 | `src/ui/materials/materialPresence.test.ts`                                |    27 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/materialPresence.ts`                                     |    41 | TypeScript application module                                                                      |
-| `src/ui/materials/materialRegistry.test.ts`                                |   144 | Tests for the adjacent module                                                                      |
+| `src/ui/materials/materialRegistry.test.ts`                                |   146 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/materialRegistry.ts`                                     |    38 | TypeScript application module                                                                      |
 | `src/ui/materials/materialSamplingBoundary.test.ts`                        |    27 | @vitest-environment node                                                                           |
 | `src/ui/materials/materialSamplingBoundary.tsx`                            |    84 | TypeScript application module                                                                      |
@@ -780,7 +786,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/materials/materialSurfaceRegistry.test.ts`                         |   151 | @vitest-environment node                                                                           |
 | `src/ui/materials/materialSurfaceRegistry.ts`                              |   260 | TypeScript application module                                                                      |
 | `src/ui/materials/materialSurfaceStyle.ts`                                 |    98 | A filter-output mask avoids making an ancestor a new backdrop root. The SVG viewport               |
-| `src/ui/materials/materialTypes.ts`                                        |   113 | TypeScript application module                                                                      |
+| `src/ui/materials/materialTypes.ts`                                        |   115 | TypeScript application module                                                                      |
 | `src/ui/materials/nativeGlassGeometry.ts`                                  |    93 | TypeScript application module                                                                      |
 | `src/ui/materials/NativeGlassPlane.tsx`                                    |   100 | WebView2 ignores an SVG mask that paints nothing and shows the whole filter output.                |
 | `src/ui/materials/nativeGlassProduction.test.tsx`                          |    75 | Tests for the adjacent module                                                                      |
@@ -788,9 +794,9 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/materials/nativeGlassRim.ts`                                       |   162 | TypeScript application module                                                                      |
 | `src/ui/materials/SharedSmallGlassPlane.test.tsx`                          |   136 | Tests for the adjacent module                                                                      |
 | `src/ui/materials/SharedSmallGlassPlane.tsx`                               |   292 | React component or typed UI module                                                                 |
-| `src/ui/materials/sharedSmallOutputMask.test.tsx`                          |   145 | Viewport intersects the union of shapes; positions include the overscan origin.                    |
-| `src/ui/materials/sharedSmallOutputMask.ts`                                |    82 | A previously inactive batch may have become visible. Never reschedule from a                       |
-| `src/ui/materials/WorkspaceMajorGlass.test.tsx`                            |   150 | Layered mask: position moves with presentation; opacity is baked into a cached image.              |
+| `src/ui/materials/sharedSmallOutputMask.test.tsx`                          |   167 | Viewport intersects the union of shapes; positions include the overscan origin.                    |
+| `src/ui/materials/sharedSmallOutputMask.ts`                                |    84 | A previously inactive batch may have become visible. Never reschedule from a                       |
+| `src/ui/materials/WorkspaceMajorGlass.test.tsx`                            |   155 | Layered mask: position moves with presentation; fades use generated gradient layers.               |
 | `src/ui/materials/WorkspaceMajorGlass.tsx`                                 |   165 | The owner writes size/mask imperatively; props must stay constant so re-renders never reset them.  |
 | `src/ui/motion/layoutMotion.test.ts`                                       |   104 | One shared frame remains pending only while motion subscribers are active.                         |
 | `src/ui/motion/layoutMotion.ts`                                            |    89 | TypeScript application module                                                                      |
@@ -799,12 +805,12 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/motion/liquidMaterialIntegration.test.ts`                          |    39 | @vitest-environment node                                                                           |
 | `src/ui/motion/liquidToggleMotion.test.ts`                                 |    58 | Tests for the adjacent module                                                                      |
 | `src/ui/motion/liquidToggleMotion.ts`                                      |    79 | TypeScript application module                                                                      |
-| `src/ui/motion/motionFrameScheduler.test.ts`                               |    86 | Tests for the adjacent module                                                                      |
-| `src/ui/motion/motionFrameScheduler.ts`                                    |    91 | TypeScript application module                                                                      |
+| `src/ui/motion/motionFrameScheduler.test.ts`                               |   100 | Tests for the adjacent module                                                                      |
+| `src/ui/motion/motionFrameScheduler.ts`                                    |    92 | A run starts from its first painted frame. Assuming a 60 Hz frame here made every new              |
 | `src/ui/motion/motionMath.test.ts`                                         |    53 | Tests for the adjacent module                                                                      |
 | `src/ui/motion/motionMath.ts`                                              |   135 | TypeScript application module                                                                      |
 | `src/ui/motion/MotionProvider.tsx`                                         |    22 | React component or typed UI module                                                                 |
-| `src/ui/motion/motionTokens.ts`                                            |    41 | Central Phase 4.5C motion values; these are UI-motion values, not compositor constants.            |
+| `src/ui/motion/motionTokens.ts`                                            |    40 | Central Phase 4.5C motion values; these are UI-motion values, not compositor constants.            |
 | `src/ui/motion/presenceMotion.test.ts`                                     |   118 | Tests for the adjacent module                                                                      |
 | `src/ui/motion/presenceMotion.ts`                                          |   240 | Shared material planes project the same presentation without layout reads.                         |
 | `src/ui/motion/presencePresets.ts`                                         |    52 | TypeScript application module                                                                      |
@@ -813,52 +819,59 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/motion/usePresenceMotion.ts`                                       |    94 | TypeScript application module                                                                      |
 | `src/ui/patterns/overlays/index.ts`                                        |     6 | TypeScript application module                                                                      |
 | `src/ui/patterns/overlays/ModalDialog.tsx`                                 |    87 | React component or typed UI module                                                                 |
-| `src/ui/patterns/overlays/ModalLayer.tsx`                                  |    58 | React component or typed UI module                                                                 |
-| `src/ui/patterns/overlays/modalMotion.ts`                                  |    11 | TypeScript application module                                                                      |
-| `src/ui/patterns/overlays/ModalPresence.test.tsx`                          |   368 | Tests for the adjacent module                                                                      |
-| `src/ui/patterns/overlays/ModalPresence.tsx`                               |   152 | Content can mount mid-animation (lazy dialogs); re-mark only while animating.                      |
+| `src/ui/patterns/overlays/ModalLayer.tsx`                                  |    73 | React component or typed UI module                                                                 |
+| `src/ui/patterns/overlays/modalMotion.ts`                                  |    17 | TypeScript application module                                                                      |
+| `src/ui/patterns/overlays/ModalPresence.test.tsx`                          |   371 | Plain material fade: the group never moves or scales.                                              |
+| `src/ui/patterns/overlays/ModalPresence.tsx`                               |   183 | Plain material fade (user choice 2026-09-30): scaling the dialog made its separately drawn         |
 | `src/ui/patterns/overlays/modalPresenceTestHarness.tsx`                    |   121 | One shared pending frame advances every active modal subscriber.                                   |
 | `src/ui/patterns/overlays/useDialogFocus.ts`                               |    67 | Initial focus skips the header close action so content/actions receive it first.                   |
 | `src/ui/patterns/settings/index.ts`                                        |     2 | TypeScript application module                                                                      |
-| `src/ui/patterns/settings/SettingsPatterns.tsx`                            |   167 | React component or typed UI module                                                                 |
+| `src/ui/patterns/settings/SettingsPatterns.tsx`                            |   176 | React component or typed UI module                                                                 |
 | `src/ui/patterns/workspace/CanvasBrowserCard.tsx`                          |    78 | React component or typed UI module                                                                 |
-| `src/ui/patterns/workspace/canvasBrowserDom.ts`                            |   187 | Read shared coordinate spaces before presentation writes, including activation's card rect.        |
+| `src/ui/patterns/workspace/canvasBrowserDom.ts`                            |   178 | Read shared coordinate spaces before presentation writes, including activation's card rect.        |
+| `src/ui/patterns/workspace/canvasBrowserHeldLift.ts`                       |    40 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasBrowserInteraction.test.ts`               |    62 | @vitest-environment node                                                                           |
-| `src/ui/patterns/workspace/canvasBrowserInteraction.ts`                    |   116 | TypeScript application module                                                                      |
+| `src/ui/patterns/workspace/canvasBrowserInteraction.ts`                    |   149 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasBrowserLayout.ts`                         |    35 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasBrowserLiquidSlice.ts`                    |    49 | TypeScript application module                                                                      |
-| `src/ui/patterns/workspace/CanvasBrowserRuntime.test.ts`                   |   333 | Rim/shadow geometry follows the visible silhouette (glass contract section 12).                    |
+| `src/ui/patterns/workspace/CanvasBrowserRuntime.test.ts`                   |   343 | Rim/shadow geometry follows the visible silhouette (glass contract section 12).                    |
 | `src/ui/patterns/workspace/CanvasBrowserRuntime.ts`                        |   400 | The settled shell is offset by its scroll-edge slice; position by the logical card.                |
 | `src/ui/patterns/workspace/canvasBrowserRuntimeState.ts`                   |    38 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasBrowserRuntimeTestFixture.ts`             |   144 | The production runtime owns one pending frame at a time.                                           |
-| `src/ui/patterns/workspace/canvasBrowserRuntimeTypes.ts`                   |    50 | TypeScript application module                                                                      |
+| `src/ui/patterns/workspace/canvasBrowserRuntimeTypes.ts`                   |    54 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasBrowserScrollState.test.ts`               |    41 | @vitest-environment node                                                                           |
 | `src/ui/patterns/workspace/canvasBrowserScrollState.ts`                    |    89 | TypeScript application module                                                                      |
-| `src/ui/patterns/workspace/canvasBrowserSharedGlass.ts`                    |   102 | Held glass follows the liquid pickup/drop slice written on the host.                               |
-| `src/ui/patterns/workspace/canvasBrowserSlotGeometry.ts`                   |   106 | TypeScript application module                                                                      |
+| `src/ui/patterns/workspace/canvasBrowserSharedGlass.ts`                    |   113 | Held glass follows the liquid pickup/drop slice and the held lift scale written on the host.       |
+| `src/ui/patterns/workspace/canvasBrowserSlotGeometry.test.ts`              |    22 | Six cards, holding index 2: two above, three below.                                                |
+| `src/ui/patterns/workspace/canvasBrowserSlotGeometry.ts`                   |   128 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasBrowserViewport.ts`                       |    82 | Every host keeps the same untransformed ancestor; scroll is part of its own translation.           |
 | `src/ui/patterns/workspace/canvasBrowserWheelDelta.ts`                     |    11 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/canvasCardPointerSession.ts`                    |    59 | Document listeners remain authoritative when pointer capture is unavailable.                       |
 | `src/ui/patterns/workspace/CanvasFrame.tsx`                                |    15 | React component or typed UI module                                                                 |
+| `src/ui/patterns/workspace/chromeSleep.test.tsx`                           |    78 | Tests for the adjacent module                                                                      |
+| `src/ui/patterns/workspace/chromeSleep.ts`                                 |   106 | Shared asleep/awake state. The workspace (App) decides; the toolbar islands and the app-level      |
 | `src/ui/patterns/workspace/ExtensionBrowserCard.tsx`                       |    53 | React component or typed UI module                                                                 |
-| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                      |    46 | React component or typed UI module                                                                 |
+| `src/ui/patterns/workspace/FloatingCanvasToolbar.tsx`                      |    61 | React component or typed UI module                                                                 |
 | `src/ui/patterns/workspace/GlassListFrame.tsx`                             |    36 | React component or typed UI module                                                                 |
 | `src/ui/patterns/workspace/glassListGeometry.test.ts`                      |    21 | Tests for the adjacent module                                                                      |
 | `src/ui/patterns/workspace/glassListGeometry.ts`                           |    22 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/glassListScrollGeometry.test.ts`                |   130 | Scroll-edge morph slice: only the 2px visible strip remains of the first card.                     |
 | `src/ui/patterns/workspace/glassListScrollGeometry.ts`                     |   179 | Measured rectangles include ancestor transforms (e.g. a presence scale-in); convert them back      |
 | `src/ui/patterns/workspace/index.ts`                                       |     9 | TypeScript application module                                                                      |
-| `src/ui/patterns/workspace/MinimapSurface.test.tsx`                        |   157 | One pending shared frame advances all active subscribers.                                          |
+| `src/ui/patterns/workspace/MinimapSurface.test.tsx`                        |   159 | The first frame starts the presence clock (zero delta); the second one advances it.                |
 | `src/ui/patterns/workspace/MinimapSurface.tsx`                             |    56 | React component or typed UI module                                                                 |
+| `src/ui/patterns/workspace/useChromeSleepMotion.ts`                        |   105 | Workspace chrome also waits out the unlock reveal and then flies in like waking from sleep (and    |
 | `src/ui/patterns/workspace/useMinimapVisibilityMotion.ts`                  |    38 | TypeScript application module                                                                      |
 | `src/ui/patterns/workspace/useSettledPanelWork.ts`                         |    28 | TypeScript application module                                                                      |
-| `src/ui/patterns/workspace/useSharedSmallGlassList.ts`                     |   123 | Cards wholly outside the visible area (e.g. in the shadow gutter) are hidden, not stale.           |
+| `src/ui/patterns/workspace/useSharedSmallGlassList.ts`                     |   126 | A card without layout (not rendered yet) has nothing to slice; leave it untouched.                 |
 | `src/ui/patterns/workspace/useWorkspaceSidePanelMotion.ts`                 |    95 | Layout width ignores presence transforms (e.g. a scale preset mid-animation).                      |
 | `src/ui/patterns/workspace/workspaceFoundation.test.tsx`                   |   109 | Tests for the adjacent module                                                                      |
+| `src/ui/patterns/workspace/workspaceIntro.ts`                              |   130 | Mounted canvas layers. The workspace can mount after the session is ready (lazy development        |
 | `src/ui/patterns/workspace/workspacePanelContentSize.ts`                   |    17 | TypeScript application module                                                                      |
-| `src/ui/patterns/workspace/WorkspaceRoot.tsx`                              |    45 | React component or typed UI module                                                                 |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                    |   241 | Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17).             |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                         |   227 | React component or typed UI module                                                                 |
+| `src/ui/patterns/workspace/workspaceRadii.ts`                              |    34 | The applied radii. App writes the saved preference here and Settings previews slider drags         |
+| `src/ui/patterns/workspace/WorkspaceRoot.tsx`                              |    94 | A cancelled lock (or the next reveal) starts from the canvas at rest.                              |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                    |   245 | Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17).             |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                         |   226 | React component or typed UI module                                                                 |
 | `src/ui/primitives/AcrylicConfirmButton.tsx`                               |   103 | React component or typed UI module                                                                 |
 | `src/ui/primitives/AcrylicToggleButton.test.tsx`                           |   114 | Tests for the adjacent module                                                                      |
 | `src/ui/primitives/AcrylicToggleButton.tsx`                                |   103 | React component or typed UI module                                                                 |
@@ -866,8 +879,8 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/primitives/Button.tsx`                                             |   107 | React component or typed UI module                                                                 |
 | `src/ui/primitives/buttonMaterialControls.test.tsx`                        |   145 | Tests for the adjacent module                                                                      |
 | `src/ui/primitives/ContextMenu.test.tsx`                                   |   167 | Real user-event timers may finish the exit before this assertion on a busy runner.                 |
-| `src/ui/primitives/ContextMenu.tsx`                                        |   210 | React component or typed UI module                                                                 |
-| `src/ui/primitives/ContextMenuParts.tsx`                                   |   108 | React component or typed UI module                                                                 |
+| `src/ui/primitives/ContextMenu.tsx`                                        |   255 | React component or typed UI module                                                                 |
+| `src/ui/primitives/ContextMenuParts.tsx`                                   |   157 | React component or typed UI module                                                                 |
 | `src/ui/primitives/Field.tsx`                                              |    87 | React component or typed UI module                                                                 |
 | `src/ui/primitives/FloatingPanel.tsx`                                      |   122 | React component or typed UI module                                                                 |
 | `src/ui/primitives/FormControls.tsx`                                       |   170 | React component or typed UI module                                                                 |
@@ -892,6 +905,5 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/theme/theme.test.tsx`                                              |    72 | Tests for the adjacent module                                                                      |
 | `src/ui/theme/workspaceVisualValues.ts`                                    |    27 | TypeScript application module                                                                      |
 | `src/useClampedFixedPosition.ts`                                           |    36 | TypeScript application module                                                                      |
-| `src/utils/date.ts`                                                        |     5 | TypeScript application module                                                                      |
 
 <!-- GENERATED-INVENTORY:END -->

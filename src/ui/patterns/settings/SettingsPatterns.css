@@ -14,9 +14,18 @@
   z-index: 2;
 }
 
+/* Padding lives on the content mask so scroll-edge slicing clips the whole island. */
 .taskmap-settings-island {
-  padding: var(--taskmap-space-3);
+  --taskmap-settings-island-padding: var(--taskmap-space-3);
+  padding: 0;
   color: var(--taskmap-text);
+}
+
+/* The mask fills the island (it is not inset by the rim like browser-card masks), so its slice
+   clip must not reach past the rim by the rim width. */
+.taskmap-settings-island__content {
+  --taskmap-material-content-clip-inset: 0px;
+  padding: var(--taskmap-settings-island-padding);
 }
 
 .taskmap-settings-island > * {
@@ -140,6 +149,22 @@
   line-height: var(--taskmap-text-caption-line);
 }
 
+/* Interface island: compact two-column slider grid; the sleep delay spans both columns. */
+.taskmap-settings-interface-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--taskmap-space-2) var(--taskmap-space-4);
+}
+
+.taskmap-settings-interface-slider {
+  display: block;
+  min-width: 0;
+}
+
+.taskmap-settings-interface-grid__wide {
+  grid-column: 1 / -1;
+}
+
 .taskmap-settings-grid-controls {
   display: grid;
   grid-template-columns: 176px minmax(0, 1fr);
@@ -179,12 +204,13 @@
 .taskmap-settings-color-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--taskmap-space-2);
+  gap: 6px var(--taskmap-space-2);
 }
 
 .taskmap-settings-color-trigger {
   width: 100%;
-  height: var(--taskmap-row-height);
+  /* Compact rows so the Visual tab fits without scrolling (user direction 2026-09-30). */
+  height: 36px;
   justify-content: flex-start;
   padding: 0 var(--taskmap-space-2);
   text-align: left;
@@ -201,6 +227,9 @@
 .taskmap-settings-color-swatch {
   width: 20px;
   height: 20px;
+  /* Settings text line-heights leave rows on fractional pixels; rasterizing the swatch on its own
+     layer keeps its 1px edge even instead of a thin, dark bottom edge. */
+  will-change: transform;
   flex: none;
   border: 1px solid rgb(255 255 255 / 0.18);
   border-radius: var(--taskmap-space-1);
@@ -239,7 +268,7 @@
 }
 
 .taskmap-settings-data-action {
-  padding: var(--taskmap-space-2);
+  --taskmap-settings-island-padding: var(--taskmap-space-2);
 }
 
 .taskmap-settings-data-action .taskmap-button {
@@ -265,7 +294,7 @@
 }
 
 .taskmap-settings-shortcuts {
-  padding: var(--taskmap-space-2) var(--taskmap-space-3);
+  --taskmap-settings-island-padding: var(--taskmap-space-2) var(--taskmap-space-3);
 }
 
 .taskmap-settings-shortcut-row {

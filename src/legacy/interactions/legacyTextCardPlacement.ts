@@ -260,22 +260,7 @@ function visibleCards(
   const searched = query
     ? ordered.filter((card) => card.text.toLowerCase().includes(query))
     : ordered;
-  const picked = container.extensions?.pickCard?.selectedCardId;
-  const filtered = picked ? searched.filter(({ id }) => id === picked) : searched;
-  const sorting = container.extensions?.sorting;
-  if (!sorting?.mode) return filtered;
-  return [...filtered].sort((left, right) => {
-    const key = (card: TextCardElement) =>
-      sorting.mode === "alphabet"
-        ? card.text.replace(/[*_]/g, "").trim().toLocaleLowerCase()
-        : card.accent.toLocaleLowerCase();
-    const leftKey = key(left);
-    const rightKey = key(right);
-    const group = (value: string) => (/^[a-z]/i.test(value) ? 0 : 1);
-    const groupDifference = sorting.mode === "alphabet" ? group(leftKey) - group(rightKey) : 0;
-    const difference = leftKey.localeCompare(rightKey) || order(left, right);
-    return groupDifference || difference * (sorting.direction === "asc" ? 1 : -1);
-  });
+  return searched;
 }
 
 function previewGeometry(

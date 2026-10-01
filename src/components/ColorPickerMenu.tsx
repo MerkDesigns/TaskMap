@@ -1,14 +1,21 @@
 import { IconX } from "@tabler/icons-react";
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { ACCENT_PRESETS } from "../constants";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
+import { IconButton } from "../ui/primitives/Button";
+import { TextField } from "../ui/primitives/FormControls";
+import { Slider } from "../ui/primitives/SelectionControls";
+import "./ColorPickerMenu.css";
 
 type Rgb = { r: number; g: number; b: number };
 type Hsl = { h: number; s: number; l: number };
 
 type ColorPickerMenuProps = {
   className?: string;
+  /** Opened from a modal (e.g. Settings): render above modal scrims and dialogs. */
+  aboveModals?: boolean;
   color: string;
   left: number;
   top: number;
@@ -124,10 +131,17 @@ const hslToRgb = ({ h, s, l }: Hsl): Rgb => {
   };
 };
 
-const NUMBER_INPUT_CLASS =
-  "h-8 w-full rounded-md border border-white/[0.12] bg-black/[0.20] px-2 text-center text-xs text-white outline-none focus:border-white/30";
+const HUE_TRACK = "linear-gradient(90deg,#f44,#ff4,#4f4,#4ff,#44f,#f4f,#f44)";
+
+/** Each slider track shows the colours its range produces at the current other channels. */
+function sliderTrack(channel: "h" | "s" | "l", { h, s, l }: { h: number; s: number; l: number }) {
+  if (channel === "h") return HUE_TRACK;
+  if (channel === "s") return `linear-gradient(90deg,hsl(${h} 0% ${l}%),hsl(${h} 100% ${l}%))`;
+  return `linear-gradient(90deg,hsl(${h} ${s}% 0%),hsl(${h} ${s}% 50%),hsl(${h} ${s}% 100%))`;
+}
 
 export function ColorPickerMenu({
+  aboveModals = false,
   className,
   color,
   left,
@@ -136,12 +150,17 @@ export function ColorPickerMenu({
   onChange,
   onClose,
 }: ColorPickerMenuProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLElement | null>(null);
   const initialColorRef = useRef(rgbToHex(colorToRgb(color)));
   const currentColorRef = useRef(initialColorRef.current);
+  // Every colour this picker emitted while open. Callers persist each change and echo it back later,
+  // so a fast drag (hundreds of values) receives old echoes out of order; none may reset the editor.
+  const emittedColorsRef = useRef(new Set<string>());
   const [rgb, setRgb] = useState(() => colorToRgb(color));
   const [hexDraft, setHexDraft] = useState(initialColorRef.current);
-  const hsl = useMemo(() => rgbToHsl(rgb), [rgb]);
+  // H/S/L are edited directly: deriving them from rounded RGB on every change made the other
+  // sliders drift (and hue snap to 0 at low saturation) while dragging.
+  const [hsl, setHsl] = useState(() => rgbToHsl(colorToRgb(color)));
   const position = useClampedFixedPosition(menuRef, { left, top });
   const closePicker = useCallback(() => {
     const finalColor = currentColorRef.current;
@@ -150,7 +169,12 @@ export function ColorPickerMenu({
 
   useEffect(() => {
     const nextRgb = colorToRgb(color);
+    // The parent echoes each emitted colour back; only external changes re-derive the editor state.
+    const nextHex = rgbToHex(nextRgb);
+    if (nextHex === currentColorRef.current || emittedColorsRef.current.has(nextHex)) return;
+    currentColorRef.current = rgbToHex(nextRgb);
     setRgb(nextRgb);
+    setHsl(rgbToHsl(nextRgb));
     setHexDraft(rgbToHex(nextRgb));
   }, [color]);
 
@@ -174,15 +198,17 @@ export function ColorPickerMenu({
     };
   }, [closePicker]);
 
-  const commitRgb = (nextRgb: Rgb) => {
+  const commitRgb = (nextRgb: Rgb, nextHsl?: Hsl) => {
     const normalized = {
       r: clampChannel(nextRgb.r),
       g: clampChannel(nextRgb.g),
       b: clampChannel(nextRgb.b),
     };
     setRgb(normalized);
+    setHsl(nextHsl ?? rgbToHsl(normalized));
     const hex = rgbToHex(normalized);
     currentColorRef.current = hex;
+    emittedColorsRef.current.add(hex);
     setHexDraft(hex);
     onChange(hex);
   };
@@ -194,7 +220,7 @@ export function ColorPickerMenu({
   const changeHslChannel = (channel: keyof Hsl, event: ChangeEvent<HTMLInputElement>) => {
     const max = channel === "h" ? 360 : 100;
     const nextHsl = { ...hsl, [channel]: clampChannel(Number(event.target.value), max) };
-    commitRgb(hslToRgb(nextHsl));
+    commitRgb(hslToRgb(nextHsl), nextHsl);
   };
 
   const commitHex = () => {
@@ -206,133 +232,124 @@ export function ColorPickerMenu({
     }
   };
 
+  const swatch = (value: string, apply: string) => (
+    <button
+      key={value}
+      type="button"
+      className="taskmap-color-picker__swatch"
+      style={{ backgroundColor: value }}
+      onClick={() => commitRgb(colorToRgb(apply))}
+      title={value}
+      aria-label={value}
+    />
+  );
+
   return createPortal(
-    <div
-      ref={menuRef}
-      data-context-menu
-      data-color-picker-menu
-      className={`context-menu-enter fixed z-[1002] w-[286px] rounded-lg border border-white/[0.15] bg-[#1b1b1e] p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.52)] ${className ?? ""}`}
-      style={position}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="mb-3 flex items-center gap-2">
-        <input
-          type="color"
-          value={rgbToHex(rgb)}
-          onChange={(event) => commitRgb(colorToRgb(event.target.value))}
-          className="h-9 w-12 cursor-pointer rounded-md border border-white/[0.14] bg-transparent p-0.5"
-          title="Visual color picker"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-white/90">Extra colors</div>
-          <div className="text-[10px] uppercase text-white/42">{rgbToHex(rgb)}</div>
+    <div className="taskmap-target-theme">
+      <MaterialSurface
+        ref={menuRef}
+        material="opaque"
+        radius={8}
+        data-context-menu
+        data-color-picker-menu
+        role="dialog"
+        aria-label="Extra colors"
+        className={["taskmap-color-picker", className].filter(Boolean).join(" ")}
+        style={{ ...position, zIndex: aboveModals ? "var(--taskmap-layer-modal-overlay)" : 1002 }}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="taskmap-color-picker__header">
+          <input
+            type="color"
+            value={rgbToHex(rgb)}
+            onChange={(event) => commitRgb(colorToRgb(event.target.value))}
+            className="taskmap-color-picker__native"
+            title="Visual color picker"
+          />
+          <div className="taskmap-color-picker__identity">
+            <div className="taskmap-color-picker__title">Extra colors</div>
+            <div className="taskmap-color-picker__value">{rgbToHex(rgb)}</div>
+          </div>
+          <IconButton
+            variant="ghost"
+            size="compact"
+            aria-label="Close"
+            title="Close"
+            onClick={closePicker}
+            icon={<IconX size={17} stroke={2} />}
+          />
         </div>
-        <button
-          type="button"
-          className="grid h-8 w-8 place-items-center rounded-md text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-          onClick={closePicker}
-          title="Close"
-        >
-          <IconX size={18} stroke={2} />
-        </button>
-      </div>
 
-      <div className="grid grid-cols-[44px_1fr] items-center gap-2">
-        <label className="text-[11px] font-medium text-white/48">Hex</label>
-        <input
-          value={hexDraft}
-          onChange={(event) => setHexDraft(event.target.value.toUpperCase())}
-          onBlur={commitHex}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              commitHex();
-              event.currentTarget.blur();
-            }
-          }}
-          className="h-8 rounded-md border border-white/[0.12] bg-black/[0.20] px-2 text-xs uppercase text-white outline-none focus:border-white/30"
-          spellCheck={false}
-        />
-      </div>
+        <div className="taskmap-color-picker__row">
+          <span className="taskmap-color-picker__label">Hex</span>
+          <TextField
+            className="taskmap-color-picker__hex"
+            value={hexDraft}
+            onChange={(event) => setHexDraft(event.target.value.toUpperCase())}
+            onBlur={commitHex}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitHex();
+                event.currentTarget.blur();
+              }
+            }}
+            spellCheck={false}
+            aria-label="Hex"
+          />
+        </div>
 
-      <div className="mt-2 grid grid-cols-[44px_repeat(3,1fr)] items-center gap-2">
-        <span className="text-[11px] font-medium text-white/48">RGB</span>
-        {(["r", "g", "b"] as const).map((channel) => (
-          <label key={channel} className="min-w-0">
-            <span className="sr-only">{channel.toUpperCase()}</span>
-            <input
+        <div className="taskmap-color-picker__row taskmap-color-picker__row--rgb">
+          <span className="taskmap-color-picker__label">RGB</span>
+          {(["r", "g", "b"] as const).map((channel) => (
+            <TextField
+              key={channel}
+              className="taskmap-color-picker__number"
               type="number"
               min={0}
               max={255}
               value={rgb[channel]}
               onChange={(event) => changeRgbChannel(channel, event)}
-              className={NUMBER_INPUT_CLASS}
-            />
-          </label>
-        ))}
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {(["h", "s", "l"] as const).map((channel) => {
-          const max = channel === "h" ? 360 : 100;
-          const label = channel === "h" ? "Hue" : channel === "s" ? "Sat" : "Light";
-          return (
-            <label key={channel} className="grid grid-cols-[44px_1fr_34px] items-center gap-2">
-              <span className="text-[11px] font-medium text-white/48">{label}</span>
-              <input
-                type="range"
-                min={0}
-                max={max}
-                value={hsl[channel]}
-                onChange={(event) => changeHslChannel(channel, event)}
-                className="h-1.5 w-full cursor-pointer accent-white"
-                style={
-                  channel === "h"
-                    ? { background: "linear-gradient(90deg,#f44,#ff4,#4f4,#4ff,#44f,#f4f,#f44)" }
-                    : undefined
-                }
-              />
-              <span className="text-right text-[11px] tabular-nums text-white/62">
-                {hsl[channel]}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-
-      <div className="mt-3 border-t border-white/[0.10] pt-3">
-        <div className="grid grid-cols-8 gap-1.5">
-          {ACCENT_PRESETS.map((preset) => (
-            <button
-              key={preset.swatch}
-              type="button"
-              className="h-6 rounded border border-white/[0.12] transition-transform hover:scale-110"
-              style={{ backgroundColor: preset.swatch }}
-              onClick={() => commitRgb(colorToRgb(preset.accent))}
-              title={preset.swatch}
+              aria-label={channel.toUpperCase()}
             />
           ))}
         </div>
-      </div>
-      {recentColors.length > 0 && (
-        <div className="mt-2 border-t border-white/[0.08] pt-2">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/38">
-            Recent
-          </div>
-          <div className="grid grid-cols-8 gap-1.5">
-            {recentColors.map((recentColor) => (
-              <button
-                key={recentColor}
-                type="button"
-                className="h-6 rounded border border-white/[0.12] transition-transform hover:scale-110"
-                style={{ backgroundColor: recentColor }}
-                onClick={() => commitRgb(colorToRgb(recentColor))}
-                title={recentColor}
-              />
-            ))}
-          </div>
+
+        <div className="taskmap-color-picker__sliders">
+          {(["h", "s", "l"] as const).map((channel) => {
+            const max = channel === "h" ? 360 : 100;
+            const label = channel === "h" ? "Hue" : channel === "s" ? "Sat" : "Light";
+            return (
+              <label key={channel} className="taskmap-color-picker__slider-row">
+                <span className="taskmap-color-picker__label">{label}</span>
+                <Slider
+                  className="taskmap-slider--marker"
+                  min={0}
+                  max={max}
+                  step={1}
+                  value={hsl[channel]}
+                  onChange={(event) => changeHslChannel(channel, event)}
+                  aria-label={label}
+                  style={{ "--taskmap-slider-track": sliderTrack(channel, hsl) } as CSSProperties}
+                />
+                <span className="taskmap-color-picker__slider-value">{hsl[channel]}</span>
+              </label>
+            );
+          })}
         </div>
-      )}
+
+        <div className="taskmap-color-picker__swatches">
+          {ACCENT_PRESETS.map((preset) => swatch(preset.swatch, preset.accent))}
+        </div>
+        {recentColors.length > 0 && (
+          <div className="taskmap-color-picker__recent">
+            <div className="taskmap-color-picker__section-label">Recent</div>
+            <div className="taskmap-color-picker__swatches taskmap-color-picker__swatches--plain">
+              {recentColors.map((recentColor) => swatch(recentColor, recentColor))}
+            </div>
+          </div>
+        )}
+      </MaterialSurface>
     </div>,
     document.body,
   );

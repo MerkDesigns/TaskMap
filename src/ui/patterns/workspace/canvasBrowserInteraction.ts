@@ -1,3 +1,5 @@
+import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
+
 export const CANVAS_CARD_DRAG_THRESHOLD = 6;
 export const CANVAS_CARD_SLOT_TRANSITION_MS = 190;
 export const CANVAS_CARD_PICKUP_MS = 150;
@@ -112,4 +114,35 @@ function normalizedProgress(value: number, start: number, end: number) {
 
 function smoothstep(progress: number) {
   return progress * progress * (3 - 2 * progress);
+}
+
+/** Order after moving the held card to the slot under its interaction center. */
+export function nextCanvasCardDragOrder<Id extends string>(
+  drag: {
+    readonly id: Id;
+    readonly order: readonly Id[];
+    readonly pointerY: number;
+    readonly pointerOffsetY: number;
+    readonly cardHeight: number;
+  },
+  listTop: number,
+  listBottom: number,
+  scrollY: number,
+): readonly Id[] {
+  const center = calculateCanvasCardInteractionCenter(
+    drag.pointerY,
+    drag.pointerOffsetY,
+    listTop,
+    listBottom,
+    drag.cardHeight,
+  );
+  const targetIndex = calculateCanvasCardInsertionIndex(
+    drag.order,
+    drag.id,
+    center,
+    listTop,
+    scrollY,
+    drag.cardHeight + CANVAS_BROWSER_LAYOUT.cardGap,
+  );
+  return reorderCanvasCardToIndex(drag.order, drag.id, targetIndex);
 }

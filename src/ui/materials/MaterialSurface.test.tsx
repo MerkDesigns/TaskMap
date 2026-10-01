@@ -77,7 +77,7 @@ describe("MaterialSurface", () => {
     expect(surface.style.getPropertyValue("--taskmap-material-content-clip-inset")).toBe("2px");
     expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("60px");
     expect(surface.style.getPropertyValue("--taskmap-material-brightness")).toBe("0.82");
-    expect(surface.style.getPropertyValue("--taskmap-material-border-brightness")).toBe("1");
+    expect(surface.style.getPropertyValue("--taskmap-material-border-brightness")).toBe("0.98");
     expect(surface.querySelector(".taskmap-material-native-glass__preblur")).toHaveAttribute(
       "data-enabled",
       "true",

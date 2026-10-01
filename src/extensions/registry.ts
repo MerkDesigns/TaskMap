@@ -1,12 +1,8 @@
 import {
-  IconArrowsShuffle,
-  IconArrowsSort,
-  IconCalendarRepeat,
   IconCards,
   IconBraces,
   IconCheckbox,
   IconChecklist,
-  IconTerminal2,
   IconPalette,
   IconColorSwatch,
   IconLock,
@@ -15,21 +11,16 @@ import {
   type Icon as TablerIcon,
 } from "@tabler/icons-react";
 import type { ElementExtensions } from "../types";
-import { getLocalDateKey } from "../utils/date";
 
 export type ExtensionId =
   | "privacy"
   | "lock"
   | "colorPicker"
   | "search"
-  | "sorting"
   | "checkbox"
-  | "commandRunner"
   | "autoCheckbox"
-  | "dailyReset"
   | "counter"
   | "inheritCardColor"
-  | "pickCard"
   | "copyPasteJson";
 
 export type ExtensionTargetType = "container" | "text-block" | "text-card" | "mindmap" | "image";
@@ -40,7 +31,6 @@ export type ExtensionDefinition<Id extends ExtensionId = ExtensionId> = {
   description: string;
   Icon: TablerIcon;
   targets: readonly ExtensionTargetType[];
-  conflicts?: readonly ExtensionId[];
   createDefault: () => NonNullable<ElementExtensions[Id]>;
 };
 
@@ -80,30 +70,12 @@ export const EXTENSIONS = [
     createDefault: () => ({ query: "" }),
   }),
   defineExtension({
-    id: "sorting",
-    label: "Sorting",
-    description: "Sort container cards",
-    Icon: IconArrowsSort,
-    targets: ["container"],
-    createDefault: () => ({ mode: null, direction: "asc" }),
-  }),
-  defineExtension({
     id: "checkbox",
     label: "Checkbox",
     description: "Add checkable text cards",
     Icon: IconCheckbox,
     targets: ["text-card"],
-    conflicts: ["commandRunner"],
     createDefault: () => ({ checked: false }),
-  }),
-  defineExtension({
-    id: "commandRunner",
-    label: "Command Runner",
-    description: "Run saved commands",
-    Icon: IconTerminal2,
-    targets: ["text-card"],
-    conflicts: ["checkbox"],
-    createDefault: () => ({ commands: [] }),
   }),
   defineExtension({
     id: "autoCheckbox",
@@ -112,14 +84,6 @@ export const EXTENSIONS = [
     Icon: IconChecklist,
     targets: ["container"],
     createDefault: () => ({ enabled: true }),
-  }),
-  defineExtension({
-    id: "dailyReset",
-    label: "Daily resets",
-    description: "Reset card checkboxes daily",
-    Icon: IconCalendarRepeat,
-    targets: ["container"],
-    createDefault: () => ({ lastResetDate: getLocalDateKey() }),
   }),
   defineExtension({
     id: "counter",
@@ -136,14 +100,6 @@ export const EXTENSIONS = [
     Icon: IconColorSwatch,
     targets: ["container"],
     createDefault: () => ({ enabled: true }),
-  }),
-  defineExtension({
-    id: "pickCard",
-    label: "Pick a card",
-    description: "Show one random card",
-    Icon: IconArrowsShuffle,
-    targets: ["container"],
-    createDefault: () => ({}),
   }),
   defineExtension({
     id: "copyPasteJson",
@@ -175,26 +131,10 @@ export const EXTENSION_COMPATIBLE_TARGETS = EXTENSIONS.reduce(
   {} as Record<ExtensionId, ReadonlySet<ExtensionTargetType>>,
 );
 
-export const EXTENSION_CONFLICTS = EXTENSIONS.reduce(
-  (conflicts, extension) => {
-    conflicts[extension.id] = new Set<ExtensionId>(
-      "conflicts" in extension ? extension.conflicts : [],
-    );
-    return conflicts;
-  },
-  {} as Record<ExtensionId, ReadonlySet<ExtensionId>>,
-);
-
 export const isExtensionCompatible = (extensionId: ExtensionId, target: ExtensionTargetType) =>
   EXTENSION_COMPATIBLE_TARGETS[extensionId].has(target);
 
 export const addAutomaticCheckbox = (extensions?: ElementExtensions): ElementExtensions => {
-  const hasConflict = [...EXTENSION_CONFLICTS.checkbox].some(
-    (extensionId) => extensions?.[extensionId] !== undefined,
-  );
-  if (hasConflict) {
-    return { ...extensions };
-  }
   return {
     ...extensions,
     checkbox: extensions?.checkbox ?? EXTENSION_REGISTRY.checkbox.createDefault(),

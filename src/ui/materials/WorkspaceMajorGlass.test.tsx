@@ -48,9 +48,13 @@ it("projects motion from cached bounds and removes registrations without measuri
   const owner = createWorkspaceMajorOwner(() => plane);
   const dispose = owner.register(panel, 20);
   [...frames.values()].forEach((fn) => fn(0));
-  // Layered mask: position moves with presentation; opacity is baked into a cached image.
+  // Layered mask: position moves with presentation; fades use generated gradient layers.
   const position = () => plane.style.getPropertyValue("--taskmap-plane-mask-position");
-  const image = () => decodeURIComponent(plane.style.getPropertyValue("--taskmap-plane-mask"));
+  const image = () => {
+    const value = plane.style.getPropertyValue("--taskmap-plane-mask");
+    // Gradient layers contain literal percentages; only SVG image layers are URI-encoded.
+    return value.includes("data:image") ? decodeURIComponent(value) : value;
+  };
   const mask = () => `${image()}|${position()}`;
   expect(position()).toBe("-84px 71px");
   measure.mockClear();
@@ -58,8 +62,9 @@ it("projects motion from cached bounds and removes registrations without measuri
   expect(position()).toBe("16px 71px");
   const opaqueImage = image();
   supplyMaterialPresentation(panel, { opacity: 0.5 });
-  expect(image()).toContain('fill-opacity="0.5"');
-  expect(position()).toBe("16px 71px");
+  expect(image()).toContain("rgb(0 0 0 / 0.5)");
+  expect(image()).not.toContain("data:image");
+  expect(position().startsWith("16px 71px")).toBe(true);
   supplyMaterialPresentation(panel, { opacity: 1 });
   expect(image()).toBe(opaqueImage);
   expect(measure).not.toHaveBeenCalled();

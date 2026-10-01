@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
@@ -15,14 +15,12 @@ describe("FloatingToolbar", () => {
       canUndo: true,
       minimapEnabled: false,
       privacyModeEnabled: true,
-      toolbarButtonsVisible: true,
     });
     render(<FloatingToolbar {...props} />);
 
     for (const name of ["Canvases", "Extensions", "Settings", "Undo", "Redo"]) {
       await user.click(screen.getByRole("button", { name }));
     }
-    await user.click(screen.getByRole("button", { name: "Hide toolbar buttons" }));
     await user.click(screen.getByRole("button", { name: "Disable privacy mode" }));
     await user.click(screen.getByRole("button", { name: "Enable minimap" }));
 
@@ -31,7 +29,6 @@ describe("FloatingToolbar", () => {
     expect(props.onOpenSettings).toHaveBeenCalledOnce();
     expect(props.onUndo).toHaveBeenCalledOnce();
     expect(props.onRedo).toHaveBeenCalledOnce();
-    expect(props.onToolbarButtonsVisibleChange).toHaveBeenCalledWith(false);
     expect(props.onPrivacyModeEnabledChange).toHaveBeenCalledWith(false);
     expect(props.onMinimapEnabledChange).toHaveBeenCalledWith(true);
   });
@@ -71,38 +68,21 @@ describe("FloatingToolbar", () => {
     expect(screen.getByLabelText("Canvas toolbar")).not.toHaveAttribute("data-side-panel-open");
   });
 
-  it("keeps collapsed controls aria-hidden and outside the tab order", () => {
-    const { rerender } = render(
-      <FloatingToolbar {...toolbarProps({ toolbarButtonsVisible: false })} />,
+  it("shows six plain controls, ending with the sleep mode toggle, and no collapse control", () => {
+    render(<FloatingToolbar {...toolbarProps()} />);
+    const workspace = screen.getByRole("group", { name: "Workspace controls" });
+    const names = [...workspace.querySelectorAll("button")].map((button) =>
+      button.getAttribute("aria-label"),
     );
-    const expand = screen.getByRole("button", { name: "Show toolbar buttons" });
-    const privacy = screen.getByTitle("Enable privacy mode");
-    const minimap = screen.getByTitle("Enable minimap");
-    const optionalControls = privacy.parentElement;
-
-    expect(expand).toHaveAttribute("aria-expanded", "false");
-    expect(optionalControls).toHaveAttribute("aria-hidden", "true");
-    expect(privacy).toHaveAttribute("tabindex", "-1");
-    expect(minimap).toHaveAttribute("tabindex", "-1");
-
-    rerender(<FloatingToolbar {...toolbarProps({ toolbarButtonsVisible: true })} />);
-
-    expect(screen.getByRole("button", { name: "Hide toolbar buttons" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Enable privacy mode" })).toHaveAttribute(
-      "tabindex",
-      "-1",
-    );
-    expect(screen.getByRole("button", { name: "Enable minimap" })).toHaveAttribute(
-      "tabindex",
-      "-1",
-    );
-    expect(screen.getByTitle("Enable privacy mode").parentElement).toHaveAttribute(
-      "aria-hidden",
-      "false",
-    );
+    expect(names).toEqual([
+      "Canvases",
+      "Extensions",
+      "Settings",
+      "Enable privacy mode",
+      "Enable minimap",
+      "Enable sleep mode",
+    ]);
+    expect(screen.queryByRole("button", { name: /toolbar buttons/ })).toBeNull();
   });
 
   it("uses two Acrylic Large groups and the cheap geometry invalidation seam", () => {
@@ -124,25 +104,9 @@ describe("FloatingToolbar", () => {
       );
     });
     expect(registry.getSnapshot().surfaces).toEqual([]);
-    const invalidationsAfterMount = notifySurfaceGeometryChanged.mock.calls.length;
-    const privacy = screen.getByTitle("Enable privacy mode");
-    const optionalControls = privacy.parentElement as HTMLElement;
-
-    dispatchTransitionEnd(optionalControls, "opacity");
-    dispatchTransitionEnd(privacy, "transform");
-    dispatchTransitionEnd(privacy, "max-width");
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(invalidationsAfterMount);
-
-    dispatchTransitionEnd(optionalControls, "max-width");
     expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
   });
 });
-
-function dispatchTransitionEnd(element: HTMLElement, propertyName: string): void {
-  const event = new Event("transitionend", { bubbles: true });
-  Object.defineProperty(event, "propertyName", { value: propertyName });
-  fireEvent(element, event);
-}
 
 function toolbarProps(overrides: Partial<FloatingToolbarProps> = {}): FloatingToolbarProps {
   return {
@@ -152,11 +116,11 @@ function toolbarProps(overrides: Partial<FloatingToolbarProps> = {}): FloatingTo
     extensionsOpen: false,
     minimapEnabled: false,
     privacyModeEnabled: false,
-    toolbarButtonsVisible: true,
+    sleepModeEnabled: false,
+    onSleepModeEnabledChange: vi.fn(),
     onMinimapEnabledChange: vi.fn(),
     onPrivacyModeEnabledChange: vi.fn(),
     onRedo: vi.fn(),
-    onToolbarButtonsVisibleChange: vi.fn(),
     onToggleExtensions: vi.fn(),
     onToggleCanvases: vi.fn(),
     onUndo: vi.fn(),

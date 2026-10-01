@@ -21,7 +21,7 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
 
     expect(pattern).toContain('material={embedded ? "opaque" : "acrylic-small"}');
     expect(pattern).toContain('material="cutout"');
-    expect(pattern).toContain("radius = 8");
+    expect(pattern).toContain("radius = 10");
     expect(pattern).toContain("radius = 6");
     expect(pattern).toContain("radius={radius}");
     expect(css).toContain("min-height: 58px");
@@ -67,10 +67,10 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(quick).toContain("<ExtensionBrowserCard");
     expect(quick).not.toContain("frosted-glass");
 
-    expect(main).toContain("data-extension-filter-menu");
-    expect(main).toContain("context-menu-panel context-menu-enter");
-    expect(main).toContain("createPortal(");
-    expect(main).not.toMatch(/ContextMenu\b|material="(?:opaque|acrylic-small)"/);
+    // The filter uses the shared ContextMenu (portaled, checkable items), not a local panel.
+    expect(main).toContain("<ContextMenu");
+    expect(main).toContain("checked={selectedTargets.includes(target)}");
+    expect(main).not.toMatch(/context-menu-panel|context-menu-enter/);
     expect(main).not.toMatch(/QuickExtensionsMenu|Minimap|Settings/);
   });
 

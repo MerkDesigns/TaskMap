@@ -21,6 +21,12 @@
   touch-action: none;
 }
 
+/* The window stays draggable while a modal (e.g. Settings) is open: rise above its scrim. The
+   toolbar is covered by the scrim then, so the strip no longer competes with it. */
+:root[data-taskmap-modal-open="true"] .taskmap-window-drag-region {
+  z-index: calc(var(--taskmap-layer-modal-scrim) + 1);
+}
+
 .taskmap-workspace-chrome-layer > .taskmap-floating-canvas-toolbar,
 .taskmap-window-controls {
   z-index: 1;

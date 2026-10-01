@@ -199,7 +199,7 @@ describe("C2D Canvas Browser cards", () => {
     render(<CanvasManager {...props} embedded />);
 
     await user.click(screen.getByRole("button", { name: "Canvas menu" }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     const name = screen.getByRole("textbox", { name: "Name" });
     const width = screen.getByRole("spinbutton", { name: "Width" });
     const height = screen.getByRole("spinbutton", { name: "Height" });
@@ -219,19 +219,19 @@ describe("C2D Canvas Browser cards", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Canvas menu" }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     fireEvent.keyDown(screen.getByRole("textbox", { name: "Name" }), { key: "Escape" });
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     expect(props.onUpdateCanvas).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "Canvas menu" }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     expect(props.onUpdateCanvas).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "Canvas menu" }));
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
       target: { value: "Button save" },
     });
@@ -252,7 +252,7 @@ describe("C2D Canvas Browser cards", () => {
     expect(trigger).toHaveAttribute("data-canvas-menu-trigger");
     expect(trigger).toHaveAttribute("title", "Canvas menu");
     await user.click(trigger);
-    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
     expect(props.onSelectCanvas).not.toHaveBeenCalled();
     expect(container.querySelector('[data-canvas-card-id="canvas-a"]')).toBeInTheDocument();
   });
@@ -278,7 +278,7 @@ describe("C2D Canvas Browser cards", () => {
     });
 
     fireEvent.click(document.querySelectorAll<HTMLButtonElement>("[data-canvas-menu-trigger]")[1]!);
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
     expect(props.onDeleteCanvas).toHaveBeenCalledWith("canvas-b");
   });
 

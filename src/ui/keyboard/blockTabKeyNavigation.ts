@@ -6,7 +6,7 @@ export function blockTabKeyNavigation(event: KeyboardEvent): void {
     event.target.closest('[data-native-tab-navigation="true"]')
   )
     return;
+  // Only cancel the browser's focus traversal: app shortcuts (panel toggles, canvas cycling) and
+  // dialog focus traps still receive Tab.
   event.preventDefault();
-  event.stopImmediatePropagation();
-  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }

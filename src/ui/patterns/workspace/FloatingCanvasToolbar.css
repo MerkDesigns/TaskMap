@@ -45,34 +45,3 @@
   color: var(--taskmap-accent);
   box-shadow: none;
 }
-
-.taskmap-floating-canvas-toolbar__optional-controls {
-  display: flex;
-  align-items: center;
-  max-width: calc(
-    var(--taskmap-control-height-compact) + var(--taskmap-control-height-compact) +
-      var(--taskmap-space-1)
-  );
-  gap: var(--taskmap-space-1);
-  overflow: hidden;
-  opacity: 1;
-  transform: translateX(0);
-  transition:
-    max-width var(--taskmap-motion-fast) var(--taskmap-ease-standard),
-    opacity var(--taskmap-motion-fast) var(--taskmap-ease-standard),
-    transform var(--taskmap-motion-fast) var(--taskmap-ease-emphasized);
-}
-
-.taskmap-floating-canvas-toolbar__optional-controls[aria-hidden="true"] {
-  max-width: 0;
-  margin-left: calc(-1 * var(--taskmap-space-1));
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(var(--taskmap-space-2));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .taskmap-floating-canvas-toolbar__optional-controls {
-    transition-duration: 1ms;
-  }
-}

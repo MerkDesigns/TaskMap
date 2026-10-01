@@ -39,7 +39,7 @@ describe("C2C workspace panels", () => {
       ).not.toBeNull();
       expect(panel.querySelector(".taskmap-material-native-glass__backdrop")).not.toBeNull();
     }
-    expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(16);
+    expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(12);
     expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(document.querySelectorAll(".taskmap-scroll-area.taskmap-scrollbar-hidden")).toHaveLength(
       1,
@@ -180,10 +180,9 @@ describe("C2C workspace panels", () => {
     const panel = screen.getByLabelText("Extensions panel");
 
     await user.click(screen.getByTitle("Filter by element"));
-    const filterMenu = screen.getByRole("button", { name: /Mindmaps/ }).parentElement;
-    expect(filterMenu).not.toBeNull();
+    const filterMenu = screen.getByRole("menu", { name: "Filter by element" });
     expect(panel.contains(filterMenu)).toBe(false);
-    expect(filterMenu?.parentElement).toBe(document.body);
+    expect(filterMenu.parentElement?.parentElement).toBe(document.body);
   });
 });
 
