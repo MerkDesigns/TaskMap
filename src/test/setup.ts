@@ -30,3 +30,9 @@ if (typeof document !== "undefined" && !document.elementFromPoint) {
     target = null;
   });
 }
+
+// jsdom has no canvas rendering. Behave like a browser without that context type instead of
+// logging "not implemented" for every canvas; tests that draw install their own mock.
+if (typeof HTMLCanvasElement !== "undefined") {
+  HTMLCanvasElement.prototype.getContext = (() => null) as HTMLCanvasElement["getContext"];
+}

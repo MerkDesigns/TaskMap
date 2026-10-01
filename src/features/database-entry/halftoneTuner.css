@@ -1,0 +1,62 @@
+.taskmap-halftone-tuner {
+  position: fixed;
+  left: var(--taskmap-space-4);
+  bottom: var(--taskmap-space-4);
+  z-index: var(--taskmap-layer-modal-overlay);
+  display: grid;
+  gap: var(--taskmap-space-2);
+  width: 300px;
+  max-height: calc(100vh - 2 * var(--taskmap-space-4));
+  overflow: hidden auto;
+  padding: var(--taskmap-space-3);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-large);
+  background: rgb(18 18 20 / 0.94);
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-halftone-tuner__header,
+.taskmap-halftone-tuner__label,
+.taskmap-halftone-tuner__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-halftone-tuner__header {
+  font-weight: 650;
+}
+
+.taskmap-halftone-tuner__row {
+  display: grid;
+  gap: 2px;
+}
+
+.taskmap-halftone-tuner__label {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-halftone-tuner__label output {
+  color: var(--taskmap-text);
+  font-family: var(--taskmap-font-monospace);
+}
+
+.taskmap-halftone-tuner__row input {
+  width: 100%;
+  accent-color: var(--taskmap-accent);
+}
+
+.taskmap-halftone-tuner input[type="checkbox"] {
+  accent-color: var(--taskmap-accent);
+}
+
+.taskmap-halftone-tuner input[type="color"] {
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: var(--taskmap-space-1);
+  background: none;
+}

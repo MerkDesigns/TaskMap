@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
 import { MaterialSurface } from "../../ui/materials/MaterialSurface";
 import { WorkspaceRoot } from "../../ui/patterns/workspace/WorkspaceRoot";
 import { setWorkspaceRadii, useWorkspaceRadii } from "../../ui/patterns/workspace/workspaceRadii";
@@ -9,6 +9,7 @@ import {
   type DatabaseEntryStage,
 } from "./DatabaseEntryProgress";
 import { DatabasePasswordForm } from "./DatabasePasswordForm";
+import { HalftoneBackdrop } from "./HalftoneBackdrop";
 import { useDatabaseEntry } from "./useDatabaseEntry";
 import { useUnlockReveal } from "./useUnlockReveal";
 import { databaseEntryError } from "./databaseEntryErrors";
@@ -26,6 +27,8 @@ export const readableDatabasePath = (path: string) =>
 
 // Work shorter than this never dims controls or shows a cancel button, so quick steps stay still.
 const LATE_BUSY_MS = 450;
+// Live halftone tuning for development builds only; the stable build drops the import entirely.
+const HalftoneTuner = import.meta.env.DEV ? lazy(() => import("./HalftoneTuner")) : null;
 const SLOW_PREPARING_MS = 1000;
 
 /** No runtime construction or disposal here: the application boot owner supplies one session. */
@@ -139,7 +142,9 @@ export function DatabaseSessionGate({
       >
         {/* The dark backdrop is its own layer so the reveal can clear it without fading the panel's
           ancestors (which would flatten its glass). */}
-        <div ref={backdropRef} className="taskmap-database-entry__backdrop" aria-hidden="true" />
+        <div ref={backdropRef} className="taskmap-database-entry__backdrop" aria-hidden="true">
+          <HalftoneBackdrop />
+        </div>
         {showPanel ? (
           <MaterialSurface
             ref={panelRef}
@@ -295,6 +300,12 @@ export function DatabaseSessionGate({
           </MaterialSurface>
         ) : null}
       </WorkspaceRoot>
+      {/* Outside the entry root, so the entry's initial focus never lands on a tuner control. */}
+      {HalftoneTuner && reveal === "none" ? (
+        <Suspense fallback={null}>
+          <HalftoneTuner />
+        </Suspense>
+      ) : null}
     </>
   );
 }

@@ -45,6 +45,7 @@ const DEVELOPMENT_MARKERS = [
   "taskmap-workbench",
   "taskmap-stable-glass-plane",
   "taskmap-stable-glass-surface",
+  "taskmap-halftone-tuner",
   "Workspace admitted (preview)",
   "recovered-preview-token",
   "Entry preview — simulated files",

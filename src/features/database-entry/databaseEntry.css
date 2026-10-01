@@ -149,6 +149,11 @@
   inset: 0;
   background: var(--taskmap-void-bg);
 }
+.taskmap-database-entry__halftone {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 /* Over the freshly mounted workspace: below the window controls, above the workspace chrome. */
 .taskmap-database-entry[data-unlock-reveal] {
   position: fixed;
@@ -203,4 +208,17 @@
   color: var(--taskmap-warning);
   font-size: var(--taskmap-text-small-size);
   font-weight: 600;
+}
+
+/* Text lines are inset to where the rounded input fields visibly begin, so every left edge in the
+   panel lines up with the fields rather than with their outer corner. */
+.taskmap-database-entry h1,
+.taskmap-database-entry__path,
+.taskmap-database-entry__hint,
+.taskmap-database-entry__privacy,
+.taskmap-database-entry__error,
+.taskmap-database-entry .taskmap-field__label,
+.taskmap-database-entry .taskmap-field__description,
+.taskmap-database-entry .taskmap-field__error {
+  padding-left: 4px;
 }

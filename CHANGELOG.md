@@ -14,6 +14,8 @@ Architecture v1 (`architecture-v1`), not yet released.
   encryption); images and GIFs are stored unencrypted for performance.
 - Unlock screen that opens the most recent database directly, with a recent-database list, Caps
   Lock indicator and password reveal toggle.
+- Animated halftone background behind the unlock screen: accent-coloured dots that grow and shrink
+  with slowly flowing noise (a still frame when reduced motion is on).
 - Unlock and lock animations: the workspace is revealed with a zoom-and-fade and covered again on
   lock.
 - Sleep mode: toolbars and window controls hide after a configurable period of inactivity and return
