@@ -159,6 +159,10 @@ export function useRetainedCanvasSettings(): ReturnType<typeof useLegacyCanvasSe
     setChromeAutoHideDelayMs: preferenceSetter("chromeAutoHideDelayMs"),
     chromeRadii: preferences.chromeRadii,
     setChromeRadii: preferenceSetter("chromeRadii"),
+    closeToTray: preferences.closeToTray,
+    setCloseToTray: preferenceSetter("closeToTray"),
+    trayLockMinutes: preferences.trayLockMinutes,
+    setTrayLockMinutes: preferenceSetter("trayLockMinutes"),
     dismissedUpdateVersion: preferences.dismissedUpdateVersion ?? undefined,
     setDismissedUpdateVersion(value) {
       void runtime.preferences

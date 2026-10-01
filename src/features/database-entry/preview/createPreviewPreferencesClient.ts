@@ -19,6 +19,8 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       privacyModeEnabled: false,
       chromeAutoHideEnabled: false,
       chromeAutoHideDelayMs: 3000,
+      closeToTray: true,
+      trayLockMinutes: 0,
       chromeRadii: { ...DEFAULT_CHROME_RADII },
       dismissedUpdateVersion: null,
     },

@@ -92,6 +92,7 @@ pub(crate) fn app_list_recent_databases(
 }
 
 pub(crate) fn reopen_main_window(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
+    crate::tray::cancel_lock(app);
     let reopened = if let Some(window) = app.get_webview_window("main") {
         window.unminimize()?;
         window.show()?;
@@ -137,7 +138,32 @@ pub(crate) fn app_destroy_main_window(
     if let Err(error) = crate::window_state::save_window_state(&window) {
         eprintln!("Failed to save window state: {error}");
     }
-    window.destroy().map_err(|error| error.to_string())
+    window.destroy().map_err(|error| error.to_string())?;
+    // The frontend saved before asking; now the device setting decides between tray and quit.
+    let (close_to_tray, tray_lock_minutes) = window_close_policy(&app);
+    if !close_to_tray {
+        crate::tray::quit_now(&app);
+    } else if app.state::<DatabaseSessionState>().has_open_session() {
+        crate::tray::arm_lock(&app, tray_lock_minutes);
+    }
+    Ok(())
+}
+
+/// Unreadable preferences fall back to the shipped default: keep running in the tray, no timer.
+fn window_close_policy(app: &tauri::AppHandle) -> (bool, u32) {
+    app.path()
+        .app_config_dir()
+        .ok()
+        .and_then(|directory| {
+            crate::settings::device_preferences::load(&directory, &application_edition(app)).ok()
+        })
+        .map(|state| {
+            (
+                state.preferences.close_to_tray,
+                state.preferences.tray_lock_minutes,
+            )
+        })
+        .unwrap_or((true, 0))
 }
 
 pub(super) fn ensure_session_keeper(app: &tauri::AppHandle) -> CommandResult<()> {

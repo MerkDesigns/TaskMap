@@ -725,6 +725,10 @@ function App({
     setChromeAutoHideDelayMs,
     chromeRadii,
     setChromeRadii,
+    closeToTray,
+    setCloseToTray,
+    trayLockMinutes,
+    setTrayLockMinutes,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit,
@@ -7676,6 +7680,11 @@ function App({
                           return locked;
                         },
                         close: async () => (await retained.runtime.controller.close()).ok,
+                        quit: async () => (await retained.runtime.controller.quit()).ok,
+                        closeToTray,
+                        onCloseToTrayChange: setCloseToTray,
+                        trayLockMinutes,
+                        onTrayLockMinutesChange: setTrayLockMinutes,
                       }
                     : undefined
                 }

@@ -48,9 +48,12 @@ The raw password must never be written to disk, logs, analytics, crash reports, 
 
 ### Close window
 
-Closing the visible window keeps the background TaskMap session active. Unsaved document changes are validated and saved before destruction; if that save fails, close is prevented. The derived key remains in process memory, so reopening the window during that session does not require the password.
+Unsaved document changes are validated and saved before the window closes; if that save fails, close is prevented. What happens next is the device setting **Keep running in the tray** (`closeToTray`, default on), read by the backend after the save:
 
-TaskMap uses a hidden, content-free session-keeper webview (`session-keeper.html`) instead of tray controls. Launching the same edition again activates the single-instance callback and recreates or shows the main window. If recreation cannot produce a safe document window, the backend closes the session, destroys the keeper, and exits instead of leaving an inaccessible unlocked process.
+- **On:** the background session stays active and unlocked. The derived key remains in process memory, so reopening the window during that session does not require the password. A tray icon shows that TaskMap is running and offers _Open TaskMap_ and _Quit TaskMap_. The optional **Lock in the tray after** setting (`trayLockMinutes`: never, 15 minutes, 1 hour or 4 hours) locks the session and exits once the window has stayed closed that long; reopening cancels the timer.
+- **Off:** closing quits (see Quit).
+
+A hidden, content-free session-keeper webview (`session-keeper.html`) keeps the process alive while the window is closed and receives Windows session notifications. Locking destroys the keeper with the key, so a locked session never stays behind in the tray: with the window closed, locking ends the process (the tray therefore offers Quit, not Lock). Launching the same edition again, or _Open TaskMap_ in the tray, activates the single-instance callback and recreates or shows the main window. If recreation cannot produce a safe document window, the backend closes the session, destroys the keeper, and exits instead of leaving an inaccessible unlocked process.
 
 ### Explicit lock
 
@@ -78,7 +81,7 @@ Configurable inactivity locking remains unimplemented and is not claimed as comp
 
 ### Quit
 
-Quit terminates the visible window and background process, clears key material, releases database and process locks, and requires the password on the next launch.
+Quit terminates the visible window and background process, clears key material, releases database and process locks, and requires the password on the next launch. It is available as _Quit TaskMap_ in Settings → Database and in the tray menu; with the window open, the tray asks the window to save and quit through its session controller, and with the window closed (everything already saved) the backend quits directly.
 
 ## Key memory
 

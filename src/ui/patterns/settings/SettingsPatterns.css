@@ -339,3 +339,7 @@
 .taskmap-settings-data-action .taskmap-settings-data-grid {
   gap: var(--taskmap-space-2);
 }
+
+.taskmap-settings-session-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}

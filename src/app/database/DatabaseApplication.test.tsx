@@ -9,6 +9,7 @@ const fixture = vi.hoisted(() => ({
 }));
 vi.mock("../../platform/window/tauriWindowCloseClient", () => ({
   tauriWindowCloseClient: { destroy: fixture.destroy, onCloseRequested: async () => () => {} },
+  listenForQuitRequests: async () => () => {},
 }));
 vi.mock("./createTauriDatabaseSessionController", () => ({
   createTauriDatabaseSessionController: fixture.create,

@@ -26,6 +26,8 @@ export function useLegacyCanvasSettings() {
   const [chromeAutoHideEnabled, setChromeAutoHideEnabled] = useState(false);
   const [chromeAutoHideDelayMs, setChromeAutoHideDelayMs] = useState(3000);
   const [chromeRadii, setChromeRadii] = useState<ChromeRadii>(DEFAULT_CHROME_RADII);
+  const [closeToTray, setCloseToTray] = useState(true);
+  const [trayLockMinutes, setTrayLockMinutes] = useState(0);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
     undefined,
   );
@@ -54,6 +56,10 @@ export function useLegacyCanvasSettings() {
     setChromeAutoHideDelayMs,
     chromeRadii,
     setChromeRadii,
+    closeToTray,
+    setCloseToTray,
+    trayLockMinutes,
+    setTrayLockMinutes,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit: undefined as SettingsGesture | undefined,

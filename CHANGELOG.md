@@ -32,6 +32,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 - Unlocking is much faster (about 0.15 s from Unlock to workspace on a typical database).
 - The Canvas Browser opens automatically after unlocking.
+- Closing the window keeps TaskMap running in the tray (unlocked, reopens without the password),
+  with a tray icon offering Open and Quit. Settings → Database can switch closing to quit instead,
+  lock and quit after 15 minutes, 1 hour or 4 hours in the tray, and adds a Quit TaskMap button.
 - Settings: Lock database and Close database share one island, Check for updates sits at the
   bottom of the Misc tab, and "Shadows below elements" is renamed "Canvas-only shadows".
 

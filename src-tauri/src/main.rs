@@ -9,6 +9,7 @@ mod image_processing;
 mod session;
 mod settings;
 mod storage_preview;
+mod tray;
 mod webview_autofill;
 mod window_state;
 
@@ -64,6 +65,7 @@ fn main() {
         }))
         .manage(DatabaseSessionState::default())
         .manage(DatabasePathAuthorizationState::default())
+        .manage(tray::TrayLock::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init());
@@ -84,6 +86,8 @@ fn main() {
                 eprintln!("TaskMap storage-free preview: no database, keyring, image GC or window-state access");
                 return Ok(());
             }
+
+            tray::install(app.handle())?;
 
             if let Some(window) = app.get_webview_window("main") {
                 webview_autofill::disable_webview_autofill(&window);

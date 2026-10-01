@@ -46,6 +46,11 @@ pub(crate) const MAX_CHROME_RADIUS: u8 = 32;
 fn default_chrome_auto_hide_delay_ms() -> u32 {
     3000
 }
+fn default_close_to_tray() -> bool {
+    true
+}
+/// Longest "lock after this long in the tray" choice: one day.
+pub(crate) const MAX_TRAY_LOCK_MINUTES: u32 = 24 * 60;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct DevicePreferences {
@@ -63,6 +68,13 @@ pub(crate) struct DevicePreferences {
     #[serde(default)]
     pub chrome_radii: ChromeRadii,
     pub dismissed_update_version: Option<String>,
+    /// Closing the window keeps the unlocked session running in the tray; otherwise it quits.
+    /// Absent in older files; defaults to the tray.
+    #[serde(default = "default_close_to_tray")]
+    pub close_to_tray: bool,
+    /// Minutes in the tray before the session locks and TaskMap exits; 0 never locks.
+    #[serde(default)]
+    pub tray_lock_minutes: u32,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -90,6 +102,8 @@ impl Default for DevicePreferences {
             chrome_auto_hide_delay_ms: default_chrome_auto_hide_delay_ms(),
             chrome_radii: ChromeRadii::default(),
             dismissed_update_version: None,
+            close_to_tray: default_close_to_tray(),
+            tray_lock_minutes: 0,
         }
     }
 }
@@ -125,6 +139,7 @@ impl DevicePreferences {
             .into_iter()
             .any(|radius| radius > MAX_CHROME_RADIUS)
             || self.recent_colors.iter().any(|s| !valid_color(s))
+            || self.tray_lock_minutes > MAX_TRAY_LOCK_MINUTES
             || self
                 .dismissed_update_version
                 .as_ref()

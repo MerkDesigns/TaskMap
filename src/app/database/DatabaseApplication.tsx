@@ -8,7 +8,10 @@ import type { PlatformResult } from "../../platform/platformErrors";
 import { ApplicationErrorBoundary } from "../errors/ApplicationErrorBoundary";
 import { defaultApplicationErrorReporter } from "../errors/applicationErrorReporter";
 import { createWindowCloseController } from "../createWindowCloseController";
-import { tauriWindowCloseClient } from "../../platform/window/tauriWindowCloseClient";
+import {
+  listenForQuitRequests,
+  tauriWindowCloseClient,
+} from "../../platform/window/tauriWindowCloseClient";
 
 const DevelopmentVisualWorkbench = import.meta.env.DEV
   ? lazy(() => import("../development/DevelopmentVisualWorkbench"))
@@ -86,8 +89,13 @@ export function DatabaseApplication() {
         if (attached) setFailed(true);
       },
     );
+    // Quit saves and clears plaintext through the controller before the backend exits.
+    const stopQuitRequests = listenForQuitRequests(() => {
+      void start().then((result) => (result.ok ? result.value.controller.quit() : undefined));
+    });
     return () => {
       attached = false;
+      void stopQuitRequests.then((stop) => stop());
     };
   }, []);
   return (

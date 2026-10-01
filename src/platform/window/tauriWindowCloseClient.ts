@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export interface WindowCloseClient {
@@ -23,3 +24,8 @@ export const tauriWindowCloseClient: WindowCloseClient = {
     }
   },
 };
+
+/** The tray's Quit, sent to an open window so it saves and quits through its session controller. */
+export function listenForQuitRequests(listener: () => void): Promise<() => void> {
+  return isTauri() ? listen("taskmap-quit-requested", () => listener()) : Promise.resolve(() => {});
+}

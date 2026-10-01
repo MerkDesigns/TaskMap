@@ -19,6 +19,8 @@ export const preferencesFixture = (): PreferencesState => ({
     toolbarButtonsVisible: true,
     chromeAutoHideEnabled: false,
     chromeAutoHideDelayMs: 3000,
+    closeToTray: true,
+    trayLockMinutes: 0,
     chromeRadii: { ...DEFAULT_CHROME_RADII },
     dismissedUpdateVersion: null,
   },

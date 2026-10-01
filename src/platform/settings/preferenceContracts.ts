@@ -38,6 +38,10 @@ export const devicePreferencesSchema = z
     chromeAutoHideEnabled: z.boolean(),
     chromeAutoHideDelayMs: z.number().int().min(1000).max(15000),
     chromeRadii: chromeRadiiSchema,
+    /** Closing the window keeps the unlocked session in the tray; otherwise TaskMap quits. */
+    closeToTray: z.boolean(),
+    /** Minutes in the tray before the session locks and TaskMap exits; 0 never locks. */
+    trayLockMinutes: z.number().int().min(0).max(1440),
     dismissedUpdateVersion: z
       .string()
       .min(1)
