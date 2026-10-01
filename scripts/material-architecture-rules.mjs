@@ -10,6 +10,9 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
   // FrostedSurface was removed; the patterns stay as zero-allowance guards.
   frostedSurfaceImport: Object.freeze({}),
   frostedSurfaceElement: Object.freeze({}),
+  // Sub-pixel transform nudges or revision counters used to force WebView2 to repaint a backdrop
+  // hide stale-glass bugs instead of fixing them.
+  backdropRepaintHack: Object.freeze({}),
 });
 
 const MATERIAL_PATTERNS = Object.freeze([
@@ -42,6 +45,12 @@ const MATERIAL_PATTERNS = Object.freeze([
     allowanceKey: "frostedSurfaceElement",
     expression: /<FrostedSurface\b/g,
     allowance: FROZEN_LEGACY_MATERIAL_USAGE.frostedSurfaceElement,
+  },
+  {
+    name: "backdrop repaint hack",
+    allowanceKey: "backdropRepaintHack",
+    expression: /\b0\.01px\b|backdrop-revision/g,
+    allowance: FROZEN_LEGACY_MATERIAL_USAGE.backdropRepaintHack,
   },
 ]);
 

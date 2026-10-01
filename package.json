@@ -30,7 +30,7 @@
     "bundle:dev": "tauri build --config src-tauri/tauri.dev.conf.json",
     "bundle:stable": "tauri build",
     "architecture:check": "node scripts/check-architecture.mjs",
-    "production:inspect": "node scripts/check-production-exclusion.mjs && node scripts/check-mcp-development-exclusion.mjs && node scripts/check-application-database-boundary.mjs && node scripts/check-storage-preview.mjs && node scripts/check-database-cutover.mjs",
+    "production:inspect": "node scripts/check-production-exclusion.mjs && node scripts/check-mcp-development-exclusion.mjs && node scripts/check-application-database-boundary.mjs && node scripts/check-storage-preview.mjs && node scripts/check-database-cutover.mjs && node scripts/check-window-config.mjs",
     "filesizes": "node scripts/report-file-sizes.mjs",
     "fixtures:baseline": "node scripts/generate-baseline-fixtures.mjs",
     "check:version": "node scripts/check-version.mjs",

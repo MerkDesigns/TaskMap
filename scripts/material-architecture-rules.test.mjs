@@ -76,4 +76,14 @@ describe("transitional material architecture rules", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("rejects backdrop repaint hacks anywhere", () => {
+    expect(
+      findMaterialArchitectureViolations([
+        { path: "src/ui/materials/Example.css", source: "transform: translateX(0.01px);" },
+      ]),
+    ).toEqual([
+      "src/ui/materials/Example.css: backdrop repaint hack has 1 occurrence(s); frozen legacy allowance is 0",
+    ]);
+  });
 });
