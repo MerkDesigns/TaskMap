@@ -241,7 +241,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/commands/retainedContentCommand.test.ts`                          |   140 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedContentCommand.ts`                               |    51 | Retained locks protect movement/resize/deletion, not text, color or display controls.              |
 | `src/app/commands/retainedContentContract.ts`                              |    45 | Module-owned scalar fields, explicitly composed here; placement/media/geometry/extensions are      |
-| `src/app/commands/retainedContentLayers.performance.test.ts`               |   152 | @vitest-environment node                                                                           |
+| `src/app/commands/retainedContentLayers.performance.test.ts`               |   154 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedContentRejection.test.ts`                        |    91 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedCopy.performance.test.ts`                        |    83 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedCopyCallbacks.ts`                                |    37 | Call on explicit Copy, not pointer samples. The opaque handle owns no copied plaintext.            |
@@ -261,7 +261,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/commands/retainedExtensionCompletion.test.ts`                     |   168 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedExtensionLifetime.test.ts`                       |    92 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedExtensionRejection.test.ts`                      |   132 | @vitest-environment node                                                                           |
-| `src/app/commands/retainedExtensions.performance.test.ts`                  |    83 | @vitest-environment node                                                                           |
+| `src/app/commands/retainedExtensions.performance.test.ts`                  |    85 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedExtensionSnapshot.ts`                            |    52 | Read/index once per action start, not per member or pointer sample. Parsed entries are detached    |
 | `src/app/commands/retainedExtensionTestSupport.ts`                         |    41 | TypeScript application module                                                                      |
 | `src/app/commands/retainedGeometryCommands.test.ts`                        |   169 | @vitest-environment node                                                                           |
@@ -441,7 +441,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/components/WindowChrome.tsx`                                          |   140 | React component or typed UI module                                                                 |
 | `src/components/WorkspacePanels.test.tsx`                                  |   221 | Tests for the adjacent module                                                                      |
 | `src/constants.ts`                                                         |    51 | TypeScript application module                                                                      |
-| `src/domain/commands/commandExecution.stress.test.ts`                      |    64 | @vitest-environment node                                                                           |
+| `src/domain/commands/commandExecution.stress.test.ts`                      |    67 | @vitest-environment node                                                                           |
 | `src/domain/commands/commandExecution.test.ts`                             |   204 | @vitest-environment node                                                                           |
 | `src/domain/commands/commandHandler.ts`                                    |    43 | TypeScript application module                                                                      |
 | `src/domain/commands/commandRegistry.ts`                                   |    29 | TypeScript application module                                                                      |
@@ -871,7 +871,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/ui/patterns/workspace/workspaceRadii.ts`                              |    34 | The applied radii. App writes the saved preference here and Settings previews slider drags         |
 | `src/ui/patterns/workspace/WorkspaceRoot.tsx`                              |    94 | A cancelled lock (or the next reveal) starts from the canvas at rest.                              |
 | `src/ui/patterns/workspace/WorkspaceSidePanel.test.tsx`                    |   245 | Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17).             |
-| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                         |   226 | React component or typed UI module                                                                 |
+| `src/ui/patterns/workspace/WorkspaceSidePanel.tsx`                         |   228 | React component or typed UI module                                                                 |
 | `src/ui/primitives/AcrylicConfirmButton.tsx`                               |   103 | React component or typed UI module                                                                 |
 | `src/ui/primitives/AcrylicToggleButton.test.tsx`                           |   114 | Tests for the adjacent module                                                                      |
 | `src/ui/primitives/AcrylicToggleButton.tsx`                                |   103 | React component or typed UI module                                                                 |

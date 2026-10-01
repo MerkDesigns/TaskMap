@@ -191,9 +191,9 @@ function clampPanelViewHeight(view: HTMLElement, contentHeight: number): number 
   const bottomInset = Number.parseFloat(
     window.getComputedStyle(panel).getPropertyValue("--taskmap-chrome-inset-bottom"),
   );
-  // Layout position, not the rendered one: measured mid slide-in (opening, waking from sleep) the
-  // panel's transform moved its rect, clamping it shorter than its content so the bottom card ran
-  // into the panel edge.
+  /* Layout position, not the rendered one: measured mid slide-in (opening, waking from sleep) the
+     panel's transform moved its rect, clamping it shorter than its content so the bottom card ran
+     into the panel edge. */
   const layoutTop = (panel.offsetParent?.getBoundingClientRect().top ?? 0) + panel.offsetTop;
   const availableHeight =
     window.innerHeight - layoutTop - (Number.isFinite(bottomInset) ? bottomInset : 16);
