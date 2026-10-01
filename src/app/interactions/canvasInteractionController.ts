@@ -17,6 +17,7 @@ import type {
   ResizeGestureInput,
   SelectionGestureInput,
 } from "./canvasInteractionTypes";
+import { idleCanvasInteractionSnapshot } from "./canvasInteractionTypes";
 import {
   isTinySelection,
   mergeSelection,
@@ -37,7 +38,6 @@ import {
   type PanGestureFrameState,
   updatePanViewport,
 } from "./panGestureFrameQueue";
-import { idleCanvasInteractionSnapshot } from "./canvasInteractionSnapshot";
 
 export type { CanvasInteractionController } from "./canvasInteractionTypes";
 

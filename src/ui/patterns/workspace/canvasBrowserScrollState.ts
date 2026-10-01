@@ -5,6 +5,18 @@ export interface CanvasBrowserScrollFrame {
   readonly changed: boolean;
 }
 
+// Wheel input in pixels, lines or pages, scaled to the browser's scroll feel.
+export const CANVAS_BROWSER_WHEEL_DELTA_SCALE = 0.45;
+
+export function convertCanvasBrowserWheelDelta(
+  deltaY: number,
+  deltaMode: number,
+  viewportHeight: number,
+) {
+  const pixels = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * viewportHeight : deltaY;
+  return pixels * CANVAS_BROWSER_WHEEL_DELTA_SCALE;
+}
+
 const WHEEL_SCROLL_TIME_CONSTANT_MS = 45;
 const WHEEL_SCROLL_SETTLE_EPSILON = 0.01;
 
@@ -23,6 +35,10 @@ export class CanvasBrowserScrollState {
 
   requestWheelDelta(deltaY: number) {
     if (Number.isFinite(deltaY)) this.targetScrollY = this.clamp(this.targetScrollY + deltaY);
+  }
+
+  requestWheel(deltaY: number, deltaMode: number, viewportHeight: number) {
+    this.requestWheelDelta(convertCanvasBrowserWheelDelta(deltaY, deltaMode, viewportHeight));
   }
 
   requestScrollPosition(scrollY: number) {

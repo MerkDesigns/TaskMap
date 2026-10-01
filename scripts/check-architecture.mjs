@@ -147,7 +147,6 @@ for (const file of targetFiles) {
     const allowedImports = new Set([
       "react",
       "./database/DatabaseApplication",
-      "./AppProviders",
       "./errors/ApplicationErrorBoundary",
       "./errors/applicationErrorReporter",
       "./windowCloseCoordinator",

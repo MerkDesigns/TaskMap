@@ -4,7 +4,7 @@ import { ContainerNode } from "../components/ContainerNode";
 import { EXTENSION_REGISTRY } from "../extensions/registry";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import type { ContainerElement, ContainerMenuState, ElementExtensions } from "../types";
-import "./contextMenuPlayground.css";
+import "./uiLab.css";
 
 type PlaygroundMenu =
   | { readonly kind: "container"; readonly value: ContainerMenuState }

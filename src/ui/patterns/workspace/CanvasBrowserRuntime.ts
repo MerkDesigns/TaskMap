@@ -30,7 +30,6 @@ import type {
   CanvasCardDragState,
 } from "./canvasBrowserRuntimeTypes";
 import { browserAnimationFrameDriver } from "./canvasBrowserRuntimeTypes";
-import { convertCanvasBrowserWheelDelta } from "./canvasBrowserWheelDelta";
 import { CanvasBrowserSharedGlass } from "./canvasBrowserSharedGlass";
 import {
   canvasBrowserRuntimeNeedsFrame,
@@ -129,9 +128,7 @@ export class CanvasBrowserRuntime<Id extends string> {
   };
 
   scrollByWheel(deltaY: number, deltaMode: number) {
-    this.scroll.requestWheelDelta(
-      convertCanvasBrowserWheelDelta(deltaY, deltaMode, this.viewport.height()),
-    );
+    this.scroll.requestWheel(deltaY, deltaMode, this.viewport.height());
     this.requestFrame();
   }
 

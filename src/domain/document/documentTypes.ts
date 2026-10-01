@@ -8,7 +8,7 @@ import type {
   ExtensionInstanceId,
   MediaId,
 } from "../ids/entityIds";
-import type { CURRENT_DOCUMENT_SCHEMA_VERSION } from "./documentVersion";
+import type { CURRENT_DOCUMENT_SCHEMA_VERSION } from "./documentSchema";
 
 export type DatabasePurpose = "production" | "development";
 export type JsonPrimitive = boolean | number | string | null;

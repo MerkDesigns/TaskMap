@@ -149,3 +149,19 @@ export interface CanvasInteractionController extends TransientInteractionService
   readonly reorder: (ids: readonly string[], direction: LayerDirection) => void;
   readonly dispose: () => void;
 }
+
+export function idleCanvasInteractionSnapshot(
+  canvasKey: string,
+  viewport: CanvasViewport,
+): CanvasInteractionSnapshot {
+  return {
+    canvasKey,
+    viewport,
+    activeInteraction: null,
+    selectedIds: [],
+    selectionPreviewIds: [],
+    selectionRectangle: null,
+    geometryPreviews: [],
+    snapGuides: [],
+  };
+}

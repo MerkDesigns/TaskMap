@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { Field } from "../../ui/primitives/Field";
 import { IconArrowBigUpLine } from "@tabler/icons-react";
 import { Button } from "../../ui/primitives/Button";
 import { PasswordInput } from "./PasswordInput";
-import { useCapsLock } from "./useCapsLock";
 
 export function DatabasePasswordForm({
   creating,
@@ -42,7 +47,7 @@ export function DatabasePasswordForm({
     };
   }, [creating]);
   // Native Tab traversal is off app-wide; creating keeps Tab between its two password fields.
-  const switchField = (event: KeyboardEvent<HTMLFormElement>) => {
+  const switchField = (event: ReactKeyboardEvent<HTMLFormElement>) => {
     if (event.key !== "Tab" || !creating) return;
     const next =
       event.target === password.current
@@ -149,4 +154,23 @@ export function DatabasePasswordForm({
       </div>
     </form>
   );
+}
+
+const CAPS_LOCK_EVENTS = ["keydown", "keyup", "pointerdown", "pointermove"] as const;
+
+/**
+ * Whether Caps Lock is on, read from the modifier state of any key or pointer event in the window
+ * (browsers cannot query it directly), so the warning appears before the password is typed.
+ */
+export function useCapsLock(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const read = (event: KeyboardEvent | PointerEvent) => {
+      if (typeof event.getModifierState !== "function") return;
+      setOn(event.getModifierState("CapsLock"));
+    };
+    CAPS_LOCK_EVENTS.forEach((type) => window.addEventListener(type, read, true));
+    return () => CAPS_LOCK_EVENTS.forEach((type) => window.removeEventListener(type, read, true));
+  }, []);
+  return on;
 }

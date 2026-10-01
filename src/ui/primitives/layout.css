@@ -67,3 +67,8 @@
   scrollbar-color: var(--taskmap-scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
+
+.taskmap-floating-panel {
+  position: fixed;
+  z-index: var(--taskmap-layer-modal-overlay);
+}

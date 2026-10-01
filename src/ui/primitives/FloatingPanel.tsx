@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { primitiveClassNames } from "./primitiveClassNames";
-import "./floatingPanel.css";
+import "./layout.css";
 
 export type FloatingPanelPlacement = "bottom-start" | "top-center";
 

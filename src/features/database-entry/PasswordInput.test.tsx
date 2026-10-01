@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { Field } from "../../ui/primitives/Field";
 import { PasswordInput } from "./PasswordInput";
-import { useCapsLock } from "./useCapsLock";
+import { useCapsLock } from "./DatabasePasswordForm";
 
 afterEach(cleanup);
 

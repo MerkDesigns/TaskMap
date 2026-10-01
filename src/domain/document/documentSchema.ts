@@ -2,10 +2,10 @@ import { z } from "zod";
 import { isEntityId, type EntityId, type EntityIdKind } from "../ids/entityIds";
 import { DOCUMENT_LIMITS } from "./documentLimits";
 import type { JsonObject, JsonValue, TaskMapDocument } from "./documentTypes";
-import { CURRENT_DOCUMENT_SCHEMA_VERSION } from "./documentVersion";
 import { inspectJsonSafety } from "./jsonSafety";
 
-export { CURRENT_DOCUMENT_SCHEMA_VERSION } from "./documentVersion";
+// The decrypted document version is independent from the SQLite envelope version.
+export const CURRENT_DOCUMENT_SCHEMA_VERSION = 1 as const;
 
 export const entityIdSchema = <Kind extends EntityIdKind>(kind: Kind) =>
   z.string().refine((value): value is EntityId<Kind> => isEntityId(kind, value), {

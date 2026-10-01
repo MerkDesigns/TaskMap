@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { CanvasBrowserScrollState } from "./canvasBrowserScrollState";
 import {
   CANVAS_BROWSER_WHEEL_DELTA_SCALE,
+  CanvasBrowserScrollState,
   convertCanvasBrowserWheelDelta,
-} from "./canvasBrowserWheelDelta";
+} from "./canvasBrowserScrollState";
 
 describe("Canvas Browser authoritative smooth scroll", () => {
   it("normalizes pixel, line, and page wheel input by exactly 0.45", () => {

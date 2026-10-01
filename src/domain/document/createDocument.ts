@@ -1,7 +1,6 @@
 import { createEntityId, type DatabaseId, type UuidSource } from "../ids/entityIds";
-import { parseTaskMapDocument } from "./documentSchema";
+import { CURRENT_DOCUMENT_SCHEMA_VERSION, parseTaskMapDocument } from "./documentSchema";
 import type { DatabasePurpose, TaskMapDocument } from "./documentTypes";
-import { CURRENT_DOCUMENT_SCHEMA_VERSION } from "./documentVersion";
 
 export interface CreateDocumentOptions {
   readonly databaseId: DatabaseId;

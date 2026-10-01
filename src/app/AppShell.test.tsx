@@ -1,10 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useAppSelector } from "./hooks";
-import { AppProviders } from "./AppProviders";
 import AppShell from "./AppShell";
-import { selectActiveApplicationBoundary } from "./selectors/applicationSelectors";
-import { createAppStore } from "./store";
 
 const databaseTestState = vi.hoisted(() => ({ shouldFail: false }));
 
@@ -27,23 +23,6 @@ describe("AppShell", () => {
     render(<AppShell />);
 
     expect(screen.getByText("Database application boundary")).toBeInTheDocument();
-  });
-
-  it("initializes the Redux provider", () => {
-    const store = createAppStore();
-
-    function BoundaryProbe() {
-      const boundary = useAppSelector(selectActiveApplicationBoundary);
-      return <span>{boundary}</span>;
-    }
-
-    render(
-      <AppProviders store={store}>
-        <BoundaryProbe />
-      </AppProviders>,
-    );
-
-    expect(screen.getByText("legacy")).toBeInTheDocument();
   });
 
   it("contains production render failures at the top-level boundary", () => {

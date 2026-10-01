@@ -48,8 +48,9 @@
 1. Commit/push the 4.5H cleanup when the user asks.
 2. Start Phase 5 with the Text Card: transfer presentation ownership from retained `App.tsx` to the
    normalized architecture without reopening persistence ownership (see `REFACTOR-ROADMAP.md`).
-3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/app/selectors/*`,
-   `src/elements/*`, `src/platform/media/*`, `src/platform/workflow/*`, `src/app/hooks.ts`.
+3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
+   future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
+   when its phase needs it.
 
 ## Remaining gates
 

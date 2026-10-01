@@ -1,17 +1,22 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { useContext, useSyncExternalStore } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { TransientInteractionProvider } from "./TransientInteractionProvider";
+import {
+  TransientInteractionContext,
+  TransientInteractionProvider,
+} from "./TransientInteractionProvider";
 import type {
   TransientInteractionListener,
   TransientInteractionService,
   TransientInteractionSnapshot,
 } from "./transientInteractionService";
-import { useTransientInteraction } from "./useTransientInteraction";
 
 afterEach(cleanup);
 
 function InteractionProbe() {
-  const snapshot = useTransientInteraction();
+  const service = useContext(TransientInteractionContext);
+  if (!service) throw new Error("InteractionProbe requires TransientInteractionProvider");
+  const snapshot = useSyncExternalStore(service.subscribe, service.getSnapshot);
   return <span>{snapshot.activeInteraction?.kind ?? "idle"}</span>;
 }
 
@@ -49,7 +54,7 @@ describe("TransientInteractionProvider", () => {
     expect(screen.getByText("idle")).toBeInTheDocument();
   });
 
-  it("reads an injected service through the typed snapshot hook", () => {
+  it("provides an injected service whose snapshots reach subscribers", () => {
     const service = createMutableService({ activeInteraction: { kind: "drag" } });
 
     render(
