@@ -20,11 +20,11 @@ mod session_image_drop;
 #[cfg(test)]
 mod application_resource_tests;
 #[cfg(test)]
-mod phase2_concurrency_recovery_tests;
-#[cfg(test)]
-mod phase2_tests;
-#[cfg(test)]
 mod session_authorization_tests;
+#[cfg(test)]
+mod session_concurrency_recovery_tests;
+#[cfg(test)]
+mod session_lifecycle_tests;
 mod session_media_file;
 mod session_media_reads;
 #[cfg(test)]

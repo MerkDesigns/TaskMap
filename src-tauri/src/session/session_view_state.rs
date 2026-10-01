@@ -2,7 +2,7 @@ use super::database_session::DatabaseSessionState;
 use super::session_state_access::authorized_session;
 use super::session_types::SensitiveDocument;
 use crate::crypto::document_cipher::{decrypt, encrypt, NONCE_BYTES};
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::settings::settings_file;
 use std::path::Path;
 use zeroize::Zeroizing;
@@ -19,7 +19,7 @@ impl DatabaseSessionState {
         database_id: &str,
         session_id: &str,
         value: Option<&str>,
-    ) -> Phase2Result<Option<SensitiveDocument>> {
+    ) -> ServiceResult<Option<SensitiveDocument>> {
         let mut guard = self.guard()?;
         let session = authorized_session(&mut guard, database_id, session_id)?;
         let path = directory.join(format!("view-state-{}.bin", session.database_id));
@@ -27,10 +27,10 @@ impl DatabaseSessionState {
         let key = session.key_state.unlocked_key()?;
         if let Some(value) = value {
             if value.len() > LIMIT {
-                return Err(Phase2Failure::InvalidInput);
+                return Err(ServiceFailure::InvalidInput);
             }
             let encrypted = encrypt(key, value.as_bytes(), aad.as_bytes())
-                .map_err(|_| Phase2Failure::Crypto)?;
+                .map_err(|_| ServiceFailure::Crypto)?;
             let mut bytes = encrypted.nonce.to_vec();
             bytes.extend(encrypted.ciphertext);
             settings_file::write(&path, &bytes)?;
@@ -40,7 +40,7 @@ impl DatabaseSessionState {
             return Ok(None);
         };
         if bytes.len() < NONCE_BYTES + 16 {
-            return Err(Phase2Failure::Settings);
+            return Err(ServiceFailure::Settings);
         }
         let plaintext: Zeroizing<Vec<u8>> = decrypt(
             key,
@@ -48,9 +48,9 @@ impl DatabaseSessionState {
             &bytes[NONCE_BYTES..],
             aad.as_bytes(),
         )
-        .map_err(|_| Phase2Failure::Settings)?;
+        .map_err(|_| ServiceFailure::Settings)?;
         Ok(Some(
-            SensitiveDocument::copy_from_utf8(&plaintext).map_err(|_| Phase2Failure::Settings)?,
+            SensitiveDocument::copy_from_utf8(&plaintext).map_err(|_| ServiceFailure::Settings)?,
         ))
     }
 }

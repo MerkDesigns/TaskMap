@@ -48,9 +48,9 @@ The raw password must never be written to disk, logs, analytics, crash reports, 
 
 ### Close window
 
-Closing the visible window keeps the background TaskMap development session active. Dirty Phase 2 harness state is validated and saved before destruction; if that save fails, close is prevented. The derived key remains in process memory, so reopening the window during that session does not require the password.
+Closing the visible window keeps the background TaskMap session active. Unsaved document changes are validated and saved before destruction; if that save fails, close is prevented. The derived key remains in process memory, so reopening the window during that session does not require the password.
 
-Phase 2 uses a hidden, content-free session-keeper webview instead of production tray controls. Launching the same edition again activates the single-instance callback and recreates or shows the main window. If recreation cannot produce a safe document window, the backend closes the session, destroys the keeper, and exits instead of leaving an inaccessible unlocked process.
+TaskMap uses a hidden, content-free session-keeper webview (`session-keeper.html`) instead of tray controls. Launching the same edition again activates the single-instance callback and recreates or shows the main window. If recreation cannot produce a safe document window, the backend closes the session, destroys the keeper, and exits instead of leaving an inaccessible unlocked process.
 
 ### Explicit lock
 
@@ -142,15 +142,13 @@ Routine saves never copy the whole database. In the same transaction as a save, 
 Stable and development builds use different identities and session managers. TaskMap Dev must not automatically open the stable database.
 
 TaskMap Dev rejects a production-purpose decrypted document after validation and closes the candidate
-session; the stable application client likewise rejects development-purpose documents. Stable builds
-do not register the `phase2_*` harness commands or select its capability. Both editions still contend
-on the same underlying database file identity.
+session; the stable application client likewise rejects development-purpose documents. Both editions
+still contend on the same underlying database file identity.
 
 ## Tauri boundary
 
-Phase 2 IPC aliases remain compiled/registered only with the development Cargo feature and require
-the development application identifier. The database intermission adds separate `app_*` commands in
-the explicit `application-database` capability, selected by stable and development product configs
+The earlier development-only database harness and its command aliases were removed. Database access
+uses the `app_*` commands in the explicit `application-database` capability, selected by stable and development product configs
 for the local `main` window only. Remote content and the hidden keeper receive no database grant;
 UI Lab configuration omits the grant and its builds are also denied by the native application guard.
 Only known stable/development identifiers are accepted. Native edition metadata selects the
@@ -172,8 +170,7 @@ conversion, legacy media and Discord modules were deleted (4.5H) along with thei
 execution and legacy command grants are removed. A preview-only empty-load response has no filesystem authority.
 Dev configurations do not inherit stable updater endpoints. Live activation and automatic-lock
 acceptance still remain; source exclusion alone does not establish finished product security.
-The shared keeper still uses the historical, content-free
-`phase2-keeper.html` asset and has no command authority. Renaming it is not a security boundary.
+The shared keeper (`session-keeper.html`) is content-free and has no command authority.
 
 Create, open and explicit backup redeem short-lived, one-use, process- and edition-scoped path tokens
 issued by the backend picker or edition-local recent-list resolver; a renderer cannot pass a raw path.
@@ -260,7 +257,7 @@ At minimum test:
 
 Windows session-lock delivery now has a Batch B WTS hook for main/recreated/keeper windows;
 the storage-free preview deliberately does not register it. Real OS-lock acceptance remains pending.
-Inactivity locking remains deferred from the development-only Phase 2 slice. Native screenshot privacy
+Inactivity locking remains deferred. Native screenshot privacy
 is applied before admission and before persisting a changed preference; failure revokes the view.
 Actual screenshot/screen-sharing exclusion requires separate Windows acceptance, not just a successful
 native API response or the preview toggle state.

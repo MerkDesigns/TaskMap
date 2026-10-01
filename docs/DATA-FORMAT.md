@@ -216,7 +216,7 @@ The reader checks structure and lengths before fetching variable-size BLOBs or i
 - Media ID: exactly 24 base64url characters
 - MIME value: 1 through 255 printable ASCII bytes and containing `/`
 - Maintenance timestamp: 1 through 32 bytes
-- Phase 2 raw IPC document request: document maximum plus a bounded 64 KiB envelope allowance
+- Raw IPC document request: document maximum plus a bounded 64 KiB envelope allowance
 
 Missing or duplicate singleton rows, malformed SQLite storage classes, oversized fields, unsupported identifiers, and unsupported parameters are rejected before expensive derivation or large Rust allocations.
 
@@ -290,8 +290,7 @@ Media IDs are random and reveal no filename. Loads verify both declared length a
 filenames and local paths are not persisted; relationships, placement, alt text, and other semantic
 metadata remain in the encrypted document.
 
-Phase 2 exposes no media byte-array IPC command. The database intermission now supplies separate
-session-bound application transport: 256 KiB chunks or a native-owned image picker, a 50 MiB import
+There is no media byte-array IPC command. Media uses a separate session-bound application transport: 256 KiB chunks or a native-owned image picker, a 50 MiB import
 limit, existing format validation/normalization and opaque metadata results. Lazy loads validate stored
 integrity once before chunked reads. This support remains unmounted in the visible application; see ADR 005.
 
@@ -334,9 +333,9 @@ Create and unlock first produce a pending backend session. TypeScript validates 
 
 ## Configuration and editions
 
-Stable uses `com.merkdesigns.taskmap`; development uses `com.merkdesigns.taskmap.dev`. Their config directories, single-instance sessions, and recent-database files are separate. Recent paths remain backend-owned and are returned to the development renderer only with fresh authorization tokens. Settings replacement uses an atomic replace rather than remove-then-rename.
+Stable uses `com.merkdesigns.taskmap`; development uses `com.merkdesigns.taskmap.dev`. Their config directories, single-instance sessions, and recent-database files are separate. Recent paths remain backend-owned and are returned to the renderer only with fresh authorization tokens. Settings replacement uses an atomic replace rather than remove-then-rename.
 
-The Phase 2 harness, Rust command registration, command capability, and frontend chunk are development-build-only. The stable default capability contains no Phase 2 command.
+The stable default capability grants no database command; database access goes through the explicit `application-database` capability.
 
 ## Device resources outside the database
 

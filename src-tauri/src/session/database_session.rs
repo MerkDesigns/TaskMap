@@ -13,8 +13,8 @@ use crate::database::document_repository::{
     read_encrypted_document, save_document_transaction, EncryptedDocumentRow,
 };
 use crate::database::limits::validate_document_size;
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::files::database_lock::DatabaseWriterLock;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -46,7 +46,7 @@ impl DatabaseSessionState {
         serialized_document: &str,
         password: &[u8],
         edition: &str,
-    ) -> Phase2Result<PendingLoadedDocument> {
+    ) -> ServiceResult<PendingLoadedDocument> {
         let mut guard = self.guard()?;
         ensure_no_open_session(&guard)?;
         let (session, confirmation_token) = create_open_session(
@@ -72,18 +72,18 @@ impl DatabaseSessionState {
         &self,
         database_path: PathBuf,
         edition: &str,
-    ) -> Phase2Result<DatabaseSessionStatus> {
+    ) -> ServiceResult<DatabaseSessionStatus> {
         let mut guard = self.guard()?;
         ensure_no_open_session(&guard)?;
         *guard = Some(open_locked_session(database_path, edition)?);
         Ok(status_from_guard(&guard))
     }
 
-    pub(crate) fn unlock_database(&self, password: &[u8]) -> Phase2Result<PendingLoadedDocument> {
+    pub(crate) fn unlock_database(&self, password: &[u8]) -> ServiceResult<PendingLoadedDocument> {
         let mut guard = self.guard()?;
-        let session = guard.as_mut().ok_or(Phase2Failure::SessionNotOpen)?;
+        let session = guard.as_mut().ok_or(ServiceFailure::SessionNotOpen)?;
         if !session.key_state.is_locked() {
-            return Err(Phase2Failure::SessionLocked);
+            return Err(ServiceFailure::SessionLocked);
         }
         let candidate = unlock_open_session(session, password)?;
         let confirmation_token = random_identifier();
@@ -106,18 +106,18 @@ impl DatabaseSessionState {
         &self,
         confirmation_token: &str,
         database_id: &str,
-    ) -> Phase2Result<DatabaseSessionStatus> {
+    ) -> ServiceResult<DatabaseSessionStatus> {
         let mut guard = self.guard()?;
         if guard
             .as_ref()
             .is_none_or(|session| session.database_id != database_id)
         {
             *guard = None;
-            return Err(Phase2Failure::CorruptDatabase);
+            return Err(ServiceFailure::CorruptDatabase);
         }
         let result = guard
             .as_mut()
-            .ok_or(Phase2Failure::SessionNotOpen)?
+            .ok_or(ServiceFailure::SessionNotOpen)?
             .key_state
             .confirm(confirmation_token);
         if result.is_err() {
@@ -133,12 +133,12 @@ impl DatabaseSessionState {
     pub(crate) fn cancel_pending_unlock(
         &self,
         confirmation_token: &str,
-    ) -> Phase2Result<DatabaseSessionStatus> {
+    ) -> ServiceResult<DatabaseSessionStatus> {
         let mut guard = self.guard()?;
-        let session = guard.as_ref().ok_or(Phase2Failure::SessionNotOpen)?;
+        let session = guard.as_ref().ok_or(ServiceFailure::SessionNotOpen)?;
         if !session.key_state.pending_matches(confirmation_token) {
             *guard = None;
-            return Err(Phase2Failure::SessionLocked);
+            return Err(ServiceFailure::SessionLocked);
         }
         *guard = None;
         Ok(status_from_guard(&guard))
@@ -171,7 +171,7 @@ impl DatabaseSessionState {
         }
     }
 
-    pub(crate) fn read_document(&self) -> Phase2Result<LoadedDocument> {
+    pub(crate) fn read_document(&self) -> ServiceResult<LoadedDocument> {
         let mut guard = self.guard()?;
         let loaded = (|| {
             let session = unlocked_session(&mut guard)?;
@@ -190,7 +190,7 @@ impl DatabaseSessionState {
             .map_err(map_document_cipher_failure)?;
             validate_document_size(plaintext.len())?;
             let serialized_document = SensitiveDocument::copy_from_utf8(&plaintext)
-                .map_err(|_| Phase2Failure::InvalidDocumentPayload)?;
+                .map_err(|_| ServiceFailure::InvalidDocumentPayload)?;
             Ok((serialized_document, encrypted.save_revision))
         })();
         let (serialized_document, revision) = match loaded {
@@ -198,7 +198,7 @@ impl DatabaseSessionState {
             Err(error) => {
                 if !matches!(
                     &error,
-                    Phase2Failure::SessionLocked | Phase2Failure::SessionNotOpen
+                    ServiceFailure::SessionLocked | ServiceFailure::SessionNotOpen
                 ) {
                     *guard = None;
                 }
@@ -220,7 +220,7 @@ impl DatabaseSessionState {
         &self,
         serialized_document: &str,
         expected_revision: i64,
-    ) -> Phase2Result<SavedDocument> {
+    ) -> ServiceResult<SavedDocument> {
         self.save_document_checked(serialized_document, expected_revision, None)
     }
 
@@ -230,7 +230,7 @@ impl DatabaseSessionState {
         expected_revision: i64,
         database_id: &str,
         session_id: &str,
-    ) -> Phase2Result<SavedDocument> {
+    ) -> ServiceResult<SavedDocument> {
         self.save_document_checked(
             serialized_document,
             expected_revision,
@@ -243,7 +243,7 @@ impl DatabaseSessionState {
         serialized_document: &str,
         expected_revision: i64,
         identity: Option<(&str, &str)>,
-    ) -> Phase2Result<SavedDocument> {
+    ) -> ServiceResult<SavedDocument> {
         validate_document_size(serialized_document.len())?;
         let mut guard = self.guard()?;
         let session = unlocked_session(&mut guard)?;
@@ -251,14 +251,14 @@ impl DatabaseSessionState {
         if identity.is_some_and(|(database_id, session_id)| {
             session.database_id != database_id || session.session_id != session_id
         }) {
-            return Err(Phase2Failure::SessionNotOpen);
+            return Err(ServiceFailure::SessionNotOpen);
         }
         if session.revision != expected_revision {
-            return Err(Phase2Failure::RevisionConflict);
+            return Err(ServiceFailure::RevisionConflict);
         }
         let revision = expected_revision
             .checked_add(1)
-            .ok_or(Phase2Failure::SaveFailure)?;
+            .ok_or(ServiceFailure::SaveFailure)?;
         let encrypted = encrypt(
             session.key_state.unlocked_key()?,
             serialized_document.as_bytes(),
@@ -268,7 +268,7 @@ impl DatabaseSessionState {
                 revision,
             ),
         )
-        .map_err(|_| Phase2Failure::Crypto)?;
+        .map_err(|_| ServiceFailure::Crypto)?;
         let now = timestamp();
         let mut connection = open_connection(&session.database_path)?;
         let save_result = save_document_transaction(
@@ -284,7 +284,7 @@ impl DatabaseSessionState {
         );
         if let Err(error) = save_result {
             drop(connection);
-            if matches!(error, Phase2Failure::SaveFailure) {
+            if matches!(error, ServiceFailure::SaveFailure) {
                 *guard = None;
             }
             return Err(error);
@@ -297,7 +297,7 @@ impl DatabaseSessionState {
         })
     }
 
-    pub(super) fn guard(&self) -> Phase2Result<MutexGuard<'_, Option<OpenSession>>> {
-        self.inner.lock().map_err(|_| Phase2Failure::Internal)
+    pub(super) fn guard(&self) -> ServiceResult<MutexGuard<'_, Option<OpenSession>>> {
+        self.inner.lock().map_err(|_| ServiceFailure::Internal)
     }
 }

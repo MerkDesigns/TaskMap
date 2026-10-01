@@ -146,7 +146,6 @@ for (const file of targetFiles) {
     if (lines >= 250) violations.push(`${rel}: AppShell must remain below 250 lines`);
     const allowedImports = new Set([
       "react",
-      "../features/phase2-database/DevelopmentPhase2Entry",
       "./database/DatabaseApplication",
       "./AppProviders",
       "./errors/ApplicationErrorBoundary",
@@ -205,9 +204,7 @@ for (const file of newRustFiles) {
     violations.push(`${rel}: new Rust architecture files must not exceed 400 lines`);
   }
   if (/\b(?:keyring|pbkdf2)\b|\b(?:migrate|migration|legacy)_\w*/i.test(source)) {
-    violations.push(
-      `${rel}: new Phase 2 modules must not contain legacy migration or keyring code`,
-    );
+    violations.push(`${rel}: Rust modules must not contain legacy migration or keyring code`);
   }
 }
 

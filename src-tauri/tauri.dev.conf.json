@@ -8,7 +8,7 @@
   },
   "app": {
     "security": {
-      "capabilities": ["default", "application-database", "phase2-development"]
+      "capabilities": ["default", "application-database"]
     },
     "windows": [
       {

@@ -1,17 +1,17 @@
 use super::database_session::OpenSession;
 use super::session_types::{DatabaseSessionPhase, DatabaseSessionStatus};
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 
-pub(super) fn ensure_no_open_session(guard: &Option<OpenSession>) -> Phase2Result<()> {
+pub(super) fn ensure_no_open_session(guard: &Option<OpenSession>) -> ServiceResult<()> {
     if guard.is_some() {
-        Err(Phase2Failure::SessionAlreadyOpen)
+        Err(ServiceFailure::SessionAlreadyOpen)
     } else {
         Ok(())
     }
 }
 
-pub(super) fn unlocked_session(guard: &mut Option<OpenSession>) -> Phase2Result<&mut OpenSession> {
-    let session = guard.as_mut().ok_or(Phase2Failure::SessionNotOpen)?;
+pub(super) fn unlocked_session(guard: &mut Option<OpenSession>) -> ServiceResult<&mut OpenSession> {
+    let session = guard.as_mut().ok_or(ServiceFailure::SessionNotOpen)?;
     session.key_state.unlocked_key()?;
     Ok(session)
 }
@@ -42,10 +42,10 @@ pub(super) fn authorized_session<'a>(
     guard: &'a mut Option<OpenSession>,
     database_id: &str,
     session_id: &str,
-) -> Phase2Result<&'a mut OpenSession> {
+) -> ServiceResult<&'a mut OpenSession> {
     let session = unlocked_session(guard)?;
     if session.database_id != database_id || session.session_id != session_id {
-        return Err(Phase2Failure::SessionLocked);
+        return Err(ServiceFailure::SessionLocked);
     }
     Ok(session)
 }

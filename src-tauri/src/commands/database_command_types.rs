@@ -74,7 +74,7 @@ pub(crate) struct ChooseDatabasePathInput {
 
 #[cfg(test)]
 mod tests {
-    use super::super::phase2_ipc::{deserialize_slice_limited, MAX_SMALL_IPC_BYTES};
+    use super::super::ipc_limits::{deserialize_slice_limited, MAX_SMALL_IPC_BYTES};
     use super::*;
     #[test]
     fn raw_paths_and_missing_session_authority_are_not_accepted() {

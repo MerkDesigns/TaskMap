@@ -1,5 +1,5 @@
 use crate::crypto::secret_key::SecretKey;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use std::time::{Duration, Instant};
 
 pub(crate) const PENDING_UNLOCK_TIMEOUT: Duration = Duration::from_secs(60);
@@ -23,14 +23,14 @@ impl SessionKeyState {
         }
     }
 
-    pub(super) fn unlocked_key(&self) -> Phase2Result<&SecretKey> {
+    pub(super) fn unlocked_key(&self) -> ServiceResult<&SecretKey> {
         match self {
             Self::Unlocked(key) => Ok(key),
-            Self::Locked | Self::Pending { .. } => Err(Phase2Failure::SessionLocked),
+            Self::Locked | Self::Pending { .. } => Err(ServiceFailure::SessionLocked),
         }
     }
 
-    pub(super) fn confirm(&mut self, token: &str) -> Phase2Result<()> {
+    pub(super) fn confirm(&mut self, token: &str) -> ServiceResult<()> {
         let candidate = std::mem::replace(self, Self::Locked);
         match candidate {
             Self::Pending {
@@ -41,7 +41,7 @@ impl SessionKeyState {
                 *self = Self::Unlocked(key);
                 Ok(())
             }
-            _ => Err(Phase2Failure::SessionLocked),
+            _ => Err(ServiceFailure::SessionLocked),
         }
     }
 

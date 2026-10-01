@@ -4,7 +4,7 @@ use crate::database::connection::open_connection;
 use crate::database::document_repository::{read_encrypted_document, read_format_info};
 use crate::database::media_repository::{load_media, store_media};
 use crate::database::schema::create_schema;
-use crate::phase2_error::Phase2Failure;
+use crate::error::ServiceFailure;
 use rusqlite::Connection;
 use std::path::PathBuf;
 
@@ -68,7 +68,7 @@ fn database_schema_password_and_authenticated_document_lifecycle() {
     service.open_database(path.clone(), "development").unwrap();
     assert!(matches!(
         service.unlock_database(b"wrong password"),
-        Err(Phase2Failure::WrongPassword)
+        Err(ServiceFailure::WrongPassword)
     ));
     assert_eq!(unlock(&service), DOCUMENT);
 
@@ -92,7 +92,7 @@ fn database_schema_password_and_authenticated_document_lifecycle() {
         .unwrap();
     assert!(matches!(
         service.read_document(),
-        Err(Phase2Failure::CorruptDatabase)
+        Err(ServiceFailure::CorruptDatabase)
     ));
 }
 
@@ -131,11 +131,11 @@ fn explicit_lock_removes_key_access_and_quit_requires_unlock_in_new_service() {
     );
     assert!(matches!(
         service.read_document(),
-        Err(Phase2Failure::SessionLocked)
+        Err(ServiceFailure::SessionLocked)
     ));
     assert!(matches!(
         service.save_document(DOCUMENT, 1),
-        Err(Phase2Failure::SessionLocked)
+        Err(ServiceFailure::SessionLocked)
     ));
     assert_eq!(unlock(&service), DOCUMENT);
     service.quit_session().unwrap();
@@ -145,7 +145,7 @@ fn explicit_lock_removes_key_access_and_quit_requires_unlock_in_new_service() {
     assert_eq!(status.phase, DatabaseSessionPhase::Locked);
     assert!(matches!(
         next_process.read_document(),
-        Err(Phase2Failure::SessionLocked)
+        Err(ServiceFailure::SessionLocked)
     ));
 }
 
@@ -168,7 +168,7 @@ fn unsupported_format_version_fails_cleanly() {
 
     assert!(matches!(
         service.open_database(path, "development"),
-        Err(Phase2Failure::UnsupportedFormat)
+        Err(ServiceFailure::UnsupportedFormat)
     ));
 }
 
@@ -243,7 +243,7 @@ fn explicit_full_backup_is_consistent() {
     assert!(first_backup.is_file());
     assert!(matches!(
         service.full_backup(&first_backup),
-        Err(Phase2Failure::AlreadyExists)
+        Err(ServiceFailure::AlreadyExists)
     ));
     assert_eq!(
         service.read_document().unwrap().serialized_document,
@@ -281,11 +281,11 @@ fn pending_unlock_blocks_data_operations_and_cancellation_releases_the_writer() 
     );
     assert!(matches!(
         service.read_document(),
-        Err(Phase2Failure::SessionLocked)
+        Err(ServiceFailure::SessionLocked)
     ));
     assert!(matches!(
         service.save_document(DOCUMENT, 1),
-        Err(Phase2Failure::SessionLocked)
+        Err(ServiceFailure::SessionLocked)
     ));
     assert_eq!(
         service

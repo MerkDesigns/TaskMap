@@ -1,9 +1,9 @@
 use super::{
     database_window_commands::ensure_database_application,
-    phase2_ipc::{deserialize_limited, MAX_SMALL_IPC_BYTES},
+    ipc_limits::{deserialize_limited, MAX_SMALL_IPC_BYTES},
 };
 use crate::{
-    phase2_error::{Phase2CommandError, Phase2CommandResult, Phase2Failure},
+    error::{CommandError, CommandResult, ServiceFailure},
     session::{database_session::DatabaseSessionState, session_media_transfer::MediaReply},
 };
 use serde::{Deserialize, Serialize};
@@ -67,7 +67,7 @@ pub(crate) async fn app_import_dropped_image(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<MediaReply> {
+) -> CommandResult<MediaReply> {
     ensure_database_application(&app)?;
     let input: Input = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let service = state.inner().clone();
@@ -75,6 +75,6 @@ pub(crate) async fn app_import_dropped_image(
         service.import_dropped_image(&input.database_id, &input.session_id, &input.token)
     })
     .await
-    .map_err(|_| Phase2CommandError::from(Phase2Failure::Internal))?
-    .map_err(Phase2CommandError::from)
+    .map_err(|_| CommandError::from(ServiceFailure::Internal))?
+    .map_err(CommandError::from)
 }

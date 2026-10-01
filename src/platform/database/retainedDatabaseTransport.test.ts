@@ -34,7 +34,7 @@ describe("retained feature policy at database transport boundaries", () => {
   it.each(["reject", "throw"])("cancels pending confirmation on policy %s", async (mode) => {
     const current = fixture();
     ipc.mockResolvedValueOnce(current.pending).mockResolvedValueOnce({ phase: "closed" });
-    const client = createValidatedDatabaseClient("app", "production", () => {
+    const client = createValidatedDatabaseClient("production", () => {
       if (mode === "throw") throw new Error("private content");
       return false;
     });
@@ -59,7 +59,7 @@ describe("retained feature policy at database transport boundaries", () => {
       .mockResolvedValueOnce(databaseTransportFixture().pending)
       .mockRejectedValueOnce(new Error("test failure"))
       .mockResolvedValueOnce({ phase: "closed" });
-    const client = createValidatedDatabaseClient("app", "production", acceptRetainedDocument);
+    const client = createValidatedDatabaseClient("production", acceptRetainedDocument);
     expect((await client.unlockDatabase({ password: "test" })).ok).toBe(false);
     expect(commands()).toEqual([
       "app_unlock_database",
@@ -70,7 +70,7 @@ describe("retained feature policy at database transport boundaries", () => {
 
   it("rejects an invalid create payload before consuming a path token or invoking native create", async () => {
     const current = databaseTransportFixture();
-    const client = createValidatedDatabaseClient("app", "production", acceptRetainedDocument);
+    const client = createValidatedDatabaseClient("production", acceptRetainedDocument);
     expect(
       await client.createDatabase({
         authorizationToken: "unused",
@@ -88,7 +88,7 @@ describe("retained feature policy at database transport boundaries", () => {
     ipc
       .mockResolvedValueOnce(databaseTransportFixture().pending)
       .mockResolvedValueOnce({ phase: "closed" });
-    const client = createValidatedDatabaseClient("app", "production", acceptRetainedDocument);
+    const client = createValidatedDatabaseClient("production", acceptRetainedDocument);
     expect(
       (
         await client.createDatabase({
@@ -110,7 +110,7 @@ describe("retained feature policy at database transport boundaries", () => {
       if (fallback) ipc.mockRejectedValueOnce(new Error("test lock failure"));
       else ipc.mockResolvedValueOnce({ phase: "locked" });
       ipc.mockResolvedValueOnce({ phase: "closed" });
-      const client = createValidatedDatabaseClient("app", "production", acceptRetainedDocument);
+      const client = createValidatedDatabaseClient("production", acceptRetainedDocument);
       expect((await client.readDocument()).ok).toBe(false);
       expect(commands()).toEqual([
         "app_read_document",
@@ -126,7 +126,7 @@ describe("retained feature policy at database transport boundaries", () => {
       .mockResolvedValueOnce(current.pending)
       .mockResolvedValueOnce(current.session)
       .mockResolvedValueOnce({ revision: 5, session: { ...current.session, revision: 5 } });
-    const client = createValidatedDatabaseClient("app", "production", acceptRetainedDocument);
+    const client = createValidatedDatabaseClient("production", acceptRetainedDocument);
     expect((await client.unlockDatabase({ password: "test" })).ok).toBe(true);
     expect(
       (

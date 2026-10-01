@@ -1,7 +1,7 @@
 use crate::database::limits::{
     validate_media_id, validate_media_size, validate_mime_type, MAX_DEVELOPMENT_MEDIA_BYTES,
 };
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use rand::{rngs::OsRng, RngCore};
@@ -20,7 +20,7 @@ pub(crate) fn store_media(
     mime_type: &str,
     bytes: &[u8],
     created_at: &str,
-) -> Phase2Result<String> {
+) -> ServiceResult<String> {
     validate_mime_type(mime_type)?;
     validate_media_size(bytes.len())?;
     let mut random_id = [0_u8; 18];
@@ -34,7 +34,7 @@ pub(crate) fn store_media(
         params![
             media_id,
             mime_type,
-            i64::try_from(bytes.len()).map_err(|_| Phase2Failure::InvalidDocumentPayload)?,
+            i64::try_from(bytes.len()).map_err(|_| ServiceFailure::InvalidDocumentPayload)?,
             content_hash.as_slice(),
             bytes,
             created_at,
@@ -43,7 +43,7 @@ pub(crate) fn store_media(
     Ok(media_id)
 }
 
-pub(crate) fn load_media(connection: &Connection, media_id: &str) -> Phase2Result<MediaRecord> {
+pub(crate) fn load_media(connection: &Connection, media_id: &str) -> ServiceResult<MediaRecord> {
     validate_media_id(media_id)?;
     let shape = connection
         .query_row(
@@ -68,7 +68,7 @@ pub(crate) fn load_media(connection: &Connection, media_id: &str) -> Phase2Resul
             },
         )
         .optional()?
-        .ok_or(Phase2Failure::FileNotFound)?;
+        .ok_or(ServiceFailure::FileNotFound)?;
     if shape.0 != "text"
         || shape.1 != 24
         || shape.2 != "text"
@@ -81,7 +81,7 @@ pub(crate) fn load_media(connection: &Connection, media_id: &str) -> Phase2Resul
         || shape.9 < 0
         || shape.9 as usize > MAX_DEVELOPMENT_MEDIA_BYTES
     {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     let (record, stored_length, stored_hash) = connection
         .query_row(
@@ -101,13 +101,13 @@ pub(crate) fn load_media(connection: &Connection, media_id: &str) -> Phase2Resul
             },
         )
         .optional()?
-        .ok_or(Phase2Failure::FileNotFound)?;
-    validate_mime_type(&record.mime_type).map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .ok_or(ServiceFailure::FileNotFound)?;
+    validate_mime_type(&record.mime_type).map_err(|_| ServiceFailure::CorruptDatabase)?;
     let actual_hash = Sha256::digest(&record.bytes);
     if stored_length != record.bytes.len() as i64
         || stored_hash.as_slice() != actual_hash.as_slice()
     {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     Ok(record)
 }
@@ -130,7 +130,7 @@ mod tests {
             .unwrap();
         assert!(matches!(
             load_media(&connection, &media_id),
-            Err(Phase2Failure::CorruptDatabase)
+            Err(ServiceFailure::CorruptDatabase)
         ));
 
         let second = store_media(&connection, "image/png", b"second", "1").unwrap();
@@ -145,7 +145,7 @@ mod tests {
             .unwrap();
         assert!(matches!(
             load_media(&connection, &second),
-            Err(Phase2Failure::CorruptDatabase)
+            Err(ServiceFailure::CorruptDatabase)
         ));
     }
 }

@@ -1,4 +1,4 @@
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 const SETTINGS_VERSION: u32 = 1;
 const MAX_RECENT_DATABASES: usize = 10;
+// The on-disk name predates the current naming; renaming it would drop existing recent lists.
 const SETTINGS_FILENAME: &str = "phase2-database-settings.json";
 const MAX_SETTINGS_BYTES: u64 = 64 * 1024;
 
@@ -29,18 +30,21 @@ impl RecentDatabaseSettings {
     }
 }
 
-pub(crate) fn load(config_directory: &Path, edition: &str) -> Phase2Result<RecentDatabaseSettings> {
+pub(crate) fn load(
+    config_directory: &Path,
+    edition: &str,
+) -> ServiceResult<RecentDatabaseSettings> {
     let path = settings_path(config_directory);
     if !path.exists() {
         return Ok(RecentDatabaseSettings::empty(edition));
     }
-    let metadata = std::fs::metadata(&path).map_err(Phase2Failure::from_io)?;
+    let metadata = std::fs::metadata(&path).map_err(ServiceFailure::from_io)?;
     if metadata.len() > MAX_SETTINGS_BYTES {
-        return Err(Phase2Failure::Settings);
+        return Err(ServiceFailure::Settings);
     }
-    let bytes = std::fs::read(path).map_err(Phase2Failure::from_io)?;
+    let bytes = std::fs::read(path).map_err(ServiceFailure::from_io)?;
     let settings: RecentDatabaseSettings =
-        serde_json::from_slice(&bytes).map_err(|_| Phase2Failure::Settings)?;
+        serde_json::from_slice(&bytes).map_err(|_| ServiceFailure::Settings)?;
     if settings.version != SETTINGS_VERSION
         || settings.edition != edition
         || settings.recent_database_paths.len() > MAX_RECENT_DATABASES
@@ -53,7 +57,7 @@ pub(crate) fn load(config_directory: &Path, edition: &str) -> Phase2Result<Recen
             .as_ref()
             .is_some_and(|path| path.is_empty() || path.len() > 32_767)
     {
-        return Err(Phase2Failure::Settings);
+        return Err(ServiceFailure::Settings);
     }
     Ok(settings)
 }
@@ -62,7 +66,7 @@ pub(crate) fn record_recent(
     config_directory: &Path,
     edition: &str,
     database_path: &Path,
-) -> Phase2Result<RecentDatabaseSettings> {
+) -> ServiceResult<RecentDatabaseSettings> {
     let mut settings = load(config_directory, edition)?;
     let path = database_path.to_string_lossy().into_owned();
     settings.recent_database_paths.retain(|item| item != &path);
@@ -77,30 +81,33 @@ pub(crate) fn record_recent(
     Ok(settings)
 }
 
-pub(crate) fn save(config_directory: &Path, settings: &RecentDatabaseSettings) -> Phase2Result<()> {
-    std::fs::create_dir_all(config_directory).map_err(Phase2Failure::from_io)?;
+pub(crate) fn save(
+    config_directory: &Path,
+    settings: &RecentDatabaseSettings,
+) -> ServiceResult<()> {
+    std::fs::create_dir_all(config_directory).map_err(ServiceFailure::from_io)?;
     let path = settings_path(config_directory);
     let temporary = path.with_extension(format!(
         "json.tmp-{}-{}",
         std::process::id(),
         rand::random::<u64>()
     ));
-    let bytes = serde_json::to_vec_pretty(settings).map_err(|_| Phase2Failure::Settings)?;
+    let bytes = serde_json::to_vec_pretty(settings).map_err(|_| ServiceFailure::Settings)?;
     if bytes.len() as u64 > MAX_SETTINGS_BYTES {
-        return Err(Phase2Failure::Settings);
+        return Err(ServiceFailure::Settings);
     }
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(&temporary)
-        .map_err(Phase2Failure::from_io)?;
-    file.write_all(&bytes).map_err(Phase2Failure::from_io)?;
-    file.sync_all().map_err(Phase2Failure::from_io)?;
+        .map_err(ServiceFailure::from_io)?;
+    file.write_all(&bytes).map_err(ServiceFailure::from_io)?;
+    file.sync_all().map_err(ServiceFailure::from_io)?;
     drop(file);
     if let Err(error) = atomic_replace(&temporary, &path) {
         let cleanup = std::fs::remove_file(&temporary);
         if let Err(cleanup_error) = cleanup {
-            return Err(Phase2Failure::from_io(cleanup_error));
+            return Err(ServiceFailure::from_io(cleanup_error));
         }
         return Err(error);
     }
@@ -108,7 +115,7 @@ pub(crate) fn save(config_directory: &Path, settings: &RecentDatabaseSettings) -
 }
 
 #[cfg(windows)]
-pub(super) fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
+pub(super) fn atomic_replace(source: &Path, destination: &Path) -> ServiceResult<()> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{
         MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
@@ -129,15 +136,15 @@ pub(super) fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<
         )
     } == 0
     {
-        Err(Phase2Failure::from_io(std::io::Error::last_os_error()))
+        Err(ServiceFailure::from_io(std::io::Error::last_os_error()))
     } else {
         Ok(())
     }
 }
 
 #[cfg(not(windows))]
-pub(super) fn atomic_replace(source: &Path, destination: &Path) -> Phase2Result<()> {
-    std::fs::rename(source, destination).map_err(Phase2Failure::from_io)
+pub(super) fn atomic_replace(source: &Path, destination: &Path) -> ServiceResult<()> {
+    std::fs::rename(source, destination).map_err(ServiceFailure::from_io)
 }
 
 fn settings_path(config_directory: &Path) -> PathBuf {

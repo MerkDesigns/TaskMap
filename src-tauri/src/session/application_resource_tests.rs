@@ -1,6 +1,6 @@
-use super::phase2_tests::{create_database, unlock, DATABASE_ID};
+use super::session_lifecycle_tests::{create_database, unlock, DATABASE_ID};
 use super::session_media_transfer::{MediaAction, MediaReply, CHUNK_BYTES};
-use crate::phase2_error::Phase2Failure;
+use crate::error::ServiceFailure;
 use crate::settings::device_preferences;
 use base64::{engine::general_purpose::STANDARD, Engine};
 
@@ -62,7 +62,7 @@ fn selected_file_import_uses_the_same_recipe_and_rechecks_authority() {
     service.lock_database().unwrap();
     assert!(service.import_media_file(DATABASE_ID, &id, &path).is_err());
     let pending = service
-        .unlock_database(super::phase2_tests::PASSWORD)
+        .unlock_database(super::session_lifecycle_tests::PASSWORD)
         .unwrap();
     assert!(service
         .media_transfer(
@@ -92,7 +92,7 @@ fn device_preferences_are_strict_revisioned_and_edition_isolated() {
     assert!(device_preferences::load(&stable, "development").is_err());
     assert!(matches!(
         device_preferences::save(&stable, "stable", 0, prefs.clone()),
-        Err(Phase2Failure::RevisionConflict)
+        Err(ServiceFailure::RevisionConflict)
     ));
     assert_eq!(
         device_preferences::save(&stable, "stable", 1, prefs.clone())

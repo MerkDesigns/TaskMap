@@ -1,10 +1,10 @@
 use super::database_session::DatabaseSessionState;
-use super::phase2_tests::{create_database, DATABASE_ID, DOCUMENT, PASSWORD};
+use super::session_lifecycle_tests::{create_database, DATABASE_ID, DOCUMENT, PASSWORD};
 use super::DatabaseSessionPhase;
 use crate::database::connection::open_connection;
 use crate::database::document_repository::read_encrypted_document;
 use crate::database::media_repository::{load_media, store_media};
-use crate::phase2_error::Phase2Failure;
+use crate::error::ServiceFailure;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Barrier};
 
@@ -27,7 +27,7 @@ fn concurrent_saves_are_serialized_and_one_revision_conflicts() {
     assert_eq!(
         results
             .iter()
-            .filter(|result| matches!(result, Err(Phase2Failure::RevisionConflict)))
+            .filter(|result| matches!(result, Err(ServiceFailure::RevisionConflict)))
             .count(),
         1
     );

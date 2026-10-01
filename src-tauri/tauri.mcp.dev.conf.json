@@ -9,7 +9,7 @@
   "app": {
     "withGlobalTauri": true,
     "security": {
-      "capabilities": ["default", "application-database", "phase2-development", "mcp-development"]
+      "capabilities": ["default", "application-database", "mcp-development"]
     },
     "windows": [
       {

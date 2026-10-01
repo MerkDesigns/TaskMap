@@ -1,5 +1,5 @@
 use super::settings_file;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
@@ -94,7 +94,7 @@ impl Default for DevicePreferences {
     }
 }
 impl DevicePreferences {
-    pub fn validate(&self) -> Phase2Result<()> {
+    pub fn validate(&self) -> ServiceResult<()> {
         let c = &self.default_element_colors;
         let valid_color = |s: &String| {
             s.len() == 7
@@ -130,14 +130,14 @@ impl DevicePreferences {
                 .as_ref()
                 .is_some_and(|s| s.is_empty() || s.len() > 128 || s.chars().any(char::is_control))
         {
-            return Err(Phase2Failure::InvalidInput);
+            return Err(ServiceFailure::InvalidInput);
         }
         Ok(())
     }
 }
-pub(crate) fn load(directory: &Path, edition: &str) -> Phase2Result<PreferencesState> {
+pub(crate) fn load(directory: &Path, edition: &str) -> ServiceResult<PreferencesState> {
     if !matches!(edition, "stable" | "development") {
-        return Err(Phase2Failure::PermissionDenied);
+        return Err(ServiceFailure::PermissionDenied);
     }
     let Some(bytes) =
         settings_file::read(&directory.join("device-preferences-v1.json"), 16 * 1024)?
@@ -150,9 +150,9 @@ pub(crate) fn load(directory: &Path, edition: &str) -> Phase2Result<PreferencesS
         });
     };
     let state: PreferencesState =
-        serde_json::from_slice(&bytes).map_err(|_| Phase2Failure::Settings)?;
+        serde_json::from_slice(&bytes).map_err(|_| ServiceFailure::Settings)?;
     if state.version != 1 || state.edition != edition || state.revision > 9_007_199_254_740_991 {
-        return Err(Phase2Failure::Settings);
+        return Err(ServiceFailure::Settings);
     }
     state.preferences.validate()?;
     Ok(state)
@@ -162,24 +162,24 @@ pub(crate) fn save(
     edition: &str,
     expected_revision: u64,
     preferences: DevicePreferences,
-) -> Phase2Result<PreferencesState> {
+) -> ServiceResult<PreferencesState> {
     preferences.validate()?;
-    let _guard = WRITER.lock().map_err(|_| Phase2Failure::Internal)?;
+    let _guard = WRITER.lock().map_err(|_| ServiceFailure::Internal)?;
     let mut state = load(directory, edition)?;
     if state.revision != expected_revision {
-        return Err(Phase2Failure::RevisionConflict);
+        return Err(ServiceFailure::RevisionConflict);
     }
     if state.preferences == preferences {
         return Ok(state);
     }
     if state.revision >= 9_007_199_254_740_991 {
-        return Err(Phase2Failure::Settings);
+        return Err(ServiceFailure::Settings);
     }
     state.revision += 1;
     state.preferences = preferences;
     settings_file::write(
         &directory.join("device-preferences-v1.json"),
-        &serde_json::to_vec(&state).map_err(|_| Phase2Failure::Settings)?,
+        &serde_json::to_vec(&state).map_err(|_| ServiceFailure::Settings)?,
     )?;
     Ok(state)
 }

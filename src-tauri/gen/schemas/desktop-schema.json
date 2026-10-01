@@ -483,90 +483,6 @@
           "markdownDescription": "Enables the load_app_data command without any pre-configured scope."
         },
         {
-          "description": "Enables the phase2_cancel_pending_unlock command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-cancel-pending-unlock",
-          "markdownDescription": "Enables the phase2_cancel_pending_unlock command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_choose_database_path command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-choose-database-path",
-          "markdownDescription": "Enables the phase2_choose_database_path command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_close_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-close-database",
-          "markdownDescription": "Enables the phase2_close_database command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_confirm_unlock command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-confirm-unlock",
-          "markdownDescription": "Enables the phase2_confirm_unlock command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_create_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-create-database",
-          "markdownDescription": "Enables the phase2_create_database command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_full_backup command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-full-backup",
-          "markdownDescription": "Enables the phase2_full_backup command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_get_session_status command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-get-session-status",
-          "markdownDescription": "Enables the phase2_get_session_status command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_list_recent_databases command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-list-recent-databases",
-          "markdownDescription": "Enables the phase2_list_recent_databases command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_lock_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-lock-database",
-          "markdownDescription": "Enables the phase2_lock_database command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_open_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-open-database",
-          "markdownDescription": "Enables the phase2_open_database command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_quit_application command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-quit-application",
-          "markdownDescription": "Enables the phase2_quit_application command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_read_document command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-read-document",
-          "markdownDescription": "Enables the phase2_read_document command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_save_document command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-save-document",
-          "markdownDescription": "Enables the phase2_save_document command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the phase2_unlock_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-phase2-unlock-database",
-          "markdownDescription": "Enables the phase2_unlock_database command without any pre-configured scope."
-        },
-        {
           "description": "Denies the app_cancel_pending_unlock command without any pre-configured scope.",
           "type": "string",
           "const": "deny-app-cancel-pending-unlock",
@@ -703,90 +619,6 @@
           "type": "string",
           "const": "deny-load-app-data",
           "markdownDescription": "Denies the load_app_data command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_cancel_pending_unlock command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-cancel-pending-unlock",
-          "markdownDescription": "Denies the phase2_cancel_pending_unlock command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_choose_database_path command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-choose-database-path",
-          "markdownDescription": "Denies the phase2_choose_database_path command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_close_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-close-database",
-          "markdownDescription": "Denies the phase2_close_database command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_confirm_unlock command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-confirm-unlock",
-          "markdownDescription": "Denies the phase2_confirm_unlock command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_create_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-create-database",
-          "markdownDescription": "Denies the phase2_create_database command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_full_backup command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-full-backup",
-          "markdownDescription": "Denies the phase2_full_backup command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_get_session_status command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-get-session-status",
-          "markdownDescription": "Denies the phase2_get_session_status command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_list_recent_databases command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-list-recent-databases",
-          "markdownDescription": "Denies the phase2_list_recent_databases command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_lock_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-lock-database",
-          "markdownDescription": "Denies the phase2_lock_database command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_open_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-open-database",
-          "markdownDescription": "Denies the phase2_open_database command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_quit_application command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-quit-application",
-          "markdownDescription": "Denies the phase2_quit_application command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_read_document command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-read-document",
-          "markdownDescription": "Denies the phase2_read_document command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_save_document command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-save-document",
-          "markdownDescription": "Denies the phase2_save_document command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the phase2_unlock_database command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-phase2-unlock-database",
-          "markdownDescription": "Denies the phase2_unlock_database command without any pre-configured scope."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
@@ -2869,6 +2701,168 @@
           "type": "string",
           "const": "dialog:deny-save",
           "markdownDescription": "Denies the save command without any pre-configured scope."
+        },
+        {
+          "description": "Default permissions for MCP Bridge plugin\n#### This default permission set includes:\n\n- `allow-capture-native-screenshot`\n- `allow-emit-event`\n- `allow-execute-command`\n- `allow-execute-js`\n- `allow-get-backend-state`\n- `allow-get-ipc-events`\n- `allow-get-window-info`\n- `allow-list-windows`\n- `allow-report-ipc-event`\n- `allow-request-script-injection`\n- `allow-script-result`\n- `allow-start-ipc-monitor`\n- `allow-stop-ipc-monitor`",
+          "type": "string",
+          "const": "mcp-bridge:default",
+          "markdownDescription": "Default permissions for MCP Bridge plugin\n#### This default permission set includes:\n\n- `allow-capture-native-screenshot`\n- `allow-emit-event`\n- `allow-execute-command`\n- `allow-execute-js`\n- `allow-get-backend-state`\n- `allow-get-ipc-events`\n- `allow-get-window-info`\n- `allow-list-windows`\n- `allow-report-ipc-event`\n- `allow-request-script-injection`\n- `allow-script-result`\n- `allow-start-ipc-monitor`\n- `allow-stop-ipc-monitor`"
+        },
+        {
+          "description": "Enables the capture_native_screenshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-capture-native-screenshot",
+          "markdownDescription": "Enables the capture_native_screenshot command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the emit_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-emit-event",
+          "markdownDescription": "Enables the emit_event command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the execute_command command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-execute-command",
+          "markdownDescription": "Enables the execute_command command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the execute_js command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-execute-js",
+          "markdownDescription": "Enables the execute_js command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_backend_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-get-backend-state",
+          "markdownDescription": "Enables the get_backend_state command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_ipc_events command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-get-ipc-events",
+          "markdownDescription": "Enables the get_ipc_events command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_window_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-get-window-info",
+          "markdownDescription": "Enables the get_window_info command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_windows command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-list-windows",
+          "markdownDescription": "Enables the list_windows command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the report_ipc_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-report-ipc-event",
+          "markdownDescription": "Enables the report_ipc_event command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the request_script_injection command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-request-script-injection",
+          "markdownDescription": "Enables the request_script_injection command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the script_result command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-script-result",
+          "markdownDescription": "Enables the script_result command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the start_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-start-ipc-monitor",
+          "markdownDescription": "Enables the start_ipc_monitor command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stop_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:allow-stop-ipc-monitor",
+          "markdownDescription": "Enables the stop_ipc_monitor command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the capture_native_screenshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-capture-native-screenshot",
+          "markdownDescription": "Denies the capture_native_screenshot command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the emit_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-emit-event",
+          "markdownDescription": "Denies the emit_event command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the execute_command command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-execute-command",
+          "markdownDescription": "Denies the execute_command command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the execute_js command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-execute-js",
+          "markdownDescription": "Denies the execute_js command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_backend_state command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-get-backend-state",
+          "markdownDescription": "Denies the get_backend_state command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_ipc_events command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-get-ipc-events",
+          "markdownDescription": "Denies the get_ipc_events command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_window_info command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-get-window-info",
+          "markdownDescription": "Denies the get_window_info command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_windows command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-list-windows",
+          "markdownDescription": "Denies the list_windows command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the report_ipc_event command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-report-ipc-event",
+          "markdownDescription": "Denies the report_ipc_event command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the request_script_injection command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-request-script-injection",
+          "markdownDescription": "Denies the request_script_injection command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the script_result command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-script-result",
+          "markdownDescription": "Denies the script_result command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the start_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-start-ipc-monitor",
+          "markdownDescription": "Denies the start_ipc_monitor command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stop_ipc_monitor command without any pre-configured scope.",
+          "type": "string",
+          "const": "mcp-bridge:deny-stop-ipc-monitor",
+          "markdownDescription": "Denies the stop_ipc_monitor command without any pre-configured scope."
         },
         {
           "description": "This permission set allows opening `mailto:`, `tel:`, `https://` and `http://` urls using their default application\nas well as reveal file in directories using default file explorer\n#### This default permission set includes:\n\n- `allow-open-url`\n- `allow-reveal-item-in-dir`\n- `allow-default-urls`",

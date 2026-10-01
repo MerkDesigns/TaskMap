@@ -3,14 +3,14 @@ use super::session_media_transfer::MediaReply;
 use super::session_state_access::authorized_session;
 use super::session_support::timestamp;
 use crate::database::{connection::open_connection, media_repository::store_media};
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::image_processing::normalize_image;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
 use std::io::Read;
 use std::path::Path;
 
-pub(super) fn persist_image(session: &OpenSession, input: &[u8]) -> Phase2Result<MediaReply> {
+pub(super) fn persist_image(session: &OpenSession, input: &[u8]) -> ServiceResult<MediaReply> {
     let (format, bytes, pixel_width, pixel_height) =
-        normalize_image(input).map_err(|_| Phase2Failure::InvalidInput)?;
+        normalize_image(input).map_err(|_| ServiceFailure::InvalidInput)?;
     let mime_type = if format == "svg" {
         "image/svg+xml".to_owned()
     } else {
@@ -27,7 +27,7 @@ pub(super) fn persist_image(session: &OpenSession, input: &[u8]) -> Phase2Result
     })
 }
 impl DatabaseSessionState {
-    pub(crate) fn authorize_media(&self, database_id: &str, session_id: &str) -> Phase2Result<()> {
+    pub(crate) fn authorize_media(&self, database_id: &str, session_id: &str) -> ServiceResult<()> {
         let mut guard = self.guard()?;
         authorized_session(&mut guard, database_id, session_id).map(|_| ())
     }
@@ -37,18 +37,18 @@ impl DatabaseSessionState {
         database_id: &str,
         session_id: &str,
         path: &Path,
-    ) -> Phase2Result<MediaReply> {
+    ) -> ServiceResult<MediaReply> {
         self.authorize_media(database_id, session_id)?;
-        let file = std::fs::File::open(path).map_err(Phase2Failure::from_io)?;
-        if !file.metadata().map_err(Phase2Failure::from_io)?.is_file() {
-            return Err(Phase2Failure::InvalidInput);
+        let file = std::fs::File::open(path).map_err(ServiceFailure::from_io)?;
+        if !file.metadata().map_err(ServiceFailure::from_io)?.is_file() {
+            return Err(ServiceFailure::InvalidInput);
         }
         let mut bytes = Vec::new();
         file.take(50 * 1024 * 1024 + 1)
             .read_to_end(&mut bytes)
-            .map_err(Phase2Failure::from_io)?;
+            .map_err(ServiceFailure::from_io)?;
         if bytes.len() > 50 * 1024 * 1024 {
-            return Err(Phase2Failure::InvalidInput);
+            return Err(ServiceFailure::InvalidInput);
         }
         let mut guard = self.guard()?;
         let session = authorized_session(&mut guard, database_id, session_id)?;

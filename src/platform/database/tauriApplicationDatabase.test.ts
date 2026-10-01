@@ -35,7 +35,7 @@ describe("scoped application database client", () => {
     "confirms only matching %s documents, then binds saves to that session",
     async (purpose) => {
       const fixture = databaseTransportFixture(purpose);
-      const client = createValidatedDatabaseClient("app", purpose);
+      const client = createValidatedDatabaseClient(purpose);
       ipc
         .mockResolvedValueOnce(fixture.pending)
         .mockResolvedValueOnce(fixture.session)
@@ -69,7 +69,7 @@ describe("scoped application database client", () => {
         purpose === "production" ? "development" : "production",
       );
       ipc.mockResolvedValueOnce(fixture.pending).mockResolvedValueOnce({ phase: "closed" });
-      const client = createValidatedDatabaseClient("app", purpose);
+      const client = createValidatedDatabaseClient(purpose);
       expect(await client.unlockDatabase({ password: "test" })).toMatchObject({
         ok: false,
         error: { code: "database_purpose_mismatch" },
@@ -82,7 +82,7 @@ describe("scoped application database client", () => {
   );
   it("requires a validated load even when status reports an unlocked session", async () => {
     const fixture = databaseTransportFixture();
-    const client = createValidatedDatabaseClient("app", "production");
+    const client = createValidatedDatabaseClient("production");
     ipc.mockResolvedValue(fixture.session);
     await client.getSessionStatus();
     expect(
@@ -104,7 +104,7 @@ describe("scoped application database client", () => {
         .mockResolvedValueOnce(fixture.pending)
         .mockResolvedValueOnce({ ...fixture.session, [field]: replacement })
         .mockResolvedValueOnce({ phase: "closed" });
-      const client = createValidatedDatabaseClient("app", "production");
+      const client = createValidatedDatabaseClient("production");
       expect((await client.unlockDatabase({ password: "test" })).ok).toBe(false);
       expect(ipc.mock.calls.slice(-1)[0]?.[0]).toBe("app_close_database");
     },
@@ -116,7 +116,7 @@ describe("scoped application database client", () => {
       .mockResolvedValueOnce({ phase: "closed" });
     expect(
       (
-        await createValidatedDatabaseClient("app", "production").unlockDatabase({
+        await createValidatedDatabaseClient("production").unlockDatabase({
           password: "test",
         })
       ).ok,
@@ -128,7 +128,7 @@ describe("scoped application database client", () => {
   });
   it("invalidates the captured save identity on lock", async () => {
     const fixture = databaseTransportFixture();
-    const client = createValidatedDatabaseClient("app", "production");
+    const client = createValidatedDatabaseClient("production");
     ipc
       .mockResolvedValueOnce(fixture.loaded)
       .mockResolvedValueOnce({ ...fixture.session, phase: "locked" });

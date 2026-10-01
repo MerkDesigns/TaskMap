@@ -1,6 +1,6 @@
 use crate::database::connection::ReservedDatabase;
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::files::database_lock::database_file_identity;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use rand::{rngs::OsRng, RngCore};
@@ -12,33 +12,33 @@ use std::time::Duration;
 pub(crate) fn create_full_backup(
     source: &Connection,
     destination_path: &Path,
-) -> Phase2Result<PathBuf> {
+) -> ServiceResult<PathBuf> {
     if destination_path.exists() {
-        return Err(Phase2Failure::AlreadyExists);
+        return Err(ServiceFailure::AlreadyExists);
     }
     let temporary_path = unique_temporary_path(destination_path);
     let reservation =
-        ReservedDatabase::reserve(&temporary_path).map_err(|_| Phase2Failure::BackupFailure)?;
+        ReservedDatabase::reserve(&temporary_path).map_err(|_| ServiceFailure::BackupFailure)?;
     let reserved_identity = reservation.identity().to_string();
-    let backup_result: Phase2Result<()> = (|| {
+    let backup_result: ServiceResult<()> = (|| {
         let mut destination =
-            Connection::open(&temporary_path).map_err(|_| Phase2Failure::BackupFailure)?;
+            Connection::open(&temporary_path).map_err(|_| ServiceFailure::BackupFailure)?;
         {
             let backup =
-                Backup::new(source, &mut destination).map_err(|_| Phase2Failure::BackupFailure)?;
+                Backup::new(source, &mut destination).map_err(|_| ServiceFailure::BackupFailure)?;
             backup
                 .run_to_completion(128, Duration::from_millis(5), None)
-                .map_err(|_| Phase2Failure::BackupFailure)?;
+                .map_err(|_| ServiceFailure::BackupFailure)?;
         }
         destination
             .close()
-            .map_err(|_| Phase2Failure::BackupFailure)?;
+            .map_err(|_| ServiceFailure::BackupFailure)?;
         Ok(())
     })();
 
     if backup_result.is_err() {
         reservation.cleanup()?;
-        return Err(Phase2Failure::BackupFailure);
+        return Err(ServiceFailure::BackupFailure);
     }
 
     let temporary_path = reservation.commit();
@@ -46,9 +46,9 @@ pub(crate) fn create_full_backup(
         if database_file_identity(&temporary_path)
             .is_ok_and(|identity| identity == reserved_identity)
         {
-            std::fs::remove_file(&temporary_path).map_err(|_| Phase2Failure::BackupFailure)?;
+            std::fs::remove_file(&temporary_path).map_err(|_| ServiceFailure::BackupFailure)?;
         }
-        return Err(Phase2Failure::BackupFailure);
+        return Err(ServiceFailure::BackupFailure);
     }
     Ok(destination_path.to_path_buf())
 }

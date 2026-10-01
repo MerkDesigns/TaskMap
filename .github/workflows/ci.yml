@@ -58,7 +58,7 @@ jobs:
         run: |
           $featureArgs = @()
           if ('${{ matrix.edition }}' -eq 'development') {
-            $featureArgs = @('--features', 'phase2-development,mcp-development')
+            $featureArgs = @('--features', 'mcp-development')
           }
           if ('${{ matrix.edition }}' -eq 'all-features') {
             $featureArgs = @('--all-features')
@@ -70,7 +70,7 @@ jobs:
         run: |
           $featureArgs = @()
           if ('${{ matrix.edition }}' -eq 'development') {
-            $featureArgs = @('--features', 'phase2-development,mcp-development')
+            $featureArgs = @('--features', 'mcp-development')
           }
           if ('${{ matrix.edition }}' -eq 'all-features') {
             $featureArgs = @('--all-features')

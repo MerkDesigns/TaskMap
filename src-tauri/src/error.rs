@@ -3,7 +3,7 @@ use std::io;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum Phase2Failure {
+pub(crate) enum ServiceFailure {
     #[error("database already exists")]
     AlreadyExists,
     #[error("database file was not found")]
@@ -48,7 +48,7 @@ pub(crate) enum Phase2Failure {
     Internal,
 }
 
-impl Phase2Failure {
+impl ServiceFailure {
     pub(crate) fn from_io(error: io::Error) -> Self {
         match error.kind() {
             io::ErrorKind::NotFound => Self::FileNotFound,
@@ -60,7 +60,7 @@ impl Phase2Failure {
 
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum Phase2ErrorCode {
+pub(crate) enum ErrorCode {
     AlreadyExists,
     FileNotFound,
     PermissionDenied,
@@ -82,83 +82,89 @@ pub(crate) enum Phase2ErrorCode {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Phase2CommandError {
-    code: Phase2ErrorCode,
+pub(crate) struct CommandError {
+    code: ErrorCode,
     message: &'static str,
     retryable: bool,
 }
 
-impl From<Phase2Failure> for Phase2CommandError {
-    fn from(failure: Phase2Failure) -> Self {
-        use Phase2ErrorCode as Code;
-        use Phase2Failure as Failure;
+impl From<ServiceFailure> for CommandError {
+    fn from(failure: ServiceFailure) -> Self {
+        use ErrorCode as Code;
 
         let (code, message, retryable) = match failure {
-            Failure::AlreadyExists => (
+            ServiceFailure::AlreadyExists => (
                 Code::AlreadyExists,
                 "A database already exists there.",
                 false,
             ),
-            Failure::FileNotFound => (
+            ServiceFailure::FileNotFound => (
                 Code::FileNotFound,
                 "The database file was not found.",
                 false,
             ),
-            Failure::PermissionDenied => (Code::PermissionDenied, "Permission was denied.", false),
-            Failure::WriterLockContention => (
+            ServiceFailure::PermissionDenied => {
+                (Code::PermissionDenied, "Permission was denied.", false)
+            }
+            ServiceFailure::WriterLockContention => (
                 Code::WriterLockContention,
                 "Another TaskMap process is already writing this database.",
                 true,
             ),
-            Failure::UnsupportedFormat => (
+            ServiceFailure::UnsupportedFormat => (
                 Code::UnsupportedDatabaseFormat,
                 "This TaskMap database format is not supported.",
                 false,
             ),
-            Failure::CorruptDatabase => (
+            ServiceFailure::CorruptDatabase => (
                 Code::CorruptDatabase,
                 "The database is corrupt or has been modified.",
                 false,
             ),
-            Failure::WrongPassword => (Code::WrongPassword, "The password is incorrect.", true),
-            Failure::InvalidDocumentPayload => (
+            ServiceFailure::WrongPassword => {
+                (Code::WrongPassword, "The password is incorrect.", true)
+            }
+            ServiceFailure::InvalidDocumentPayload => (
                 Code::InvalidDocumentPayload,
                 "The document payload is invalid.",
                 false,
             ),
-            Failure::InvalidInput => (
+            ServiceFailure::InvalidInput => (
                 Code::InvalidInput,
                 "The operation input is invalid or exceeds a safety limit.",
                 false,
             ),
-            Failure::DatabasePurposeMismatch => (
+            ServiceFailure::DatabasePurposeMismatch => (
                 Code::DatabasePurposeMismatch,
                 "This database purpose is not allowed in this application edition.",
                 false,
             ),
-            Failure::SessionLocked => (Code::SessionLocked, "The database is locked.", true),
-            Failure::SessionNotOpen => {
+            ServiceFailure::SessionLocked => (Code::SessionLocked, "The database is locked.", true),
+            ServiceFailure::SessionNotOpen => {
                 (Code::SessionNotOpen, "No database session is open.", false)
             }
-            Failure::SessionAlreadyOpen => (
+            ServiceFailure::SessionAlreadyOpen => (
                 Code::SessionAlreadyOpen,
                 "Close the current database session before opening another one.",
                 false,
             ),
-            Failure::RevisionConflict => (
+            ServiceFailure::RevisionConflict => (
                 Code::RevisionConflict,
                 "The document changed before this save completed.",
                 true,
             ),
-            Failure::SaveFailure | Failure::Sqlite(_) => {
+            ServiceFailure::SaveFailure | ServiceFailure::Sqlite(_) => {
                 (Code::SaveFailure, "The database could not be saved.", true)
             }
-            Failure::BackupFailure => (
+            ServiceFailure::BackupFailure => (
                 Code::BackupFailure,
                 "A safe database backup could not be created.",
                 true,
             ),
-            Failure::Io(_) | Failure::Crypto | Failure::Settings | Failure::Internal => (
+            ServiceFailure::Io(_)
+            | ServiceFailure::Crypto
+            | ServiceFailure::Settings
+            | ServiceFailure::Internal => (
                 Code::Unexpected,
                 "The operation could not be completed.",
                 false,
@@ -173,5 +179,5 @@ impl From<Phase2Failure> for Phase2CommandError {
     }
 }
 
-pub(crate) type Phase2Result<T> = Result<T, Phase2Failure>;
-pub(crate) type Phase2CommandResult<T> = Result<T, Phase2CommandError>;
+pub(crate) type ServiceResult<T> = Result<T, ServiceFailure>;
+pub(crate) type CommandResult<T> = Result<T, CommandError>;

@@ -3,11 +3,11 @@ use super::{
     session_media_transfer::MediaReply,
     session_state_access::{authorized_session, unlocked_session},
 };
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use std::path::PathBuf;
 
 impl DatabaseSessionState {
-    pub(crate) fn capture_image_drop(&self, paths: &[PathBuf]) -> Phase2Result<Vec<String>> {
+    pub(crate) fn capture_image_drop(&self, paths: &[PathBuf]) -> ServiceResult<Vec<String>> {
         let mut guard = self.guard()?;
         let session = unlocked_session(&mut guard)?;
         Ok(session
@@ -19,14 +19,14 @@ impl DatabaseSessionState {
         database_id: &str,
         session_id: &str,
         token: &str,
-    ) -> Phase2Result<MediaReply> {
+    ) -> ServiceResult<MediaReply> {
         let path = {
             let mut guard = self.guard()?;
             let session = authorized_session(&mut guard, database_id, session_id)?;
             session
                 .image_drops
                 .take(token, database_id, session_id)
-                .ok_or(Phase2Failure::PermissionDenied)?
+                .ok_or(ServiceFailure::PermissionDenied)?
         };
         // File intake rechecks this authority before and after processing off the renderer thread.
         self.import_media_file(database_id, session_id, &path)

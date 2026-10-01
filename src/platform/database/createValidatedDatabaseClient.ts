@@ -18,13 +18,12 @@ import type {
 } from "./databaseTypes";
 
 export function createValidatedDatabaseClient(
-  prefix: "app" | "phase2",
   expectedPurpose: TaskMapDocument["databasePurpose"],
   acceptDocument?: DocumentAcceptance,
 ): DatabaseClient & { getSessionAuthority(): SessionAuthority | null } {
   let sessionId: string | null = null;
   let databaseId: string | null = null;
-  const command = (operation: string) => `${prefix}_${operation}`;
+  const command = (operation: string) => `app_${operation}`;
 
   function invalidDocument<Value>(
     message = "The document payload is invalid.",

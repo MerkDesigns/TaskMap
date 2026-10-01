@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const read = (path) => readFile(path, "utf8");
 const main = await read("src-tauri/src/main.rs");
-for (const module of ["storage", "images", "portable", "model", "discord", "error"]) {
+for (const module of ["storage", "images", "portable", "model", "discord"]) {
   assert.ok(!main.includes(`mod ${module};`), `${module} must not enter the product module graph`);
 }
 assert.ok(!main.includes("initialize_storage"));

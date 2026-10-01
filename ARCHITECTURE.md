@@ -290,7 +290,7 @@ src/
 ├─ canvas/         pure geometry, viewport and culling math
 ├─ elements/       element models, schemas and projections (renderers move here in Phase 5)
 ├─ extensions/     extension definitions, configuration and compatibility
-├─ features/       product features with their own UI (database entry, minimap, dev DB harness)
+├─ features/       product features with their own UI (database entry, minimap)
 ├─ platform/       the only TypeScript code that talks to Tauri (typed native clients)
 ├─ ui/             theme tokens, materials (glass), motion, primitives and composed patterns
 ├─ ui-lab/         synthetic UI fixtures shown in the DEV workbench's UI Lab view

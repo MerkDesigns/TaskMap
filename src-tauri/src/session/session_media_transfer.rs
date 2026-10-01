@@ -1,7 +1,7 @@
 use super::database_session::DatabaseSessionState;
 use super::session_state_access::authorized_session;
 use super::session_support::random_identifier;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
@@ -80,7 +80,7 @@ impl DatabaseSessionState {
         database_id: &str,
         session_id: &str,
         action: MediaAction,
-    ) -> Phase2Result<MediaReply> {
+    ) -> ServiceResult<MediaReply> {
         let mut guard = self.guard()?;
         let session = authorized_session(&mut guard, database_id, session_id)?;
         session.media_reads.expire();
@@ -94,7 +94,7 @@ impl DatabaseSessionState {
         match action {
             MediaAction::Start { byte_length } => {
                 if byte_length == 0 || byte_length > MAX_INPUT || session.media_upload.is_some() {
-                    return Err(Phase2Failure::InvalidInput);
+                    return Err(ServiceFailure::InvalidInput);
                 }
                 let token = random_identifier();
                 session.media_upload = Some(MediaUpload {
@@ -111,22 +111,22 @@ impl DatabaseSessionState {
                 data,
             } => {
                 if data.len() > CHUNK_BYTES.div_ceil(3) * 4 {
-                    return Err(Phase2Failure::InvalidInput);
+                    return Err(ServiceFailure::InvalidInput);
                 }
                 let bytes = STANDARD
                     .decode(data)
-                    .map_err(|_| Phase2Failure::InvalidInput)?;
+                    .map_err(|_| ServiceFailure::InvalidInput)?;
                 let upload = session
                     .media_upload
                     .as_mut()
-                    .ok_or(Phase2Failure::InvalidInput)?;
+                    .ok_or(ServiceFailure::InvalidInput)?;
                 if upload.token != token
                     || offset != upload.bytes.len()
                     || bytes.is_empty()
                     || bytes.len() > CHUNK_BYTES
                     || bytes.len() > upload.length - offset
                 {
-                    return Err(Phase2Failure::InvalidInput);
+                    return Err(ServiceFailure::InvalidInput);
                 }
                 upload.bytes.extend(bytes);
                 upload.touched = Instant::now();
@@ -148,14 +148,14 @@ impl DatabaseSessionState {
                     .as_ref()
                     .is_none_or(|upload| upload.token != token)
                 {
-                    return Err(Phase2Failure::InvalidInput);
+                    return Err(ServiceFailure::InvalidInput);
                 }
                 let upload = session
                     .media_upload
                     .take()
-                    .ok_or(Phase2Failure::InvalidInput)?;
+                    .ok_or(ServiceFailure::InvalidInput)?;
                 if upload.bytes.len() != upload.length {
-                    return Err(Phase2Failure::InvalidInput);
+                    return Err(ServiceFailure::InvalidInput);
                 }
                 super::session_media_file::persist_image(session, &upload.bytes)
             }

@@ -1,7 +1,7 @@
 use super::session_support::random_identifier;
 use crate::database::{connection::open_connection, media_repository::load_media};
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::image_processing::{decode_raster, validate_gif_animation, validate_svg};
-use crate::phase2_error::{Phase2Failure, Phase2Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -26,10 +26,10 @@ impl MediaReads {
         &mut self,
         path: &Path,
         id: &str,
-    ) -> Phase2Result<(String, String, usize)> {
+    ) -> ServiceResult<(String, String, usize)> {
         self.expire();
         if self.0.len() >= 2 {
-            return Err(Phase2Failure::InvalidInput);
+            return Err(ServiceFailure::InvalidInput);
         }
         let connection = open_connection(path)?;
         // The shape/size preflight and byte/hash query must see the same SQLite snapshot too.
@@ -49,7 +49,7 @@ impl MediaReads {
                 }),
             _ => Err("Unsupported media".to_string()),
         };
-        valid.map_err(|_| Phase2Failure::CorruptDatabase)?;
+        valid.map_err(|_| ServiceFailure::CorruptDatabase)?;
         let token = random_identifier();
         let length = record.bytes.len();
         self.0.insert(
@@ -62,11 +62,11 @@ impl MediaReads {
         Ok((token, record.mime_type, length))
     }
 
-    pub(super) fn read(&mut self, token: &str, offset: usize) -> Phase2Result<Vec<u8>> {
+    pub(super) fn read(&mut self, token: &str, offset: usize) -> ServiceResult<Vec<u8>> {
         self.expire();
-        let read = self.0.get_mut(token).ok_or(Phase2Failure::InvalidInput)?;
+        let read = self.0.get_mut(token).ok_or(ServiceFailure::InvalidInput)?;
         if offset >= read.bytes.len() {
-            return Err(Phase2Failure::InvalidInput);
+            return Err(ServiceFailure::InvalidInput);
         }
         let end = (offset + super::session_media_transfer::CHUNK_BYTES).min(read.bytes.len());
         let bytes = read.bytes[offset..end].to_vec();

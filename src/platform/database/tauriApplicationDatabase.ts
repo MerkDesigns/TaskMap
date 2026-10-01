@@ -36,7 +36,7 @@ export async function createTauriApplicationDatabase(acceptDocument: DocumentAcc
   }
   const expectedPurpose =
     result.value === "stable" ? ("production" as const) : ("development" as const);
-  const databaseClient = createValidatedDatabaseClient("app", expectedPurpose, acceptDocument);
+  const databaseClient = createValidatedDatabaseClient(expectedPurpose, acceptDocument);
   const value = {
     edition: result.value,
     expectedPurpose,

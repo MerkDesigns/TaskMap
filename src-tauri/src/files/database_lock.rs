@@ -1,4 +1,4 @@
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 #[cfg(not(windows))]
@@ -24,16 +24,16 @@ pub(crate) struct DatabaseWriterLock {
 }
 
 impl DatabaseWriterLock {
-    pub(crate) fn acquire(database_path: &Path, owner: &LockOwner) -> Phase2Result<Self> {
+    pub(crate) fn acquire(database_path: &Path, owner: &LockOwner) -> ServiceResult<Self> {
         let canonical_path =
-            std::fs::canonicalize(database_path).map_err(Phase2Failure::from_io)?;
+            std::fs::canonicalize(database_path).map_err(ServiceFailure::from_io)?;
         let database_file_guard = open_identity_guard(&canonical_path)?;
         let metadata = database_file_guard
             .metadata()
-            .map_err(Phase2Failure::from_io)?;
+            .map_err(ServiceFailure::from_io)?;
         let identity = file_identity(&canonical_path, &database_file_guard, &metadata)?;
         let authority_directory = std::env::temp_dir().join("taskmap-writer-locks-v1");
-        std::fs::create_dir_all(&authority_directory).map_err(Phase2Failure::from_io)?;
+        std::fs::create_dir_all(&authority_directory).map_err(ServiceFailure::from_io)?;
         let authority_path = authority_directory.join(format!("{identity}.lock"));
         let authority_file = OpenOptions::new()
             .create(true)
@@ -41,7 +41,7 @@ impl DatabaseWriterLock {
             .read(true)
             .write(true)
             .open(authority_path)
-            .map_err(Phase2Failure::from_io)?;
+            .map_err(ServiceFailure::from_io)?;
         authority_file
             .try_lock_exclusive()
             .map_err(map_authority_lock_error)?;
@@ -62,11 +62,11 @@ impl DatabaseWriterLock {
     }
 }
 
-fn map_authority_lock_error(error: std::io::Error) -> Phase2Failure {
+fn map_authority_lock_error(error: std::io::Error) -> ServiceFailure {
     if error.kind() == fs2::lock_contended_error().kind() {
-        Phase2Failure::WriterLockContention
+        ServiceFailure::WriterLockContention
     } else {
-        Phase2Failure::from_io(error)
+        ServiceFailure::from_io(error)
     }
 }
 
@@ -76,7 +76,7 @@ impl Drop for DatabaseWriterLock {
     }
 }
 
-fn write_diagnostic_sidecar(database_path: &Path, owner: &LockOwner) -> Phase2Result<()> {
+fn write_diagnostic_sidecar(database_path: &Path, owner: &LockOwner) -> ServiceResult<()> {
     let path = diagnostic_path(database_path);
     let mut file = OpenOptions::new()
         .create(true)
@@ -84,12 +84,12 @@ fn write_diagnostic_sidecar(database_path: &Path, owner: &LockOwner) -> Phase2Re
         .read(true)
         .write(true)
         .open(path)
-        .map_err(Phase2Failure::from_io)?;
-    file.set_len(0).map_err(Phase2Failure::from_io)?;
+        .map_err(ServiceFailure::from_io)?;
+    file.set_len(0).map_err(ServiceFailure::from_io)?;
     file.seek(SeekFrom::Start(0))
-        .map_err(Phase2Failure::from_io)?;
-    serde_json::to_writer(&mut file, owner).map_err(|_| Phase2Failure::Internal)?;
-    file.flush().map_err(Phase2Failure::from_io)
+        .map_err(ServiceFailure::from_io)?;
+    serde_json::to_writer(&mut file, owner).map_err(|_| ServiceFailure::Internal)?;
+    file.flush().map_err(ServiceFailure::from_io)
 }
 
 fn diagnostic_path(database_path: &Path) -> PathBuf {
@@ -99,14 +99,18 @@ fn diagnostic_path(database_path: &Path) -> PathBuf {
 }
 
 #[cfg(windows)]
-fn file_identity(_path: &Path, file: &File, _metadata: &std::fs::Metadata) -> Phase2Result<String> {
+fn file_identity(
+    _path: &Path,
+    file: &File,
+    _metadata: &std::fs::Metadata,
+) -> ServiceResult<String> {
     use std::os::windows::io::AsRawHandle;
     use windows_sys::Win32::Storage::FileSystem::{
         GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
     };
     let mut information = BY_HANDLE_FILE_INFORMATION::default();
     if unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, &mut information) } == 0 {
-        return Err(Phase2Failure::from_io(std::io::Error::last_os_error()));
+        return Err(ServiceFailure::from_io(std::io::Error::last_os_error()));
     }
     let volume = information.dwVolumeSerialNumber;
     let index =
@@ -114,33 +118,37 @@ fn file_identity(_path: &Path, file: &File, _metadata: &std::fs::Metadata) -> Ph
     Ok(format!("{volume:08x}-{index:016x}"))
 }
 
-pub(crate) fn database_file_identity(path: &Path) -> Phase2Result<String> {
-    let canonical_path = std::fs::canonicalize(path).map_err(Phase2Failure::from_io)?;
-    let file = File::open(&canonical_path).map_err(Phase2Failure::from_io)?;
-    let metadata = file.metadata().map_err(Phase2Failure::from_io)?;
+pub(crate) fn database_file_identity(path: &Path) -> ServiceResult<String> {
+    let canonical_path = std::fs::canonicalize(path).map_err(ServiceFailure::from_io)?;
+    let file = File::open(&canonical_path).map_err(ServiceFailure::from_io)?;
+    let metadata = file.metadata().map_err(ServiceFailure::from_io)?;
     file_identity(&canonical_path, &file, &metadata)
 }
 
 #[cfg(not(windows))]
-fn file_identity(path: &Path, _file: &File, _metadata: &std::fs::Metadata) -> Phase2Result<String> {
+fn file_identity(
+    path: &Path,
+    _file: &File,
+    _metadata: &std::fs::Metadata,
+) -> ServiceResult<String> {
     let digest = Sha256::digest(path.as_os_str().as_encoded_bytes());
     Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 #[cfg(windows)]
-fn open_identity_guard(path: &Path) -> Phase2Result<File> {
+fn open_identity_guard(path: &Path) -> ServiceResult<File> {
     use std::os::windows::fs::OpenOptionsExt;
     use windows_sys::Win32::Storage::FileSystem::{FILE_SHARE_READ, FILE_SHARE_WRITE};
     OpenOptions::new()
         .read(true)
         .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
         .open(path)
-        .map_err(Phase2Failure::from_io)
+        .map_err(ServiceFailure::from_io)
 }
 
 #[cfg(not(windows))]
-fn open_identity_guard(path: &Path) -> Phase2Result<File> {
-    File::open(path).map_err(Phase2Failure::from_io)
+fn open_identity_guard(path: &Path) -> ServiceResult<File> {
+    File::open(path).map_err(ServiceFailure::from_io)
 }
 
 #[cfg(test)]
@@ -174,7 +182,7 @@ mod tests {
         assert!(diagnostic_path(&database).exists());
         assert!(matches!(
             DatabaseWriterLock::acquire(&database, &owner()),
-            Err(Phase2Failure::WriterLockContention)
+            Err(ServiceFailure::WriterLockContention)
         ));
     }
 
@@ -187,7 +195,7 @@ mod tests {
         let relative = database.parent().unwrap().join(".").join("alias.tmapdb");
         assert!(matches!(
             DatabaseWriterLock::acquire(&relative, &owner()),
-            Err(Phase2Failure::WriterLockContention)
+            Err(ServiceFailure::WriterLockContention)
         ));
         drop(first);
     }
@@ -203,7 +211,7 @@ mod tests {
         let first = DatabaseWriterLock::acquire(&database, &owner()).unwrap();
         assert!(matches!(
             DatabaseWriterLock::acquire(&alias, &owner()),
-            Err(Phase2Failure::WriterLockContention)
+            Err(ServiceFailure::WriterLockContention)
         ));
         drop(first);
     }
@@ -218,13 +226,13 @@ mod tests {
         let case_variant = directory.path().join("casealias.tmapdb");
         assert!(matches!(
             DatabaseWriterLock::acquire(&case_variant, &owner()),
-            Err(Phase2Failure::WriterLockContention)
+            Err(ServiceFailure::WriterLockContention)
         ));
         let symlink = directory.path().join("symlink.tmapdb");
         if std::os::windows::fs::symlink_file(&database, &symlink).is_ok() {
             assert!(matches!(
                 DatabaseWriterLock::acquire(&symlink, &owner()),
-                Err(Phase2Failure::WriterLockContention)
+                Err(ServiceFailure::WriterLockContention)
             ));
         }
         drop(first);
@@ -238,7 +246,7 @@ mod tests {
         let first = DatabaseWriterLock::acquire(&database, &owner_for("stable")).unwrap();
         assert!(matches!(
             DatabaseWriterLock::acquire(&database, &owner_for("development")),
-            Err(Phase2Failure::WriterLockContention)
+            Err(ServiceFailure::WriterLockContention)
         ));
         drop(first);
     }
@@ -257,11 +265,11 @@ mod tests {
     fn permission_and_unsupported_lock_errors_are_not_contention() {
         assert!(matches!(
             map_authority_lock_error(std::io::Error::from(std::io::ErrorKind::PermissionDenied)),
-            Phase2Failure::PermissionDenied
+            ServiceFailure::PermissionDenied
         ));
         assert!(!matches!(
             map_authority_lock_error(std::io::Error::from(std::io::ErrorKind::Unsupported)),
-            Phase2Failure::WriterLockContention
+            ServiceFailure::WriterLockContention
         ));
     }
 
@@ -310,7 +318,7 @@ mod tests {
         match std::env::var("TASKMAP_TEST_LOCK_MODE").unwrap().as_str() {
             "expect-contention" => assert!(matches!(
                 DatabaseWriterLock::acquire(&database, &owner_for("development")),
-                Err(Phase2Failure::WriterLockContention)
+                Err(ServiceFailure::WriterLockContention)
             )),
             "acquire-and-exit" => {
                 let _lock =

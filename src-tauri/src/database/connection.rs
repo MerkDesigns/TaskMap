@@ -1,5 +1,5 @@
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::files::database_lock::database_file_identity;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
 use rusqlite::{Connection, OpenFlags};
 use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
@@ -16,17 +16,17 @@ pub(crate) struct ReservedDatabase {
 }
 
 impl ReservedDatabase {
-    pub(crate) fn reserve(path: &Path) -> Phase2Result<Self> {
-        let parent = path.parent().ok_or(Phase2Failure::InvalidInput)?;
-        std::fs::create_dir_all(parent).map_err(Phase2Failure::from_io)?;
-        let canonical_parent = std::fs::canonicalize(parent).map_err(Phase2Failure::from_io)?;
-        let file_name = path.file_name().ok_or(Phase2Failure::InvalidInput)?;
+    pub(crate) fn reserve(path: &Path) -> ServiceResult<Self> {
+        let parent = path.parent().ok_or(ServiceFailure::InvalidInput)?;
+        std::fs::create_dir_all(parent).map_err(ServiceFailure::from_io)?;
+        let canonical_parent = std::fs::canonicalize(parent).map_err(ServiceFailure::from_io)?;
+        let file_name = path.file_name().ok_or(ServiceFailure::InvalidInput)?;
         let path = canonical_parent.join(file_name);
         let file_guard = create_reserved_file(&path).map_err(|error| {
             if error.kind() == std::io::ErrorKind::AlreadyExists {
-                Phase2Failure::AlreadyExists
+                ServiceFailure::AlreadyExists
             } else {
-                Phase2Failure::from_io(error)
+                ServiceFailure::from_io(error)
             }
         })?;
         let identity = database_file_identity(&path)?;
@@ -52,13 +52,13 @@ impl ReservedDatabase {
         self.path.clone()
     }
 
-    pub(crate) fn cleanup(mut self) -> Phase2Result<()> {
+    pub(crate) fn cleanup(mut self) -> ServiceResult<()> {
         let still_owned = database_file_identity(&self.path)
             .map(|identity| identity == self.identity)
             .unwrap_or(false);
         if still_owned {
             drop(self.file_guard.take());
-            std::fs::remove_file(&self.path).map_err(Phase2Failure::from_io)?;
+            std::fs::remove_file(&self.path).map_err(ServiceFailure::from_io)?;
         }
         self.committed = true;
         Ok(())
@@ -97,14 +97,14 @@ fn create_reserved_file(path: &Path) -> std::io::Result<File> {
         .open(path)
 }
 
-pub(crate) fn open_connection(path: &Path) -> Phase2Result<Connection> {
+pub(crate) fn open_connection(path: &Path) -> ServiceResult<Connection> {
     if !path.is_file() {
-        return Err(Phase2Failure::FileNotFound);
+        return Err(ServiceFailure::FileNotFound);
     }
     configure(Connection::open_with_flags(path, OPEN_FLAGS).map_err(map_open_error)?)
 }
 
-fn configure(connection: Connection) -> Phase2Result<Connection> {
+fn configure(connection: Connection) -> ServiceResult<Connection> {
     connection.busy_timeout(Duration::from_secs(2))?;
     connection.pragma_update(None, "foreign_keys", true)?;
     connection.pragma_update(None, "journal_mode", "DELETE")?;
@@ -113,11 +113,11 @@ fn configure(connection: Connection) -> Phase2Result<Connection> {
     Ok(connection)
 }
 
-fn map_open_error(error: rusqlite::Error) -> Phase2Failure {
+fn map_open_error(error: rusqlite::Error) -> ServiceFailure {
     match &error {
         rusqlite::Error::SqliteFailure(code, _) if code.code == rusqlite::ErrorCode::ReadOnly => {
-            Phase2Failure::PermissionDenied
+            ServiceFailure::PermissionDenied
         }
-        _ => Phase2Failure::Sqlite(error),
+        _ => ServiceFailure::Sqlite(error),
     }
 }

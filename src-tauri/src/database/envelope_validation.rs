@@ -8,7 +8,7 @@ use crate::database::limits::{
     DATABASE_ID_BYTES, KEY_CHECK_CIPHERTEXT_BYTES, MAX_CIPHERTEXT_BYTES, MAX_TIMESTAMP_BYTES,
 };
 use crate::database::schema::DATABASE_FORMAT_VERSION;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use rusqlite::{params, Connection};
 
 pub(crate) const RECOVERY_GENERATION_COUNT: usize = 5;
@@ -28,7 +28,7 @@ impl DocumentTable {
     }
 }
 
-pub(crate) fn validate_format_info(connection: &Connection) -> Phase2Result<()> {
+pub(crate) fn validate_format_info(connection: &Connection) -> ServiceResult<()> {
     ensure_singleton(connection, "format_info")?;
     let invalid: i64 = connection
         .query_row(
@@ -60,9 +60,9 @@ pub(crate) fn validate_format_info(connection: &Connection) -> Phase2Result<()> 
             ],
             |row| row.get(0),
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
     if invalid != 0 {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     let supported: i64 = connection
         .query_row(
@@ -82,9 +82,9 @@ pub(crate) fn validate_format_info(connection: &Connection) -> Phase2Result<()> 
             ],
             |row| row.get(0),
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
     if supported != 1 {
-        return Err(Phase2Failure::UnsupportedFormat);
+        return Err(ServiceFailure::UnsupportedFormat);
     }
     Ok(())
 }
@@ -92,7 +92,7 @@ pub(crate) fn validate_format_info(connection: &Connection) -> Phase2Result<()> 
 pub(crate) fn validate_document_rows(
     connection: &Connection,
     table: DocumentTable,
-) -> Phase2Result<usize> {
+) -> ServiceResult<usize> {
     let table_name = table.name();
     if matches!(table, DocumentTable::Active) {
         ensure_singleton(connection, table_name)?;
@@ -101,11 +101,11 @@ pub(crate) fn validate_document_rows(
         .query_row(&format!("SELECT COUNT(*) FROM {table_name}"), [], |row| {
             row.get(0)
         })
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
     if count < 0
         || matches!(table, DocumentTable::Recovery) && count as usize > RECOVERY_GENERATION_COUNT
     {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     let invalid: i64 = connection
         .query_row(
@@ -124,14 +124,14 @@ pub(crate) fn validate_document_rows(
             ],
             |row| row.get(0),
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
     if invalid != 0 {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     Ok(count as usize)
 }
 
-fn ensure_singleton(connection: &Connection, table: &str) -> Phase2Result<()> {
+fn ensure_singleton(connection: &Connection, table: &str) -> ServiceResult<()> {
     let (total, singleton): (i64, i64) = connection
         .query_row(
             &format!(
@@ -141,9 +141,9 @@ fn ensure_singleton(connection: &Connection, table: &str) -> Phase2Result<()> {
             [],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
     if total != 1 || singleton != 1 {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     Ok(())
 }
@@ -187,7 +187,7 @@ mod tests {
             connection.execute(statement, []).unwrap();
             assert!(matches!(
                 validate_format_info(&connection),
-                Err(Phase2Failure::UnsupportedFormat)
+                Err(ServiceFailure::UnsupportedFormat)
             ));
         }
     }
@@ -211,7 +211,7 @@ mod tests {
             connection.execute(statement, []).unwrap();
             assert!(matches!(
                 validate_format_info(&connection),
-                Err(Phase2Failure::CorruptDatabase)
+                Err(ServiceFailure::CorruptDatabase)
             ));
         }
     }
@@ -246,7 +246,7 @@ mod tests {
             connection.execute(statement, []).unwrap();
             assert!(matches!(
                 validate_document_rows(&connection, DocumentTable::Active),
-                Err(Phase2Failure::CorruptDatabase)
+                Err(ServiceFailure::CorruptDatabase)
             ));
         }
     }

@@ -6,7 +6,6 @@ const stableConfig = await readJson("src-tauri/tauri.conf.json");
 const developmentConfig = await readJson("src-tauri/tauri.dev.conf.json");
 const mcpDevelopmentConfig = await readJson("src-tauri/tauri.mcp.dev.conf.json");
 const defaultCapability = await readFile("src-tauri/capabilities/default.json", "utf8");
-const phase2Capability = await readFile("src-tauri/capabilities/phase2-development.json", "utf8");
 const mcpCapability = await readFile(
   "src-tauri/capabilities/mcp-development/mcp-development.json",
   "utf8",
@@ -42,7 +41,7 @@ for (const [name, config] of [
 
 const mcpScript = packageJson.scripts["app:dev:mcp"];
 if (
-  !mcpScript?.includes("--features phase2-development,mcp-development") ||
+  !mcpScript?.includes("--features mcp-development") ||
   !mcpScript.includes("--config src-tauri/tauri.mcp.dev.conf.json")
 ) {
   throw new Error("app:dev:mcp does not enable the isolated MCP feature and configuration");
@@ -54,7 +53,7 @@ if (
 ) {
   throw new Error("MCP development configuration is missing its development-only contract");
 }
-if (defaultCapability.includes("mcp-bridge") || phase2Capability.includes("mcp-bridge")) {
+if (defaultCapability.includes("mcp-bridge")) {
   throw new Error("an ordinary application capability exposes the MCP bridge");
 }
 if (!mcpCapability.includes('"mcp-bridge:default"')) {

@@ -5,6 +5,4 @@ pub(crate) mod database_command_types;
 pub(crate) mod database_commands;
 pub(crate) mod database_edition;
 pub(crate) mod database_window_commands;
-#[cfg(feature = "phase2-development")]
-pub(crate) mod phase2_database_commands;
-pub(crate) mod phase2_ipc;
+pub(crate) mod ipc_limits;

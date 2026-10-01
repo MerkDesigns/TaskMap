@@ -3,7 +3,7 @@ use crate::database::envelope_validation::{
     validate_document_rows, validate_format_info, DocumentTable, RECOVERY_GENERATION_COUNT,
 };
 use crate::database::limits::validate_database_id;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use rusqlite::{params, Connection};
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub(crate) struct EncryptedDocumentRow {
     pub(crate) updated_at: String,
 }
 
-pub(crate) fn read_format_info(connection: &Connection) -> Phase2Result<FormatInfo> {
+pub(crate) fn read_format_info(connection: &Connection) -> ServiceResult<FormatInfo> {
     validate_format_info(connection)?;
     let row = connection
         .query_row(
@@ -43,8 +43,8 @@ pub(crate) fn read_format_info(connection: &Connection) -> Phase2Result<FormatIn
                 ))
             },
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
-    validate_database_id(&row.0).map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
+    validate_database_id(&row.0).map_err(|_| ServiceFailure::CorruptDatabase)?;
     Ok(FormatInfo {
         database_id: row.0,
         document_schema_version: row.1,
@@ -57,7 +57,7 @@ pub(crate) fn read_format_info(connection: &Connection) -> Phase2Result<FormatIn
 
 pub(crate) fn read_encrypted_document(
     connection: &Connection,
-) -> Phase2Result<EncryptedDocumentRow> {
+) -> ServiceResult<EncryptedDocumentRow> {
     validate_document_rows(connection, DocumentTable::Active)?;
     connection
         .query_row(
@@ -66,12 +66,12 @@ pub(crate) fn read_encrypted_document(
             [],
             map_document_row,
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)
+        .map_err(|_| ServiceFailure::CorruptDatabase)
 }
 
 pub(crate) fn read_recovery_documents(
     connection: &Connection,
-) -> Phase2Result<Vec<EncryptedDocumentRow>> {
+) -> ServiceResult<Vec<EncryptedDocumentRow>> {
     validate_document_rows(connection, DocumentTable::Recovery)?;
     let mut statement = connection.prepare(
         "SELECT document_schema_version, nonce, ciphertext, save_revision, updated_at
@@ -80,7 +80,7 @@ pub(crate) fn read_recovery_documents(
     let rows = statement
         .query_map([], map_document_row)?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| Phase2Failure::CorruptDatabase)?;
+        .map_err(|_| ServiceFailure::CorruptDatabase)?;
     Ok(rows)
 }
 
@@ -97,7 +97,7 @@ fn map_document_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncryptedDocume
 pub(crate) fn insert_initial_document(
     connection: &Connection,
     row: &EncryptedDocumentRow,
-) -> Phase2Result<()> {
+) -> ServiceResult<()> {
     let changed = connection.execute(
         "INSERT INTO encrypted_document (
             id, document_schema_version, nonce, ciphertext, save_revision, updated_at
@@ -111,7 +111,7 @@ pub(crate) fn insert_initial_document(
         ],
     )?;
     if changed != 1 {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     Ok(())
 }
@@ -120,7 +120,7 @@ pub(crate) fn save_document_transaction(
     connection: &mut Connection,
     row: &EncryptedDocumentRow,
     expected_revision: i64,
-) -> Phase2Result<()> {
+) -> ServiceResult<()> {
     let transaction = connection.transaction()?;
     let preserved = transaction.execute(
         "INSERT OR REPLACE INTO document_recovery
@@ -130,7 +130,7 @@ pub(crate) fn save_document_transaction(
         [expected_revision],
     )?;
     if preserved != 1 {
-        return Err(Phase2Failure::RevisionConflict);
+        return Err(ServiceFailure::RevisionConflict);
     }
     let changed = transaction.execute(
         "UPDATE encrypted_document SET document_schema_version = ?1, nonce = ?2,
@@ -146,14 +146,14 @@ pub(crate) fn save_document_transaction(
         ],
     )?;
     if changed != 1 {
-        return Err(Phase2Failure::RevisionConflict);
+        return Err(ServiceFailure::RevisionConflict);
     }
     let format_changed = transaction.execute(
         "UPDATE format_info SET document_schema_version = ?1, last_saved_at = ?2 WHERE id = 1",
         params![row.document_schema_version, row.updated_at],
     )?;
     if format_changed != 1 {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     transaction.execute(
         "DELETE FROM document_recovery WHERE save_revision NOT IN (
@@ -165,17 +165,17 @@ pub(crate) fn save_document_transaction(
         Ok(()) => Ok(()),
         Err(_) => match active_revision(connection) {
             Ok(revision) if revision == row.save_revision => Ok(()),
-            _ => Err(Phase2Failure::SaveFailure),
+            _ => Err(ServiceFailure::SaveFailure),
         },
     }
 }
 
-fn active_revision(connection: &Connection) -> Phase2Result<i64> {
+fn active_revision(connection: &Connection) -> ServiceResult<i64> {
     connection
         .query_row(
             "SELECT save_revision FROM encrypted_document WHERE id = 1",
             [],
             |row| row.get(0),
         )
-        .map_err(|_| Phase2Failure::CorruptDatabase)
+        .map_err(|_| ServiceFailure::CorruptDatabase)
 }

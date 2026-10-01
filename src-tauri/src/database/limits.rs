@@ -1,4 +1,4 @@
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 
 pub(crate) const DATABASE_ID_BYTES: usize = 45;
 pub(crate) const MEDIA_ID_BYTES: usize = 24;
@@ -13,24 +13,24 @@ pub(crate) const MAX_TIMESTAMP_BYTES: usize = 32;
 pub(crate) const KEY_CHECK_PLAINTEXT_BYTES: usize = 20;
 pub(crate) const KEY_CHECK_CIPHERTEXT_BYTES: usize = KEY_CHECK_PLAINTEXT_BYTES + AEAD_TAG_BYTES;
 
-pub(crate) fn validate_password(password: &[u8]) -> Phase2Result<()> {
+pub(crate) fn validate_password(password: &[u8]) -> ServiceResult<()> {
     if password.is_empty() || password.len() > MAX_PASSWORD_BYTES {
-        return Err(Phase2Failure::InvalidInput);
+        return Err(ServiceFailure::InvalidInput);
     }
     Ok(())
 }
 
-pub(crate) fn validate_document_size(byte_length: usize) -> Phase2Result<()> {
+pub(crate) fn validate_document_size(byte_length: usize) -> ServiceResult<()> {
     if byte_length == 0 || byte_length > MAX_DOCUMENT_BYTES {
-        return Err(Phase2Failure::InvalidDocumentPayload);
+        return Err(ServiceFailure::InvalidDocumentPayload);
     }
     Ok(())
 }
 
-pub(crate) fn validate_database_id(database_id: &str) -> Phase2Result<()> {
+pub(crate) fn validate_database_id(database_id: &str) -> ServiceResult<()> {
     let bytes = database_id.as_bytes();
     if bytes.len() != DATABASE_ID_BYTES || !database_id.starts_with("database-") {
-        return Err(Phase2Failure::InvalidDocumentPayload);
+        return Err(ServiceFailure::InvalidDocumentPayload);
     }
     let uuid = &bytes[9..];
     let valid = uuid.iter().enumerate().all(|(index, byte)| match index {
@@ -38,37 +38,37 @@ pub(crate) fn validate_database_id(database_id: &str) -> Phase2Result<()> {
         _ => byte.is_ascii_digit() || (b'a'..=b'f').contains(byte),
     });
     if !valid {
-        return Err(Phase2Failure::InvalidDocumentPayload);
+        return Err(ServiceFailure::InvalidDocumentPayload);
     }
     Ok(())
 }
 
-pub(crate) fn validate_media_id(media_id: &str) -> Phase2Result<()> {
+pub(crate) fn validate_media_id(media_id: &str) -> ServiceResult<()> {
     if media_id.len() != MEDIA_ID_BYTES
         || !media_id
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
     {
-        return Err(Phase2Failure::InvalidInput);
+        return Err(ServiceFailure::InvalidInput);
     }
     Ok(())
 }
 
-pub(crate) fn validate_mime_type(mime_type: &str) -> Phase2Result<()> {
+pub(crate) fn validate_mime_type(mime_type: &str) -> ServiceResult<()> {
     if mime_type.is_empty()
         || mime_type.len() > MAX_MIME_TYPE_BYTES
         || !mime_type.is_ascii()
         || mime_type.bytes().any(|byte| byte.is_ascii_control())
         || !mime_type.contains('/')
     {
-        return Err(Phase2Failure::InvalidInput);
+        return Err(ServiceFailure::InvalidInput);
     }
     Ok(())
 }
 
-pub(crate) fn validate_media_size(byte_length: usize) -> Phase2Result<()> {
+pub(crate) fn validate_media_size(byte_length: usize) -> ServiceResult<()> {
     if byte_length > MAX_DEVELOPMENT_MEDIA_BYTES {
-        return Err(Phase2Failure::InvalidInput);
+        return Err(ServiceFailure::InvalidInput);
     }
     Ok(())
 }
@@ -82,11 +82,11 @@ mod tests {
         assert!(validate_password(&vec![b'x'; MAX_PASSWORD_BYTES]).is_ok());
         assert!(matches!(
             validate_password(&[]),
-            Err(Phase2Failure::InvalidInput)
+            Err(ServiceFailure::InvalidInput)
         ));
         assert!(matches!(
             validate_password(&vec![b'x'; MAX_PASSWORD_BYTES + 1]),
-            Err(Phase2Failure::InvalidInput)
+            Err(ServiceFailure::InvalidInput)
         ));
         assert!(validate_document_size(MAX_DOCUMENT_BYTES).is_ok());
         assert!(validate_document_size(MAX_DOCUMENT_BYTES + 1).is_err());

@@ -1,5 +1,5 @@
 use crate::database::limits::AUTHORIZATION_TOKEN_BYTES;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use rand::{rngs::OsRng, RngCore};
@@ -55,13 +55,13 @@ impl DatabasePathAuthorizationState {
         raw_path: &Path,
         kind: DatabasePathAuthorizationKind,
         edition: &str,
-    ) -> Phase2Result<AuthorizedDatabasePath> {
+    ) -> ServiceResult<AuthorizedDatabasePath> {
         let path = normalize_path(raw_path, kind)?;
         let token = random_token();
-        let mut entries = self.entries.lock().map_err(|_| Phase2Failure::Internal)?;
+        let mut entries = self.entries.lock().map_err(|_| ServiceFailure::Internal)?;
         entries.retain(|_, entry| entry.expires_at > Instant::now());
         if entries.len() >= MAX_OUTSTANDING_AUTHORIZATIONS {
-            return Err(Phase2Failure::PermissionDenied);
+            return Err(ServiceFailure::PermissionDenied);
         }
         entries.insert(
             token.clone(),
@@ -83,39 +83,39 @@ impl DatabasePathAuthorizationState {
         token: &str,
         expected_kind: DatabasePathAuthorizationKind,
         edition: &str,
-    ) -> Phase2Result<PathBuf> {
+    ) -> ServiceResult<PathBuf> {
         if token.len() != AUTHORIZATION_TOKEN_BYTES {
-            return Err(Phase2Failure::InvalidInput);
+            return Err(ServiceFailure::InvalidInput);
         }
         let entry = self
             .entries
             .lock()
-            .map_err(|_| Phase2Failure::Internal)?
+            .map_err(|_| ServiceFailure::Internal)?
             .remove(token)
-            .ok_or(Phase2Failure::PermissionDenied)?;
+            .ok_or(ServiceFailure::PermissionDenied)?;
         if entry.expires_at <= Instant::now()
             || entry.kind != expected_kind
             || entry.edition != edition
         {
-            return Err(Phase2Failure::PermissionDenied);
+            return Err(ServiceFailure::PermissionDenied);
         }
         Ok(entry.path)
     }
 }
 
-fn normalize_path(raw_path: &Path, kind: DatabasePathAuthorizationKind) -> Phase2Result<PathBuf> {
+fn normalize_path(raw_path: &Path, kind: DatabasePathAuthorizationKind) -> ServiceResult<PathBuf> {
     let raw = raw_path.as_os_str().to_string_lossy();
     if raw.is_empty() || raw.len() > MAX_PATH_BYTES {
-        return Err(Phase2Failure::InvalidInput);
+        return Err(ServiceFailure::InvalidInput);
     }
     match kind {
         DatabasePathAuthorizationKind::Open => {
             if !has_database_extension(raw_path) {
-                return Err(Phase2Failure::InvalidInput);
+                return Err(ServiceFailure::InvalidInput);
             }
-            let path = std::fs::canonicalize(raw_path).map_err(Phase2Failure::from_io)?;
+            let path = std::fs::canonicalize(raw_path).map_err(ServiceFailure::from_io)?;
             if !path.is_file() || !has_database_extension(&path) {
-                return Err(Phase2Failure::FileNotFound);
+                return Err(ServiceFailure::FileNotFound);
             }
             Ok(path)
         }
@@ -126,29 +126,32 @@ fn normalize_path(raw_path: &Path, kind: DatabasePathAuthorizationKind) -> Phase
                     destination.set_extension("tmapdb");
                 }
                 Some(_) if !has_database_extension(&destination) => {
-                    return Err(Phase2Failure::InvalidInput);
+                    return Err(ServiceFailure::InvalidInput);
                 }
                 Some(_) => {}
             }
             if destination.as_os_str().to_string_lossy().len() > MAX_PATH_BYTES {
-                return Err(Phase2Failure::InvalidInput);
+                return Err(ServiceFailure::InvalidInput);
             }
-            let file_name = destination.file_name().ok_or(Phase2Failure::InvalidInput)?;
+            let file_name = destination
+                .file_name()
+                .ok_or(ServiceFailure::InvalidInput)?;
             if Path::new(file_name)
                 .components()
                 .any(|part| !matches!(part, Component::Normal(_)))
             {
-                return Err(Phase2Failure::InvalidInput);
+                return Err(ServiceFailure::InvalidInput);
             }
             let parent = destination
                 .parent()
                 .filter(|path| !path.as_os_str().is_empty());
             let parent = match parent {
                 Some(parent) => parent.to_path_buf(),
-                None => std::env::current_dir().map_err(Phase2Failure::from_io)?,
+                None => std::env::current_dir().map_err(ServiceFailure::from_io)?,
             };
-            std::fs::create_dir_all(&parent).map_err(Phase2Failure::from_io)?;
-            let canonical_parent = std::fs::canonicalize(parent).map_err(Phase2Failure::from_io)?;
+            std::fs::create_dir_all(&parent).map_err(ServiceFailure::from_io)?;
+            let canonical_parent =
+                std::fs::canonicalize(parent).map_err(ServiceFailure::from_io)?;
             Ok(canonical_parent.join(file_name))
         }
     }
@@ -189,7 +192,7 @@ mod tests {
                 DatabasePathAuthorizationKind::Create,
                 "development"
             ),
-            Err(Phase2Failure::PermissionDenied)
+            Err(ServiceFailure::PermissionDenied)
         ));
         assert!(matches!(
             state.redeem(
@@ -197,7 +200,7 @@ mod tests {
                 DatabasePathAuthorizationKind::Open,
                 "development"
             ),
-            Err(Phase2Failure::PermissionDenied)
+            Err(ServiceFailure::PermissionDenied)
         ));
         assert!(matches!(
             state.redeem(
@@ -205,7 +208,7 @@ mod tests {
                 DatabasePathAuthorizationKind::Create,
                 "development"
             ),
-            Err(Phase2Failure::PermissionDenied)
+            Err(ServiceFailure::PermissionDenied)
         ));
     }
 
@@ -226,7 +229,7 @@ mod tests {
                 DatabasePathAuthorizationKind::Open,
                 "stable"
             ),
-            Err(Phase2Failure::PermissionDenied)
+            Err(ServiceFailure::PermissionDenied)
         ));
 
         let authorized = state
@@ -257,7 +260,7 @@ mod tests {
                 DatabasePathAuthorizationKind::Open,
                 "development"
             ),
-            Err(Phase2Failure::PermissionDenied)
+            Err(ServiceFailure::PermissionDenied)
         ));
     }
 
@@ -323,7 +326,7 @@ mod tests {
                 DatabasePathAuthorizationKind::Open,
                 "development"
             ),
-            Err(Phase2Failure::PermissionDenied)
+            Err(ServiceFailure::PermissionDenied)
         ));
     }
 }

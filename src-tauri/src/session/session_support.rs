@@ -1,7 +1,7 @@
 use crate::crypto::document_cipher::CipherFailure;
 use crate::database::limits::{validate_database_id, validate_document_size, validate_password};
 use crate::database::schema::CURRENT_DOCUMENT_SCHEMA_VERSION;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use rand::{rngs::OsRng, RngCore};
@@ -11,25 +11,25 @@ pub(super) fn validate_create_input(
     database_id: &str,
     schema_version: i64,
     serialized_document: &str,
-) -> Phase2Result<()> {
+) -> ServiceResult<()> {
     validate_database_id(database_id)?;
     validate_document_size(serialized_document.len())?;
     if schema_version != CURRENT_DOCUMENT_SCHEMA_VERSION {
-        return Err(Phase2Failure::InvalidDocumentPayload);
+        return Err(ServiceFailure::InvalidDocumentPayload);
     }
     Ok(())
 }
 
-pub(super) fn validate_create_password(password: &[u8]) -> Phase2Result<()> {
+pub(super) fn validate_create_password(password: &[u8]) -> ServiceResult<()> {
     validate_password(password)
 }
 
 pub(super) fn validate_document_versions(
     format_version: i64,
     row_version: i64,
-) -> Phase2Result<()> {
+) -> ServiceResult<()> {
     if format_version != row_version || row_version != CURRENT_DOCUMENT_SCHEMA_VERSION {
-        return Err(Phase2Failure::UnsupportedFormat);
+        return Err(ServiceFailure::UnsupportedFormat);
     }
     Ok(())
 }
@@ -58,8 +58,8 @@ pub(super) fn random_identifier() -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-pub(super) fn map_document_cipher_failure(_failure: CipherFailure) -> Phase2Failure {
-    Phase2Failure::CorruptDatabase
+pub(super) fn map_document_cipher_failure(_failure: CipherFailure) -> ServiceFailure {
+    ServiceFailure::CorruptDatabase
 }
 
 #[cfg(test)]

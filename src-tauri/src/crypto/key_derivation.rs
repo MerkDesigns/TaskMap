@@ -1,6 +1,6 @@
 use crate::crypto::secret_key::{SecretKey, DOCUMENT_KEY_BYTES};
 use crate::database::limits::validate_password;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
@@ -44,10 +44,10 @@ pub(crate) fn derive_key(
     password: &[u8],
     salt: &[u8],
     parameters: KdfParameters,
-) -> Phase2Result<SecretKey> {
+) -> ServiceResult<SecretKey> {
     validate_password(password)?;
     if salt.len() != KDF_SALT_BYTES || parameters != KdfParameters::default() {
-        return Err(Phase2Failure::UnsupportedFormat);
+        return Err(ServiceFailure::UnsupportedFormat);
     }
 
     let params = Params::new(
@@ -56,14 +56,14 @@ pub(crate) fn derive_key(
         parameters.parallelism,
         Some(DOCUMENT_KEY_BYTES),
     )
-    .map_err(|_| Phase2Failure::Crypto)?;
+    .map_err(|_| ServiceFailure::Crypto)?;
     let block_count = params.block_count();
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut output = Zeroizing::new([0_u8; DOCUMENT_KEY_BYTES]);
     let mut work_memory = WorkMemory(vec![Block::default(); block_count]);
     argon2
         .hash_password_into_with_memory(password, salt, output.as_mut(), &mut work_memory.0)
-        .map_err(|_| Phase2Failure::Crypto)?;
+        .map_err(|_| ServiceFailure::Crypto)?;
     Ok(SecretKey::from_zeroizing(output))
 }
 
@@ -80,7 +80,7 @@ mod tests {
                 &[7_u8; KDF_SALT_BYTES - 1],
                 KdfParameters::default()
             ),
-            Err(Phase2Failure::UnsupportedFormat)
+            Err(ServiceFailure::UnsupportedFormat)
         ));
         for parameters in [
             KdfParameters {
@@ -98,7 +98,7 @@ mod tests {
         ] {
             assert!(matches!(
                 derive_key(b"password", &salt, parameters),
-                Err(Phase2Failure::UnsupportedFormat)
+                Err(ServiceFailure::UnsupportedFormat)
             ));
         }
     }

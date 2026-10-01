@@ -1,5 +1,5 @@
-use super::phase2_tests::{create_database, unlock, DATABASE_ID, DOCUMENT};
-use crate::phase2_error::Phase2Failure;
+use super::session_lifecycle_tests::{create_database, unlock, DATABASE_ID, DOCUMENT};
+use crate::error::ServiceFailure;
 
 #[test]
 fn save_checks_database_and_session_identity_with_the_write_lock() {
@@ -13,7 +13,7 @@ fn save_checks_database_and_session_identity_with_the_write_lock() {
     ] {
         assert!(matches!(
             service.save_document_for_session(DOCUMENT, 1, database, session),
-            Err(Phase2Failure::SessionNotOpen)
+            Err(ServiceFailure::SessionNotOpen)
         ));
         assert_eq!(service.get_status().unwrap().revision, Some(1));
     }
@@ -36,7 +36,7 @@ fn old_save_cannot_write_a_reopened_database_even_at_the_same_revision() {
     unlock(&service);
     assert!(matches!(
         service.save_document_for_session(DOCUMENT, 1, DATABASE_ID, &old_session),
-        Err(Phase2Failure::SessionNotOpen)
+        Err(ServiceFailure::SessionNotOpen)
     ));
     assert_eq!(service.read_document().unwrap().revision, 1);
 }
@@ -50,7 +50,7 @@ fn lock_and_unlock_revoke_the_previous_save_identity() {
     unlock(&service);
     assert!(matches!(
         service.save_document_for_session(DOCUMENT, 1, DATABASE_ID, &old_session),
-        Err(Phase2Failure::SessionNotOpen)
+        Err(ServiceFailure::SessionNotOpen)
     ));
     let current = service.get_status().unwrap().session_id.unwrap();
     assert_eq!(

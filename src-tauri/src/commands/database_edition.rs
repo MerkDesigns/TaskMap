@@ -1,18 +1,18 @@
-use crate::phase2_error::{Phase2CommandError, Phase2CommandResult, Phase2Failure};
+use crate::error::{CommandError, CommandResult, ServiceFailure};
 
-pub(crate) fn validate_application(identifier: &str) -> Phase2CommandResult<&'static str> {
+pub(crate) fn validate_application(identifier: &str) -> CommandResult<&'static str> {
     match identifier {
         "com.merkdesigns.taskmap" => Ok("stable"),
         "com.merkdesigns.taskmap.dev" => Ok("development"),
-        _ => Err(Phase2CommandError::from(Phase2Failure::PermissionDenied)),
+        _ => Err(CommandError::from(ServiceFailure::PermissionDenied)),
     }
 }
 
-pub(crate) fn database_purpose(edition: &str) -> Phase2CommandResult<&'static str> {
+pub(crate) fn database_purpose(edition: &str) -> CommandResult<&'static str> {
     match edition {
         "stable" => Ok("production"),
         "development" => Ok("development"),
-        _ => Err(Phase2CommandError::from(Phase2Failure::PermissionDenied)),
+        _ => Err(CommandError::from(ServiceFailure::PermissionDenied)),
     }
 }
 

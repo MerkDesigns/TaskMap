@@ -15,8 +15,8 @@ use crate::database::document_repository::{
 };
 use crate::database::limits::validate_document_size;
 use crate::database::schema::{create_schema, insert_format_info, NewFormatInfo};
+use crate::error::{ServiceFailure, ServiceResult};
 use crate::files::database_lock::{DatabaseWriterLock, LockOwner};
-use crate::phase2_error::{Phase2Failure, Phase2Result};
 use rand::{rngs::OsRng, RngCore};
 use std::path::PathBuf;
 use zeroize::Zeroizing;
@@ -35,7 +35,7 @@ pub(super) fn create_open_session(
     serialized_document: &str,
     password: &[u8],
     edition: &str,
-) -> Phase2Result<(OpenSession, String)> {
+) -> ServiceResult<(OpenSession, String)> {
     validate_create_input(&database_id, document_schema_version, serialized_document)?;
     validate_create_password(password)?;
     let reserved = ReservedDatabase::reserve(&requested_path)?;
@@ -93,19 +93,19 @@ fn initialize_database(
     serialized_document: &str,
     password: &[u8],
     now: &str,
-) -> Phase2Result<SecretKey> {
+) -> ServiceResult<SecretKey> {
     let mut salt = Zeroizing::new([0_u8; KDF_SALT_BYTES]);
     OsRng.fill_bytes(salt.as_mut());
     let parameters = KdfParameters::default();
     let key = derive_key(password, salt.as_ref(), parameters)?;
     let key_check =
-        create_key_check(&key, &key_check_aad(database_id)).map_err(|_| Phase2Failure::Crypto)?;
+        create_key_check(&key, &key_check_aad(database_id)).map_err(|_| ServiceFailure::Crypto)?;
     let encrypted = encrypt(
         &key,
         serialized_document.as_bytes(),
         &document_aad(database_id, document_schema_version, 1),
     )
-    .map_err(|_| Phase2Failure::Crypto)?;
+    .map_err(|_| ServiceFailure::Crypto)?;
     let mut connection = open_connection(database_path)?;
     let transaction = connection.transaction()?;
     create_schema(&transaction)?;
@@ -142,7 +142,7 @@ fn initialize_database(
 pub(super) fn open_locked_session(
     database_path: PathBuf,
     edition: &str,
-) -> Phase2Result<OpenSession> {
+) -> ServiceResult<OpenSession> {
     let now = timestamp();
     let session_id = random_identifier();
     let writer_lock = acquire_writer_lock(&database_path, edition, &session_id, &now)?;
@@ -158,7 +158,7 @@ pub(super) fn open_locked_session(
         image_drops: Default::default(),
         media_upload: None,
         session_id,
-        database_path: std::fs::canonicalize(database_path).map_err(Phase2Failure::from_io)?,
+        database_path: std::fs::canonicalize(database_path).map_err(ServiceFailure::from_io)?,
         database_id: format.database_id,
         document_schema_version: document.document_schema_version,
         revision: document.save_revision,
@@ -171,11 +171,11 @@ pub(super) fn open_locked_session(
 pub(super) fn unlock_open_session(
     session: &OpenSession,
     password: &[u8],
-) -> Phase2Result<UnlockCandidate> {
+) -> ServiceResult<UnlockCandidate> {
     let connection = open_connection(&session.database_path)?;
     let format = read_format_info(&connection)?;
     if format.database_id != session.database_id {
-        return Err(Phase2Failure::CorruptDatabase);
+        return Err(ServiceFailure::CorruptDatabase);
     }
     let encrypted = read_encrypted_document(&connection)?;
     validate_document_versions(
@@ -189,7 +189,7 @@ pub(super) fn unlock_open_session(
         &format.key_check_ciphertext,
         &key_check_aad(&format.database_id),
     )
-    .map_err(|_| Phase2Failure::WrongPassword)?;
+    .map_err(|_| ServiceFailure::WrongPassword)?;
 
     if let Ok(serialized_document) = decrypt_document(&key, &format.database_id, &encrypted) {
         return Ok(UnlockCandidate {
@@ -209,14 +209,14 @@ pub(super) fn unlock_open_session(
             });
         }
     }
-    Err(Phase2Failure::CorruptDatabase)
+    Err(ServiceFailure::CorruptDatabase)
 }
 
 fn decrypt_document(
     key: &SecretKey,
     database_id: &str,
     encrypted: &EncryptedDocumentRow,
-) -> Phase2Result<SensitiveDocument> {
+) -> ServiceResult<SensitiveDocument> {
     let plaintext = decrypt(
         key,
         &encrypted.nonce,
@@ -229,7 +229,8 @@ fn decrypt_document(
     )
     .map_err(map_document_cipher_failure)?;
     validate_document_size(plaintext.len())?;
-    SensitiveDocument::copy_from_utf8(&plaintext).map_err(|_| Phase2Failure::InvalidDocumentPayload)
+    SensitiveDocument::copy_from_utf8(&plaintext)
+        .map_err(|_| ServiceFailure::InvalidDocumentPayload)
 }
 
 fn acquire_writer_lock(
@@ -237,7 +238,7 @@ fn acquire_writer_lock(
     edition: &str,
     session_id: &str,
     opened_at: &str,
-) -> Phase2Result<DatabaseWriterLock> {
+) -> ServiceResult<DatabaseWriterLock> {
     DatabaseWriterLock::acquire(
         database_path,
         &LockOwner {

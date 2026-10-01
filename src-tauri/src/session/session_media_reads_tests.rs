@@ -1,4 +1,4 @@
-use super::phase2_tests::{create_database, unlock, DATABASE_ID};
+use super::session_lifecycle_tests::{create_database, unlock, DATABASE_ID};
 use super::session_media_transfer::{MediaAction, MediaReply, CHUNK_BYTES};
 use base64::{engine::general_purpose::STANDARD, Engine};
 

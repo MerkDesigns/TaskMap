@@ -4,21 +4,21 @@ use super::session_support::timestamp;
 use super::session_types::DatabaseSessionStatus;
 use crate::database::backup_repository::create_full_backup;
 use crate::database::connection::open_connection;
-use crate::phase2_error::{Phase2Failure, Phase2Result};
+use crate::error::{ServiceFailure, ServiceResult};
 use std::path::Path;
 
 impl DatabaseSessionState {
-    pub(crate) fn full_backup(&self, destination: &Path) -> Phase2Result<()> {
+    pub(crate) fn full_backup(&self, destination: &Path) -> ServiceResult<()> {
         let guard = self.guard()?;
-        let session = guard.as_ref().ok_or(Phase2Failure::SessionNotOpen)?;
+        let session = guard.as_ref().ok_or(ServiceFailure::SessionNotOpen)?;
         if session.key_state.is_pending() {
-            return Err(Phase2Failure::SessionLocked);
+            return Err(ServiceFailure::SessionLocked);
         }
         let source = open_connection(&session.database_path)?;
         create_full_backup(&source, destination).map(|_| ())
     }
 
-    pub(crate) fn lock_database(&self) -> Phase2Result<DatabaseSessionStatus> {
+    pub(crate) fn lock_database(&self) -> ServiceResult<DatabaseSessionStatus> {
         let mut guard = match self.inner.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -29,7 +29,7 @@ impl DatabaseSessionState {
         };
         let pending = guard
             .as_ref()
-            .ok_or(Phase2Failure::SessionNotOpen)?
+            .ok_or(ServiceFailure::SessionNotOpen)?
             .key_state
             .is_pending();
         if pending {
@@ -46,7 +46,7 @@ impl DatabaseSessionState {
         Ok(status_from_guard(&guard))
     }
 
-    pub(crate) fn close_database(&self) -> Phase2Result<DatabaseSessionStatus> {
+    pub(crate) fn close_database(&self) -> ServiceResult<DatabaseSessionStatus> {
         let mut guard = match self.inner.lock() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
@@ -55,12 +55,12 @@ impl DatabaseSessionState {
         Ok(status_from_guard(&guard))
     }
 
-    pub(crate) fn quit_session(&self) -> Phase2Result<()> {
+    pub(crate) fn quit_session(&self) -> ServiceResult<()> {
         self.close_database()?;
         Ok(())
     }
 
-    pub(crate) fn get_status(&self) -> Phase2Result<DatabaseSessionStatus> {
+    pub(crate) fn get_status(&self) -> ServiceResult<DatabaseSessionStatus> {
         let guard = self.guard()?;
         Ok(status_from_guard(&guard))
     }
@@ -85,7 +85,7 @@ impl DatabaseSessionState {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn lock_for_os_session(&self) -> Phase2Result<DatabaseSessionStatus> {
+    pub(crate) fn lock_for_os_session(&self) -> ServiceResult<DatabaseSessionStatus> {
         self.lock_database()
     }
 

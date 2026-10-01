@@ -5,11 +5,11 @@ use super::database_command_types::{
 use super::database_window_commands::{
     application_edition, destroy_session_keeper, ensure_database_application, ensure_session_keeper,
 };
-use super::phase2_ipc::{deserialize_limited, MAX_DOCUMENT_IPC_BYTES, MAX_SMALL_IPC_BYTES};
+use super::ipc_limits::{deserialize_limited, MAX_DOCUMENT_IPC_BYTES, MAX_SMALL_IPC_BYTES};
+use crate::error::{CommandError, CommandResult, ServiceFailure};
 use crate::files::database_path_authorization::{
     DatabasePathAuthorizationKind, DatabasePathAuthorizationState,
 };
-use crate::phase2_error::{Phase2CommandError, Phase2CommandResult, Phase2Failure};
 use crate::session::database_session::DatabaseSessionState;
 use crate::session::{
     DatabaseSessionStatus, LoadedDocument, PendingLoadedDocument, SavedDocument, SessionOperation,
@@ -25,7 +25,7 @@ pub(crate) async fn app_create_database(
     state: tauri::State<'_, DatabaseSessionState>,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<PendingLoadedDocument> {
+) -> CommandResult<PendingLoadedDocument> {
     ensure_database_application(&app)?;
     let input: CreateDatabaseInput = deserialize_limited(&request, MAX_DOCUMENT_IPC_BYTES)?;
     let edition = application_edition(&app);
@@ -35,7 +35,7 @@ pub(crate) async fn app_create_database(
             DatabasePathAuthorizationKind::Create,
             &edition,
         )
-        .map_err(Phase2CommandError::from)?;
+        .map_err(CommandError::from)?;
     let service = state.inner().clone();
     let service_for_cleanup = service.clone();
     let password = Zeroizing::new(input.password);
@@ -54,8 +54,8 @@ pub(crate) async fn app_create_database(
         )
     })
     .await
-    .map_err(|_| command_error(Phase2Failure::Internal))?
-    .map_err(Phase2CommandError::from)?;
+    .map_err(|_| command_error(ServiceFailure::Internal))?
+    .map_err(CommandError::from)?;
     if let Err(error) = ensure_session_keeper(&app) {
         let _ = service_for_cleanup.close_database();
         return Err(error);
@@ -77,7 +77,7 @@ pub(crate) async fn app_open_database(
     state: tauri::State<'_, DatabaseSessionState>,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<SessionOperation> {
+) -> CommandResult<SessionOperation> {
     ensure_database_application(&app)?;
     let input: OpenDatabaseInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let edition = application_edition(&app);
@@ -87,15 +87,15 @@ pub(crate) async fn app_open_database(
             DatabasePathAuthorizationKind::Open,
             &edition,
         )
-        .map_err(Phase2CommandError::from)?;
+        .map_err(CommandError::from)?;
     let service = state.inner().clone();
     let service_for_cleanup = service.clone();
     let path_for_recent = path.clone();
     let session =
         tauri::async_runtime::spawn_blocking(move || service.open_database(path, &edition))
             .await
-            .map_err(|_| command_error(Phase2Failure::Internal))?
-            .map_err(Phase2CommandError::from)?;
+            .map_err(|_| command_error(ServiceFailure::Internal))?
+            .map_err(CommandError::from)?;
     if let Err(error) = ensure_session_keeper(&app) {
         let _ = service_for_cleanup.close_database();
         return Err(error);
@@ -111,7 +111,7 @@ pub(crate) async fn app_unlock_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<PendingLoadedDocument> {
+) -> CommandResult<PendingLoadedDocument> {
     ensure_database_application(&app)?;
     let input: UnlockDatabaseInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let service = state.inner().clone();
@@ -119,8 +119,8 @@ pub(crate) async fn app_unlock_database(
     let result =
         tauri::async_runtime::spawn_blocking(move || service.unlock_database(password.as_bytes()))
             .await
-            .map_err(|_| command_error(Phase2Failure::Internal))?
-            .map_err(Phase2CommandError::from)?;
+            .map_err(|_| command_error(ServiceFailure::Internal))?
+            .map_err(CommandError::from)?;
     schedule_pending_timeout(
         app.clone(),
         state.inner().clone(),
@@ -134,7 +134,7 @@ pub(crate) fn app_confirm_unlock(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<DatabaseSessionStatus> {
+) -> CommandResult<DatabaseSessionStatus> {
     ensure_database_application(&app)?;
     let input: ConfirmUnlockInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     if input.database_purpose
@@ -142,13 +142,13 @@ pub(crate) fn app_confirm_unlock(
     {
         let _ = state.cancel_pending_unlock(&input.confirmation_token);
         destroy_session_keeper(&app);
-        return Err(command_error(Phase2Failure::DatabasePurposeMismatch));
+        return Err(command_error(ServiceFailure::DatabasePurposeMismatch));
     }
     match state.confirm_unlock(&input.confirmation_token, &input.database_id) {
         Ok(status) => Ok(status),
         Err(error) => {
             destroy_session_keeper(&app);
-            Err(Phase2CommandError::from(error))
+            Err(CommandError::from(error))
         }
     }
 }
@@ -158,12 +158,12 @@ pub(crate) fn app_cancel_pending_unlock(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<DatabaseSessionStatus> {
+) -> CommandResult<DatabaseSessionStatus> {
     ensure_database_application(&app)?;
     let input: CancelPendingUnlockInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let result = state
         .cancel_pending_unlock(&input.confirmation_token)
-        .map_err(Phase2CommandError::from);
+        .map_err(CommandError::from);
     destroy_session_keeper(&app);
     result
 }
@@ -172,13 +172,13 @@ pub(crate) fn app_cancel_pending_unlock(
 pub(crate) async fn app_read_document(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
-) -> Phase2CommandResult<LoadedDocument> {
+) -> CommandResult<LoadedDocument> {
     ensure_database_application(&app)?;
     let service = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || service.read_document())
         .await
-        .map_err(|_| command_error(Phase2Failure::Internal))?
-        .map_err(Phase2CommandError::from)
+        .map_err(|_| command_error(ServiceFailure::Internal))?
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -186,13 +186,13 @@ pub(crate) async fn app_save_document(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<SavedDocument> {
+) -> CommandResult<SavedDocument> {
     ensure_database_application(&app)?;
     let input: SaveDocumentInput = deserialize_limited(&request, MAX_DOCUMENT_IPC_BYTES)?;
     if input.database_purpose
         != super::database_edition::database_purpose(&application_edition(&app))?
     {
-        return Err(command_error(Phase2Failure::DatabasePurposeMismatch));
+        return Err(command_error(ServiceFailure::DatabasePurposeMismatch));
     }
     let service = state.inner().clone();
     let serialized_document = Zeroizing::new(input.serialized_document);
@@ -206,8 +206,8 @@ pub(crate) async fn app_save_document(
         )
     })
     .await
-    .map_err(|_| command_error(Phase2Failure::Internal))?
-    .map_err(Phase2CommandError::from)
+    .map_err(|_| command_error(ServiceFailure::Internal))?
+    .map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -216,7 +216,7 @@ pub(crate) async fn app_full_backup(
     state: tauri::State<'_, DatabaseSessionState>,
     authorizations: tauri::State<'_, DatabasePathAuthorizationState>,
     request: tauri::ipc::Request<'_>,
-) -> Phase2CommandResult<()> {
+) -> CommandResult<()> {
     ensure_database_application(&app)?;
     let input: FullBackupInput = deserialize_limited(&request, MAX_SMALL_IPC_BYTES)?;
     let destination = authorizations
@@ -225,21 +225,21 @@ pub(crate) async fn app_full_backup(
             DatabasePathAuthorizationKind::FullBackup,
             &application_edition(&app),
         )
-        .map_err(Phase2CommandError::from)?;
+        .map_err(CommandError::from)?;
     let service = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || service.full_backup(&destination))
         .await
-        .map_err(|_| command_error(Phase2Failure::Internal))?
-        .map_err(Phase2CommandError::from)
+        .map_err(|_| command_error(ServiceFailure::Internal))?
+        .map_err(CommandError::from)
 }
 
 #[tauri::command]
 pub(crate) fn app_lock_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
-) -> Phase2CommandResult<DatabaseSessionStatus> {
+) -> CommandResult<DatabaseSessionStatus> {
     ensure_database_application(&app)?;
-    let status = state.lock_database().map_err(Phase2CommandError::from)?;
+    let status = state.lock_database().map_err(CommandError::from)?;
     destroy_session_keeper(&app);
     Ok(status)
 }
@@ -248,9 +248,9 @@ pub(crate) fn app_lock_database(
 pub(crate) fn app_close_database(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
-) -> Phase2CommandResult<DatabaseSessionStatus> {
+) -> CommandResult<DatabaseSessionStatus> {
     ensure_database_application(&app)?;
-    let status = state.close_database().map_err(Phase2CommandError::from)?;
+    let status = state.close_database().map_err(CommandError::from)?;
     destroy_session_keeper(&app);
     Ok(status)
 }
@@ -259,9 +259,9 @@ pub(crate) fn app_close_database(
 pub(crate) fn app_quit_application(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
-) -> Phase2CommandResult<()> {
+) -> CommandResult<()> {
     ensure_database_application(&app)?;
-    state.quit_session().map_err(Phase2CommandError::from)?;
+    state.quit_session().map_err(CommandError::from)?;
     destroy_session_keeper(&app);
     app.exit(0);
     Ok(())
@@ -271,9 +271,9 @@ pub(crate) fn app_quit_application(
 pub(crate) fn app_get_session_status(
     app: tauri::AppHandle,
     state: tauri::State<'_, DatabaseSessionState>,
-) -> Phase2CommandResult<DatabaseSessionStatus> {
+) -> CommandResult<DatabaseSessionStatus> {
     ensure_database_application(&app)?;
-    state.get_status().map_err(Phase2CommandError::from)
+    state.get_status().map_err(CommandError::from)
 }
 
 fn schedule_pending_timeout(
@@ -294,13 +294,13 @@ fn record_recent_warning(app: &tauri::AppHandle, path: &std::path::Path) -> Opti
     let result = app
         .path()
         .app_config_dir()
-        .map_err(|_| Phase2Failure::Settings)
+        .map_err(|_| ServiceFailure::Settings)
         .and_then(|directory| record_recent(&directory, &edition, path).map(|_| ()));
     result
         .err()
         .map(|_| "The database opened, but its recent-list entry could not be saved.".to_string())
 }
 
-fn command_error(failure: Phase2Failure) -> Phase2CommandError {
-    Phase2CommandError::from(failure)
+fn command_error(failure: ServiceFailure) -> CommandError {
+    CommandError::from(failure)
 }

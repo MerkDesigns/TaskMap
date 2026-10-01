@@ -1,6 +1,6 @@
 use crate::crypto::document_cipher::ENCRYPTION_ALGORITHM;
 use crate::crypto::key_derivation::KDF_ALGORITHM;
-use crate::phase2_error::Phase2Result;
+use crate::error::ServiceResult;
 use rusqlite::{params, Connection};
 
 pub(crate) const DATABASE_FORMAT_VERSION: i64 = 1;
@@ -97,7 +97,7 @@ pub(crate) struct NewFormatInfo<'a> {
     pub(crate) key_check_ciphertext: &'a [u8],
 }
 
-pub(crate) fn create_schema(connection: &Connection) -> Phase2Result<()> {
+pub(crate) fn create_schema(connection: &Connection) -> ServiceResult<()> {
     connection.execute_batch(CREATE_SCHEMA_SQL)?;
     Ok(())
 }
@@ -105,7 +105,7 @@ pub(crate) fn create_schema(connection: &Connection) -> Phase2Result<()> {
 pub(crate) fn insert_format_info(
     connection: &Connection,
     info: &NewFormatInfo<'_>,
-) -> Phase2Result<()> {
+) -> ServiceResult<()> {
     let changed = connection.execute(
         "INSERT INTO format_info (
             id, database_id, format_version, document_schema_version,
@@ -131,7 +131,7 @@ pub(crate) fn insert_format_info(
         ],
     )?;
     if changed != 1 {
-        return Err(crate::phase2_error::Phase2Failure::CorruptDatabase);
+        return Err(crate::error::ServiceFailure::CorruptDatabase);
     }
     Ok(())
 }
