@@ -57,7 +57,7 @@
   overflow: auto;
 }
 
-/* Scrollbar policy (UI guardrails section 4): glass panels hide the native bar (optionally with
+/* Scrollbar policy: glass panels hide the native bar (optionally with
    ScrollIndicator); editors, menus and inner content use the thin translucent bar. */
 .taskmap-scrollbar-hidden {
   scrollbar-width: none;

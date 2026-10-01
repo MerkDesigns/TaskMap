@@ -19,7 +19,7 @@ interface SharedSmallGlassListOptions {
   readonly active: boolean;
   readonly cardSelector: string;
   /**
-   * Settled scroll-edge morph (glass contract section 12): edge cards shrink their body, rim,
+   * Settled scroll-edge morph: edge cards shrink their body, rim,
    * shadow and rounded content mask to the visible slice. Requires cards that use the shared
    * `.taskmap-glass-list__content` mask.
    */

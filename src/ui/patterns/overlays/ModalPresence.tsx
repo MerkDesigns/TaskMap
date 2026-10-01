@@ -52,7 +52,7 @@ export function ModalPresence({
   exitCompleteRef.current = onExitComplete;
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
-  // Plain material fade (user choice 2026-09-30): scaling the dialog made its separately drawn
+  // Plain material fade: scaling the dialog made its separately drawn
   // shared-plane glass and DOM rim/controls land on different subpixels each frame (flicker).
   const preset = usePresencePreset("dialogs", "materialFade");
   const channels = presetChannels(preset, "materialFade");

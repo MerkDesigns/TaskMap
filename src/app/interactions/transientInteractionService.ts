@@ -14,7 +14,7 @@ export type UnsubscribeTransientInteraction = () => void;
 
 /**
  * Read-only application boundary for frame-frequency interaction previews.
- * The Phase 4 controller owns writes and commits persistent results through a
+ * The interaction controller owns writes and commits persistent results through a
  * narrow completion port rather than through this service or Redux.
  */
 export interface TransientInteractionService {

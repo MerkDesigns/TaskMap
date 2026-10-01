@@ -5,7 +5,7 @@ const smoothstep = (progress: number) => progress * progress * (3 - 2 * progress
 
 /**
  * Modal timing: ease-out enter, fast smoothstep exit. The enter is 20% slower than the retained
- * normal duration (user choice 2026-09-30, with the plain material fade).
+ * normal duration, paired with the plain material fade.
  */
 export const MODAL_PRESENCE_TIMING = Object.freeze({
   enter: {

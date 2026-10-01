@@ -14,7 +14,7 @@ import { useWorkspaceIntroPhase } from "./workspaceIntro";
 /** The window corner a chrome surface flies out to and back in from. */
 export type ChromeSleepCorner = "top-left" | "top-right";
 
-/** Same duration and ease-in-out as the side panel's slide (user direction 2026-10-01). */
+/** Same duration and ease-in-out as the side panel's slide. */
 const easeInOutCubic = (progress: number) =>
   progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
 const TIMING = { durationMs: 300, easing: easeInOutCubic };
@@ -28,7 +28,7 @@ interface CornerDistances {
 /**
  * Sleep mode presence: the surface flies diagonally out past its window corner while its glass and
  * content fade, and flies back in to its spot on wake. Glass follows through the presence
- * controller (shared-plane shapes included), never ancestor opacity (glass contract section 17).
+ * controller (shared-plane shapes included), never ancestor opacity.
  * Hidden surfaces are inert.
  */
 export function useChromeSleepMotion(

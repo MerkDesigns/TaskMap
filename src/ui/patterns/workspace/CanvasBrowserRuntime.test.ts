@@ -142,7 +142,7 @@ describe("production Canvas Browser runtime", () => {
     expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("84px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("6px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset")).toBe("0px");
-    // Rim/shadow geometry follows the visible silhouette (glass contract section 12).
+    // Rim/shadow geometry follows the visible silhouette.
     expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("b")!.card)).toEqual({
       width: 264,
       height: 6,

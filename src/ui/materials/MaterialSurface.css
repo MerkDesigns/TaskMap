@@ -1,4 +1,4 @@
-/* Material presence (glass contract section 17): registered so presence frames interpolate a
+/* Material presence: registered so presence frames interpolate a
    number, inherited so nested glass-free content can follow its surface. */
 @property --taskmap-material-presence-progress {
   syntax: "<number>";

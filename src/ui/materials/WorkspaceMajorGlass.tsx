@@ -84,7 +84,7 @@ export function createWorkspaceMajorOwner(
     plane.style.width = `${width}px`;
     plane.style.height = `${height}px`;
     // Layered per-shape images: slides only move mask positions and fades reuse cached opacity
-    // levels, so presence frames never re-encode a full-window SVG (measured 2026-09-30).
+    // levels, so presence frames never re-encode a full-window SVG.
     planeMaskWriter(plane).write(
       layeredOutputMask(visible, 0, { width, height }) ?? {
         image: outputMask(width, height, visible, []),

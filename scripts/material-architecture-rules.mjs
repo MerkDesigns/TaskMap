@@ -7,7 +7,7 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
     "src/components/ToastStack.tsx": 1,
   }),
   legacyFrostedClass: Object.freeze({}),
-  // FrostedSurface was removed in 4.5H; the patterns stay as zero-allowance guards.
+  // FrostedSurface was removed; the patterns stay as zero-allowance guards.
   frostedSurfaceImport: Object.freeze({}),
   frostedSurfaceElement: Object.freeze({}),
 });
@@ -63,7 +63,7 @@ export function findMaterialArchitectureViolations(entries) {
       }
     }
 
-    // The cached Canvas2D acrylic compositor was retired in 4.5H; materials are native glass.
+    // The cached Canvas2D acrylic compositor was retired; materials are native glass.
     const combinesAcrylicAndCanvas2d =
       /acrylic/i.test(source) &&
       /(?:getContext\(\s*["']2d["']|CanvasRenderingContext2D)/.test(source);

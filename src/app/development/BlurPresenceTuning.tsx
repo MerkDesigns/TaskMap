@@ -4,7 +4,7 @@ const DEFAULT_DELAY = 0.2;
 const DEFAULT_CURVE = 1;
 
 /**
- * Development-only blur timing for material fades (glass contract section 17): writes the recipe's
+ * Development-only blur timing for material fades: writes the recipe's
  * delay/curve variables on the document root so every native glass recipe inherits them.
  */
 export function BlurPresenceTuning() {

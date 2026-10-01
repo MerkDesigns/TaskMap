@@ -6,13 +6,13 @@ import {
 import { supplyMaterialPresentation } from "../materials/materialGeometryInvalidation";
 
 /**
- * Independent presence channels (glass contract section 16). Each channel owns its value; one
+ * Independent presence channels. Each channel owns its value; one
  * controller drives them from a single progress (0 hidden → 1 visible).
  */
 export interface PresenceChannels {
   /** Ordinary content opacity (`contentTargets`). */
   readonly fade?: boolean;
-  /** Material presence: blur/tint/rim/shadow; never ancestor opacity (section 17). */
+  /** Material presence: blur/tint/rim/shadow; never ancestor opacity. */
   readonly materialFade?: boolean;
   /** Offset while hidden, in px. */
   readonly slide?: { readonly x?: number; readonly y?: number };

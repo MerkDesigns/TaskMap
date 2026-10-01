@@ -158,7 +158,7 @@ export function writeCanvasBrowserCardViewport<Id extends string>(
   record.host.style.setProperty("--taskmap-canvas-card-visible-height", `${visibleHeight}px`);
   record.host.style.setProperty("--taskmap-canvas-card-full-height", `${record.height}px`);
   record.host.dataset.canvasCardVisible = String(visible);
-  // The settled shell morphs to its visible slice; rim and shadow follow it (glass contract §12).
+  // The settled shell morphs to its visible slice; rim and shadow follow it.
   supplyMaterialSurfaceSize(record.card, {
     width: CANVAS_BROWSER_LAYOUT.cardWidth,
     height: visible ? visibleHeight : record.height,

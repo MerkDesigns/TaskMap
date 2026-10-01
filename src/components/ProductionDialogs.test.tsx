@@ -23,7 +23,7 @@ const update = {
   currentVersion: "1.0.0",
 };
 
-describe("C3B production dialogs", () => {
+describe("Production dialogs", () => {
   it("preserves Update callbacks, busy dismissal guards, labels, and errors", async () => {
     const user = userEvent.setup();
     const onDismiss = vi.fn();

@@ -4,7 +4,7 @@ import { WorkspaceBackdropLayer, WorkspaceChromeLayer, WorkspaceRoot } from "./W
 
 afterEach(cleanup);
 
-describe("Phase 4.5C2A workspace foundation", () => {
+describe("Workspace foundation", () => {
   it("scopes the target theme and chrome layer to the workspace", () => {
     const { getByTestId } = render(
       <WorkspaceRoot data-testid="workspace">

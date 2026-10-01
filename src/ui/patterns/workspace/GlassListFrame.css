@@ -19,7 +19,7 @@
   padding-inline: 12px;
 }
 
-/* Settled scroll-edge morph for flow-laid list cards (glass contract section 12): body, rim,
+/* Settled scroll-edge morph for flow-laid list cards: body, rim,
    shadow and rounded content mask shrink to the visible slice written by the list owner. The card
    box and its content layout never change; held/dragged items are outside this context. */
 .taskmap-material-surface[data-material-strategy="native-glass"][data-glass-list-slice="true"] {

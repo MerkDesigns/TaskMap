@@ -18,7 +18,7 @@
 }
 
 /* Presence: glass fades through the material presence variable; the glass-free header and the
-   Cutout interior follow it directly, never through ancestor opacity (contract section 17). */
+   Cutout interior follow it directly, never through ancestor opacity. */
 .taskmap-minimap-surface > :is(.taskmap-minimap-header, .taskmap-minimap-viewport) {
   opacity: var(--taskmap-material-presence-progress, 1);
 }

@@ -4,7 +4,7 @@ import { usePresenceMotion, usePresencePreset } from "../../motion/usePresenceMo
 
 /** Retained production Minimap fade-out duration; App owns the matching unmount timer. */
 export const MINIMAP_VISIBILITY_DURATION_MS = 500;
-/** Fade in 50% faster than fade out (user direction 2026-09-30). */
+/** Fade in 50% faster than fade out. */
 const MINIMAP_ENTER_DURATION_MS = MINIMAP_VISIBILITY_DURATION_MS / 2;
 
 const smoothstep = (progress: number) => progress * progress * (3 - 2 * progress);
@@ -14,8 +14,8 @@ const DEFAULT_PRESET: PresencePresetName = "materialFade";
 
 /**
  * Minimap presence through the shared presence controller: glass fades through the material
- * presence variable and content fades on glass-free children, never ancestor opacity (glass
- * contract section 17). The workbench previews alternative presets.
+ * presence variable and content fades on glass-free children, never ancestor opacity. The
+ * workbench previews alternative presets.
  */
 export function useMinimapVisibilityMotion(
   surfaceRef: RefObject<HTMLElement | null>,

@@ -7,7 +7,7 @@ import {
 import type { CanvasBrowserCardRecord, CanvasCardDragState } from "./canvasBrowserRuntimeTypes";
 
 /**
- * Liquid pickup (glass contract section 14): a partly shrunk edge card expands from its settled
+ * Liquid pickup: a partly shrunk edge card expands from its settled
  * slice to the full held silhouette over `CANVAS_CARD_PICKUP_MS`.
  */
 export function tickCanvasCardPickup<Id extends string>(

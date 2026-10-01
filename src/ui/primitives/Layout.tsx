@@ -62,7 +62,7 @@ interface FlowProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export interface ScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
-  /** "hidden" for glass panels, "thin" for editors/menus/inner content (UI guardrails section 4). */
+  /** "hidden" for glass panels, "thin" for editors/menus/inner content. */
   readonly scrollbar?: "hidden" | "thin";
 }
 

@@ -155,7 +155,7 @@
   white-space: normal;
 }
 
-/* Card overflow action: the shared compact IconButton, positioned only (UI guardrails section 6). */
+/* Card overflow action: the shared compact IconButton, positioned only. */
 .taskmap-canvas-browser-card__options {
   position: absolute;
   z-index: 4;
@@ -165,7 +165,7 @@
   color: var(--taskmap-muted);
 }
 
-/* 20% slimmer hit area horizontally (user direction 2026-09-30). */
+/* 20% slimmer hit area horizontally. */
 .taskmap-canvas-browser-card__options.taskmap-icon-button {
   width: calc(var(--taskmap-control-height-compact) * 0.8);
 }

@@ -45,8 +45,8 @@ export type UnlockRevealState = "none" | "covering" | "revealing" | "concealing"
 
 /**
  * Keeps the unlock screen over the freshly mounted workspace and plays the reveal. The panel fades
- * through the presence controller (material presence, never ancestor opacity — glass contract
- * section 17); the backdrop is a sibling layer with its own opacity.
+ * through the presence controller (material presence, never ancestor opacity, which would flatten
+ * its glass); the backdrop is a sibling layer with its own opacity.
  */
 export function useUnlockReveal(
   ready: boolean,

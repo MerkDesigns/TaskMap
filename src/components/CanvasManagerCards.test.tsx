@@ -17,7 +17,7 @@ afterEach(() => {
   else Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
 
-describe("C2D Canvas Browser cards", () => {
+describe("Canvas Browser cards", () => {
   it("accepts temporary browser and full-card radius overrides", () => {
     const { container } = renderProduction([canvas("canvas-a")], {
       panelRadius: 29,

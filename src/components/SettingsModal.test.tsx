@@ -16,7 +16,7 @@ import { SettingsModal } from "./Modals";
 
 afterEach(cleanup);
 
-describe("Phase 4.5C3A primary Settings", () => {
+describe("Settings modal", () => {
   it("uses one modal native Large shell and only modal-plane native Small surfaces", () => {
     renderSettings(settingsProps());
 

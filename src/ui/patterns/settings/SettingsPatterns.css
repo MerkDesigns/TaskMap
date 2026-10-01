@@ -209,7 +209,7 @@
 
 .taskmap-settings-color-trigger {
   width: 100%;
-  /* Compact rows so the Visual tab fits without scrolling (user direction 2026-09-30). */
+  /* Compact rows so the Visual tab fits without scrolling. */
   height: 36px;
   justify-content: flex-start;
   padding: 0 var(--taskmap-space-2);

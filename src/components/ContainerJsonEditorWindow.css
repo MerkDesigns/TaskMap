@@ -8,7 +8,7 @@
   color: var(--taskmap-text);
 }
 
-/* Glass-free content follows the material presence (glass contract section 17). */
+/* Glass-free content follows the material presence. */
 .taskmap-json-editor__header,
 .taskmap-json-editor__text {
   position: relative;

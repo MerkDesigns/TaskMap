@@ -8,7 +8,7 @@
  * Normative owner for visible target-theme values, active on the production workspace root.
  */
 .taskmap-target-theme {
-  /* Native controls and unstyled scrollbars render dark (UI guardrails section 4). */
+  /* Native controls and unstyled scrollbars render dark. */
   color-scheme: dark;
   --taskmap-scrollbar-thumb: rgb(255 255 255 / 0.24);
 
@@ -77,7 +77,7 @@
   --taskmap-chrome-gap: 8px;
   --taskmap-panel-width: 290px;
   --taskmap-toolbar-height: 40px;
-  /* Toolbar islands line up with the 288px side panel: 204 + 8 gap + 76 (user direction). */
+  /* Toolbar islands line up with the 288px side panel: 204 + 8 gap + 76. */
   --taskmap-toolbar-group-padding-inline: 8px;
   --taskmap-panel-padding: 12px;
   --taskmap-modal-padding: 20px;
@@ -122,7 +122,7 @@
   --taskmap-shadow-outer: 0 8px 24px rgb(0 0 0 / 0.32);
   --taskmap-accent-glow: 0 0 18px rgb(var(--taskmap-accent-rgb) / 0.22);
 
-  /* Initial Phase 4.5C motion values; tune only through visual acceptance. */
+  /* Motion values; tune only through visual acceptance. */
   --taskmap-motion-instant: 0ms;
   --taskmap-motion-fast: 120ms;
   --taskmap-motion-menu-exit: 90ms;

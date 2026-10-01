@@ -16,7 +16,7 @@ export const WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32;
 /** Scale while hidden for the default fade + slide + scale presence. */
 const SIDE_PANEL_SCALE = 0.94;
 
-/** Ease in and out in both directions (user direction 2026-09-30). */
+/** Ease in and out in both directions. */
 const easeInOutCubic = (progress: number) =>
   progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
 const TIMING = { durationMs: WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS, easing: easeInOutCubic };

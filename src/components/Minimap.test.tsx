@@ -8,7 +8,7 @@ import { Minimap } from "./Minimap";
 
 afterEach(cleanup);
 
-describe("C2F Minimap", () => {
+describe("Minimap", () => {
   it("updates only camera presentation without rebuilding document projection on pan/zoom", () => {
     const controller = createCanvasInteractionController({
       canvasKey: "a",

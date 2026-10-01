@@ -1,4 +1,4 @@
-/* Blur presence is timed independently of tint/rim/shadow and content (glass contract section 17):
+/* Blur presence is timed independently of tint/rim/shadow and content:
    it waits for `delay` of the presence, then follows `pow(progress, curve)`. The development
    workbench tunes both; production uses these defaults. */
 .taskmap-native-glass-recipe {

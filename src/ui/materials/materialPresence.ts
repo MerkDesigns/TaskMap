@@ -16,8 +16,8 @@ const PRESENCE_CONTENT_ATTRIBUTE = "data-material-presence-content";
 
 /**
  * Marks the largest glass-free subtrees under `root` so CSS fades them with the inherited presence
- * variable: ordinary content fades without ever putting opacity on an ancestor of glass (glass
- * contract section 17). Re-run when content changes during an animation; stale marks at rest are
+ * variable: ordinary content fades without ever putting opacity on an ancestor of glass, which
+ * would flatten its blur. Re-run when content changes during an animation; stale marks at rest are
  * harmless because the variable is 1 there.
  */
 export function markMaterialPresenceContent(root: HTMLElement): void {

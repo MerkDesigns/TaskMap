@@ -1,7 +1,7 @@
 import { CANVAS_CARD_SLOT_TRANSITION_MS, easeOutQuart } from "./canvasBrowserInteraction";
 import type { CanvasBrowserCardRecord, CanvasCardDragState } from "./canvasBrowserRuntimeTypes";
 
-/** Held-card lift (glass contract section 14): the picked-up card grows by this factor. */
+/** Held-card lift: the picked-up card grows by this factor. */
 export const CANVAS_CARD_HELD_SCALE = 1.06;
 
 /** Neighbours move away from the held card so its gaps stay even while it is enlarged. */

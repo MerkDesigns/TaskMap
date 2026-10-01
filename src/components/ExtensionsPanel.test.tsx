@@ -31,7 +31,7 @@ describe("Quick extensions menu", () => {
   });
 });
 
-describe("C2E Extensions panel", () => {
+describe("Extensions panel", () => {
   it("uses one bounded Small batch and suspends it when the retained view settles inactive", async () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
       this: HTMLElement,

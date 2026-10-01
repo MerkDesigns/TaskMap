@@ -16,7 +16,7 @@ export interface CanvasCreateDialogProps {
   readonly onCreate: (draft: CanvasDraft) => void;
 }
 
-/** Create Canvas: a Major Glass dialog on the shared dialog structure (UI guardrails section 2). */
+/** Create Canvas: a Major Glass dialog on the shared dialog structure. */
 export function CanvasCreateDialog({ initialDraft, onCancel, onCreate }: CanvasCreateDialogProps) {
   const [draft, setDraft] = useState(initialDraft);
   const nameRef = useRef<HTMLInputElement>(null);

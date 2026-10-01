@@ -17,7 +17,7 @@ export interface LegacyCanvasCommitBindings {
 }
 
 /**
- * Temporary production bridge. This is the only Phase 4 module allowed to
+ * Temporary production bridge. This is the only interaction module allowed to
  * translate generic gesture completions into legacy TaskCanvas mutations.
  */
 export function createLegacyCanvasInteractionCommitAdapter(

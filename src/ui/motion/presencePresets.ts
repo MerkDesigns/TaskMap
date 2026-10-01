@@ -6,7 +6,7 @@ export const EASE_STANDARD = cubicBezier(0.2, 0, 0, 1);
 export const EASE_EMPHASIZED = cubicBezier(0.16, 1, 0.3, 1);
 
 /**
- * Named channel combinations offered to surfaces (glass contract section 16). Components pick one;
+ * Named channel combinations offered to surfaces. Components pick one;
  * the development workbench can preview alternatives on real panels.
  */
 export const PRESENCE_PRESETS = Object.freeze({
@@ -36,7 +36,7 @@ export const PRESENCE_PRESET_LABELS: Readonly<Record<PresencePresetName, string>
 
 /**
  * Menu presence timing: the original 220 ms emphasized / 160 ms standard keyframe timing, 20% slower
- * (user choice 2026-09-29 after trying 320/220 ms on `ease`, which felt too slow).
+ * (320/220 ms on `ease` felt too slow).
  */
 export const MENU_PRESENCE_TIMING = Object.freeze({
   enter: { durationMs: 264, easing: EASE_EMPHASIZED } satisfies PresenceTiming,

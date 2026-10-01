@@ -151,7 +151,7 @@
 }
 
 /* Material-fade presets: glass fades through the inherited presence variable; ordinary content
-   fades only on glass-free wrappers (never ancestor opacity over glass, contract section 17). */
+   fades only on glass-free wrappers (never ancestor opacity over glass). */
 .taskmap-workspace-side-panel
   :is(
     .taskmap-canvas-browser__header,

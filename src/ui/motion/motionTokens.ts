@@ -1,4 +1,4 @@
-// Central Phase 4.5C motion values; these are UI-motion values, not compositor constants.
+// Central UI motion values (not compositor constants).
 export const MOTION_DURATION_MS = Object.freeze({
   instant: 0,
   fast: 120,

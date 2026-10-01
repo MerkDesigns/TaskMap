@@ -21,7 +21,7 @@ export interface CanvasCardDragState<Id extends string> {
   finish: "commit" | "cancel" | null;
   snapStartedAt: number | null;
   snapFromY: number;
-  /** Liquid pickup/drop (glass contract section 14): visible slice morph endpoints. */
+  /** Liquid pickup/drop: visible slice morph endpoints. */
   pickupStartedAt: number | null;
   pickupFrom: CanvasBrowserCardSlice;
   snapFromSlice: CanvasBrowserCardSlice;

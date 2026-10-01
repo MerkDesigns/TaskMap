@@ -10,7 +10,7 @@ import { ExtensionsPanel } from "./ExtensionsPanel";
 
 afterEach(cleanup);
 
-describe("C2C workspace panels", () => {
+describe("Workspace panels", () => {
   it("uses the same Acrylic Large side-panel surface for both production shells", () => {
     render(
       <>
