@@ -76,3 +76,23 @@ jobs:
             $featureArgs = @('--all-features')
           }
           cargo test --manifest-path src-tauri/Cargo.toml --all-targets @featureArgs
+
+  installer:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check installer formatting
+        run: cargo fmt --manifest-path installer/Cargo.toml -- --check
+
+      - name: Lint installer
+        run: cargo clippy --manifest-path installer/Cargo.toml --all-targets --all-features -- -D warnings
+
+      - name: Test installer
+        run: cargo test --manifest-path installer/Cargo.toml --all-targets

@@ -3,6 +3,10 @@ dist/
 examples/*
 !examples/app-data-v1.json
 src-tauri/target/
+installer/target/
+installer/gen/
+dist-installer/
+release/
 .env
 .env.*
 .vscode/

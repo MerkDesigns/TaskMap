@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TaskMap Setup",
+  "mainBinaryName": "TaskMap_Installer",
+  "version": "0.1.0",
+  "identifier": "com.merkdesigns.taskmap.installer",
+  "build": {
+    "beforeDevCommand": "npm run installer:web",
+    "devUrl": "http://127.0.0.1:6972",
+    "beforeBuildCommand": "npm run installer:web:build",
+    "frontendDist": "../dist-installer"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "TaskMap Setup",
+        "width": 760,
+        "height": 480,
+        "resizable": false,
+        "maximizable": false,
+        "decorations": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "capabilities": ["default"],
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'",
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://127.0.0.1:6972; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["../src-tauri/icons/icon.ico"]
+  }
+}

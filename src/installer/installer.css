@@ -1,0 +1,296 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.taskmap-installer {
+  position: relative;
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background:
+    radial-gradient(ellipse 45% 60% at 20% 58%, rgb(227 107 85 / 0.14), transparent 70%),
+    var(--taskmap-void-bg);
+  color: var(--taskmap-text);
+  font-family: var(--taskmap-font-family);
+  user-select: none;
+}
+
+/* Quieter under the copy on the right, fuller behind the logo on the left. */
+.taskmap-installer__backdrop {
+  position: absolute;
+  inset: 0;
+  mask-image: linear-gradient(100deg, black 0%, rgb(0 0 0 / 0.45) 55%, rgb(0 0 0 / 0.2) 100%);
+  pointer-events: none;
+}
+
+.taskmap-installer__titlebar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  padding: 0 var(--taskmap-space-2) 0 var(--taskmap-space-4);
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  /* A plain blur of the halftone under the bar (ADR 007), not a TaskMap glass material. */
+  background: rgb(10 10 12 / 0.5);
+  backdrop-filter: blur(14px);
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 600;
+}
+
+.taskmap-installer__window-controls {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.taskmap-installer .taskmap-installer__window-controls .taskmap-icon-button {
+  width: 32px;
+  height: 32px;
+}
+
+/* The icon wrapper is inline by default, so its line box pushed the icon ~2px above centre. */
+.taskmap-installer__window-controls .taskmap-icon-button > span,
+.taskmap-installer__window-controls .taskmap-icon-button svg {
+  display: block;
+  line-height: 0;
+}
+
+.taskmap-installer__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 28px 44px 22px;
+}
+
+.taskmap-installer h1,
+.taskmap-installer h2,
+.taskmap-installer p {
+  margin: 0;
+}
+
+.taskmap-installer h1 {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.taskmap-installer h2 {
+  margin-top: 4px;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* The app's own wordmark (its drop shadow is part of the image, hence the negative margin). */
+.taskmap-installer__wordmark {
+  display: block;
+  height: 64px;
+  margin: 4px 0 -10px -2px;
+}
+
+.taskmap-installer__lead {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.taskmap-installer__body {
+  max-width: 380px;
+  color: var(--taskmap-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.taskmap-installer__hero {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 210px minmax(0, 1fr);
+  align-items: center;
+  gap: 44px;
+}
+
+.taskmap-installer__mark {
+  position: relative;
+  width: 190px;
+  justify-self: center;
+}
+
+.taskmap-installer__mark img {
+  display: block;
+  width: 100%;
+  filter: drop-shadow(0 18px 42px rgb(227 107 85 / 0.32));
+}
+
+.taskmap-installer__hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.taskmap-installer .taskmap-installer__primary {
+  min-width: 200px;
+  height: 46px;
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.taskmap-installer__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--taskmap-muted);
+  font-size: 12px;
+}
+
+.taskmap-installer__path {
+  display: flex;
+  max-width: 380px;
+  align-items: center;
+  gap: 6px;
+  color: var(--taskmap-muted);
+  font-size: 12.5px;
+}
+
+.taskmap-installer__path span,
+.taskmap-installer__location-path span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-installer__page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.taskmap-installer__location {
+  display: flex;
+  gap: var(--taskmap-space-2);
+  margin-top: 8px;
+}
+
+.taskmap-installer__location-path {
+  display: flex;
+  min-width: 0;
+  height: 38px;
+  flex: 1;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  padding: 0 var(--taskmap-space-3);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.35);
+  color: var(--taskmap-text);
+  font-size: 13px;
+}
+
+.taskmap-installer__checks,
+.taskmap-installer__stages {
+  display: grid;
+  gap: 12px;
+  margin: 4px 0 0;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.02);
+}
+
+.taskmap-installer__stages {
+  list-style: none;
+}
+
+.taskmap-installer__stages li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--taskmap-muted);
+  font-size: 14px;
+}
+
+.taskmap-installer__stages li[data-state="active"],
+.taskmap-installer__stages li[data-state="done"] {
+  color: var(--taskmap-text);
+}
+
+.taskmap-installer__stages li[data-state="active"] {
+  font-weight: 600;
+}
+
+.taskmap-installer__stage-dot {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 2px solid rgb(255 255 255 / 0.22);
+  border-radius: 50%;
+  color: #fff;
+  place-items: center;
+}
+
+.taskmap-installer__stages li[data-state="done"] .taskmap-installer__stage-dot {
+  border-color: var(--taskmap-accent);
+  background: var(--taskmap-accent);
+}
+
+.taskmap-installer__stages li[data-state="active"] .taskmap-installer__stage-dot {
+  border-color: var(--taskmap-accent);
+  animation: taskmap-installer-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes taskmap-installer-pulse {
+  50% {
+    box-shadow: 0 0 0 5px rgb(227 107 85 / 0.18);
+  }
+}
+
+.taskmap-installer__progress {
+  height: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.taskmap-installer__progress-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #e8553f, #ff9358);
+  transform-origin: left;
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.taskmap-installer__actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-installer__stages li[data-state="active"] .taskmap-installer__stage-dot {
+    animation: none;
+  }
+
+  .taskmap-installer__progress-fill {
+    transition: none;
+  }
+}

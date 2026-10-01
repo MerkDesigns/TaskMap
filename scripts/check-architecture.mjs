@@ -13,6 +13,7 @@ const TARGET_DIRS = [
   "elements",
   "extensions",
   "features",
+  "installer",
   "legacy",
   "platform",
   "ui",

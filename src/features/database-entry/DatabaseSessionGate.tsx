@@ -9,7 +9,7 @@ import {
   type DatabaseEntryStage,
 } from "./DatabaseEntryProgress";
 import { DatabasePasswordForm } from "./DatabasePasswordForm";
-import { HalftoneBackdrop } from "./HalftoneBackdrop";
+import { HalftoneBackdrop } from "../../ui/patterns/halftone/HalftoneBackdrop";
 import { useDatabaseEntry } from "./useDatabaseEntry";
 import { useUnlockReveal } from "./useUnlockReveal";
 import { databaseEntryError } from "./databaseEntryErrors";

@@ -7,6 +7,10 @@
 ../node_modules/
 ../src-tauri/gen/
 ../src-tauri/target/
+../installer/gen/
+../installer/target/
+../dist-installer/
+../release/
 ../package-lock.json
 
 # Local examples and binary assets

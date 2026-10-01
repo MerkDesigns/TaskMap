@@ -45,7 +45,10 @@
 
 ## Immediate next task / handoff
 
-1. Commit/push the 4.5H cleanup when the user asks.
+1. Installer bootstrapper (ADR 007, started early by user direction): `installer/` crate +
+   `src/installer/` UI; dev run `npm run installer:dev` simulates installing (no payload). Not yet
+   done: a real `npm run installer:build` validated on a clean machine (never run a real install
+   over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
 2. Start Phase 5 with the Text Card: transfer presentation ownership from retained `App.tsx` to the
    normalized architecture without reopening persistence ownership (see `REFACTOR-ROADMAP.md`).
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused

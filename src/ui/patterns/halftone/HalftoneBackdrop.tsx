@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useReducedMotion } from "../../ui/motion/reducedMotionPreference";
+import { useReducedMotion } from "../../motion/reducedMotionPreference";
 import {
   getHalftoneSettings,
   subscribeHalftoneSettings,
@@ -7,6 +7,7 @@ import {
 } from "./halftoneSettings";
 import { createHalftoneProgram } from "./halftoneShader";
 import { createPointerTrail } from "./pointerTrail";
+import "./halftone.css";
 
 function readAccent(element: Element): [number, number, number] {
   const probe = document.createElement("span");
@@ -41,9 +42,16 @@ function boostColor(
  * Animated halftone field behind the database entry panel: accent-coloured dots whose size follows
  * flowing noise. Draws nothing where WebGL is unavailable, and one still frame under reduced motion.
  */
-export function HalftoneBackdrop() {
+export function HalftoneBackdrop({
+  settings: fixedSettings,
+}: {
+  /** A fixed preset; without it the field follows the live (tunable) settings store. */
+  readonly settings?: HalftoneSettings;
+} = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const reducedMotion = useReducedMotion();
+  const fixedSettingsRef = useRef(fixedSettings);
+  fixedSettingsRef.current = fixedSettings;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -60,6 +68,7 @@ export function HalftoneBackdrop() {
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
+    const readSettings = () => fixedSettingsRef.current ?? getHalftoneSettings();
     const uniform = (name: string) => gl.getUniformLocation(program, name);
     const uniforms = {
       time: uniform("time"),
@@ -94,7 +103,7 @@ export function HalftoneBackdrop() {
     const accent = readAccent(canvas);
 
     const applySettings = () => {
-      const settings = getHalftoneSettings();
+      const settings = readSettings();
       const scale = window.devicePixelRatio || 1;
       const cell = settings.cellSize * scale;
       gl.uniform1f(uniforms.cell, cell);
@@ -150,7 +159,7 @@ export function HalftoneBackdrop() {
       if (!event.relatedTarget) trail.leave();
     };
     const uploadTrail = (now: number) => {
-      const settings = getHalftoneSettings();
+      const settings = readSettings();
       if (!settings.pointerEnabled) {
         gl.uniform1f(uniforms.trailCount, 0);
         return;
@@ -176,7 +185,7 @@ export function HalftoneBackdrop() {
     const draw = (now: number) => {
       if (previous !== null) {
         const seconds = (now - previous) / 1000;
-        const settings = getHalftoneSettings();
+        const settings = readSettings();
         noiseTime += seconds * settings.speed;
         wavePhase = (wavePhase + seconds * settings.waveSpeed * 2 * Math.PI) % (2 * Math.PI);
       }
@@ -225,5 +234,5 @@ export function HalftoneBackdrop() {
     };
   }, [reducedMotion]);
 
-  return <canvas ref={canvasRef} className="taskmap-database-entry__halftone" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className="taskmap-halftone" aria-hidden="true" />;
 }

@@ -286,6 +286,9 @@ Legacy conversion remains outside the main product.
 ## Phase 10 — Hardening/release
 
 - packaged release validation;
+- custom installer bootstrapper (ADR 007): first version (install, update, finish) started early
+  by user direction; remaining: release-build validation on a clean machine, code signing, WebView2
+  fallback, custom uninstaller UI;
 - security/performance/manual acceptance;
 - migration cleanup;
 - final architecture/documentation scan.

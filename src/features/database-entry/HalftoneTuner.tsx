@@ -6,7 +6,7 @@ import {
   getHalftoneSettings,
   setHalftoneSettings,
   type HalftoneSettings,
-} from "./halftoneSettings";
+} from "../../ui/patterns/halftone/halftoneSettings";
 import "./halftoneTuner.css";
 
 type Keys<Value> = {

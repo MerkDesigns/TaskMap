@@ -291,8 +291,10 @@ src/
 ├─ elements/       element models, schemas and projections (renderers move here in Phase 5)
 ├─ extensions/     extension definitions, configuration and compatibility
 ├─ features/       product features with their own UI (database entry, minimap)
+├─ installer/      the installer bootstrapper's UI (separate entry: installer/index.html)
 ├─ platform/       the only TypeScript code that talks to Tauri (typed native clients)
 ├─ ui/             theme tokens, materials (glass), motion, primitives and composed patterns
+│                  (incl. the halftone backdrop shared by the unlock screen and installer)
 ├─ ui-lab/         synthetic UI fixtures shown in the DEV workbench's UI Lab view
 ├─ legacy/         temporary bridges for the retained presentation (deleted after Phase 5)
 ├─ components/     retained feature views still rendered through App.tsx
@@ -306,8 +308,11 @@ src-tauri/src/
 ├─ files/          writer/file ownership and atomic filesystem operations
 └─ settings/       edition-local device preferences and remembered resources
 
+installer/         installer bootstrapper (own Tauri crate): runs the embedded NSIS installer
+                   silently, detects existing installs, creates shortcuts (ADR 007)
+
 scripts/           boundary checks (architecture, production exclusion, security), dev launcher,
-                   fixture generators
+                   fixture generators, release installer build (build-installer.mjs)
 config/            Vite, TypeScript, ESLint, Prettier, PostCSS/Tailwind configuration
 docs/              contracts, roadmap/state, ADRs (`decisions/`), evidence, archived work log
 ```

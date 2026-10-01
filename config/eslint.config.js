@@ -8,6 +8,9 @@ export default tseslint.config(
     ignores: [
       "**/coverage/**",
       "**/dist/**",
+      "**/dist-installer/**",
+      "**/installer/gen/**",
+      "**/installer/target/**",
       "**/node_modules/**",
       "**/src-tauri/gen/**",
       "**/src-tauri/target/**",

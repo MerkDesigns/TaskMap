@@ -2,6 +2,9 @@ export const FROZEN_LEGACY_MATERIAL_USAGE = Object.freeze({
   directBackdropFilter: Object.freeze({
     "src/ui/materials/MaterialSurface.css": 2,
     "src/ui/materials/nativeGlassRecipe.css": 4,
+    // The installer bootstrapper is a separate app outside the workspace glass system (ADR 007);
+    // its title bar has one plain blur.
+    "src/installer/installer.css": 1,
   }),
   tailwindBackdropBlur: Object.freeze({
     "src/components/ToastStack.tsx": 1,
