@@ -59,5 +59,8 @@ describe("large document command boundary", () => {
       expect(result.transaction?.patches).toHaveLength(count);
       stringify.mockRestore();
     },
+    // Correctness only (no serialization, element-level patches), not a timing budget: building and
+    // parsing 10,000 elements takes ~1 s alone but exceeded the 5 s default on a loaded CI runner.
+    30_000,
   );
 });

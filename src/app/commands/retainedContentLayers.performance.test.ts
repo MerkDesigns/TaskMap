@@ -148,4 +148,6 @@ it("edits 1000 root elements and their layers with localized transactions and un
     vi.restoreAllMocks();
     store.disposeWorkspace();
   }
-});
+  // Structure only (no timing assertion): the large fixture alone exceeded the 5 s default on a
+  // loaded CI runner.
+}, 30_000);
