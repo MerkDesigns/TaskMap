@@ -872,7 +872,7 @@ During implementation:
 - do not alter canonical optics to hide correctness bugs;
 - do not reduce overscan merely to hide stale-backdrop symptoms;
 - do not permanently give every settled Minor its own filter;
-- do not reactivate the parked cached compositor without an explicit decision;
+- do not reintroduce the cached Canvas2D compositor (removed in 4.5H) without an explicit decision;
 - do not add feature-local repaint hacks;
 - do not delete rollback/reference code until the final path passes proof and acceptance.
 

@@ -215,9 +215,10 @@ Avoid document-wide selectors inside repeated element renderers.
 
 After meaningful work:
 
-- update `REFACTOR-STATE.md`;
-- append durable history/measurements to `WORK-LOG.md`;
-- update CODEMAP when subsystem ownership changes;
+- commit in small, focused commits whose messages carry the history/measurements;
+- add user-visible changes to `CHANGELOG.md`;
+- update `REFACTOR-STATE.md` when phase/gate status or the next task changes;
+- update `ARCHITECTURE.md` → "Repository structure" when subsystem ownership changes;
 - update parity when retained behavior changes/is accepted;
 - update subsystem contracts only for real contract changes;
 - add ADR for foundational decisions.

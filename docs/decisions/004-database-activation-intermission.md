@@ -48,7 +48,7 @@ Phase 5 renderer migration complete.
 
 The final product route now uses the normalized database/runtime architecture.
 
-Historical implementation detail remains available in Git/WORK-LOG rather than in an active
+Historical implementation detail remains available in Git history (and `docs/archive/WORK-LOG.md`) rather than in an active
 multi-step integration plan.
 
 This ADR does not define the final UI/glass architecture; that is governed by ADR 006 and the current

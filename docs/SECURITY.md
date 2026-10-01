@@ -167,9 +167,9 @@ projection cache. This is not a replacement for native authorization, key cleanu
 lock rules, or the still-pending live startup/session-lock acceptance.
 
 The two command families use one implementation, not separate storage/session engines. The new
-application composition is now selected by product startup. Legacy storage/keyring, portable conversion,
-legacy media and Discord modules are excluded from the native module graph; raw runner execution and
-legacy command grants are removed. A preview-only empty-load response has no filesystem authority.
+application composition is now selected by product startup. The legacy storage/keyring, portable
+conversion, legacy media and Discord modules were deleted (4.5H) along with their crates; raw runner
+execution and legacy command grants are removed. A preview-only empty-load response has no filesystem authority.
 Dev configurations do not inherit stable updater endpoints. Live activation and automatic-lock
 acceptance still remain; source exclusion alone does not establish finished product security.
 The shared keeper still uses the historical, content-free

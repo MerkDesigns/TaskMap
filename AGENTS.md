@@ -1,6 +1,6 @@
 # TaskMap Agent Rules
 
-These rules apply to all automated and human changes on `architecture-v1`.
+These rules apply to all automated and human changes in this repository.
 
 ## Product contract
 
@@ -45,16 +45,41 @@ The normalized database/workspace/command/history/persistence system is the prod
 Retained presentation may still pass through legacy `App.tsx` while Phase 5 migrates feature
 renderers. Do not use UI/glass work as an excuse for a broad `App.tsx` rewrite.
 
-## File/module rules
+## Code organisation
 
-- Prefer one clear responsibility per file.
-- Target fewer than 250 lines where practical.
-- Files over 400 lines require a real subsystem reason.
-- Do not create generic `utils.ts`, `helpers.ts` or `common.ts` dumping grounds.
-- Do not split files merely to reduce line count.
-- Keep tiny one-use helpers/types with their owner unless separation establishes a meaningful
-  dependency/ownership boundary.
-- Update `docs/CODEMAP.md` when subsystem ownership changes.
+- One cohesive responsibility per module. Cohesion decides file boundaries, not line counts.
+- Keep one-use helpers, types and constants in the file that owns them. A new file needs a reason:
+  it is shared, it forms an ownership/dependency boundary, or it is a public entry point.
+- Avoid files under ~30 lines unless they are entry points, re-export barrels or type-only modules.
+- New files over ~400 lines need a real subsystem reason; split along responsibilities, never just
+  to get under a number.
+- No generic `utils.ts`, `helpers.ts` or `common.ts` dumping grounds.
+- When ownership moves, update the "Repository structure" section of `ARCHITECTURE.md`.
+
+## Naming
+
+- Names describe the domain or behavior: `CommandFailure`, `DatabaseEntryRuntime`,
+  `useCanvasBrowserDrag`. Never name code, files, folders, features, tests or flags after project
+  phases, dates, tickets or slices (`Phase2…`, `C3B`, `4.5H`, `trial`).
+- Test titles state the behavior under test ("locks the session when the window closes"), not the
+  slice that introduced it.
+- Temporary migration code says what it bridges (`legacy/`, `retained…`), and is deleted when the
+  migration ends.
+
+## Comments
+
+- Comments explain non-obvious _why_ in terms of the code: constraints, invariants, platform quirks
+  (e.g. "WebView2 ignores a zero-size mask layer").
+- No dates, "user direction/choice", chat or session references, phase codes, or contract section
+  numbers in code. Decisions belong in commit messages, pull requests, ADRs or the contracts; link a
+  doc by name when a comment truly depends on it.
+- Do not narrate what the next line obviously does.
+
+## Styling
+
+- Styles live in CSS next to their component/pattern and use theme tokens.
+- Do not add new Tailwind utility classes; existing ones in retained legacy code are removed as that
+  code migrates.
 
 ## Dependency direction
 
@@ -113,7 +138,7 @@ Final performance acceptance is defined in `docs/TESTING.md` and
 - Purge session-sensitive resources on the established lock/quit/session-revocation boundaries.
 - Imported workflows remain disabled until explicitly trusted.
 
-## Refactor workflow
+## Workflow
 
 Before substantial work:
 
@@ -127,14 +152,23 @@ Conversation memory is not the repository source of truth.
 
 After meaningful work:
 
-- update `docs/REFACTOR-STATE.md`;
-- append useful history/measurements to `docs/WORK-LOG.md`;
-- update normative docs only when their actual contract changed.
+- keep commits small and focused, one coherent change each, with a message that explains what and
+  why (history lives in Git, not in a diary file);
+- add user-visible changes to `CHANGELOG.md` under "Unreleased";
+- update `docs/REFACTOR-STATE.md` only when phase/gate status, ownership or the next task changes;
+- record foundational decisions as an ADR; update normative docs only when their contract changed.
+
+## Tests
+
+- Test behavior through public interfaces; follow the test style rules in `docs/TESTING.md`.
+- Do not assert on source text in unit tests. Architecture/security boundaries are enforced by the
+  boundary scripts in `scripts/`.
 
 ## Validation
 
 Run the validation appropriate to the task during iteration.
 
-Before declaring a slice complete, satisfy the relevant gates in `docs/TESTING.md`.
+Before declaring work complete, satisfy the relevant gates in `docs/TESTING.md`
+(`npm run check` locally mirrors CI).
 
 Compilation alone is never visual, interaction, security or performance acceptance.

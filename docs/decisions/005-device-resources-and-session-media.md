@@ -63,5 +63,5 @@ lifetime for the active workspace.
 
 Their implementation must remain independent from the UI/glass renderer.
 
-Historical implementation detail remains in Git/WORK-LOG; the active architecture is summarized in
+Historical implementation detail remains in Git history (and `docs/archive/WORK-LOG.md`); the active architecture is summarized in
 `ARCHITECTURE.md`.

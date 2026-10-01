@@ -1,11 +1,11 @@
-# TaskMap Refactor Session Workflow
+# TaskMap Development Workflow
 
 ## Purpose
 
-This is the operational workflow for AI-assisted work on `architecture-v1`.
+This is the operational workflow for human and AI-assisted work in this repository.
 
-It tells a new session what to read and how to resolve documentation conflicts without requiring old
-chat history.
+It tells a new contributor or session what to read, how to resolve documentation conflicts and how
+to land changes cleanly, without requiring old chat history.
 
 ## Authority model
 
@@ -37,15 +37,16 @@ implementation plans. That supersession must be explicit.
 - `docs/FEATURE-WIRING.md` — implementation wiring guidance.
 - `docs/TESTING.md` — validation strategy/gates.
 - `docs/REFACTOR-STATE.md` — concise current snapshot only.
-- `docs/WORK-LOG.md` — chronological history only.
-- `docs/CODEMAP.md` — generated/current structure only.
+- `CHANGELOG.md` — user-visible changes, newest first.
+- `ARCHITECTURE.md` → "Repository structure" — where things live.
 
 ### Historical material
 
 A document explicitly marked superseded/historical has no normative authority.
 
-Git history and `WORK-LOG.md` preserve old implementation context; old temporary plans do not stay
-authoritative merely because they remain readable.
+Git history, pull requests and the frozen `docs/archive/WORK-LOG.md` (history up to 2026-10-01)
+preserve old implementation context; old temporary plans do not stay authoritative merely because
+they remain readable.
 
 ## Session startup
 
@@ -112,29 +113,26 @@ Use focused validation while iterating, then the full gate required by `docs/TES
 
 For UI/glass work, automated tests do not replace live WebView2 visual acceptance.
 
-### 6. Update docs
+### 6. Commit and document
 
-Always after a meaningful completed cycle:
-
-- append durable context/measurements/failed approaches to `WORK-LOG.md`;
-- refresh `REFACTOR-STATE.md`.
+- Commit each coherent change separately; do not batch unrelated work into one commit.
+- Commit message: an imperative summary line (≤ 72 characters, no phase codes), a blank line, then
+  what changed and why, including measurements or failed approaches worth keeping.
+- Larger slices go through a pull request whose description records context, verification and
+  follow-ups.
+- Add user-visible changes to `CHANGELOG.md` under "Unreleased".
+- Refresh `REFACTOR-STATE.md` when phase/gate status, ownership or the next task changes.
 
 Update other docs only when their responsibility actually changed.
 
 Do not bulk-edit normative docs to rationalize an implementation accident.
 
-## Dirty history vs current truth
+## History vs current truth
 
-### `WORK-LOG.md`
+### Git history and pull requests
 
-Append-oriented history:
-
-- attempts;
-- measurements;
-- failures;
-- reversions;
-- commits;
-- why a decision changed.
+The durable record of attempts, measurements, failures, reversions and why a decision changed.
+Write commit messages and PR descriptions for a reader who has no chat context.
 
 ### `REFACTOR-STATE.md`
 
@@ -168,7 +166,7 @@ Do not degrade accepted visual quality based on an unisolated hypothesis.
 A finished task should answer from the repository:
 
 - what phase/gate are we in?
-- what changed?
+- what changed (see the commits)?
 - what was verified?
 - what remains?
 - which contract governs it?

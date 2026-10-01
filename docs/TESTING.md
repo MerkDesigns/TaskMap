@@ -4,8 +4,26 @@
 
 Tests prove contracts and regression safety.
 
-This document defines current validation layers/gates. Historical phase-by-phase test inventories
-belong in Git/WORK-LOG and in the tests themselves, not in this strategy document.
+This document defines current validation layers/gates. Historical test inventories belong in Git
+history and in the tests themselves, not in this strategy document.
+
+## Test style
+
+- Test behavior through the public interface of a module or component: rendered output, emitted
+  commands, returned values, persisted results. Do not reach into private state.
+- Name tests after the behavior: "rejects a wrong password without exposing backend details". No
+  phase/slice codes in `describe`/`it` titles.
+- No source-text assertions (reading a source file and matching words) in unit tests. They break on
+  harmless refactors and miss real bugs. Architecture, security and production-exclusion rules that
+  genuinely need static analysis belong in the boundary scripts under `scripts/` (run by
+  `npm run architecture:check` and `npm run production:inspect`).
+- Do not keep tests whose only assertion is that something unused stays empty or absent.
+- Share fixtures/builders through `*TestSupport.ts(x)` modules next to the code; keep each test
+  self-explanatory.
+- Assert structure, not wall-clock time. Large-fixture suites run under the global 20 s test timeout;
+  never add sleeps to make a test pass.
+- jsdom has no layout or Web Animations; mock geometry explicitly and keep visual acceptance in the
+  live app.
 
 ## 1. CI baseline
 
@@ -18,7 +36,6 @@ The Windows CI path should cover:
 - architecture/dependency checks;
 - production build;
 - production-exclusion/capability checks;
-- CODEMAP check;
 - Rust formatting;
 - Rust Clippy with warnings denied;
 - Rust tests for default/development/all-feature configurations.
@@ -129,9 +146,7 @@ Check blur in both views, including shared Minor list planes, and reset before v
 Material/effect and hit-target outlines are optional. Frame counters measure requestAnimationFrame
 intervals, not GPU-presented FPS, and add diagnostic overhead. They are disabled by default.
 Lock must remove the workbench, its overrides and its sampling loop. Production builds exclude it.
-
-`npm run app:ui-lab:isolated` retains the old storage-free harness as a reference during migration;
-it is not the current workbench acceptance path.
+The old storage-free standalone UI Lab app was removed in 4.5H; the workbench is the only UI Lab.
 
 ## 9. Glass correctness acceptance
 
@@ -196,7 +211,7 @@ does not import them. The normal fixture has 2,000 elements across 25 canvases (
 2,000 visible elements on one canvas. Its legacy document format is not a current `.tmapdb` import.
 Preparation was authorized as files-only; benchmark loading still needs explicit authorization and
 an isolated test database. Never infer permission to use installed stable data or legacy keyring
-resources from the documentation reset. Historical generation details remain in Git/WORK-LOG.
+resources from the documentation reset. Historical generation details remain in Git history.
 
 At minimum benchmark:
 
@@ -242,6 +257,6 @@ Before release claims, validate:
 
 When a test/acceptance run matters:
 
-- record durable results/environment in `WORK-LOG.md`;
+- record durable results/environment in the commit message or pull request description;
 - update `REFACTOR-STATE.md` with only the current accepted status;
 - do not grow this strategy file with chronological test history.

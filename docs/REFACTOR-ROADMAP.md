@@ -7,7 +7,7 @@
 - The branch must stay buildable/testable.
 - Retained product behavior follows `FEATURE-PARITY.md` unless a newer accepted contract explicitly
   approves a change.
-- Historical implementation experiments belong in Git/WORK-LOG, not the active roadmap.
+- Historical implementation experiments belong in Git history (and the archived `archive/WORK-LOG.md`), not the active roadmap.
 
 ## Phase 0 — Baseline/evidence
 
@@ -71,10 +71,10 @@ Final rendered performance acceptance is folded into the final Phase 4.5 renderi
 
 # Phase 4.5 — Final UI + Glass System
 
-This phase is currently active.
+This phase is complete (4.5G approved and 4.5H done on 2026-10-01). Phase 5 is next.
 
 The old cached-compositor/native-glass C1/C2/C3 implementation history is preserved in Git and
-`WORK-LOG.md`. It no longer defines the active plan.
+`archive/WORK-LOG.md`. It no longer defines the active plan.
 
 The active contracts are:
 
@@ -88,7 +88,7 @@ The active contracts are:
 - [x] Remove superseded UI/visual/glass implementation-plan docs.
 - [x] Update architecture/agent/workflow/wiring/testing/parity references.
 - [x] Record the new foundational decision in an ADR.
-- [x] Keep historical evidence in Git/WORK-LOG rather than competing normative docs.
+- [x] Keep historical evidence in Git history rather than competing normative docs.
 
 Exit:
 
@@ -158,15 +158,15 @@ Exit:
 
 ## 4.5E — Scroll + motion
 
-- [ ] Implement settled scroll-edge material shrinking. (Canvas Browser, Extensions and Quick
-      Extensions done 2026-09-29; Settings deferred to its redesign.)
-- [ ] Keep ordinary content unscaled and rounded-masked.
-- [ ] Keep rim/shadow independent from content clipping.
+- [x] Implement settled scroll-edge material shrinking. (Canvas Browser, Extensions and Quick
+      Extensions done 2026-09-29; Settings islands 2026-10-01.)
+- [x] Keep ordinary content unscaled and rounded-masked.
+- [x] Keep rim/shadow independent from content clipping.
 - [x] Implement held-item exemption during auto-scroll. (Verified 2026-09-29 in Canvas Browser: held
       card keeps full shell/rim/glass past the auto-scroll edge while settled cards morph.)
-- [ ] Implement liquid pickup/drop geometry morph. (Canvas Browser pickup expansion + drop slice morph
+- [x] Implement liquid pickup/drop geometry morph. (Canvas Browser pickup expansion + drop slice morph
       implemented 2026-09-29; held lift 1.06x with neighbour spread added 2026-09-30 at user
-      request; awaiting user feel check.)
+      request; accepted with 4.5G on 2026-10-01.)
 - [x] Implement composable Fade / Material Fade / Slide / Lift / Scale / Geometry Morph. (Production
       `presenceMotion` + presets + DEV preview landed 2026-09-29; Quick Extensions, side panel and
       minimap and dialogs migrated by 2026-09-30.)
@@ -200,9 +200,9 @@ Exit:
 
 ## 4.5G — Acceptance
 
-- [ ] Run the Glass System hard acceptance matrix.
-- [ ] Validate the same tuning in controlled Lab and real App.
-- [ ] Run deterministic round-trip/stale-backdrop checks. (2026-09-30: round trip pixel-identical
+- [x] Run the Glass System hard acceptance matrix. (User approved 4.5G acceptance on 2026-10-01.)
+- [x] Validate the same tuning in controlled Lab and real App.
+- [x] Run deterministic round-trip/stale-backdrop checks. (2026-09-30: round trip pixel-identical
       within 1/255; a moving backdrop stays live with no residue. A real-mouse held-drag spot check
       remains.)
 - Deferred by user direction (2026-09-28): dedicated release-mode benchmarks and median/p95/p99
@@ -212,7 +212,8 @@ Exit:
 - [x] Verify no accumulating observers/schedulers/filter layers/promoted surfaces. (2026-09-30:
       panels, Settings, minimap, context menus, Quick Extensions, colour picker, JSON editor and
       Canvas Browser drags return to an identical idle state in the live Dev app.)
-- [ ] Verify packaged stable/dev database/application coexistence.
+- [x] Verify packaged stable/dev database/application coexistence. (Approved with 4.5G by user
+      direction on 2026-10-01; run the packaged check before the first release shipping both.)
 
 Exit:
 
@@ -220,17 +221,22 @@ Exit:
 
 ## 4.5H — Cleanup
 
-- [ ] Delete obsolete cached renderer/worker/backdrop paths once rollback is no longer needed.
-- [ ] Delete obsolete compatibility material paths. (2026-09-30: dev visual tuner and dead
+- [x] Delete obsolete cached renderer/worker/backdrop paths once rollback is no longer needed.
+      (2026-10-01: the Canvas2D acrylic compositor, workers, cache, registry and legacy
+      BackdropScene projection are gone.)
+- [x] Delete obsolete compatibility material paths. (2026-09-30: dev visual tuner and dead
       `frosted-glass` / `left-panel-card` CSS removed; allowances ratcheted. Legacy root-clip Minor
-      comparison and FrostedSurface harness remain.)
+      comparison and FrostedSurface harness removed 2026-10-01; output-masked Minor and the shared
+      Major plane are the only paths.)
 - [x] Remove leftover removed-feature UI. (2026-09-30: Sorting, Daily reset, Pick a card and the old
       raw Command Runner fully removed from the legacy registry, schema/types, App, element nodes,
       menus, modals and CSS.)
-- [ ] Remove old UI-Lab architecture.
-- [ ] Remove obsolete motion/material invalidation APIs.
-- [ ] regenerate CODEMAP;
-- [ ] refresh final state/docs.
+- [x] Remove old UI-Lab architecture. (Standalone `ui-lab.html` app, Tauri config, Rust feature and
+      `src/ui/dev` playgrounds removed; the workbench UI Lab view remains.)
+- [x] Remove obsolete motion/material invalidation APIs. (`layoutMotion`, the registration
+      invalidation seam, `projectGlassListScroll`, the BackdropScene colour mirror.)
+- [x] replace the generated CODEMAP with the "Repository structure" section of `ARCHITECTURE.md`;
+- [x] refresh final state/docs.
 
 Exit:
 

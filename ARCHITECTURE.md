@@ -279,29 +279,56 @@ UI/glass benchmark methodology is defined by `docs/TESTING.md` and
 
 ## Repository structure
 
-The exact tree may evolve, but responsibilities remain approximately:
+Where things live. Update this section when subsystem ownership moves. Tests sit next to the code
+they cover (`Foo.tsx` → `Foo.test.tsx`).
 
 ```text
 src/
-├─ app/          application lifecycle/workspace/commands/persistence
-├─ domain/       pure document/history/command rules
-├─ canvas/       geometry/interaction/virtualization
-├─ elements/     element modules
-├─ extensions/   extension modules
-├─ features/     product features
-├─ platform/     typed native adapters
-├─ ui/           theme/materials/motion/primitives/patterns/dev
-└─ legacy/       temporary retained-presentation bridges only
+├─ app/            application lifecycle, workspace store, commands/history, persistence,
+│                  preferences, media resources, interactions, view projection, DEV workbench
+├─ domain/         pure document schema, invariants, commands, history and IDs (no React/Tauri/DOM)
+├─ canvas/         pure geometry, viewport and culling math
+├─ elements/       element models, schemas and projections (renderers move here in Phase 5)
+├─ extensions/     extension definitions, configuration and compatibility
+├─ features/       product features with their own UI (database entry, minimap, dev DB harness)
+├─ platform/       the only TypeScript code that talks to Tauri (typed native clients)
+├─ ui/             theme tokens, materials (glass), motion, primitives and composed patterns
+├─ ui-lab/         synthetic UI fixtures shown in the DEV workbench's UI Lab view
+├─ legacy/         temporary bridges for the retained presentation (deleted after Phase 5)
+├─ components/     retained feature views still rendered through App.tsx
+└─ App.tsx         retained legacy presentation root, being dismantled in Phase 5
 
 src-tauri/src/
-├─ commands/
-├─ database/
-├─ crypto/
-├─ session/
-├─ settings/
-├─ workflow/
-└─ files/
+├─ commands/       narrow Tauri commands; application commands use session authority
+├─ session/        native session/key ownership, lock/revocation, media tokens and uploads
+├─ database/       SQLite envelope, generations, media, backup/recovery
+├─ crypto/         password derivation (Argon2id) and authenticated encryption
+├─ files/          writer/file ownership and atomic filesystem operations
+└─ settings/       edition-local device preferences and remembered resources
+
+scripts/           boundary checks (architecture, production exclusion, security), dev launcher,
+                   fixture generators
+config/            Vite, TypeScript, ESLint, Prettier, PostCSS/Tailwind configuration
+docs/              contracts, roadmap/state, ADRs (`decisions/`), evidence, archived work log
 ```
+
+Key entry points:
+
+- `src/main.tsx` → `src/app/AppShell.tsx` (composition only) →
+  `src/app/database/DatabaseApplication.tsx` (runtime, session gate, guarded window close).
+- `src/app/database/createApplicationDatabaseRuntime.ts` — workspace/session, preferences,
+  remembered views, privacy and media ownership; `createDatabaseSessionController.ts` — serialized
+  lifecycle (open/unlock/lock/close), epochs, admission, save flushing and revocation.
+- `src/features/database-entry/` — unlock/create/recent-database screens and the unlock/lock reveal.
+- `src/legacy/RetainedCanvasApplication.tsx` + `src/App.tsx` + `src/components/` — retained
+  presentation; not the persistence owner.
+- `src/ui/materials/MaterialSurface.tsx` — the public glass boundary; `WorkspaceMajorGlass.tsx` and
+  `SharedSmallGlassPlane.tsx` own the shared Major plane and Minor batches; recipes live in
+  `materialDefinitions.ts` and `nativeGlassRecipe.css`.
+- `src/ui/patterns/workspace/` — workspace chrome: side panel, Canvas Browser runtime, glass lists,
+  sleep mode, unlock intro, radii.
+- `src/app/development/` — DEV-only workbench (App/UI Lab switch, tuning, diagnostics); excluded
+  from production builds.
 
 ## Dependency direction
 
