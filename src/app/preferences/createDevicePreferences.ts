@@ -92,7 +92,7 @@ export function createDevicePreferences(client: ApplicationPreferencesClient) {
       };
     },
     load() {
-      tail = tail
+      const loading = tail
         .then(async () => {
           if (disposed) return failure();
           const result = await client.load();
@@ -101,7 +101,10 @@ export function createDevicePreferences(client: ApplicationPreferencesClient) {
           return result.ok ? { ok: true as const, value: undefined } : result;
         })
         .catch(() => failure());
-      return tail;
+      // A failed read leaves nothing unsaved, so it must not fail later flushes (and with them
+      // closing the window).
+      tail = loading.then(() => ({ ok: true as const, value: undefined }));
+      return loading;
     },
     update(patch: PreferencePatch) {
       // Copy object patches now; evaluate functional edits against the latest queued revision.

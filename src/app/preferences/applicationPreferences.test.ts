@@ -2,7 +2,7 @@
 import { expect, it, vi } from "vitest";
 import { createDevicePreferences } from "./createDevicePreferences";
 import { createRememberedViews } from "./createRememberedViews";
-import { preferencesClientFixture } from "./preferencesTestSupport";
+import { preferencesClientFixture, preferencesFixture } from "./preferencesTestSupport";
 import { callbackSetup } from "../commands/retainedCallbackTestSupport";
 import { createRetainedCanvasInteractionController } from "../interactions/createRetainedCanvasInteractionController";
 import { createViewport } from "../../canvas/geometry/viewportMath";
@@ -31,6 +31,19 @@ it("serializes load and captured preference edits without losing concurrent fiel
     privacyModeEnabled: true,
   });
   expect(Object.isFrozen(prefs.getSnapshot()?.preferences)).toBe(true);
+  prefs.dispose();
+});
+
+it("a failed load reports failure but does not block later flushes", async () => {
+  const { client } = preferencesClientFixture();
+  client.load.mockResolvedValueOnce({
+    ok: false,
+    error: { code: "unexpected", message: "Settings could not be read.", retryable: true },
+  });
+  const prefs = createDevicePreferences(client);
+
+  expect((await prefs.load()).ok).toBe(false);
+  expect((await prefs.flush()).ok).toBe(true);
   prefs.dispose();
 });
 
@@ -76,7 +89,7 @@ it("suppresses stale preference loads after disposal", async () => {
   prefs.dispose();
   pending.resolve({
     ok: true,
-    value: { ...(await preferencesClientFixture().client.load()).value },
+    value: preferencesFixture(),
   });
   expect((await loaded).ok).toBe(false);
   expect(prefs.getSnapshot()).toBeNull();

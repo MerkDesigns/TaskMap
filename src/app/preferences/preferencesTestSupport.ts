@@ -31,7 +31,10 @@ export function preferencesClientFixture() {
     save: vi.fn(async () => ({ ok: true as const, value: undefined })),
   };
   const client = {
-    load: vi.fn(async () => ({ ok: true as const, value: preferencesFixture() })),
+    load: vi.fn<ApplicationPreferencesClient["load"]>(async () => ({
+      ok: true,
+      value: preferencesFixture(),
+    })),
     save: vi.fn<ApplicationPreferencesClient["save"]>(async (revision, preferences) => ({
       ok: true,
       value: { version: 1, edition: "development", revision: revision + 1, preferences },
