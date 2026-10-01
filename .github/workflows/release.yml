@@ -13,6 +13,15 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # Installed legacy TaskMap builds update themselves to the latest release of this repository and
+      # cannot open new-architecture data. Remove this step only when the legacy migrator ships
+      # (REFACTOR-ROADMAP Phase 9) and the release version is 1.0.0 or later.
+      - name: Refuse new-architecture releases before the legacy migrator exists
+        shell: pwsh
+        run: |
+          Write-Error "Publishing a new-architecture release would auto-update installed legacy TaskMap builds. See docs/REFACTOR-STATE.md."
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@v4
 

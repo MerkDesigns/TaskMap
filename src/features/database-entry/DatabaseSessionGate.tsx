@@ -163,7 +163,7 @@ export function DatabaseSessionGate({
                 draggable={false}
               />
               {runtime.edition === "development" ? (
-                <span className="taskmap-database-entry__edition">Dev</span>
+                <span className="taskmap-database-entry__edition">Beta</span>
               ) : null}
             </header>
             {entry.autoOpenPending ? (

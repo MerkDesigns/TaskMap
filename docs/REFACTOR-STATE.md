@@ -55,6 +55,18 @@
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.
 
+## Legacy app protection
+
+The legacy TaskMap from `main` (identity `com.taskmap.prototype`, product name "TaskMap", 0.3.x)
+holds the user's real data and must keep working:
+
+- Run the new architecture as **TaskMap Beta** (development identity `com.merkdesigns.taskmap.dev`,
+  `npm run installer:build -- --beta` → `TaskMap_Beta_Installer.exe`); it shares nothing with the
+  legacy app. Beta databases are development-purpose and the stable edition rejects them.
+- The stable installer refuses to replace an installed "TaskMap" below 1.0.0 (the legacy app).
+- No new-architecture GitHub release before the legacy migrator (Phase 9): the legacy updater would
+  install it. `release.yml` fails on purpose until then; the first stable release is 1.0.0+.
+
 ## Remaining gates
 
 - Phase 5 element renderer migration (Text Card, Container, Text Block, Image/GIF, Mind map).

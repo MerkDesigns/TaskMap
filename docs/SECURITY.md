@@ -139,9 +139,11 @@ Routine saves never copy the whole database. In the same transaction as a save, 
 
 ## Development edition
 
-Stable and development builds use different identities and session managers. TaskMap Dev must not automatically open the stable database.
+Stable and development builds use different identities and session managers. The development edition
+is shown as **TaskMap Beta** (identity `com.merkdesigns.taskmap.dev`) and must not automatically open
+the stable database.
 
-TaskMap Dev rejects a production-purpose decrypted document after validation and closes the candidate
+TaskMap Beta rejects a production-purpose decrypted document after validation and closes the candidate
 session; the stable application client likewise rejects development-purpose documents. Both editions
 still contend on the same underlying database file identity.
 
