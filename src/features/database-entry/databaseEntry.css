@@ -217,3 +217,9 @@
 .taskmap-database-entry .taskmap-field__error {
   padding-left: 4px;
 }
+
+.taskmap-database-entry__resuming {
+  position: fixed;
+  inset: 0;
+  background: var(--taskmap-void-bg);
+}

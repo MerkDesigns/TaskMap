@@ -3,6 +3,8 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { DatabaseSessionGate } from "./DatabaseSessionGate";
 import { entrySetup, openEntry, submitPassword } from "./databaseEntryTestSupport";
+import { success } from "../../app/database/databaseSessionTestSupport";
+import { unlockedSession } from "../../app/workspace/workspaceTestSupport";
 import {
   beginWorkspaceOutro,
   getWorkspaceIntroPhase,
@@ -91,5 +93,23 @@ it("plays the lock animation over the unlocked workspace, then locks onto the sa
     "data-unlock-reveal",
   );
   expect(screen.getByLabelText("Password *")).toBeInTheDocument();
+  expect(getWorkspaceIntroPhase()).toBe("idle");
+});
+
+it("opens straight into a session that is already unlocked, without the unlock screen", async () => {
+  const setup = entrySetup();
+  setup.client.getSessionStatus.mockResolvedValue(success(unlockedSession));
+  const onArrive = vi.fn();
+  render(
+    <DatabaseSessionGate runtime={setup.runtime}>
+      <Workspace onArrive={onArrive} />
+    </DatabaseSessionGate>,
+  );
+
+  await screen.findByTestId("workspace");
+  expect(document.querySelector(".taskmap-database-entry")).toBeNull();
+  expect(screen.queryByText("Enter password")).toBeNull();
+  // Arrives once the (late-mounting) canvas is there, so arrival listeners have subscribed.
+  await waitFor(() => expect(onArrive).toHaveBeenCalledOnce(), { timeout: 2000 });
   expect(getWorkspaceIntroPhase()).toBe("idle");
 });

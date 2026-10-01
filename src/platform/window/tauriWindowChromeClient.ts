@@ -23,3 +23,12 @@ export const tauriWindowChromeClient: WindowChromeClient = {
   startDragging: () => whenTauri(() => getCurrentWindow().startDragging()),
   toggleMaximize: () => whenTauri(() => getCurrentWindow().toggleMaximize()),
 };
+
+/** Shows the window, which starts hidden so it never appears before its first screen has painted. */
+export async function revealCurrentWindow(): Promise<void> {
+  if (!isTauri()) return;
+  const window = getCurrentWindow();
+  if (await window.isVisible()) return;
+  await window.show();
+  await window.setFocus();
+}

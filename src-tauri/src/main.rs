@@ -95,6 +95,7 @@ fn main() {
                 if let Err(error) = restore_window_state(&window) {
                     eprintln!("Failed to restore window state: {error}");
                 }
+                database_window_commands::show_main_window_eventually(&window);
             }
 
             Ok(())

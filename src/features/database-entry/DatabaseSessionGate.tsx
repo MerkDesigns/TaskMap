@@ -11,6 +11,7 @@ import {
 import { DatabasePasswordForm } from "./DatabasePasswordForm";
 import { HalftoneBackdrop } from "../../ui/patterns/halftone/HalftoneBackdrop";
 import { useDatabaseEntry } from "./useDatabaseEntry";
+import { useRevealWindow } from "./useRevealWindow";
 import { useUnlockReveal } from "./useUnlockReveal";
 import { databaseEntryError } from "./databaseEntryErrors";
 import type { DatabaseEntryRuntime } from "./databaseEntryTypes";
@@ -89,7 +90,16 @@ export function DatabaseSessionGate({
   const root = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
-  const reveal = useUnlockReveal(entry.ready, panelRef, backdropRef);
+  // A window opened onto a session that is already unlocked (reopened from the tray, or a second
+  // launch) resumes it: no unlock screen and no reveal. Any lock, close or unlock attempt in this
+  // window ends that, so later unlocks reveal as usual.
+  const resumedRef = useRef<boolean | null>(null);
+  if (session.phase !== "unknown") {
+    if (resumedRef.current === null) resumedRef.current = session.phase === "unlocked";
+    else if (session.phase !== "unlocked") resumedRef.current = false;
+  }
+  const resumed = resumedRef.current === true;
+  const reveal = useUnlockReveal(entry.ready, panelRef, backdropRef, resumed);
   // Matches the workspace's large panels (Settings → Visual → Interface → Side panel).
   const panelRadius = useWorkspaceRadii().sidePanel;
   const { preferences } = runtime;
@@ -119,8 +129,18 @@ export function DatabaseSessionGate({
   ]);
   // Startup decides quickly whether to open the last database; show the panel once, not twice.
   const slowStartup = useLateFlag(entry.autoOpenPending, LATE_BUSY_MS);
+  const showPanel = !entry.autoOpenPending || slowStartup;
+  const panelOnScreen =
+    showPanel && session.phase !== "unknown" && !(resumed && !preparingDetails) && !entry.ready;
+  useRevealWindow(entry.ready || panelOnScreen, entry.ready);
   // The workspace mounts under the unlock screen, which stays until the reveal has played.
   if (entry.ready && reveal === "none") return <>{children}</>;
+  // Resuming takes only the moment the document needs to load; preparing problems still show the
+  // panel below. The first moment, before the session state is known, looks the same, so a resume
+  // never flashes the unlock background.
+  if ((resumed || session.phase === "unknown") && !preparingDetails) {
+    return <div className="taskmap-database-entry__resuming" aria-busy="true" />;
+  }
   const title = preparingDetails
     ? "Preparing your workspace"
     : blocked
@@ -130,7 +150,6 @@ export function DatabaseSessionGate({
         : shownFormMode === "unlock"
           ? "Enter password"
           : "Recent databases";
-  const showPanel = !entry.autoOpenPending || slowStartup;
   return (
     <>
       {entry.ready ? children : null}
@@ -229,9 +248,6 @@ export function DatabaseSessionGate({
                   />
                 ) : (
                   <>
-                    {session.phase === "unknown" ? (
-                      <p role="status">Checking the session…</p>
-                    ) : null}
                     {entry.recent.length || entry.recentPlaceholder.length ? (
                       <section
                         aria-labelledby="database-entry-title"

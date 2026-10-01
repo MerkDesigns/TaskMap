@@ -52,12 +52,15 @@ export function useUnlockReveal(
   ready: boolean,
   panelRef: RefObject<HTMLElement | null>,
   backdropRef: RefObject<HTMLElement | null>,
+  /** Reopened into a session that was already unlocked: the workspace appears without a reveal. */
+  resumed = false,
 ): UnlockRevealState {
   const scheduler = useMotionFrameScheduler();
   const reducedMotion = useReducedMotion();
   // A session that is already ready on mount (e.g. a resumed one) is shown without a reveal.
   const [state, setState] = useState<UnlockRevealState>("none");
   const [seenReady, setSeenReady] = useState(ready);
+  const [resumeArriving, setResumeArriving] = useState(false);
   // The render that first sees `ready` must already keep the unlock screen, or it would unmount
   // and remount around the workspace's first frame.
   const justReady = ready && !seenReady;
@@ -106,6 +109,10 @@ export function useUnlockReveal(
       setWorkspaceIntroPhase("idle");
       return;
     }
+    if (resumed) {
+      setResumeArriving(true);
+      return;
+    }
     if (reducedMotion) {
       setWorkspaceIntroPhase("arriving");
       setWorkspaceIntroPhase("idle");
@@ -113,7 +120,31 @@ export function useUnlockReveal(
     }
     setWorkspaceIntroPhase("covered");
     setState("covering");
-  }, [ready, reducedMotion, seenReady]);
+  }, [ready, reducedMotion, resumed, seenReady]);
+
+  // A resumed workspace arrives without a reveal, but like a revealed one only once its (lazily
+  // loaded) canvas is mounted: its arrival listeners, e.g. opening the Canvas Browser, subscribe then.
+  useEffect(() => {
+    if (!resumeArriving) return;
+    let frame = 0;
+    let arrived = false;
+    const arrive = () => {
+      if (arrived) return;
+      arrived = true;
+      frame = requestAnimationFrame(() => {
+        setWorkspaceIntroPhase("arriving");
+        setWorkspaceIntroPhase("idle");
+        setResumeArriving(false);
+      });
+    };
+    const unsubscribe = whenWorkspaceIntroCanvasMounted(arrive);
+    const timer = window.setTimeout(arrive, MOUNT_TIMEOUT_MS);
+    return () => {
+      unsubscribe();
+      window.clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
+  }, [resumeArriving]);
 
   useEffect(() => {
     if (state !== "covering") return;
@@ -182,5 +213,5 @@ export function useUnlockReveal(
   useEffect(() => () => setWorkspaceIntroPhase("idle"), []);
 
   if (concealing) return "concealing";
-  return justReady && state === "none" ? "covering" : state;
+  return justReady && state === "none" && !resumed ? "covering" : state;
 }

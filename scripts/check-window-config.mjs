@@ -11,12 +11,19 @@ for (const [name, config] of Object.entries(configs)) {
   if (window.decorations !== false || window.resizable !== true) {
     throw new Error(`${name} window must be frameless (decorations off) and resizable`);
   }
+  // Shown by the app once its first screen has painted, never as a blank or white window.
+  if (window.visible !== false || !/^#[0-9a-f]{6}$/i.test(window.backgroundColor ?? "")) {
+    throw new Error(`${name} window must start hidden with a dark background colour`);
+  }
 }
 
 const capability = await readJson("src-tauri/capabilities/default.json");
 const required = [
   "core:window:allow-close",
   "core:window:allow-is-maximized",
+  "core:window:allow-is-visible",
+  "core:window:allow-set-focus",
+  "core:window:allow-show",
   "core:window:allow-minimize",
   "core:window:allow-start-dragging",
   "core:window:allow-toggle-maximize",

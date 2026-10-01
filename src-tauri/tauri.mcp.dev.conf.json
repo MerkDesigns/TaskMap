@@ -14,12 +14,22 @@
     "windows": [
       {
         "title": "taskmap",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
         "decorations": false,
-        "resizable": true
+        "resizable": true,
+        "visible": false,
+        "backgroundColor": "#0b0b0c"
       }
     ]
   },
-  "plugins": { "updater": { "endpoints": [] } },
+  "plugins": {
+    "updater": {
+      "endpoints": []
+    }
+  },
   "bundle": {
     "createUpdaterArtifacts": false
   }

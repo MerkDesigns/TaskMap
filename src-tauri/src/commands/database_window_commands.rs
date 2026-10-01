@@ -111,6 +111,7 @@ pub(crate) fn reopen_main_window(app: &tauri::AppHandle) -> Result<(), tauri::Er
                 if let Err(error) = crate::window_state::restore_window_state(&window) {
                     eprintln!("Failed to restore window state: {error}");
                 }
+                show_main_window_eventually(&window);
                 crate::windows_session_notifications::install(&window)
                     .map_err(|message| tauri::Error::Io(std::io::Error::other(message)))
             })
@@ -122,6 +123,20 @@ pub(crate) fn reopen_main_window(app: &tauri::AppHandle) -> Result<(), tauri::Er
         app.exit(1);
     }
     reopened
+}
+
+/// The main window starts hidden (and is sized and placed while hidden); the frontend shows it once
+/// its first screen has painted. This shows it anyway if that never happens, e.g. after a render
+/// failure, so the window can never stay invisible.
+pub(crate) fn show_main_window_eventually(window: &tauri::WebviewWindow) {
+    let window = window.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        if window.is_visible().is_ok_and(|visible| !visible) {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    });
 }
 
 /// Called only after the frontend has completed its save-before-close guard.

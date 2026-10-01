@@ -74,6 +74,16 @@ export function DatabaseApplicationFallback() {
   );
 }
 
+/** Startup takes a fraction of a second; announce it without flashing text on screen. */
+const SCREEN_READER_ONLY = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+  clipPath: "inset(50%)",
+  whiteSpace: "nowrap",
+} as const;
+
 export function DatabaseApplication() {
   const [runtime, setRuntime] = useState<DatabaseApplicationRuntime | null>(null);
   const [failed, setFailed] = useState(false);
@@ -113,7 +123,7 @@ export function DatabaseApplication() {
           </DatabaseSessionGate>
         </ApplicationErrorBoundary>
       ) : (
-        <p role={failed ? "alert" : "status"}>
+        <p role={failed ? "alert" : "status"} style={failed ? undefined : SCREEN_READER_ONLY}>
           {failed
             ? "TaskMap could not start the database session. Close and reopen the app."
             : "Starting TaskMap…"}
