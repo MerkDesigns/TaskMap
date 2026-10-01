@@ -20,6 +20,10 @@ export default defineConfig({
   test: {
     // Bound concurrent jsdom instances on developer machines and Windows CI runners.
     maxWorkers: 4,
+    // The 16 large-fixture *.performance / *.stress suites check structure (localized transactions,
+    // no serialization), never wall time. They take ~1 s locally but 5–6 s on loaded CI runners, so
+    // the 5 s default made CI fail at random; a genuinely hung test still fails.
+    testTimeout: 20_000,
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     css: true,

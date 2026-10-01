@@ -79,6 +79,4 @@ it("records one localized extension transaction for a large group and defers sav
   await setup.store.workspace.flushSave();
   expect(setup.client.saveDocument).toHaveBeenCalledTimes(1);
   await setup.dispose();
-  // Structure only (no timing assertion): the large fixture alone exceeded the 5 s default on a
-  // loaded CI runner.
-}, 30_000);
+});

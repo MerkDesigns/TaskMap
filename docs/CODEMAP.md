@@ -241,7 +241,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/commands/retainedContentCommand.test.ts`                          |   140 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedContentCommand.ts`                               |    51 | Retained locks protect movement/resize/deletion, not text, color or display controls.              |
 | `src/app/commands/retainedContentContract.ts`                              |    45 | Module-owned scalar fields, explicitly composed here; placement/media/geometry/extensions are      |
-| `src/app/commands/retainedContentLayers.performance.test.ts`               |   154 | @vitest-environment node                                                                           |
+| `src/app/commands/retainedContentLayers.performance.test.ts`               |   152 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedContentRejection.test.ts`                        |    91 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedCopy.performance.test.ts`                        |    83 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedCopyCallbacks.ts`                                |    37 | Call on explicit Copy, not pointer samples. The opaque handle owns no copied plaintext.            |
@@ -261,7 +261,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/app/commands/retainedExtensionCompletion.test.ts`                     |   168 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedExtensionLifetime.test.ts`                       |    92 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedExtensionRejection.test.ts`                      |   132 | @vitest-environment node                                                                           |
-| `src/app/commands/retainedExtensions.performance.test.ts`                  |    85 | @vitest-environment node                                                                           |
+| `src/app/commands/retainedExtensions.performance.test.ts`                  |    83 | @vitest-environment node                                                                           |
 | `src/app/commands/retainedExtensionSnapshot.ts`                            |    52 | Read/index once per action start, not per member or pointer sample. Parsed entries are detached    |
 | `src/app/commands/retainedExtensionTestSupport.ts`                         |    41 | TypeScript application module                                                                      |
 | `src/app/commands/retainedGeometryCommands.test.ts`                        |   169 | @vitest-environment node                                                                           |
@@ -441,7 +441,7 @@ source comments and may retain historical phase wording; they are navigation hin
 | `src/components/WindowChrome.tsx`                                          |   140 | React component or typed UI module                                                                 |
 | `src/components/WorkspacePanels.test.tsx`                                  |   221 | Tests for the adjacent module                                                                      |
 | `src/constants.ts`                                                         |    51 | TypeScript application module                                                                      |
-| `src/domain/commands/commandExecution.stress.test.ts`                      |    67 | @vitest-environment node                                                                           |
+| `src/domain/commands/commandExecution.stress.test.ts`                      |    64 | @vitest-environment node                                                                           |
 | `src/domain/commands/commandExecution.test.ts`                             |   204 | @vitest-environment node                                                                           |
 | `src/domain/commands/commandHandler.ts`                                    |    43 | TypeScript application module                                                                      |
 | `src/domain/commands/commandRegistry.ts`                                   |    29 | TypeScript application module                                                                      |
