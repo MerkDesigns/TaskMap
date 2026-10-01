@@ -7081,7 +7081,12 @@ function App({
                                   interactionDisabled={containerMultiSelected}
                                   linksDisabled={selectedIds.length > 1}
                                   privacyHidden={Boolean(element.extensions?.privacy?.enabled)}
-                                  shadowsUnderElements={shadowsUnderElements}
+                                  // The shared under-element shadow layer sits below containers, so
+                                  // contained cards keep their own shadow; only dragged cards are
+                                  // drawn on that layer.
+                                  shadowsUnderElements={
+                                    shadowsUnderElements && draggedShadowIds.has(card.id)
+                                  }
                                   onDraftChange={setTextCardDraft}
                                   onSave={canvasNodeActions.saveTextCardEdit}
                                   onCancel={canvasNodeActions.cancelTextCardEdit}

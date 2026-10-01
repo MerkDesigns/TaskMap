@@ -34,26 +34,30 @@ export function DatabaseSettingsActions(actions: DatabaseSettingsActionsProps) {
     }
   };
   return (
-    <div className="taskmap-settings-data-grid">
+    <div className="taskmap-settings-content-stack">
       <SettingsIsland className="taskmap-settings-data-action">
-        <Button
-          leadingIcon={<IconLock size={18} stroke={2} />}
-          disabled={busy}
-          onClick={() => void run(actions.lock)}
-        >
-          Lock database
-        </Button>
+        <div className="taskmap-settings-data-grid">
+          <Button
+            leadingIcon={<IconLock size={18} stroke={2} />}
+            disabled={busy}
+            onClick={() => void run(actions.lock)}
+          >
+            Lock database
+          </Button>
+          <Button
+            leadingIcon={<IconLogout size={18} stroke={2} />}
+            disabled={busy}
+            onClick={() => void run(actions.close)}
+          >
+            Close database
+          </Button>
+        </div>
       </SettingsIsland>
-      <SettingsIsland className="taskmap-settings-data-action">
-        <Button
-          leadingIcon={<IconLogout size={18} stroke={2} />}
-          disabled={busy}
-          onClick={() => void run(actions.close)}
-        >
-          Close database
-        </Button>
-      </SettingsIsland>
-      {error && <p role="alert">The database action could not be completed. Please retry.</p>}
+      {error && (
+        <p role="alert" className="taskmap-settings-data-status">
+          The database action could not be completed. Please retry.
+        </p>
+      )}
     </div>
   );
 }

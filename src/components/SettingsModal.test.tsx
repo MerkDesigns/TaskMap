@@ -67,7 +67,7 @@ describe("Settings modal", () => {
     const props = settingsProps();
     renderSettings(props);
 
-    const shadowsSwitch = screen.getByRole("switch", { name: "Shadows below elements" });
+    const shadowsSwitch = screen.getByRole("switch", { name: "Canvas-only shadows" });
     const privacySwitch = screen.getByRole("switch", { name: "Privacy mode" });
     expect(shadowsSwitch).toHaveAttribute("aria-checked", "true");
     expect(privacySwitch).toHaveAttribute("aria-checked", "false");

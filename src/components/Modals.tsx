@@ -429,8 +429,8 @@ export function SettingsModal({
                     </div>
                   </SettingsIsland>
                   <SettingsToggleRow
-                    label="Shadows below elements"
-                    description="Keep shadows on the canvas instead of over other elements."
+                    label="Canvas-only shadows"
+                    description="Shadows fall on the canvas, never onto overlapping elements."
                     checked={shadowsUnderElements}
                     onCheckedChange={onShadowsUnderElementsChange}
                   />

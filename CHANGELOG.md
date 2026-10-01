@@ -28,6 +28,12 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 - Unlocking is much faster (about 0.15 s from Unlock to workspace on a typical database).
 - The Canvas Browser opens automatically after unlocking.
+- Settings: Lock database and Close database share one island, Check for updates sits at the
+  bottom of the Misc tab, and "Shadows below elements" is renamed "Canvas-only shadows".
+
+### Fixed
+
+- Text cards inside containers keep their shadows when "Canvas-only shadows" is on.
 
 ### Removed
 

@@ -117,9 +117,13 @@
   flex-direction: column;
 }
 
+/* A column, so a tab's content stack can fill the visible height (e.g. to pin a button to the
+   bottom); taller content still scrolls because the stack never shrinks. */
 .taskmap-settings-scroll {
+  display: flex;
   min-height: 0;
   flex: 1;
+  flex-direction: column;
   overflow-x: hidden;
   padding: var(--taskmap-space-4) var(--taskmap-space-3) var(--taskmap-space-4)
     var(--taskmap-space-1);
@@ -127,6 +131,7 @@
 
 .taskmap-settings-content-stack {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: var(--taskmap-space-3);
 }
@@ -283,7 +288,7 @@
 
 .taskmap-settings-misc {
   display: flex;
-  min-height: 198px;
+  flex: 1;
   flex-direction: column;
   gap: var(--taskmap-space-2);
 }
@@ -328,4 +333,9 @@
   font-weight: 650;
   letter-spacing: 0.18em;
   text-align: center;
+}
+
+/* Buttons sharing one island sit as close as the island's own padding. */
+.taskmap-settings-data-action .taskmap-settings-data-grid {
+  gap: var(--taskmap-space-2);
 }
