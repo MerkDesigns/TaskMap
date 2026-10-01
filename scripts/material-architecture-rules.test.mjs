@@ -54,30 +54,19 @@ describe("transitional material architecture rules", () => {
   });
 
   it.each(["src/features/example/AcrylicPreview.ts", "src/ui/materials/BadAcrylic.ts"])(
-    "rejects acrylic Canvas2D outside the compositor subtree: %s",
+    "rejects acrylic Canvas2D rendering anywhere: %s",
     (path) => {
       expect(
         findMaterialArchitectureViolations([
           { path, source: 'const acrylic = canvas.getContext("2d");' },
         ]),
       ).toEqual([
-        `${path}: acrylic Canvas2D implementation belongs under src/ui/materials/compositor`,
+        `${path}: acrylic Canvas2D rendering was retired; use MaterialSurface native glass`,
       ]);
     },
   );
 
-  it("accepts acrylic Canvas2D inside the compositor subtree", () => {
-    expect(
-      findMaterialArchitectureViolations([
-        {
-          path: "src/ui/materials/compositor/example.ts",
-          source: 'const acrylic = canvas.getContext("2d");',
-        },
-      ]),
-    ).toEqual([]);
-  });
-
-  it("accepts ordinary non-acrylic Canvas2D rendering elsewhere", () => {
+  it("accepts ordinary non-acrylic Canvas2D rendering", () => {
     expect(
       findMaterialArchitectureViolations([
         {
@@ -86,72 +75,5 @@ describe("transitional material architecture rules", () => {
         },
       ]),
     ).toEqual([]);
-  });
-
-  it("rejects Blob-based acrylic workers", () => {
-    expect(
-      findMaterialArchitectureViolations([
-        {
-          path: "src/ui/materials/compositor/badWorker.ts",
-          source: 'const worker = new Worker(URL.createObjectURL(new Blob(["source"])));',
-        },
-      ]),
-    ).toEqual([
-      "src/ui/materials/compositor/badWorker.ts: acrylic workers must be Vite module workers, not Blob workers",
-    ]);
-  });
-
-  it.each(["../../../legacy/TaskCanvas", "../../../elements/registry", "react-redux"])(
-    "rejects forbidden compositor imports: %s",
-    (specifier) => {
-      expect(
-        findMaterialArchitectureViolations([
-          {
-            path: "src/ui/materials/compositor/badBoundary.ts",
-            source: `import value from "${specifier}";`,
-          },
-        ]),
-      ).toEqual([
-        `src/ui/materials/compositor/badBoundary.ts: compositor runtime must not import forbidden boundary ${specifier}`,
-      ]);
-    },
-  );
-
-  it("accepts the Vite module-worker construction form", () => {
-    expect(
-      findMaterialArchitectureViolations([
-        {
-          path: "src/ui/materials/compositor/acrylicWorkerFactory.ts",
-          source:
-            'new Worker(new URL("./acrylicCache.worker.ts", import.meta.url), { type: "module" });',
-        },
-      ]),
-    ).toEqual([]);
-  });
-
-  it("rejects compositor DOM discovery", () => {
-    expect(
-      findMaterialArchitectureViolations([
-        {
-          path: "src/ui/materials/compositor/domCapture.ts",
-          source: 'document.querySelectorAll("[data-element]");',
-        },
-      ]),
-    ).toEqual([
-      "src/ui/materials/compositor/domCapture.ts: compositor runtime must not discover presentation through DOM scans",
-    ]);
-  });
-
-  it("rejects legacy backdrop world-element measurement", () => {
-    expect(
-      findMaterialArchitectureViolations([
-        {
-          path: "src/legacy/materials/domBackdrop.ts",
-          source: "element.getBoundingClientRect();",
-        },
-      ]),
-    ).toEqual([
-      "src/legacy/materials/domBackdrop.ts: legacy backdrop projection must read models, not world DOM geometry",
-    ]);
   });
 });

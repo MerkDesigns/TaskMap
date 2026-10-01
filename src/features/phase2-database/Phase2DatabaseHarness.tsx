@@ -7,7 +7,7 @@ import type { LoadedDocument } from "../../platform/database/databaseTypes";
 import type { RecentDatabaseSettings } from "../../platform/settings/settingsTypes";
 import type { AuthorizedDatabasePath } from "../../platform/settings/settingsTypes";
 import { registerWindowCloseGuard } from "../../app/windowCloseCoordinator";
-import { FrostedSurface } from "../../ui/materials/FrostedSurface";
+import { MaterialSurface } from "../../ui/materials/MaterialSurface";
 import {
   Phase2DatabasePathControls,
   refreshPhase2RecentDatabases,
@@ -122,7 +122,7 @@ export function Phase2DatabaseHarness({
 
   return (
     <div className="phase2-harness-backdrop" role="dialog" aria-modal="true">
-      <FrostedSurface className="phase2-harness">
+      <MaterialSurface material="acrylic-large" className="phase2-harness">
         <Phase2HarnessHeader onDismiss={dismissSecurely} />
 
         <Phase2HarnessStatus error={state.error} session={state.session} />
@@ -229,7 +229,7 @@ export function Phase2DatabaseHarness({
           onSessionReceived={(session) => dispatch({ type: "sessionReceived", session })}
           onDismiss={onDismiss}
         />
-      </FrostedSurface>
+      </MaterialSurface>
     </div>
   );
 }

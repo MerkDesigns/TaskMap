@@ -1,26 +1,9 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { MaterialCompositorProvider } from "./MaterialCompositorProvider";
+import { describe, expect, it } from "vitest";
 import { MaterialSurface } from "./MaterialSurface";
 import { SharedSmallGlassPlane } from "./SharedSmallGlassPlane";
-import { useMaterialSurfaceRegistry } from "./MaterialSurfaceRegistration";
 
 describe("production native glass boundary", () => {
-  it("allocates no cached registry and never reads the parked presentation source", () => {
-    const read = vi.fn(() => null);
-    function Child() {
-      expect(useMaterialSurfaceRegistry()).toBeNull();
-      return <div>Native child</div>;
-    }
-    const { unmount } = render(
-      <MaterialCompositorProvider presentation={{ getSnapshot: read, subscribe: vi.fn() }}>
-        <Child />
-      </MaterialCompositorProvider>,
-    );
-    unmount();
-    expect(read).not.toHaveBeenCalled();
-  });
-
   it("uses the same permanent recipe classes and optical constants for standalone and batched Small", () => {
     const { container } = render(
       <>

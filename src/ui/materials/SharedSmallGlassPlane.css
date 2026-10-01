@@ -1,21 +1,17 @@
 .taskmap-shared-small-glass-plane {
   position: absolute;
   z-index: 0;
-  overflow: hidden;
+  overflow: visible;
   inset: 0;
   pointer-events: none;
-  transform: translateZ(0);
 }
 
 .taskmap-shared-small-glass-plane[data-glass-batch-state="inactive"] {
   display: none;
 }
 
-.taskmap-shared-small-glass-plane[data-small-output-masked="true"] {
-  overflow: visible;
-  transform: none;
-}
-.taskmap-shared-small-glass-plane[data-small-output-masked="true"] > [data-native-filter-layer] {
+/* Layered output masks on both filter outputs (shapes and their viewport slices). */
+.taskmap-shared-small-glass-plane > [data-native-filter-layer] {
   mask-image: var(--taskmap-small-output-mask);
   mask-position: var(--taskmap-small-output-mask-position, 0 0);
   mask-size: var(--taskmap-small-output-mask-size, 100% 100%);
@@ -23,13 +19,6 @@
   mask-repeat: no-repeat;
   transform: none;
   backface-visibility: visible;
-}
-
-.taskmap-shared-small-glass-plane__definitions {
-  position: absolute;
-  width: 0;
-  height: 0;
-  pointer-events: none;
 }
 
 .taskmap-shared-small-glass-plane {

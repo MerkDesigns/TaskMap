@@ -3,8 +3,6 @@ import { createCanvasInteractionController } from "../app/interactions/canvasInt
 import { createViewport } from "../canvas/geometry/viewportMath";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "../types";
-import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { Minimap } from "./Minimap";
 
@@ -12,14 +10,13 @@ afterEach(cleanup);
 
 describe("C2F Minimap", () => {
   it("updates only camera presentation without rebuilding document projection on pan/zoom", () => {
-    const registry = createMaterialSurfaceRegistry(null);
     const controller = createCanvasInteractionController({
       canvasKey: "a",
       viewport: createViewport({ x: 0, y: 0 }, 1, { width: 800, height: 600 }),
       commitPort: { commitMove: vi.fn(), commitResize: vi.fn(), commitLayerOrder: vi.fn() },
     });
     const projectionReads = vi.spyOn(containers, "map");
-    renderMinimap({ registry, controller });
+    renderMinimap({ controller });
     projectionReads.mockClear();
     const originalElement = element("container-a");
     act(() => controller.beginPan(1, { x: 0, y: 0 }));
@@ -39,13 +36,11 @@ describe("C2F Minimap", () => {
     expect(element("container-a")).toBe(originalElement);
     expect(projectionReads).not.toHaveBeenCalled();
     projectionReads.mockRestore();
-    registry.dispose();
   });
 
-  it("uses one Acrylic Large shell, one unregistered Cutout interior, and the reset primitive", () => {
-    const registry = createMaterialSurfaceRegistry(null);
+  it("uses one Acrylic Large shell, one Cutout interior, and the reset primitive", () => {
     const onResetZoom = vi.fn();
-    renderMinimap({ registry, onResetZoom, zoom: 1.254 });
+    renderMinimap({ onResetZoom, zoom: 1.254 });
 
     const shell = screen.getByLabelText("Minimap");
     const interior = document.querySelector("[data-minimap-viewport-surface]");
@@ -57,19 +52,16 @@ describe("C2F Minimap", () => {
       "6px",
     );
     expect(shell).toHaveAttribute("data-material-strategy", "native-glass");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(screen.getByText("125%")).toBeInTheDocument();
 
     const reset = screen.getByRole("button", { name: "Reset zoom" });
     expect(reset).toHaveAttribute("title", "Reset zoom");
     fireEvent.click(reset);
     expect(onResetZoom).toHaveBeenCalledOnce();
-    registry.dispose();
   });
 
   it("keeps projection geometry, minimum pixels, and user accent colors intact", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    renderMinimap({ registry });
+    renderMinimap({});
 
     const interior = document.querySelector("[data-minimap-viewport-surface]") as HTMLElement;
     expect(interior.style.width).toBe("176px");
@@ -90,13 +82,11 @@ describe("C2F Minimap", () => {
     expect(document.querySelector("[data-minimap-viewport-indicator]")).toHaveClass(
       "taskmap-minimap-viewport-indicator",
     );
-    registry.dispose();
   });
 
   it("introduces no minimap navigation interaction beyond reset", () => {
-    const registry = createMaterialSurfaceRegistry(null);
     const onResetZoom = vi.fn();
-    renderMinimap({ registry, onResetZoom });
+    renderMinimap({ onResetZoom });
     const interior = document.querySelector("[data-minimap-viewport-surface]") as HTMLElement;
 
     fireEvent.click(interior, { clientX: 40, clientY: 20 });
@@ -104,25 +94,20 @@ describe("C2F Minimap", () => {
     fireEvent.pointerMove(interior, { clientX: 60, clientY: 30 });
     expect(onResetZoom).not.toHaveBeenCalled();
     expect(screen.getAllByRole("button")).toHaveLength(1);
-    registry.dispose();
   });
 });
 
 function renderMinimap({
-  registry,
   controller,
   onResetZoom = vi.fn(),
   zoom = 1,
 }: {
-  registry: ReturnType<typeof createMaterialSurfaceRegistry>;
   controller?: ReturnType<typeof createCanvasInteractionController>;
   onResetZoom?: () => void;
   zoom?: number;
 }) {
   return render(
-    <MaterialSurfaceRegistrationProvider
-      value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-    >
+    <>
       <ReducedMotionProvider override>
         <Minimap
           controller={controller}
@@ -139,7 +124,7 @@ function renderMinimap({
           onResetZoom={onResetZoom}
         />
       </ReducedMotionProvider>
-    </MaterialSurfaceRegistrationProvider>,
+    </>,
   );
 }
 

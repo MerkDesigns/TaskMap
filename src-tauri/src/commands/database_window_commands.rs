@@ -165,11 +165,7 @@ pub(crate) fn destroy_session_keeper(app: &tauri::AppHandle) {
 }
 
 pub(super) fn ensure_database_application(app: &tauri::AppHandle) -> Phase2CommandResult<()> {
-    super::database_edition::validate_application(
-        &app.config().identifier,
-        cfg!(feature = "ui-lab-development"),
-    )
-    .map(|_| ())
+    super::database_edition::validate_application(&app.config().identifier).map(|_| ())
 }
 
 #[cfg(feature = "phase2-development")]

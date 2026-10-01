@@ -1,8 +1,6 @@
 import {
   forwardRef,
   useCallback,
-  useContext,
-  useId,
   useLayoutEffect,
   useRef,
   type CSSProperties,
@@ -16,13 +14,7 @@ import { readMaterialGeometryRefreshesPerSecond } from "./materialPerformanceDia
 import "./SharedSmallGlassPlane.css";
 import "./nativeGlassRecipe.css";
 import type { MaterialRectangle } from "./materialSamplingBoundary";
-import {
-  SmallGlassOutputMaskEnabled,
-  registerSmallOutputMask,
-  readSmallOutputShapes,
-  writeSmallOutputShapes,
-} from "./sharedSmallOutputMask";
-import { morphed } from "./NativeGlassPlane";
+import { registerSmallOutputMask, writeSmallOutputShapes } from "./sharedSmallOutputMask";
 
 export interface SharedSmallGlassShape {
   readonly x: number;
@@ -58,8 +50,6 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
     { batchId = "canvas-small", blurPx, className, kind = "small-canvas", style, ...props },
     ref,
   ) {
-    const outputMasked = useContext(SmallGlassOutputMaskEnabled);
-    const clipId = `taskmap-shared-small-${useId().replace(/:/g, "")}`;
     const planeRef = useRef<HTMLDivElement | null>(null);
     const refreshTuning = useCallback(
       () => refreshSharedSmallGlassTuning(planeRef.current, blurPx),
@@ -79,20 +69,14 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
     }, [blurPx, refreshTuning]);
     useLayoutEffect(() => {
       const plane = planeRef.current;
-      if (!plane || !outputMasked) return;
-      const dispose = registerSmallOutputMask(plane);
-      return () => {
-        dispose();
-        writeSharedSmallGlassShapes(plane, readSmallOutputShapes(plane));
-      };
-    }, [outputMasked]);
+      if (!plane) return;
+      return registerSmallOutputMask(plane);
+    }, []);
     const materialStyle = {
       ...createMaterialSurfaceStyle(ACRYLIC_SMALL, "none", ACRYLIC_SMALL.defaultRadiusPx, style),
       ...(blurPx === undefined
         ? {}
         : { "--taskmap-material-small-blur-override": `${Math.max(0, blurPx)}px` }),
-      clipPath: outputMasked ? undefined : `url(#${clipId})`,
-      WebkitClipPath: outputMasked ? undefined : `url(#${clipId})`,
     } as CSSProperties;
 
     return (
@@ -110,15 +94,9 @@ export const SharedSmallGlassPlane = forwardRef<HTMLDivElement, SharedSmallGlass
         data-shared-small-glass-plane="inactive"
         data-material="acrylic-small"
         data-material-role="small"
-        data-small-output-masked={outputMasked || undefined}
         aria-hidden="true"
         style={materialStyle}
       >
-        <svg className="taskmap-shared-small-glass-plane__definitions">
-          <defs>
-            <clipPath id={clipId} clipPathUnits="userSpaceOnUse" data-shared-small-glass-clip />
-          </defs>
-        </svg>
         <span
           className="taskmap-shared-small-glass-plane__preblur taskmap-native-glass-preblur"
           data-enabled="true"
@@ -161,52 +139,9 @@ export function writeSharedSmallGlassShapes(
   const state = shapes.length > 0 ? "active" : "inactive";
   plane.dataset.glassBatchState = state;
   plane.dataset.sharedSmallGlassPlane = state;
-  if (writeSmallOutputShapes(plane, shapes)) return;
-  const clip = plane.querySelector<SVGClipPathElement>("[data-shared-small-glass-clip]");
-  if (!clip) return;
-  const rectangles = [...clip.querySelectorAll<SVGRectElement>("rect")];
-
-  shapes.map(morphed).forEach((shape, index) => {
-    const rectangle =
-      rectangles[index] ?? document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    if (!rectangles[index]) clip.append(rectangle);
-    const radius = Math.max(0, Math.min(shape.radius, shape.width / 2, shape.height / 2));
-    rectangle.setAttribute("x", `${shape.x}`);
-    rectangle.setAttribute("y", `${shape.y}`);
-    rectangle.setAttribute("width", `${shape.width}`);
-    rectangle.setAttribute("height", `${shape.height}`);
-    rectangle.setAttribute("rx", `${radius}`);
-    rectangle.setAttribute("ry", `${radius}`);
-    const clipId = `${clip.id}-viewport-${index}`;
-    let viewportClip = plane.querySelector<SVGClipPathElement>(
-      `[data-glass-viewport-clip="${index}"]`,
-    );
-    if (shape.clip) {
-      if (!viewportClip) {
-        viewportClip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
-        viewportClip.id = clipId;
-        viewportClip.dataset.glassViewportClip = `${index}`;
-        viewportClip.setAttribute("clipPathUnits", "userSpaceOnUse");
-        viewportClip.append(document.createElementNS("http://www.w3.org/2000/svg", "rect"));
-        clip.parentElement?.append(viewportClip);
-      }
-      const bounds = viewportClip.firstElementChild!;
-      bounds.setAttribute("x", `${shape.clip.left}`);
-      bounds.setAttribute("y", `${shape.clip.top}`);
-      bounds.setAttribute("width", `${shape.clip.width}`);
-      bounds.setAttribute("height", `${shape.clip.height}`);
-      rectangle.setAttribute("clip-path", `url(#${clipId})`);
-    } else {
-      rectangle.removeAttribute("clip-path");
-      viewportClip?.remove();
-    }
-  });
-  rectangles.slice(shapes.length).forEach((rectangle) => rectangle.remove());
-  plane
-    .querySelectorAll<SVGClipPathElement>("[data-glass-viewport-clip]")
-    .forEach((viewportClip) => {
-      if (Number(viewportClip.dataset.glassViewportClip) >= shapes.length) viewportClip.remove();
-    });
+  // Masks go on the two filter outputs, never a root clip: a clipped batch root becomes a WebView2
+  // backdrop root whose filters cannot sample the cards beneath.
+  writeSmallOutputShapes(plane, shapes);
 }
 
 export function readNativeGlassDiagnostics(root?: ParentNode): NativeGlassDiagnostics {

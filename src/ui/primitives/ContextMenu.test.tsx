@@ -2,8 +2,6 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../materials/materialSurfaceRegistry";
 import { MOTION_DURATION_MS } from "../motion/motionTokens";
 import { ReducedMotionProvider } from "../motion/reducedMotionPreference";
 import { ContextMenu } from "./ContextMenu";
@@ -125,16 +123,11 @@ describe("ContextMenu", () => {
   });
 
   it("does not register with or invalidate the acrylic compositor", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
     render(
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <MenuHarness initiallyOpen />
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
-    registry.dispose();
   });
 });
 

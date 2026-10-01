@@ -1,7 +1,6 @@
 import { render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import {
-  SmallGlassOutputMaskEnabled,
   layeredOutputMask,
   registerSmallOutputMask,
   writeSmallOutputShapes,
@@ -103,24 +102,13 @@ it("falls back to one exact SVG mask when clips do not share a viewport", () => 
   expect(layeredOutputMask([], 0)?.image).toContain("transparent");
 });
 
-it("switches masking without replacing filters and restores the latest legacy viewport on exit", () => {
-  const view = (enabled: boolean) => (
-    <SmallGlassOutputMaskEnabled.Provider value={enabled}>
-      <SharedSmallGlassPlane />
-    </SmallGlassOutputMaskEnabled.Provider>
-  );
-  const { container, rerender } = render(view(false));
+it("never clips the plane root (a clipped root becomes a WebView2 backdrop root)", () => {
+  const { container } = render(<SharedSmallGlassPlane />);
   const plane = container.querySelector<HTMLElement>("[data-shared-small-glass-plane]")!;
-  const filter = plane.querySelector("[data-native-filter-layer]");
   writeSharedSmallGlassShapes(plane, [shape]);
-  rerender(view(true));
   expect(plane.style.clipPath).toBe("");
-  writeSharedSmallGlassShapes(plane, [{ ...shape, y: -82, clip: { ...shape.clip, height: 2 } }]);
-  rerender(view(false));
-  expect(plane.querySelector("[data-native-filter-layer]")).toBe(filter);
-  expect(plane.style.clipPath).toContain("url(");
-  expect(plane.querySelector("[data-glass-viewport-clip] > rect")).toHaveAttribute("height", "2");
-  expect(plane.querySelector("[data-shared-small-glass-clip] > rect")).toHaveAttribute("y", "-82");
+  expect(plane.querySelector("clipPath")).toBeNull();
+  expect(plane).toHaveAttribute("data-glass-batch-state", "active");
 });
 
 it("morphs clipped scroll-edge shapes into rounded slices from cached corner caps", () => {

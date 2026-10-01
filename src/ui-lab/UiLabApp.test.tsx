@@ -15,14 +15,14 @@ afterAll(() => vi.unstubAllGlobals());
 afterEach(cleanup);
 
 describe("UiLabApp", () => {
-  it("leaves window controls to the database application when embedded", () => {
-    const { container } = render(<UiLabApp embedded />);
+  it("leaves window controls to the database application", () => {
+    const { container } = render(<UiLabApp />);
     expect(
       container.querySelector('[data-taskmap-ui-lab="workbench-baseline"]'),
     ).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Window controls" })).not.toBeInTheDocument();
   });
-  it("renders the isolated current-material baseline through MaterialSurface", () => {
+  it("renders the current-material baseline through MaterialSurface", () => {
     const { container } = render(<UiLabApp />);
 
     expect(
@@ -46,13 +46,12 @@ describe("UiLabApp", () => {
       screen.getByRole("heading", { name: "Interactive controls prototype" }),
     ).toBeInTheDocument();
     expect(container.querySelector("[data-ui-lab-scroll-viewport]")).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Window controls" })).toBeInTheDocument();
   });
 
   it("uses the shared production theme, canvas background, and ordinary controls", () => {
     const { container } = render(<UiLabApp />);
 
-    expect(container.querySelector("[data-taskmap-ui-lab='isolated-baseline']")).toHaveClass(
+    expect(container.querySelector("[data-taskmap-ui-lab='workbench-baseline']")).toHaveClass(
       "taskmap-target-theme",
       "taskmap-workspace-root",
     );

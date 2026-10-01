@@ -79,7 +79,6 @@ import { commandErrorMessage, isRecoverableStorageError } from "./app/commandErr
 import { planCanvasDeletion, updateCanvasDetails } from "./app/canvasDocument";
 import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY, DEFAULT_PAN } from "./app/defaultData";
 import { useAutosave } from "./hooks/useAutosave";
-import { useDiscordRpc } from "./hooks/useDiscordRpc";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
@@ -431,8 +430,6 @@ function App({
     recentColors: [],
     shadowsUnderElements: false,
     allowLockedElementDeletion: true,
-    discordRpcEnabled: false,
-    discordRpcShowCanvas: true,
     minimapEnabled: true,
     privacyModeEnabled: false,
     toolbarButtonsVisible: false,
@@ -717,10 +714,6 @@ function App({
     setShadowsUnderElements,
     allowLockedElementDeletion,
     setAllowLockedElementDeletion,
-    discordRpcEnabled,
-    setDiscordRpcEnabled,
-    discordRpcShowCanvas,
-    setDiscordRpcShowCanvas,
     minimapEnabled,
     setMinimapEnabled,
     privacyModeEnabled,
@@ -1108,8 +1101,6 @@ function App({
     recentColors,
     shadowsUnderElements,
     allowLockedElementDeletion,
-    discordRpcEnabled,
-    discordRpcShowCanvas,
     minimapEnabled,
     privacyModeEnabled,
     toolbarButtonsVisible,
@@ -1255,8 +1246,6 @@ function App({
           setRecentColors(normalized.recentColors);
           setShadowsUnderElements(normalized.shadowsUnderElements);
           setAllowLockedElementDeletion(normalized.allowLockedElementDeletion);
-          setDiscordRpcEnabled(normalized.discordRpcEnabled);
-          setDiscordRpcShowCanvas(normalized.discordRpcShowCanvas);
           setMinimapEnabled(normalized.minimapEnabled);
           setPrivacyModeEnabled(normalized.privacyModeEnabled);
           setToolbarButtonsVisible(normalized.toolbarButtonsVisible);
@@ -1294,8 +1283,6 @@ function App({
     setCanvasGridOpacity,
     setCanvasGridStyle,
     setDefaultElementColors,
-    setDiscordRpcEnabled,
-    setDiscordRpcShowCanvas,
     setDismissedUpdateVersion,
     setMinimapEnabled,
     setPrivacyModeEnabled,
@@ -1325,8 +1312,6 @@ function App({
     shadowsUnderElements,
     allowLockedElementDeletion,
     dismissedUpdateVersion,
-    discordRpcEnabled,
-    discordRpcShowCanvas,
     elements,
     images,
     mindmapConnections,
@@ -1402,8 +1387,6 @@ function App({
       recentColors,
       shadowsUnderElements,
       allowLockedElementDeletion,
-      discordRpcEnabled,
-      discordRpcShowCanvas,
       dismissedUpdateVersion,
       elements,
       images,
@@ -1475,12 +1458,6 @@ function App({
       unlisten?.();
     };
   }, [appDataLoaded, flushAutosave, onBeforeClose, retained, showToast]);
-
-  useDiscordRpc({
-    appDataLoaded: import.meta.env.MODE === "storage-preview" ? false : !retained && appDataLoaded,
-    discordRpcEnabled,
-    canvasName: discordRpcShowCanvas ? activeCanvas.name : null,
-  });
 
   useEffect(() => {
     if (retained || !appDataLoaded) {
@@ -5874,8 +5851,6 @@ function App({
     setRecentColors(normalized.recentColors);
     setShadowsUnderElements(normalized.shadowsUnderElements);
     setAllowLockedElementDeletion(normalized.allowLockedElementDeletion);
-    setDiscordRpcEnabled(normalized.discordRpcEnabled);
-    setDiscordRpcShowCanvas(normalized.discordRpcShowCanvas);
     setMinimapEnabled(normalized.minimapEnabled);
     setPrivacyModeEnabled(normalized.privacyModeEnabled);
     setToolbarButtonsVisible(normalized.toolbarButtonsVisible);
@@ -6061,8 +6036,6 @@ function App({
       recentColors: [],
       shadowsUnderElements: false,
       allowLockedElementDeletion: true,
-      discordRpcEnabled: false,
-      discordRpcShowCanvas: true,
       minimapEnabled: true,
       privacyModeEnabled: false,
       toolbarButtonsVisible: false,
@@ -6439,10 +6412,6 @@ function App({
     }
 
     switchLeftPanel("extensions");
-  };
-
-  const updateDiscordRpcEnabled = (enabled: boolean) => {
-    setDiscordRpcEnabled(enabled);
   };
 
   const rememberRecentColor = (color?: string) => {
@@ -7738,10 +7707,6 @@ function App({
                   onAllowLockedElementDeletionChange={setAllowLockedElementDeletion}
                   onExportData={exportData}
                   onImportData={importData}
-                  discordRpcEnabled={discordRpcEnabled}
-                  onDiscordRpcEnabledChange={updateDiscordRpcEnabled}
-                  discordRpcShowCanvas={discordRpcShowCanvas}
-                  onDiscordRpcShowCanvasChange={setDiscordRpcShowCanvas}
                   availableUpdate={availableUpdate}
                   appVersion={appVersion}
                   fpsCounterVisible={fpsCounterVisible}

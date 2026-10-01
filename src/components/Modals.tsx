@@ -54,10 +54,6 @@ type SettingsModalProps = {
   onAllowLockedElementDeletionChange: (enabled: boolean) => void;
   onExportData: (password: string) => Promise<boolean>;
   onImportData: (file: File, password: string) => Promise<void>;
-  discordRpcEnabled: boolean;
-  onDiscordRpcEnabledChange: (enabled: boolean) => void;
-  discordRpcShowCanvas: boolean;
-  onDiscordRpcShowCanvasChange: (enabled: boolean) => void;
   availableUpdate: AppUpdateInfo | null;
   appVersion: string;
   fpsCounterVisible: boolean;
@@ -147,10 +143,6 @@ export function SettingsModal({
   onAllowLockedElementDeletionChange,
   onExportData,
   onImportData,
-  discordRpcEnabled,
-  onDiscordRpcEnabledChange,
-  discordRpcShowCanvas,
-  onDiscordRpcShowCanvasChange,
   availableUpdate,
   appVersion,
   fpsCounterVisible,
@@ -499,23 +491,6 @@ export function SettingsModal({
                     checked={allowLockedElementDeletion}
                     onCheckedChange={onAllowLockedElementDeletionChange}
                   />
-                  {!databaseActions && (
-                    <>
-                      <SettingsToggleRow
-                        label="Discord status"
-                        description="Show time spent in TaskMap on your Discord profile."
-                        checked={discordRpcEnabled}
-                        onCheckedChange={onDiscordRpcEnabledChange}
-                      />
-                      <SettingsToggleRow
-                        label="Show active canvas"
-                        description="Include the current canvas name in your Discord status."
-                        checked={discordRpcShowCanvas}
-                        disabled={!discordRpcEnabled}
-                        onCheckedChange={onDiscordRpcShowCanvasChange}
-                      />
-                    </>
-                  )}
                   <Button
                     className="taskmap-settings-update-button"
                     leadingIcon={<IconRefresh size={17} stroke={2} />}

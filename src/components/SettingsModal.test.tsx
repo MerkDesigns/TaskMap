@@ -4,8 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CHROME_RADII } from "../platform/settings/preferenceContracts";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { ComponentProps } from "react";
-import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
 import { MotionProvider } from "../ui/motion/MotionProvider";
 import {
@@ -20,8 +18,7 @@ afterEach(cleanup);
 
 describe("Phase 4.5C3A primary Settings", () => {
   it("uses one modal native Large shell and only modal-plane native Small surfaces", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    renderSettings(settingsProps(), registry);
+    renderSettings(settingsProps());
 
     const dialog = screen.getByRole("dialog", { name: "Settings" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
@@ -62,16 +59,13 @@ describe("Phase 4.5C3A primary Settings", () => {
         (surface) => surface.getAttribute("data-material-plane") === "modal",
       ),
     ).toBe(true);
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(document.querySelectorAll("[data-material-plane='base']")).toHaveLength(0);
-    registry.dispose();
   });
 
   it("preserves navigation, grid, slider, color, close, and footer behavior", async () => {
     const user = userEvent.setup();
     const props = settingsProps();
-    const registry = createMaterialSurfaceRegistry(null);
-    renderSettings(props, registry);
+    renderSettings(props);
 
     const shadowsSwitch = screen.getByRole("switch", { name: "Shadows below elements" });
     const privacySwitch = screen.getByRole("switch", { name: "Privacy mode" });
@@ -114,18 +108,12 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(screen.getByText("MADE BY MERK - v0.3.4")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close settings" }));
     expect(props.onClose).toHaveBeenCalledOnce();
-    registry.dispose();
   });
 
-  it("uses single-action toggle rows and preserves the disabled Discord dependency", async () => {
+  it("uses single-action toggle rows", async () => {
     const user = userEvent.setup();
-    const props = settingsProps({
-      allowLockedElementDeletion: true,
-      discordRpcEnabled: false,
-      discordRpcShowCanvas: true,
-    });
-    const registry = createMaterialSurfaceRegistry(null);
-    renderSettings(props, registry);
+    const props = settingsProps({ allowLockedElementDeletion: true });
+    renderSettings(props);
     await user.click(screen.getByRole("tab", { name: "misc" }));
 
     const removalSwitch = screen.getByRole("switch", {
@@ -139,24 +127,12 @@ describe("Phase 4.5C3A primary Settings", () => {
     await user.click(screen.getByText("Lock canvas interactions without preventing removal."));
     expect(props.onAllowLockedElementDeletionChange).toHaveBeenCalledTimes(2);
     expect(props.onAllowLockedElementDeletionChange).toHaveBeenLastCalledWith(false);
-
-    const discordSwitch = screen.getByRole("switch", { name: "Discord status" });
-    await user.click(discordSwitch);
-    expect(props.onDiscordRpcEnabledChange).toHaveBeenCalledOnce();
-    expect(props.onDiscordRpcEnabledChange).toHaveBeenCalledWith(true);
-
-    const canvasSwitch = screen.getByRole("switch", { name: "Show active canvas" });
-    expect(canvasSwitch).toBeDisabled();
-    await user.click(screen.getByText("Include the current canvas name in your Discord status."));
-    expect(props.onDiscordRpcShowCanvasChange).not.toHaveBeenCalled();
-    registry.dispose();
   });
 
   it("preserves data flow, update action, shortcut order, and DEV toggles", async () => {
     const user = userEvent.setup();
     const props = settingsProps();
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderSettings(props, registry);
+    const { container } = renderSettings(props);
 
     await user.click(screen.getByRole("tab", { name: "data" }));
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -211,16 +187,13 @@ describe("Phase 4.5C3A primary Settings", () => {
     await user.click(screen.getByText("Show temporary glass and workspace geometry controls."));
     expect(props.onFpsCounterVisibleChange).toHaveBeenCalledWith(true);
     expect(props.onTemporaryPanelsVisibleChange).toHaveBeenCalledWith(true);
-    registry.dispose();
   });
 
   it("animates the full native Settings group and leaves unrelated surfaces untouched", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
     const view = (open: boolean) => (
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <ReducedMotionProvider override={false}>
           <MotionProvider scheduler={scheduler}>
             <MaterialSurface material="acrylic-small" data-testid="unrelated">
@@ -231,7 +204,7 @@ describe("Phase 4.5C3A primary Settings", () => {
             </ModalPresence>
           </MotionProvider>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>
+      </>
     );
     const { rerender } = render(view(true));
     const group = document.querySelector(".taskmap-modal-presence-group") as HTMLDivElement;
@@ -243,7 +216,6 @@ describe("Phase 4.5C3A primary Settings", () => {
       true,
     );
     expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     // The first frame starts the presence clock (zero delta); the second one advances it.
     act(() => driver.fire());
     act(() => driver.fire());
@@ -271,9 +243,7 @@ describe("Phase 4.5C3A primary Settings", () => {
     act(() => driver.flush());
     expect(screen.queryByRole("dialog", { name: "Settings" })).not.toBeInTheDocument();
     expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     scheduler.dispose();
-    registry.dispose();
   });
 
   it("closes only the topmost nested Settings dialog on Escape", async () => {
@@ -283,8 +253,7 @@ describe("Phase 4.5C3A primary Settings", () => {
       availableUpdate: update,
       onCheckForUpdate: vi.fn(async () => update),
     });
-    const registry = createMaterialSurfaceRegistry(null);
-    renderSettings(props, registry);
+    renderSettings(props);
 
     await user.click(screen.getByRole("tab", { name: "data" }));
     await user.click(screen.getByRole("button", { name: "Export data" }));
@@ -301,24 +270,18 @@ describe("Phase 4.5C3A primary Settings", () => {
     expect(screen.queryByRole("dialog", { name: "Update available" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
     expect(props.onClose).not.toHaveBeenCalled();
-    registry.dispose();
   });
 });
 
-function renderSettings(
-  props: ComponentProps<typeof SettingsModal>,
-  registry: ReturnType<typeof createMaterialSurfaceRegistry>,
-) {
+function renderSettings(props: ComponentProps<typeof SettingsModal>) {
   return render(
-    <MaterialSurfaceRegistrationProvider
-      value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-    >
+    <>
       <ReducedMotionProvider override>
         <ModalPresence open>
           <SettingsModal {...props} />
         </ModalPresence>
       </ReducedMotionProvider>
-    </MaterialSurfaceRegistrationProvider>,
+    </>,
   );
 }
 
@@ -372,10 +335,6 @@ function settingsProps(
     onAllowLockedElementDeletionChange: vi.fn(),
     onExportData: vi.fn(async () => true),
     onImportData: vi.fn(async () => undefined),
-    discordRpcEnabled: true,
-    onDiscordRpcEnabledChange: vi.fn(),
-    discordRpcShowCanvas: true,
-    onDiscordRpcShowCanvasChange: vi.fn(),
     availableUpdate: null,
     appVersion: "0.3.4",
     fpsCounterVisible: false,

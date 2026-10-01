@@ -39,8 +39,6 @@ for (const configPath of ["tauri.conf.json", "tauri.dev.conf.json", "tauri.mcp.d
   const config = await json(`src-tauri/${configPath}`);
   assert.ok(config.app.security.capabilities.includes("application-database"));
 }
-const uiLab = await json("src-tauri/tauri.ui-lab.conf.json");
-assert.ok(!uiLab.app.security.capabilities.includes("application-database"));
 const main = await read("src-tauri/src/main.rs");
 for (const operation of operations) {
   assert.equal(
@@ -71,7 +69,7 @@ assert.ok(database.includes("DatabasePathAuthorizationKind::Create"));
 assert.ok(database.includes("DatabasePathAuthorizationKind::Open"));
 assert.ok(database.includes("DatabasePathAuthorizationKind::FullBackup"));
 const windows = await read("src-tauri/src/commands/database_window_commands.rs");
-assert.ok(windows.includes('cfg!(feature = "ui-lab-development")'));
+assert.ok(windows.includes("validate_application(&app.config().identifier)"));
 assert.ok(windows.includes("app_config_dir()"));
 const resources = await read("src-tauri/src/commands/application_resources.rs");
 assert.equal(resources.split("ensure_database_application(&app)?;").length - 1, 4);

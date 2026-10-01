@@ -85,7 +85,7 @@ mod windows {
 }
 
 pub(crate) fn install(window: &tauri::WebviewWindow) -> Result<(), String> {
-    if crate::storage_preview::ENABLED || cfg!(feature = "ui-lab-development") {
+    if crate::storage_preview::ENABLED {
         return Ok(());
     }
     #[cfg(windows)]

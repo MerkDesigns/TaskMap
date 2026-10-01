@@ -1,12 +1,9 @@
-import { createContext } from "react";
 import { outputMask, type NativeGlassShape } from "./NativeGlassPlane";
 import { createLayeredMaskWriter, layeredOutputMask } from "./layeredOutputMask";
 
 export { layeredOutputMask };
 import { registerMaterialGeometryWork } from "./materialGeometryScheduler";
 
-/** Default Minor rendering; Dev can switch back to the legacy root clip for comparison. */
-export const SmallGlassOutputMaskEnabled = createContext(true);
 const latest = new WeakMap<HTMLElement, readonly NativeGlassShape[]>();
 const writers = new WeakMap<HTMLElement, () => void>();
 const MASK_PROPERTIES = {

@@ -16,7 +16,7 @@ export const tauriWindowCloseClient: WindowCloseClient = {
       : () => {},
   destroy: async () => {
     if (!isTauri()) return;
-    if (import.meta.env.MODE === "storage-preview" || import.meta.env.MODE === "ui-lab") {
+    if (import.meta.env.MODE === "storage-preview") {
       await getCurrentWindow().destroy();
     } else {
       await invoke("app_destroy_main_window");

@@ -1,7 +1,5 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../../materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../../materials/materialSurfaceRegistry";
 import { MotionProvider } from "../../motion/MotionProvider";
 import {
   createMotionFrameScheduler,
@@ -25,10 +23,8 @@ describe("WorkspaceSidePanel motion", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(panelBounds(288));
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
     const renderPanel = (closing: boolean) => (
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <ReducedMotionProvider override={false}>
           <MotionProvider scheduler={scheduler}>
             <WorkspaceSidePanel closing={closing} label="Test panel">
@@ -36,7 +32,7 @@ describe("WorkspaceSidePanel motion", () => {
             </WorkspaceSidePanel>
           </MotionProvider>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>
+      </>
     );
     const { rerender } = render(renderPanel(false));
     const panel = screen.getByLabelText("Test panel");
@@ -49,7 +45,6 @@ describe("WorkspaceSidePanel motion", () => {
     // Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17).
     const presence = () => panel.style.getPropertyValue("--taskmap-material-presence-progress");
     expect(presence()).toBe("0");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
 
     // The first frame starts the presence clock (zero delta); the second one advances it.
@@ -66,10 +61,7 @@ describe("WorkspaceSidePanel motion", () => {
     expect(presence()).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    const invalidationsAtRest = notifySurfaceGeometryChanged.mock.calls.length;
-    expect(invalidationsAtRest).toBe(0);
     expect(driver.fire()).toBe(false);
-    expect(notifySurfaceGeometryChanged).toHaveBeenCalledTimes(invalidationsAtRest);
 
     rerender(renderPanel(true));
     expect(panel).toHaveAttribute("data-closing", "true");
@@ -96,23 +88,20 @@ describe("WorkspaceSidePanel motion", () => {
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     scheduler.dispose();
-    registry.dispose();
   });
 
   it("settles immediately without opacity or scheduled frames under reduced motion", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(panelBounds(288));
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const notifySurfaceGeometryChanged = vi.fn();
-    const registry = createMaterialSurfaceRegistry(null);
     const renderPanel = (closing: boolean) => (
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <ReducedMotionProvider override>
           <MotionProvider scheduler={scheduler}>
             <WorkspaceSidePanel closing={closing} label="Reduced panel" />
           </MotionProvider>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>
+      </>
     );
     const { rerender } = render(renderPanel(false));
     const panel = screen.getByLabelText("Reduced panel");
@@ -128,10 +117,8 @@ describe("WorkspaceSidePanel motion", () => {
     expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0px, 0) scale(0.94)`);
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
 
     scheduler.dispose();
-    registry.dispose();
   });
 });
 

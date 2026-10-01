@@ -1,7 +1,6 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "./theme.css";
-import { WORKSPACE_VISUAL_VALUES } from "./workspaceVisualValues";
 
 afterEach(cleanup);
 
@@ -36,17 +35,6 @@ describe("target theme tokens", () => {
     );
     expect(target.getPropertyValue("--taskmap-layer-workspace-chrome")).toBe("41");
     expect(target.getPropertyValue("--taskmap-toolbar-group-padding-inline")).toBe("8px");
-
-    expect(WORKSPACE_VISUAL_VALUES).toMatchObject({
-      canvasGridSpacingWorld: 24,
-      canvasGridMajorEvery: 5,
-      canvasLineMinorOpacityScale: 0.62,
-      canvasLineMajorOpacityScale: 0.48,
-      canvasDotRadiusScreen: 1.25,
-      canvasDotOpacityFadeStart: 0.55,
-      canvasDotOpacityFadeSpan: 0.45,
-      canvasCornerRadius: 24,
-    });
   });
 
   it("separates chrome aliases from semantic and spatial tokens", () => {

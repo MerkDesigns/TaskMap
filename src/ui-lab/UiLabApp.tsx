@@ -1,15 +1,10 @@
 import { useState } from "react";
 import { GlassRenderingProof } from "./glass-proof/GlassRenderingProof";
-import { MaterialCompositorProvider } from "../ui/materials/MaterialCompositorProvider";
-import { createMaterialCompositorPresentationBridge } from "../ui/materials/materialCompositorPresentation";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
-import { MotionProvider } from "../ui/motion/MotionProvider";
-import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { Button } from "../ui/primitives/Button";
 import { TextField } from "../ui/primitives/FormControls";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
-import { WorkspaceChromeLayer, WorkspaceRoot } from "../ui/patterns/workspace/WorkspaceRoot";
-import { WindowChrome } from "../components/WindowChrome";
+import { WorkspaceRoot } from "../ui/patterns/workspace/WorkspaceRoot";
 import { DraggableTextBlockFixture } from "./DraggableTextBlockFixture";
 import { ContextMenuPlayground } from "./ContextMenuPlayground";
 import { InteractiveControlsPrototype } from "./InteractiveControlsPrototype";
@@ -18,12 +13,11 @@ import { QuickExtensionsMenuPlayground } from "./QuickExtensionsMenuPlayground";
 import { SurfaceMaterialPrototype } from "./SurfaceMaterialPrototype";
 import { TopBarControlsPrototype } from "./TopBarControlsPrototype";
 
-const presentation = createMaterialCompositorPresentationBridge();
-
-export function UiLabApp({ embedded = false }: { readonly embedded?: boolean }) {
+/** The development workbench's UI Lab view; the database application owns the window chrome. */
+export function UiLabApp() {
   const [proof, setProof] = useState(false);
-  const scene = (
-    <WorkspaceRoot data-taskmap-ui-lab={embedded ? "workbench-baseline" : "isolated-baseline"}>
+  return (
+    <WorkspaceRoot data-taskmap-ui-lab="workbench-baseline">
       <CanvasFrame
         aria-hidden="true"
         className="taskmap-ui-lab__background"
@@ -102,20 +96,6 @@ export function UiLabApp({ embedded = false }: { readonly embedded?: boolean }) 
           )}
         </div>
       </div>
-
-      {!embedded && (
-        <WorkspaceChromeLayer>
-          <WindowChrome radius={14} />
-        </WorkspaceChromeLayer>
-      )}
     </WorkspaceRoot>
-  );
-  if (embedded) return scene;
-  return (
-    <ReducedMotionProvider override={null}>
-      <MotionProvider>
-        <MaterialCompositorProvider presentation={presentation}>{scene}</MaterialCompositorProvider>
-      </MotionProvider>
-    </ReducedMotionProvider>
   );
 }

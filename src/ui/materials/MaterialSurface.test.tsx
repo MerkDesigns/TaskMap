@@ -3,14 +3,6 @@ import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { MaterialPlaneProvider } from "./MaterialPlane";
 import { MaterialSurface, type MaterialSurfaceProps } from "./MaterialSurface";
-import {
-  MaterialSurfaceRegistrationProvider,
-  useMaterialSurfaceGeometryInvalidation,
-} from "./MaterialSurfaceRegistration";
-import {
-  createMaterialSurfaceRegistry,
-  type MaterialSurfaceRegistry,
-} from "./materialSurfaceRegistry";
 
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
@@ -110,20 +102,6 @@ describe("MaterialSurface", () => {
     );
   });
 
-  it("does not register Large or Small with the parked cached Canvas2D compositor", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    render(
-      <MaterialSurfaceRegistrationProvider value={boundary(registry)}>
-        <MaterialSurface material="acrylic-large">Large</MaterialSurface>
-        <MaterialSurface material="acrylic-small">Small</MaterialSurface>
-      </MaterialSurfaceRegistrationProvider>,
-    );
-
-    expect(registry.getSnapshot().surfaces).toEqual([]);
-    expect(screen.getByText("Large")).not.toHaveAttribute("data-material-surface-id");
-    expect(screen.getByText("Small")).not.toHaveAttribute("data-material-surface-id");
-  });
-
   it("defaults to base, inherits modal, and permits an explicit plane override", () => {
     render(
       <>
@@ -194,23 +172,16 @@ describe("MaterialSurface", () => {
       frame = callback;
       return 1;
     });
-    const registry = createMaterialSurfaceRegistry(null);
-    const registrationBoundary = {
-      registry,
-      notifySurfaceGeometryChanged: vi.fn(),
-    };
     const view = (motionClass: string) => (
-      <MaterialSurfaceRegistrationProvider value={registrationBoundary}>
-        <MaterialSurface material="acrylic-large" data-testid="large-boundary">
-          <MaterialSurface
-            material="acrylic-small"
-            className={motionClass}
-            data-testid="small-surface"
-          >
-            Card
-          </MaterialSurface>
+      <MaterialSurface material="acrylic-large" data-testid="large-boundary">
+        <MaterialSurface
+          material="acrylic-small"
+          className={motionClass}
+          data-testid="small-surface"
+        >
+          Card
         </MaterialSurface>
-      </MaterialSurfaceRegistrationProvider>
+      </MaterialSurface>
     );
     const { rerender } = render(view("settled"));
     const large = screen.getByTestId("large-boundary");
@@ -228,24 +199,6 @@ describe("MaterialSurface", () => {
     frame?.(16);
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
     expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
-    expect(registry.getSnapshot().surfaces).toEqual([]);
-  });
-
-  it("routes the existing geometry invalidation seam to native surfaces", () => {
-    const notify = vi.fn();
-    const registry = createMaterialSurfaceRegistry(null);
-    function MotionProbe() {
-      const invalidateGeometry = useMaterialSurfaceGeometryInvalidation();
-      return <button onClick={invalidateGeometry}>Move surface</button>;
-    }
-    render(
-      <MaterialSurfaceRegistrationProvider value={boundary(registry, notify)}>
-        <MotionProbe />
-      </MaterialSurfaceRegistrationProvider>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Move surface" }));
-    expect(notify).toHaveBeenCalledOnce();
   });
 
   it("coalesces scroll-driven position refreshes without creating a refresh loop", () => {
@@ -304,10 +257,6 @@ describe("MaterialSurface", () => {
     expect(requestFrame).not.toHaveBeenCalled();
   });
 });
-
-function boundary(registry: MaterialSurfaceRegistry, notifySurfaceGeometryChanged = vi.fn()) {
-  return { registry, notifySurfaceGeometryChanged };
-}
 
 function rectangle(left: number, top: number, width: number, height: number): DOMRect {
   return {

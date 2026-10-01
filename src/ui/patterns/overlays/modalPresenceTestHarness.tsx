@@ -1,10 +1,4 @@
 import type { ReactNode } from "react";
-import { vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../../materials/MaterialSurfaceRegistration";
-import {
-  createMaterialSurfaceRegistry,
-  type MaterialSurfaceRegistry,
-} from "../../materials/materialSurfaceRegistry";
 import { MotionProvider } from "../../motion/MotionProvider";
 import {
   createMotionFrameScheduler,
@@ -20,72 +14,26 @@ export function ModalPresenceTestProviders({
   readonly harness: ModalPresenceTestHarness;
 }) {
   return (
-    <MaterialSurfaceRegistrationProvider
-      value={{ registry: harness.registry, notifySurfaceGeometryChanged: harness.notifyGeometry }}
-    >
-      <ReducedMotionProvider override={harness.reducedMotion}>
-        <MotionProvider scheduler={harness.scheduler}>{children}</MotionProvider>
-      </ReducedMotionProvider>
-    </MaterialSurfaceRegistrationProvider>
+    <ReducedMotionProvider override={harness.reducedMotion}>
+      <MotionProvider scheduler={harness.scheduler}>{children}</MotionProvider>
+    </ReducedMotionProvider>
   );
 }
 
-export function createModalPresenceTestHarness(
-  reducedMotion: boolean,
-  overrides: {
-    readonly registry?: MaterialSurfaceRegistry;
-    readonly notifyGeometry?: () => void;
-  } = {},
-) {
+export function createModalPresenceTestHarness(reducedMotion: boolean) {
   const driver = new ControlledFrameDriver();
   const scheduler = createMotionFrameScheduler(driver);
-  const observer = {
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  };
-  const registry = overrides.registry ?? createMaterialSurfaceRegistry(() => observer);
   return {
     driver,
     scheduler,
-    registry,
     reducedMotion,
-    observer,
-    notifyGeometry: vi.fn(overrides.notifyGeometry),
     dispose() {
       scheduler.dispose();
-      registry.dispose();
     },
   };
 }
 
 export type ModalPresenceTestHarness = ReturnType<typeof createModalPresenceTestHarness>;
-
-export function instrumentMaterialSurfaceRegistry(registry: MaterialSurfaceRegistry) {
-  const unregisters: ReturnType<typeof vi.fn<() => void>>[] = [];
-  const register = vi.fn<MaterialSurfaceRegistry["register"]>(
-    (registration, initialMaskOpacity) => {
-      const unregister = vi.fn(registry.register(registration, initialMaskOpacity));
-      unregisters.push(unregister);
-      return unregister;
-    },
-  );
-  return {
-    register,
-    unregisters,
-    registry: {
-      register,
-      update: registry.update.bind(registry),
-      updateMaskOpacity: registry.updateMaskOpacity.bind(registry),
-      updateMaskOpacityBatch: registry.updateMaskOpacityBatch.bind(registry),
-      updateMaskOpacitiesBatch: registry.updateMaskOpacitiesBatch.bind(registry),
-      refreshMeasurements: registry.refreshMeasurements.bind(registry),
-      getSnapshot: registry.getSnapshot.bind(registry),
-      subscribe: registry.subscribe.bind(registry),
-      dispose: registry.dispose.bind(registry),
-    } satisfies MaterialSurfaceRegistry,
-  };
-}
 
 class ControlledFrameDriver implements MotionFrameDriver {
   private callbacks = new Map<number, (timestampMs: number) => void>();

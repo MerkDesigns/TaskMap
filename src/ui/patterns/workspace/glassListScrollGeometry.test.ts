@@ -3,7 +3,6 @@ import { MaterialGeometryFrame } from "../../materials/materialGeometryScheduler
 import {
   glassListSliceInsets,
   glassListSlicedSize,
-  projectGlassListScroll,
   projectGlassListSlices,
   readGlassListLayout,
 } from "./glassListScrollGeometry";
@@ -49,7 +48,7 @@ describe("native glass-list scroll projection", () => {
     [ownerRead, viewportRead, nestedRead, ...cardReads].forEach((read) => read.mockClear());
     nested.scrollTop = 56;
     viewport.scrollTop = 5;
-    const projected = projectGlassListScroll(layout);
+    const projected = projectGlassListSlices(layout).flatMap(({ shape }) => (shape ? [shape] : []));
     expect(projected[0]).toMatchObject({
       x: 10,
       y: -11,

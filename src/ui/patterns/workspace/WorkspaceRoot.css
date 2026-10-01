@@ -21,7 +21,7 @@
 }
 
 /* Canvas descendants may own large local z-indices. This backdrop-only
-   stacking context keeps all of them below the shared compositor output. */
+   stacking context keeps all of them below the workspace chrome and its glass. */
 .taskmap-workspace-backdrop-layer {
   position: absolute;
   z-index: 0;

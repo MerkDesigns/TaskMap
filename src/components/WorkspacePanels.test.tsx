@@ -2,8 +2,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TaskCanvas } from "../types";
-import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { readNativeGlassDiagnostics } from "../ui/materials/SharedSmallGlassPlane";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { WorkspaceSidePanel } from "../ui/patterns/workspace";
@@ -14,16 +12,13 @@ afterEach(cleanup);
 
 describe("C2C workspace panels", () => {
   it("uses the same Acrylic Large side-panel surface for both production shells", () => {
-    const registry = createMaterialSurfaceRegistry(null);
     render(
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <ReducedMotionProvider override>
           <CanvasManager {...canvasManagerProps()} />
           <ExtensionsPanel closing={false} onDropExtension={vi.fn()} />
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
 
     for (const label of ["Canvases panel", "Extensions panel"]) {
@@ -40,45 +35,34 @@ describe("C2C workspace panels", () => {
       expect(panel.querySelector(".taskmap-material-native-glass__backdrop")).not.toBeNull();
     }
     expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(12);
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(document.querySelectorAll(".taskmap-scroll-area.taskmap-scrollbar-hidden")).toHaveLength(
       1,
     );
     expect(document.querySelectorAll("[data-canvas-browser-viewport]")).toHaveLength(1);
-    registry.dispose();
   });
 
-  it("keeps both embedded variants plain and unregistered", () => {
-    const registry = createMaterialSurfaceRegistry(null);
+  it("keeps both embedded variants plain", () => {
     const { container } = render(
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <CanvasManager {...canvasManagerProps()} embedded />
         <ExtensionsPanel closing={false} embedded onDropExtension={vi.fn()} />
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
-
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
     expect(container.querySelector('[data-material="acrylic-large"]')).toBeNull();
     expect(screen.getByRole("heading", { name: "Canvas Browser" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Extensions" })).toBeInTheDocument();
-    registry.dispose();
   });
 
   it("uses one Large shell while shared-panel cards retain Acrylic Small", () => {
-    const registry = createMaterialSurfaceRegistry(null);
     const { container } = render(
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <ReducedMotionProvider override>
           <WorkspaceSidePanel closing={false} label="Shared panel">
             <CanvasManager {...canvasManagerProps()} sharedPanel />
             <ExtensionsPanel closing={false} sharedPanel onDropExtension={vi.fn()} />
           </WorkspaceSidePanel>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
 
     expect(container.querySelectorAll('[data-material="acrylic-large"]')).toHaveLength(1);
@@ -98,7 +82,6 @@ describe("C2C workspace panels", () => {
       "data-material",
       "acrylic-small",
     );
-    registry.dispose();
   });
 
   it("reduces ten Canvas Browser card backdrops to one bounded shared plane", () => {

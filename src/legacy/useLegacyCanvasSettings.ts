@@ -20,8 +20,6 @@ export function useLegacyCanvasSettings() {
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [shadowsUnderElements, setShadowsUnderElements] = useState(false);
   const [allowLockedElementDeletion, setAllowLockedElementDeletion] = useState(true);
-  const [discordRpcEnabled, setDiscordRpcEnabled] = useState(false);
-  const [discordRpcShowCanvas, setDiscordRpcShowCanvas] = useState(true);
   const [minimapEnabled, setMinimapEnabled] = useState(true);
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toolbarButtonsVisible, setToolbarButtonsVisible] = useState(false);
@@ -44,10 +42,6 @@ export function useLegacyCanvasSettings() {
     setShadowsUnderElements,
     allowLockedElementDeletion,
     setAllowLockedElementDeletion,
-    discordRpcEnabled,
-    setDiscordRpcEnabled,
-    discordRpcShowCanvas,
-    setDiscordRpcShowCanvas,
     minimapEnabled,
     setMinimapEnabled,
     privacyModeEnabled,

@@ -104,10 +104,6 @@ export function readGlassListLayout(
   });
 }
 
-export function projectGlassListScroll(cards: readonly ListCard[]): SharedSmallGlassShape[] {
-  return projectGlassListSlices(cards).flatMap(({ shape }) => (shape ? [shape] : []));
-}
-
 export interface GlassListSlice {
   readonly element: HTMLElement;
   readonly size: MaterialSize;

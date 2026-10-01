@@ -1,8 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { FloatingToolbar, type FloatingToolbarProps } from "./FloatingToolbar";
 
 afterEach(cleanup);
@@ -86,12 +84,10 @@ describe("FloatingToolbar", () => {
   });
 
   it("uses two Acrylic Large groups and the cheap geometry invalidation seam", () => {
-    const notifySurfaceGeometryChanged = vi.fn();
-    const registry = createMaterialSurfaceRegistry(null);
     const { container } = render(
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <FloatingToolbar {...toolbarProps({ toolbarRadius: 18 })} />
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
 
     const groups = container.querySelectorAll('[data-material="acrylic-large"]');
@@ -103,8 +99,6 @@ describe("FloatingToolbar", () => {
         "18px",
       );
     });
-    expect(registry.getSnapshot().surfaces).toEqual([]);
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
   });
 });
 

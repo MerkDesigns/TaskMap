@@ -168,9 +168,5 @@ export function useRetainedCanvasSettings(): ReturnType<typeof useLegacyCanvasSe
         }))
         .then((result) => report(result.ok));
     },
-    discordRpcEnabled: false,
-    discordRpcShowCanvas: false,
-    setDiscordRpcEnabled: () => report(false),
-    setDiscordRpcShowCanvas: () => report(false),
   };
 }

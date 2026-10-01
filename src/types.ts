@@ -237,8 +237,6 @@ export type AppData = {
   recentColors: string[];
   shadowsUnderElements: boolean;
   allowLockedElementDeletion: boolean;
-  discordRpcEnabled: boolean;
-  discordRpcShowCanvas: boolean;
   minimapEnabled: boolean;
   privacyModeEnabled: boolean;
   toolbarButtonsVisible: boolean;

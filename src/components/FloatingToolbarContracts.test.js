@@ -4,7 +4,6 @@ import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const appPath = new URL("../App.tsx", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const toolbarPath = new URL("./FloatingToolbar.tsx", import.meta.url);
 const patternPath = new URL("../ui/patterns/workspace/FloatingCanvasToolbar.tsx", import.meta.url);
 const patternCssPath = new URL(
@@ -64,8 +63,7 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
   });
 
   it("has no local compositor layer, blur, cache, provider, or independent animation loop", async () => {
-    const [appShellSource, patternCss, patternSource, toolbarSource] = await Promise.all([
-      readFile(appShellPath, "utf8"),
+    const [patternCss, patternSource, toolbarSource] = await Promise.all([
       readFile(patternCssPath, "utf8"),
       readFile(patternPath, "utf8"),
       readFile(toolbarPath, "utf8"),
@@ -79,7 +77,6 @@ describe("Phase 4.5C2B toolbar architecture contracts", () => {
     expect(patternCss).not.toMatch(/transition|optional-controls/);
     expect(toolbarSource).not.toContain("toolbarButtonsVisible");
     expect(toolbarSource).not.toContain("useMaterialSurfaceGeometryInvalidation");
-    expect(appShellSource.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
   it("leaves Settings behind its existing callback boundary", async () => {

@@ -35,8 +35,6 @@ const createData = (canvas: TaskCanvas): AppData => ({
   recentColors: [],
   shadowsUnderElements: true,
   allowLockedElementDeletion: true,
-  discordRpcEnabled: false,
-  discordRpcShowCanvas: true,
   minimapEnabled: true,
   privacyModeEnabled: false,
   toolbarButtonsVisible: false,

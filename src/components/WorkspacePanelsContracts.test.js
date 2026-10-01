@@ -4,7 +4,6 @@ import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const appPath = new URL("../App.tsx", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const canvasManagerPath = new URL("./CanvasManager.tsx", import.meta.url);
 const extensionsPanelPath = new URL("./ExtensionsPanel.tsx", import.meta.url);
 const panelPatternPath = new URL(
@@ -89,8 +88,7 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
   });
 
   it("keeps the Acrylic Large shell on its proven local two-pass path", async () => {
-    const [appShell, pattern, patternCss, motion] = await Promise.all([
-      readFile(appShellPath, "utf8"),
+    const [pattern, patternCss, motion] = await Promise.all([
       readFile(panelPatternPath, "utf8"),
       readFile(panelCssPath, "utf8"),
       readFile(panelMotionPath, "utf8"),
@@ -129,7 +127,6 @@ describe("Phase 4.5C2C workspace-panel architecture contracts", () => {
     expect(boundary).not.toMatch(
       /(?:-webkit-)?backdrop-filter\s*:|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider|requestAnimationFrame/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
   it("retains embedded and portal boundaries as later C2 slices migrate panel contents", async () => {

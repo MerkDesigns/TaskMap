@@ -3,12 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EXTENSIONS } from "../extensions/registry";
-import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
 import { readNativeGlassDiagnostics } from "../ui/materials/SharedSmallGlassPlane";
-import {
-  createMaterialSurfaceRegistry,
-  type MaterialSurfaceRegistry,
-} from "../ui/materials/materialSurfaceRegistry";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { ExtensionsPanel, QuickExtensionsMenu } from "./ExtensionsPanel";
 
@@ -52,15 +47,12 @@ describe("C2E Extensions panel", () => {
       }
       return rect(0, 0, 0, 0);
     });
-    const registry = createMaterialSurfaceRegistry(null);
     const view = (active: boolean) => (
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <ReducedMotionProvider override>
           <ExtensionsPanel active={active} closing={false} sharedPanel onDropExtension={vi.fn()} />
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>
+      </>
     );
     const { container, rerender } = render(view(true));
 
@@ -84,12 +76,10 @@ describe("C2E Extensions panel", () => {
         sharedSmallBatchCount: 0,
       }),
     );
-    registry.dispose();
   });
 
-  it("maps production cards to Acrylic Small and icon boxes to unregistered Cutout", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderProduction(registry);
+  it("maps production cards to Acrylic Small and icon boxes to Cutout", () => {
+    const { container } = renderPanel();
     const cards = [...container.querySelectorAll("[data-extension-card-id]")];
     const icons = [...container.querySelectorAll(".taskmap-extension-browser-icon")];
 
@@ -109,18 +99,13 @@ describe("C2E Extensions panel", () => {
     expect(
       cards.every((card) => card.getAttribute("data-material-strategy") === "native-glass"),
     ).toBe(true);
-    expect(registry.getSnapshot().surfaces).toEqual([]);
-    registry.dispose();
   });
 
-  it("uses Opaque cards and registers zero cached-acrylic surfaces in embedded mode", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderPanel(registry, { embedded: true });
+  it("uses Opaque cards in embedded mode", () => {
+    const { container } = renderPanel({ embedded: true });
 
     expect(container.querySelectorAll('[data-material="opaque"]')).toHaveLength(EXTENSIONS.length);
     expect(container.querySelectorAll('[data-material="cutout"]')).toHaveLength(EXTENSIONS.length);
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
-    registry.dispose();
   });
 
   it("preserves search matching, placeholder, and spellcheck behavior", async () => {
@@ -249,12 +234,11 @@ describe("C2E Extensions panel", () => {
     expect(onDragExtension).not.toHaveBeenCalled();
   });
 
-  it("preserves extension drag/drop, source suppression, and an unregistered body preview", async () => {
+  it("preserves extension drag/drop, source suppression, and a body preview", async () => {
     const user = userEvent.setup();
-    const registry = createMaterialSurfaceRegistry(null);
     const onDragExtension = vi.fn();
     const onDropExtension = vi.fn();
-    const { container } = renderPanel(registry, { onDragExtension, onDropExtension });
+    const { container } = renderPanel({ onDragExtension, onDropExtension });
     const panel = screen.getByLabelText("Extensions panel");
     vi.spyOn(panel, "getBoundingClientRect").mockReturnValue(rect(0, 0, 290, 500));
     const card = extensionCard(container, "privacy");
@@ -268,9 +252,6 @@ describe("C2E Extensions panel", () => {
     const preview = document.body.querySelector("[data-extension-drag-preview]") as HTMLElement;
     expect(preview).toBeInTheDocument();
     expect(preview).not.toHaveAttribute("data-material-surface-id");
-    expect(registry.getSnapshot().surfaces.some((surface) => surface.element === preview)).toBe(
-      false,
-    );
 
     await user.pointer({ target: document.body, coords: { clientX: 340, clientY: 560 } });
     expect(onDragExtension).toHaveBeenLastCalledWith("privacy", 340, 560);
@@ -294,40 +275,27 @@ describe("C2E Extensions panel", () => {
       coords: { clientX: 40, clientY: 40 },
     });
     expect(onDropExtension).toHaveBeenCalledTimes(1);
-    registry.dispose();
   });
 
-  it("renders an unregistered empty state when no extension matches", async () => {
+  it("renders an empty state when no extension matches", async () => {
     const user = userEvent.setup();
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderPanel(registry, { embedded: true });
+    const { container } = renderPanel({ embedded: true });
 
     await user.type(screen.getByRole("searchbox", { name: "Search extensions" }), "no-match-z9");
     const empty = screen.getByText("No extensions found");
     expect(empty).toHaveClass("taskmap-extension-browser-empty");
     expect(empty).not.toHaveAttribute("data-material");
     expect(container.querySelectorAll("[data-extension-card-id]")).toHaveLength(0);
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
-    registry.dispose();
   });
 });
 
-function renderProduction(registry: MaterialSurfaceRegistry) {
-  return renderPanel(registry);
-}
-
-function renderPanel(
-  registry: MaterialSurfaceRegistry,
-  overrides: Partial<ComponentProps<typeof ExtensionsPanel>> = {},
-) {
+function renderPanel(overrides: Partial<ComponentProps<typeof ExtensionsPanel>> = {}) {
   return render(
-    <MaterialSurfaceRegistrationProvider
-      value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-    >
+    <>
       <ReducedMotionProvider override>
         <ExtensionsPanel closing={false} onDropExtension={vi.fn()} {...overrides} />
       </ReducedMotionProvider>
-    </MaterialSurfaceRegistrationProvider>,
+    </>,
   );
 }
 

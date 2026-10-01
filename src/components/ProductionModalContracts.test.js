@@ -4,7 +4,6 @@ import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const appPath = new URL("../App.tsx", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const modalsPath = new URL("./Modals.tsx", import.meta.url);
 const dialogsPath = new URL("./ProductionDialogs.tsx", import.meta.url);
 const colorPickerPath = new URL("./ColorPickerMenu.tsx", import.meta.url);
@@ -18,7 +17,6 @@ const layerPath = new URL("../ui/patterns/overlays/ModalLayer.tsx", import.meta.
 const layerCssPath = new URL("../ui/patterns/overlays/ModalLayer.css", import.meta.url);
 const dialogPath = new URL("../ui/patterns/overlays/ModalDialog.tsx", import.meta.url);
 const dialogCssPath = new URL("../ui/patterns/overlays/ModalDialog.css", import.meta.url);
-const compositorCssPath = new URL("../ui/materials/MaterialCompositor.css", import.meta.url);
 const materialTypesPath = new URL("../ui/materials/materialTypes.ts", import.meta.url);
 
 describe("Phase 4.5C3B production modal architecture contracts", () => {
@@ -96,29 +94,16 @@ describe("Phase 4.5C3B production modal architecture contracts", () => {
     expect(modals).not.toMatch(/frosted-glass|left-panel-card|z-50/);
   });
 
-  it("retains exactly one compositor, two planes, and all deferred overlay owners", async () => {
-    const [
-      app,
-      appShell,
-      colorPicker,
-      contextMenus,
-      extensions,
-      toast,
-      materialTypes,
-      compositorCss,
-    ] = await Promise.all([
+  it("retains two material planes and all deferred overlay owners", async () => {
+    const [app, colorPicker, contextMenus, extensions, toast, materialTypes] = await Promise.all([
       readFile(appPath, "utf8"),
-      readFile(appShellPath, "utf8"),
       readFile(colorPickerPath, "utf8"),
       readFile(contextMenusPath, "utf8"),
       readFile(extensionsPath, "utf8"),
       readFile(toastPath, "utf8"),
       readFile(materialTypesPath, "utf8"),
-      readFile(compositorCssPath, "utf8"),
     ]);
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
     expect(materialTypes).toMatch(/MaterialPlane\s*=\s*"base"\s*\|\s*"modal"/);
-    expect(compositorCss).toContain("z-index: var(--taskmap-layer-modal-compositor)");
     expect(colorPicker).toContain('className={["taskmap-color-picker", className]');
     expect(colorPicker).toContain(
       'zIndex: aboveModals ? "var(--taskmap-layer-modal-overlay)" : 1002',

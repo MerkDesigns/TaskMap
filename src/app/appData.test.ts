@@ -72,7 +72,6 @@ describe("app data migration and validation", () => {
 
     expect(data.schemaVersion).toBe(2);
     expect(data.canvases[0].textCards).toEqual([]);
-    expect(data.discordRpcShowCanvas).toBe(true);
     expect(data.allowLockedElementDeletion).toBe(true);
   });
 

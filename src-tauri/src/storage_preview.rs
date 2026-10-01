@@ -56,8 +56,6 @@ mod tests {
     #[test]
     fn preview_denies_storage_before_any_resource_is_opened() {
         assert_eq!(require_legacy_storage().is_err(), ENABLED);
-        assert!(
-            crate::commands::database_edition::validate_application(IDENTIFIER, false).is_err()
-        );
+        assert!(crate::commands::database_edition::validate_application(IDENTIFIER).is_err());
     }
 }

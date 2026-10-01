@@ -7,13 +7,6 @@ export function runtimeFixture(ids: readonly string[], viewportHeight = 400) {
   const viewport = document.createElement("div");
   const sharedGlassPlane = document.createElement("div");
   const dragGlassPlane = document.createElement("div");
-  const definitions = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const clip = document.createElementNS("http://www.w3.org/2000/svg", "clipPath");
-  clip.dataset.sharedSmallGlassClip = "true";
-  definitions.append(clip);
-  sharedGlassPlane.append(definitions);
-  const dragDefinitions = definitions.cloneNode(true) as SVGSVGElement;
-  dragGlassPlane.append(dragDefinitions);
   const cardsLayer = document.createElement("div");
   panel.append(viewport);
   viewport.append(sharedGlassPlane, dragGlassPlane, cardsLayer);

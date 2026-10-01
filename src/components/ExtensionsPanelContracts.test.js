@@ -10,7 +10,6 @@ const patternCssPath = new URL(
   import.meta.url,
 );
 const dragPath = new URL("../extensions/useExtensionDrag.ts", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 
 describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
   it("owns accepted card/icon geometry and production/embedded material mapping in one pattern", async () => {
@@ -75,11 +74,10 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
   });
 
   it("retains drag ownership without new compositor, cache, provider, or animation-frame work", async () => {
-    const [source, pattern, drag, appShell] = await Promise.all([
+    const [source, pattern, drag] = await Promise.all([
       readFile(panelPath, "utf8"),
       readFile(patternPath, "utf8"),
       readFile(dragPath, "utf8"),
-      readFile(appShellPath, "utf8"),
     ]);
     const main = source.slice(source.indexOf("export function ExtensionsPanel"));
     const boundary = `${main}\n${pattern}`;
@@ -93,6 +91,5 @@ describe("Phase 4.5C2E Extensions panel architecture contracts", () => {
     expect(boundary).not.toMatch(
       /requestAnimationFrame|useMaterialSurfaceMaskOpacity|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 });

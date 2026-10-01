@@ -8,6 +8,7 @@ import { CANVAS_CARD_HELD_SCALE } from "./canvasBrowserHeldLift";
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { dispatchPointer, runtimeFixture, wheel } from "./canvasBrowserRuntimeTestFixture";
 import { readSuppliedMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
+import { readSmallOutputShapes } from "../../materials/sharedSmallOutputMask";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -234,12 +235,8 @@ describe("production Canvas Browser runtime", () => {
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
-    expect(
-      fixture.sharedGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
-    ).toHaveLength(4);
-    expect(
-      fixture.dragGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
-    ).toHaveLength(1);
+    expect(readSmallOutputShapes(fixture.sharedGlassPlane)).toHaveLength(4);
+    expect(readSmallOutputShapes(fixture.dragGlassPlane)).toHaveLength(1);
     expect(document.querySelector("[data-canvas-card-placeholder]")).toBeNull();
     expect(fixture.runtime.getSnapshot().order).toEqual(["b", "c", "d", "e", "a"]);
     expect(fixture.commitOrder).not.toHaveBeenCalled();
@@ -261,12 +258,8 @@ describe("production Canvas Browser runtime", () => {
     expect(record.card).toBe(originalCard);
     expect(record.host.parentElement).toBe(fixture.cardsLayer);
     expect(record.card).not.toHaveAttribute("data-material-motion");
-    expect(
-      fixture.sharedGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
-    ).toHaveLength(5);
-    expect(
-      fixture.dragGlassPlane.querySelectorAll("[data-shared-small-glass-clip] > rect"),
-    ).toHaveLength(0);
+    expect(readSmallOutputShapes(fixture.sharedGlassPlane)).toHaveLength(5);
+    expect(readSmallOutputShapes(fixture.dragGlassPlane)).toHaveLength(0);
     expect(fixture.commitOrder).toHaveBeenCalledTimes(1);
     expect(fixture.commitOrder).toHaveBeenCalledWith(["b", "c", "d", "e", "a"]);
     fixture.destroy();
@@ -326,8 +319,8 @@ describe("production Canvas Browser runtime", () => {
     expect(cardY("a")).toBe(0);
     expect(cardY("c")).toBeCloseTo(188 + spread / 2);
     expect(cardY("d")).toBe(282);
-    const glass = fixture.dragGlassPlane.querySelector("[data-shared-small-glass-clip] > rect");
-    expect(glass).toHaveAttribute("width", String(Math.round(264 * CANVAS_CARD_HELD_SCALE)));
+    const [glass] = readSmallOutputShapes(fixture.dragGlassPlane);
+    expect(glass.width).toBe(Math.round(264 * CANVAS_CARD_HELD_SCALE));
 
     dispatchPointer("pointerup", 150);
     fixture.frames.fire(300);

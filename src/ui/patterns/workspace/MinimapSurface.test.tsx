@@ -1,7 +1,5 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../../materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../../materials/materialSurfaceRegistry";
+import { afterEach, describe, expect, it } from "vitest";
 import { MotionProvider } from "../../motion/MotionProvider";
 import {
   createMotionFrameScheduler,
@@ -16,23 +14,20 @@ describe("MinimapSurface", () => {
   it("material-fades on the shared scheduler without ancestor opacity or cached masks", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
     const renderSurface = (visible: boolean) => (
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <ReducedMotionProvider override={false}>
           <MotionProvider scheduler={scheduler}>
             <MinimapSurface visible={visible}>Map</MinimapSurface>
           </MotionProvider>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>
+      </>
     );
     const { rerender } = render(renderSurface(true));
     const surface = screen.getByLabelText("Minimap");
 
     expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
     expect(surface).toHaveAttribute("data-presence-phase", "showing");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
     // The first frame starts the presence clock (zero delta); the second one advances it.
     act(() => driver.fire());
@@ -44,7 +39,6 @@ describe("MinimapSurface", () => {
     expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
     expect(surface).toHaveAttribute("data-presence-phase", "visible");
     expect(surface.style.opacity).toBe("");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
     rerender(renderSurface(false));
@@ -58,58 +52,44 @@ describe("MinimapSurface", () => {
     expect(surface).toHaveAttribute("data-presence-phase", "hidden");
     expect(surface).toHaveAttribute("aria-hidden", "true");
     expect(surface.style.opacity).toBe("");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
 
-    const revisionAtRest = registry.getSnapshot().planeRevisions.base;
     expect(driver.fire()).toBe(false);
-    expect(registry.getSnapshot().planeRevisions.base).toBe(revisionAtRest);
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     scheduler.dispose();
-    registry.dispose();
   });
 
   it("settles material presence immediately under reduced motion", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const registry = createMaterialSurfaceRegistry(null);
     const renderSurface = (visible: boolean) => (
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <ReducedMotionProvider override>
           <MotionProvider scheduler={scheduler}>
             <MinimapSurface visible={visible} />
           </MotionProvider>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>
+      </>
     );
     const { rerender } = render(renderSurface(true));
     const surface = screen.getByLabelText("Minimap");
     expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot().subscriberCount).toBe(0);
 
     rerender(renderSurface(false));
     expect(surface.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("0");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     scheduler.dispose();
-    registry.dispose();
   });
 
   it("uses native Large and non-registering Cutout without cached registrations", () => {
-    const registry = createMaterialSurfaceRegistry(null);
     render(
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <ReducedMotionProvider override>
           <MinimapSurface visible>
             <MinimapViewport data-testid="interior" />
           </MinimapSurface>
         </ReducedMotionProvider>
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
 
     const shell = screen.getByLabelText("Minimap");
@@ -120,8 +100,6 @@ describe("MinimapSurface", () => {
     expect(interior).not.toHaveAttribute("data-material-surface-id");
     expect(interior.style.getPropertyValue("--taskmap-material-radius")).toBe("6px");
     expect(shell).toHaveAttribute("data-material-strategy", "native-glass");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
-    registry.dispose();
   });
 });
 

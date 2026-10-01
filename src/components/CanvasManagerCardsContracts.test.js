@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 const canvasManagerPath = new URL("./CanvasManager.tsx", import.meta.url);
 const extensionsPanelPath = new URL("./ExtensionsPanel.tsx", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const patternPath = new URL("../ui/patterns/workspace/CanvasBrowserCard.tsx", import.meta.url);
 const patternCssPath = new URL("../ui/patterns/workspace/CanvasBrowserCard.css", import.meta.url);
 const browserCssPath = new URL("../ui/patterns/workspace/CanvasBrowser.css", import.meta.url);
@@ -113,12 +112,11 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
   });
 
   it("uses stable portal hosts for the actual card and introduces no clone/compositor path", async () => {
-    const [manager, pattern, browserCss, runtime, appShell] = await Promise.all([
+    const [manager, pattern, browserCss, runtime] = await Promise.all([
       readFile(canvasManagerPath, "utf8"),
       readFile(patternPath, "utf8"),
       readFile(browserCssPath, "utf8"),
       readFile(runtimePath, "utf8"),
-      readFile(appShellPath, "utf8"),
     ]);
     const boundary = `${manager}\n${pattern}\n${browserCss}\n${runtime}`;
 
@@ -131,7 +129,6 @@ describe("Phase 4.5C2D Canvas Browser architecture contracts", () => {
     expect(boundary).not.toMatch(
       /backdrop-filter|createBrowserAcrylicRuntime|createMaterialSurfaceRegistry|MaterialCompositorProvider|acrylicCache/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
   it("keeps Canvas C2D boundaries intact after the isolated C2E Extensions migration", async () => {

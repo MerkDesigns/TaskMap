@@ -6,7 +6,6 @@ export interface MajorGlassLayerOwner {
 
 /** MaterialSurface registration stays independent from the concrete plane renderer. */
 export const MajorGlassLayerContext = createContext<MajorGlassLayerOwner | null>(null);
-export const WorkspaceMajorGlassEnabled = createContext(true);
 
 // Mounted workspace planes, most recent last. Base Majors rendered outside the workspace subtree
 // (the app-level window chrome portal) join the active plane through this store.

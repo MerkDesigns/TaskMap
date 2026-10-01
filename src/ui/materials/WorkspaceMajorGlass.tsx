@@ -1,14 +1,6 @@
-import {
-  useContext,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PropsWithChildren,
-} from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
   MajorGlassLayerContext,
-  WorkspaceMajorGlassEnabled,
   publishWorkspaceMajorOwner,
   useWorkspaceMajorOwner,
   type MajorGlassLayerOwner,
@@ -25,7 +17,6 @@ import { ACRYLIC_LARGE } from "./materialDefinitions";
 
 /** Workspace Majors share L0; retained Minor rendering stays local. */
 export function WorkspaceMajorGlass({ children }: PropsWithChildren) {
-  const enabled = useContext(WorkspaceMajorGlassEnabled);
   const host = useRef<HTMLDivElement>(null);
   // The owner writes size/mask imperatively; props must stay constant so re-renders never reset them.
   const [initialSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
@@ -35,24 +26,22 @@ export function WorkspaceMajorGlass({ children }: PropsWithChildren) {
   );
   useLayoutEffect(() => {
     owner.refresh();
-    if (enabled) return publishWorkspaceMajorOwner(owner);
-  }, [enabled, owner]);
+    return publishWorkspaceMajorOwner(owner);
+  }, [owner]);
   return (
-    <MajorGlassLayerContext.Provider value={enabled ? owner : null}>
-      {enabled && (
-        <div
-          ref={host}
-          data-workspace-major-glass="true"
-          style={{ position: "absolute", inset: 0, zIndex: -1, pointerEvents: "none" }}
-        >
-          <NativeGlassPlane
-            definition={ACRYLIC_LARGE}
-            width={initialSize.width}
-            height={initialSize.height}
-            shapes={[]}
-          />
-        </div>
-      )}
+    <MajorGlassLayerContext.Provider value={owner}>
+      <div
+        ref={host}
+        data-workspace-major-glass="true"
+        style={{ position: "absolute", inset: 0, zIndex: -1, pointerEvents: "none" }}
+      >
+        <NativeGlassPlane
+          definition={ACRYLIC_LARGE}
+          width={initialSize.width}
+          height={initialSize.height}
+          shapes={[]}
+        />
+      </div>
       {children}
     </MajorGlassLayerContext.Provider>
   );

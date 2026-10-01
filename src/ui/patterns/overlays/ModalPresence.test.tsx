@@ -2,10 +2,6 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest";
 import { MaterialPlaneProvider } from "../../materials/MaterialPlane";
 import { MaterialSurface } from "../../materials/MaterialSurface";
-import {
-  resolveMaterialSurfaceMaskOpacity,
-  type MaterialSurfaceMaskOpacityGroup,
-} from "../../materials/MaterialSurfaceRegistration";
 import { ModalDialog } from "./ModalDialog";
 import { ModalPresence } from "./ModalPresence";
 import {
@@ -26,16 +22,12 @@ describe("ModalPresence", () => {
 
   it("material-fades native glass through exit without ancestor opacity or cached masks", () => {
     const harness = createPresenceHarness(false);
-    const exitMasks: number[][] = [];
     const exitStyles: Array<{ opacity: string; transform: string; presence: string }> = [];
     const view = (open: boolean) => (
       <HarnessProviders harness={harness}>
         <ModalPresence
           open={open}
           onExitComplete={() => {
-            exitMasks.push(
-              harness.registry.getSnapshot().surfaces.map(({ maskOpacity }) => maskOpacity),
-            );
             const current = presenceGroup();
             exitStyles.push({
               opacity: current.style.opacity,
@@ -55,13 +47,11 @@ describe("ModalPresence", () => {
     // Plain material fade: the group never moves or scales.
     expect(group.style.transform).toBe("");
     expect(scrim().style.opacity).toBe("0");
-    expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot().subscriberCount).toBe(1);
 
     // The first frame starts the presence clock (zero delta); the second one advances it.
     act(() => harness.driver.fire());
     act(() => harness.driver.fire());
-    expect(harness.notifyGeometry).not.toHaveBeenCalled();
     expect(Number(presenceValue(group))).toBeGreaterThan(0);
     expect(group.style.opacity).toBe("");
     act(() => harness.driver.flush());
@@ -69,7 +59,6 @@ describe("ModalPresence", () => {
     expect(group.style.transform).toBe("");
     expect(scrim().style.opacity).toBe("1");
     expect(group).toHaveAttribute("data-motion-state", "open");
-    expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     expect(harness.driver.fire()).toBe(false);
 
@@ -80,11 +69,9 @@ describe("ModalPresence", () => {
     expect(Number(presenceValue(group))).toBeLessThan(1);
     expect(group.style.opacity).toBe("");
     act(() => harness.driver.flush());
-    expect(exitMasks).toEqual([[]]);
     expect(exitStyles).toEqual([{ opacity: "", transform: "", presence: "0" }]);
     expect(screen.queryByRole("dialog", { name: "Motion dialog" })).not.toBeInTheDocument();
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    expect(harness.notifyGeometry).not.toHaveBeenCalled();
     harness.dispose();
   });
 
@@ -141,7 +128,6 @@ describe("ModalPresence", () => {
     expect(harness.scheduler.getSnapshot().subscriberCount).toBe(1);
     act(() => harness.driver.flush());
     expect(presenceValue(presenceGroup())).toBe("");
-    expect(maskOpacities(harness)).toEqual([]);
     harness.dispose();
   });
 
@@ -157,7 +143,6 @@ describe("ModalPresence", () => {
     const { rerender } = render(view(true));
     expect(presenceValue(presenceGroup())).toBe("");
     expect(presenceGroup().style.opacity).toBe("");
-    expect(maskOpacities(harness)).toEqual([]);
     expect(harness.scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     rerender(view(false));
     expect(screen.queryByRole("dialog", { name: "Motion dialog" })).not.toBeInTheDocument();
@@ -181,32 +166,10 @@ describe("ModalPresence", () => {
     expect(presenceGroup()).toHaveAttribute("data-taskmap-modal-presence-level", "nested");
     fireEvent.click(document.querySelector(".taskmap-nested-modal-scrim") as HTMLDivElement);
     expect(screen.getByRole("dialog", { name: "Motion dialog" })).toBeInTheDocument();
-    expect(harness.registry.getSnapshot().surfaces.every(({ plane }) => plane === "modal")).toBe(
-      true,
-    );
     harness.dispose();
   });
 
   it("composes root and nested presence for every scheduler ordering and motion combination", () => {
-    const rootOpacity = { current: 1 };
-    const nestedOpacity = { current: 1 };
-    const rootGroup: MaterialSurfaceMaskOpacityGroup = {
-      localOpacityRef: rootOpacity,
-      parent: null,
-    };
-    const nestedGroup: MaterialSurfaceMaskOpacityGroup = {
-      localOpacityRef: nestedOpacity,
-      parent: rootGroup,
-    };
-    rootOpacity.current = 0.4;
-    nestedOpacity.current = 0.5;
-    expect(resolveMaterialSurfaceMaskOpacity(nestedGroup)).toBeCloseTo(0.2, 10);
-    rootOpacity.current = 1;
-    nestedOpacity.current = 1;
-    nestedOpacity.current = 0.5;
-    rootOpacity.current = 0.4;
-    expect(resolveMaterialSurfaceMaskOpacity(nestedGroup)).toBeCloseTo(0.2, 10);
-
     const harness = createPresenceHarness(false);
     const unrelated = (
       <MaterialSurface material="acrylic-small" data-testid="unrelated-surface">
@@ -258,7 +221,6 @@ describe("ModalPresence", () => {
     act(() => harness.driver.flush());
     expect(effectivePresenceOpacity("nested-surface")).toBe(1);
     expect(effectivePresenceOpacity("unrelated-surface")).toBe(1);
-    expect(harness.registry.getSnapshot().surfaces).toEqual([]);
     harness.dispose();
   });
 
@@ -287,11 +249,9 @@ describe("ModalPresence", () => {
     const { rerender } = render(view(0, false));
     act(() => harness.driver.fire());
     const stableElement = screen.getByTestId("stable-surface");
-    const revisionBeforeRender = harness.registry.getSnapshot().revision;
 
     rerender(view(1, false));
     expect(screen.getByTestId("stable-surface")).toBe(stableElement);
-    expect(harness.registry.getSnapshot().revision).toBe(revisionBeforeRender);
     expect(stableElement).toHaveAttribute("data-material-strategy", "native-glass");
     expect(stableElement).not.toHaveAttribute("data-material-surface-id");
 
@@ -300,7 +260,6 @@ describe("ModalPresence", () => {
       "data-material-strategy",
       "native-glass",
     );
-    expect(harness.registry.getSnapshot().surfaces).toEqual([]);
     harness.dispose();
   });
 });
@@ -320,10 +279,6 @@ function TestAcrylicGroup() {
 
 function presenceGroup() {
   return document.querySelector(".taskmap-modal-presence-group") as HTMLDivElement;
-}
-
-function maskOpacities(harness: ReturnType<typeof createPresenceHarness>) {
-  return harness.registry.getSnapshot().surfaces.map(({ maskOpacity }) => maskOpacity);
 }
 
 function presenceGroupByLevel(level: "root" | "nested") {

@@ -3,9 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TaskCanvas } from "../types";
-import { MaterialSurfaceRegistrationProvider } from "../ui/materials/MaterialSurfaceRegistration";
 import { readNativeGlassDiagnostics } from "../ui/materials/SharedSmallGlassPlane";
-import { createMaterialSurfaceRegistry } from "../ui/materials/materialSurfaceRegistry";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { CANVAS_BROWSER_LAYOUT } from "../ui/patterns/workspace/canvasBrowserLayout";
 import { CanvasManager } from "./CanvasManager";
@@ -21,8 +19,7 @@ afterEach(() => {
 
 describe("C2D Canvas Browser cards", () => {
   it("accepts temporary browser and full-card radius overrides", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderProduction([canvas("canvas-a")], registry, {
+    const { container } = renderProduction([canvas("canvas-a")], {
       panelRadius: 29,
       cardRadius: 17,
     });
@@ -31,12 +28,10 @@ describe("C2D Canvas Browser cards", () => {
 
     expect(panel?.style.getPropertyValue("--taskmap-material-radius")).toBe("29px");
     expect(card?.style.getPropertyValue("--taskmap-material-radius")).toBe("17px");
-    registry.dispose();
   });
 
-  it("maps full production cards to Acrylic Small and previews to unregistered Cutout", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderProduction([canvas("canvas-a")], registry);
+  it("maps full production cards to Acrylic Small and previews to Cutout", () => {
+    const { container } = renderProduction([canvas("canvas-a")]);
     const card = container.querySelector('[data-canvas-card-id="canvas-a"]');
     const preview = card?.querySelector('[data-material="cutout"]');
 
@@ -52,37 +47,28 @@ describe("C2D Canvas Browser cards", () => {
     );
     expect(card).toHaveAttribute("aria-current", "true");
     expect(card).not.toHaveClass("taskmap-material-surface--bright-selection");
-    expect(registry.getSnapshot().surfaces).toEqual([]);
-    registry.dispose();
   });
 
   it("uses the accepted minimal Acrylic Small geometry", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderProduction([canvas("canvas-a")], registry, { minimalView: true });
+    const { container } = renderProduction([canvas("canvas-a")], { minimalView: true });
     const card = container.querySelector('[data-canvas-card-id="canvas-a"]') as HTMLElement;
 
     expect(card).toHaveAttribute("data-material", "acrylic-small");
     expect(card).toHaveAttribute("data-canvas-card-mode", "minimal");
     expect(card.style.getPropertyValue("--taskmap-material-radius")).toBe("8px");
     expect(card.querySelector('[data-material="cutout"]')).toBeNull();
-    registry.dispose();
   });
 
-  it("keeps embedded cards and previews outside cached-acrylic registration", () => {
-    const registry = createMaterialSurfaceRegistry(null);
+  it("keeps embedded cards and previews plain", () => {
     const { container } = render(
-      <MaterialSurfaceRegistrationProvider
-        value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-      >
+      <>
         <CanvasManager {...canvasManagerProps([canvas("canvas-a")])} embedded />
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
     const card = container.querySelector('[data-canvas-card-id="canvas-a"]');
 
     expect(card).toHaveAttribute("data-material", "opaque");
     expect(card?.querySelector('[data-material="cutout"]')).toBeInTheDocument();
-    expect(registry.getSnapshot().surfaces).toHaveLength(0);
-    registry.dispose();
   });
 
   it("preserves preview projection, layering, user colors, and transparent images", () => {
@@ -329,8 +315,7 @@ describe("C2D Canvas Browser cards", () => {
       if (this.dataset.canvasCardId) return rect(74, 84, 264);
       return rect(16, 370, 288);
     });
-    const registry = createMaterialSurfaceRegistry(null);
-    const { container } = renderProduction([canvas("canvas-a"), canvas("canvas-b")], registry);
+    const { container } = renderProduction([canvas("canvas-a"), canvas("canvas-b")]);
     const card = container.querySelector('[data-canvas-card-id="canvas-a"]') as HTMLElement;
     const originalCard = card;
     const settledHost = card.parentElement;
@@ -385,14 +370,10 @@ describe("C2D Canvas Browser cards", () => {
       nativeBackdropFilterLayerCount: 4,
       temporaryDragBatchActive: false,
     });
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     expect(document.querySelector("[data-canvas-browser-drag-layer]")).toBeNull();
-    registry.dispose();
   });
 
   it("keeps click selection below threshold and commits one order after the final snap", () => {
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
     const interactionFrames: FrameRequestCallback[] = [];
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       interactionFrames.push(callback);
@@ -412,7 +393,7 @@ describe("C2D Canvas Browser cards", () => {
     function ReorderHarness() {
       const [ordered, setOrdered] = useState([canvas("canvas-a"), canvas("canvas-b")]);
       return (
-        <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+        <>
           <ReducedMotionProvider override={false}>
             <CanvasManager
               {...canvasManagerProps(ordered)}
@@ -424,12 +405,11 @@ describe("C2D Canvas Browser cards", () => {
               }}
             />
           </ReducedMotionProvider>
-        </MaterialSurfaceRegistrationProvider>
+        </>
       );
     }
 
     const { container } = render(<ReorderHarness />);
-    notifySurfaceGeometryChanged.mockClear();
     const first = container.querySelector('[data-canvas-card-id="canvas-a"]') as HTMLElement;
 
     fireEvent(first, canvasPointerEvent("pointerdown", 8, 100));
@@ -453,24 +433,19 @@ describe("C2D Canvas Browser cards", () => {
 
     expect(onReorderCanvases).toHaveBeenCalledTimes(1);
     expect(onReorderCanvases).toHaveBeenCalledWith(["canvas-b", "canvas-a"]);
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
-    registry.dispose();
   });
 });
 
 function renderProduction(
   canvases: TaskCanvas[],
-  registry: ReturnType<typeof createMaterialSurfaceRegistry>,
   overrides: Partial<ReturnType<typeof canvasManagerProps>> = {},
 ) {
   return render(
-    <MaterialSurfaceRegistrationProvider
-      value={{ registry, notifySurfaceGeometryChanged: vi.fn() }}
-    >
+    <>
       <ReducedMotionProvider override>
         <CanvasManager {...canvasManagerProps(canvases)} {...overrides} />
       </ReducedMotionProvider>
-    </MaterialSurfaceRegistrationProvider>,
+    </>,
   );
 }
 

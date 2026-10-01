@@ -66,10 +66,6 @@ describe("modal keyboard behavior", () => {
             onAllowLockedElementDeletionChange={onAllowLockedElementDeletionChange}
             onExportData={vi.fn(async () => true)}
             onImportData={vi.fn(async () => undefined)}
-            discordRpcEnabled={false}
-            onDiscordRpcEnabledChange={vi.fn()}
-            discordRpcShowCanvas={true}
-            onDiscordRpcShowCanvasChange={vi.fn()}
             availableUpdate={null}
             appVersion="0.2.8"
             fpsCounterVisible={false}

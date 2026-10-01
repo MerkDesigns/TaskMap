@@ -26,8 +26,8 @@ it("does not bypass a rejected native close", async () => {
   expect(native.destroy).not.toHaveBeenCalled();
 });
 
-it.each(["storage-preview", "ui-lab"])("keeps %s storage-free", async (mode) => {
-  vi.stubEnv("MODE", mode);
+it("keeps the storage preview storage-free", async () => {
+  vi.stubEnv("MODE", "storage-preview");
   await tauriWindowCloseClient.destroy();
   expect(native.invoke).not.toHaveBeenCalled();
   expect(native.destroy).toHaveBeenCalledOnce();

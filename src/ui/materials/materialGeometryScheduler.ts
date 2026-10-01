@@ -125,7 +125,7 @@ function onScroll(event: Event) {
   }
 }
 
-/** Geometry scheduling only; this does not register or render compositor surfaces. */
+/** Geometry scheduling only; rendering stays with the material surfaces. */
 export function registerMaterialGeometryWork(item: GeometryWork, elements: readonly Element[]) {
   if (work.size === 0) {
     observer =

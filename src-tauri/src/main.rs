@@ -116,7 +116,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init());
 
-    #[cfg(not(any(feature = "ui-lab-development", feature = "storage-free-preview")))]
+    #[cfg(not(feature = "storage-free-preview"))]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
 
     #[cfg(all(debug_assertions, feature = "mcp-development"))]
@@ -132,10 +132,6 @@ fn main() {
                 eprintln!("TaskMap storage-free preview: no database, keyring, image GC or window-state access");
                 return Ok(());
             }
-            if cfg!(feature = "ui-lab-development") {
-                eprintln!("TaskMap UI Lab: product storage and session lifecycle disabled");
-                return Ok(());
-            }
 
             if let Some(window) = app.get_webview_window("main") {
                 webview_autofill::disable_webview_autofill(&window);
@@ -149,7 +145,7 @@ fn main() {
         })
         .on_window_event(|window, event| {
             commands::application_image_drop::capture_drop(window, event);
-            if cfg!(feature = "ui-lab-development") || storage_preview::ENABLED {
+            if storage_preview::ENABLED {
                 return;
             }
 

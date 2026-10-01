@@ -29,7 +29,7 @@ assert.deepEqual(capability.permissions, [
 const main = await read("src-tauri/src/main.rs");
 assert.ok(main.indexOf("storage_preview::validate_launch(") < main.indexOf("let builder ="));
 assert.match(main, /if storage_preview::ENABLED \{[^}]*return Ok\(\(\)\);/);
-assert.ok(main.includes('cfg!(feature = "ui-lab-development") || storage_preview::ENABLED'));
+assert.match(main, /on_window_event[\s\S]*?if storage_preview::ENABLED \{\s*return;/);
 const policy = await read("src-tauri/src/storage_preview.rs");
 assert.ok(policy.includes("not(debug_assertions)"));
 assert.ok(policy.includes("compile_error!("));

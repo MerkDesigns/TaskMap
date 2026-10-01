@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { MINIMAP_MAX_SIZE } from "../constants";
 
 const appPath = new URL("../App.tsx", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const minimapPath = new URL("./Minimap.tsx", import.meta.url);
 const patternPath = new URL("../ui/patterns/workspace/MinimapSurface.tsx", import.meta.url);
 const patternCssPath = new URL("../ui/patterns/workspace/MinimapSurface.css", import.meta.url);
@@ -78,8 +77,7 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
   });
 
   it("shares presence motion without new compositor infrastructure or animation loops", async () => {
-    const [appShell, motion, pattern, minimap] = await Promise.all([
-      readFile(appShellPath, "utf8"),
+    const [motion, pattern, minimap] = await Promise.all([
       readFile(motionPath, "utf8"),
       readFile(patternPath, "utf8"),
       readFile(minimapPath, "utf8"),
@@ -93,7 +91,6 @@ describe("Phase 4.5C2F Minimap architecture contracts", () => {
     expect(boundary).not.toMatch(
       /requestAnimationFrame|createBrowserAcrylicRuntime|acrylicCache|MaterialCompositorProvider/i,
     );
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
   });
 
   it("keeps reset-only behavior and does not add navigation handlers", async () => {

@@ -21,31 +21,6 @@ describe("production glass hot-path contracts", () => {
     expect(rule[2]).not.toMatch(/backdrop-filter|opacity|transform/);
     expect(source("./nativeGlassGeometry.ts")).not.toMatch(/output-mask|encodeURIComponent/);
   });
-  it("keeps parked scene preparation and registry construction outside production composition", () => {
-    for (const path of [
-      "../../App.tsx",
-      "../../app/AppShell.tsx",
-      "../../legacy/LegacyApplication.tsx",
-      "./MaterialCompositorProvider.tsx",
-    ]) {
-      expect(source(path)).not.toMatch(
-        /projectLegacyBackdropScene|advanceLegacyBackdropSceneRevision|buildBackdropScene|createMaterialCompositorPresentationBridge|createMaterialSurfaceRegistry/,
-      );
-    }
-  });
-
-  it("keeps presentation-only motion independent of the parked material registry", () => {
-    for (const path of [
-      "../primitives/usePressSpringScale.ts",
-      "../primitives/LiquidToggleSwitch.tsx",
-      "../primitives/LiquidSelectionIndicator.tsx",
-      "../patterns/overlays/ModalPresence.tsx",
-      "../../components/FloatingToolbar.tsx",
-    ]) {
-      expect(source(path)).not.toContain("MaterialSurfaceRegistration");
-    }
-  });
-
   it("defines optical filter formulas once and contains no revision transform nudge", () => {
     expect(source("./nativeGlassRecipe.css")).toContain(
       "--taskmap-material-blur-presence-progress",

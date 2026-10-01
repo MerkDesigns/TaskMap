@@ -9,18 +9,15 @@ edition = "2021"
 default = []
 phase2-development = []
 mcp-development = ["dep:tauri-plugin-mcp-bridge"]
-ui-lab-development = []
 storage-free-preview = []
 
 [build-dependencies]
 tauri-build = { version = "2.2.0", features = [] }
 
 [dependencies]
-aes-gcm = "0.10.3"
 argon2 = { version = "0.5.3", features = ["zeroize"] }
 base64 = "0.22.1"
 chacha20poly1305 = "0.10.1"
-discord-rich-presence = "1.1.0"
 fs2 = "0.4.3"
 image = { version = "0.25", default-features = false, features = [
     "png",
@@ -30,13 +27,6 @@ image = { version = "0.25", default-features = false, features = [
     "webp",
 ] }
 webp = "0.3"
-keyring = { version = "3.6.2", default-features = false, features = [
-    "apple-native",
-    "windows-native",
-    "sync-secret-service",
-    "crypto-rust",
-] }
-pbkdf2 = "0.12.2"
 rand = "0.8.5"
 rusqlite = { version = "0.32.1", features = ["backup", "bundled"] }
 roxmltree = "0.20"

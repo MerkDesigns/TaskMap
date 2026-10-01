@@ -2,8 +2,6 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../materials/materialSurfaceRegistry";
 import { MotionProvider } from "../motion/MotionProvider";
 import { createMotionFrameScheduler, type MotionFrameDriver } from "../motion/motionFrameScheduler";
 import { ReducedMotionProvider } from "../motion/reducedMotionPreference";
@@ -44,28 +42,24 @@ describe("button material controls", () => {
   it("shares one scheduler and uses cheap geometry invalidation while the knob travels", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
     const { rerender } = render(
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <MotionProvider scheduler={scheduler}>
           <LiquidToggleSwitch label="Liquid switch" checked={false} onCheckedChange={() => {}} />
         </MotionProvider>
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
     rerender(
-      <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+      <>
         <MotionProvider scheduler={scheduler}>
           <LiquidToggleSwitch label="Liquid switch" checked onCheckedChange={() => {}} />
         </MotionProvider>
-      </MaterialSurfaceRegistrationProvider>,
+      </>,
     );
     act(() => driver.fire());
     expect(scheduler.getSnapshot().subscriberCount).toBe(1);
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     act(() => driver.flush());
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
-    registry.dispose();
     scheduler.dispose();
   });
 

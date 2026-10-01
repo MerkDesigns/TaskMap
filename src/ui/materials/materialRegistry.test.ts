@@ -8,11 +8,6 @@ import {
   OPAQUE,
   OPAQUE_HIGHLIGHT_STOPS,
 } from "./materialDefinitions";
-import {
-  LEGACY_ACRYLIC_LARGE,
-  LEGACY_ACRYLIC_SMALL,
-  LEGACY_SHARED_ACRYLIC_CACHE_PROFILE,
-} from "./legacyCachedAcrylicDefinitions";
 import { createMaterialRegistry, materialRegistry } from "./materialRegistry";
 
 describe("material definitions", () => {
@@ -93,19 +88,6 @@ describe("material definitions", () => {
       },
       shadow: { xPx: 0, yPx: 3.5, blurPx: 11.5, spreadPx: 0.5, opacity: 0.48 },
     });
-  });
-
-  it("keeps the previous cached candidate available only as legacy rollback data", () => {
-    expect(LEGACY_SHARED_ACRYLIC_CACHE_PROFILE).toEqual({
-      id: "shared-acrylic",
-      blurRadiusPx: 45,
-      saturation: 1,
-      brightness: 1,
-    });
-    expect(LEGACY_ACRYLIC_LARGE.strategy).toBe("cached-acrylic");
-    expect(LEGACY_ACRYLIC_SMALL.strategy).toBe("cached-acrylic");
-    expect(MATERIAL_DEFINITIONS).not.toContain(LEGACY_ACRYLIC_LARGE);
-    expect(MATERIAL_DEFINITIONS).not.toContain(LEGACY_ACRYLIC_SMALL);
   });
 
   it("preserves Opaque and Cutout without native backdrop registration", () => {

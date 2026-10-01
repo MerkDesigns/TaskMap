@@ -93,8 +93,6 @@ function createDocument(name, elementCount) {
     recentColors: [],
     shadowsUnderElements: false,
     allowLockedElementDeletion: true,
-    discordRpcEnabled: false,
-    discordRpcShowCanvas: true,
     minimapEnabled: true,
     privacyModeEnabled: false,
     toolbarButtonsVisible: false,

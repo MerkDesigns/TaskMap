@@ -13,8 +13,6 @@ import { BlurPresenceTuning } from "./BlurPresenceTuning";
 import { WorkbenchTools } from "./WorkbenchTools";
 import "../../ui-lab/uiLab.css";
 import "./visualWorkbench.css";
-import { WorkspaceMajorGlassEnabled } from "../../ui/materials/MajorGlassLayer";
-import { SmallGlassOutputMaskEnabled } from "../../ui/materials/sharedSmallOutputMask";
 
 /** View ownership only. The admitted database/session/resources outlive both views. */
 export default function DevelopmentVisualWorkbench({
@@ -24,8 +22,6 @@ export default function DevelopmentVisualWorkbench({
 }) {
   const [view, setView] = useState<"app" | "lab">("app");
   const [collapsed, setCollapsed] = useState(readCollapsed);
-  const [sharedMajor, setSharedMajor] = useState(true);
-  const [outputMaskedMinor, setOutputMaskedMinor] = useState(true);
   const [quickExtensionsPreset, setQuickExtensionsPreset] =
     useState<PresencePresetName>("materialFadeSlideUp");
   const [sidePanelPreset, setSidePanelPreset] =
@@ -44,17 +40,9 @@ export default function DevelopmentVisualWorkbench({
   return (
     <ReducedMotionProvider override={null}>
       <MotionProvider>
-        <WorkspaceMajorGlassEnabled.Provider value={sharedMajor}>
-          <SmallGlassOutputMaskEnabled.Provider value={outputMaskedMinor}>
-            <PresencePresetOverrides.Provider value={presenceOverrides}>
-              {view === "app" ? (
-                <RetainedCanvasApplication runtime={runtime} />
-              ) : (
-                <UiLabApp embedded />
-              )}
-            </PresencePresetOverrides.Provider>
-          </SmallGlassOutputMaskEnabled.Provider>
-        </WorkspaceMajorGlassEnabled.Provider>
+        <PresencePresetOverrides.Provider value={presenceOverrides}>
+          {view === "app" ? <RetainedCanvasApplication runtime={runtime} /> : <UiLabApp />}
+        </PresencePresetOverrides.Provider>
         <aside
           className="taskmap-workbench"
           data-collapsed={collapsed || undefined}
@@ -92,22 +80,6 @@ export default function DevelopmentVisualWorkbench({
           {/* Hidden, not unmounted: the tuning controls keep their state while collapsed. */}
           <div className="taskmap-workbench__body" hidden={collapsed}>
             <WorkbenchTools />
-            <label>
-              <input
-                type="checkbox"
-                checked={sharedMajor}
-                onChange={(e) => setSharedMajor(e.target.checked)}
-              />
-              Shared workspace Major glass
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={outputMaskedMinor}
-                onChange={(e) => setOutputMaskedMinor(e.target.checked)}
-              />
-              Output-masked Minor glass
-            </label>
             <label>
               Quick Extensions motion
               <select

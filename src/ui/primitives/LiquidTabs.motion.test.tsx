@@ -1,8 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { StrictMode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MaterialSurfaceRegistrationProvider } from "../materials/MaterialSurfaceRegistration";
-import { createMaterialSurfaceRegistry } from "../materials/materialSurfaceRegistry";
 import { MotionProvider } from "../motion/MotionProvider";
 import { createMotionFrameScheduler, type MotionFrameDriver } from "../motion/motionFrameScheduler";
 import { LiquidTabs } from "./LiquidTabs";
@@ -93,13 +91,11 @@ describe("LiquidTabs material motion", () => {
   it("measures variable tabs and invalidates only surface geometry while moving", () => {
     const driver = new ControlledFrameDriver();
     const scheduler = createMotionFrameScheduler(driver);
-    const registry = createMaterialSurfaceRegistry(null);
-    const notifySurfaceGeometryChanged = vi.fn();
 
     function Harness() {
       const [value, setValue] = useState("general");
       return (
-        <MaterialSurfaceRegistrationProvider value={{ registry, notifySurfaceGeometryChanged }}>
+        <>
           <MotionProvider scheduler={scheduler}>
             <LiquidTabs
               label="Liquid categories"
@@ -112,7 +108,7 @@ describe("LiquidTabs material motion", () => {
               ]}
             />
           </MotionProvider>
-        </MaterialSurfaceRegistrationProvider>
+        </>
       );
     }
 
@@ -127,12 +123,10 @@ describe("LiquidTabs material motion", () => {
     act(() => {
       expect(driver.fire()).toBe(true);
     });
-    expect(notifySurfaceGeometryChanged).not.toHaveBeenCalled();
     expect(Number.parseFloat(indicator?.style.width ?? "0")).toBeGreaterThan(0);
     expect(
       Number.parseFloat(indicator?.style.getPropertyValue("--taskmap-material-radius") ?? "0"),
     ).toBeGreaterThan(7);
-    expect(registry.getSnapshot().surfaces).toEqual([]);
     act(() => driver.flush());
     expect(indicator?.style.transform).toBe("translate3d(220px, 0, 0)");
     expect(indicator?.style.width).toBe("160px");
@@ -147,7 +141,6 @@ describe("LiquidTabs material motion", () => {
     expect(indicator).toHaveAttribute("data-material-elevation", "none");
 
     scheduler.dispose();
-    registry.dispose();
   });
 
   it("does not retain duplicate motion subscribers through StrictMode effects", () => {

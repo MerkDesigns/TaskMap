@@ -21,9 +21,7 @@ for (const command of ordinaryCommands) {
   if (
     !script ||
     script.includes("mcp-development") ||
-    script.includes("ui-lab-development") ||
     script.includes("tauri.mcp.dev.conf.json") ||
-    script.includes("tauri.ui-lab.conf.json") ||
     script.includes("withGlobalTauri")
   ) {
     throw new Error(`${command} must not enable the MCP development configuration`);
@@ -39,9 +37,6 @@ for (const [name, config] of [
   }
   if (JSON.stringify(config).includes("mcp-development")) {
     throw new Error(`${name} configuration enables the MCP development capability`);
-  }
-  if (JSON.stringify(config).includes("ui-lab-development")) {
-    throw new Error(`${name} configuration enables the UI Lab development feature`);
   }
 }
 

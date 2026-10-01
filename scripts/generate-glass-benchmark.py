@@ -111,8 +111,6 @@ def create_document(profile, assets):
         "defaultElementColors": dict.fromkeys(
             ("container", "textCard", "textBlock", "image", "mindmap"), ACCENT),
         "recentColors": [], "shadowsUnderElements": False, "allowLockedElementDeletion": True,
-        # Required by the active legacy schema, not a reintroduction of removed features.
-        "discordRpcEnabled": False, "discordRpcShowCanvas": False,
         "minimapEnabled": True, "privacyModeEnabled": False, "toolbarButtonsVisible": False,
     }
 

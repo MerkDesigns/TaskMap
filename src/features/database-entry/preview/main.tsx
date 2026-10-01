@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { DatabaseSessionGate } from "../DatabaseSessionGate";
-import { MaterialCompositorProvider } from "../../../ui/materials/MaterialCompositorProvider";
 import { RetainedCanvasApplication } from "../../../legacy/RetainedCanvasApplication";
 import { DatabaseWindowChrome } from "../DatabaseWindowChrome";
 import { Button } from "../../../ui/primitives/Button";
@@ -18,19 +17,17 @@ const runtime = createDatabaseEntryPreview(tauriWindowPrivacyClient);
 window.addEventListener("keydown", blockTabKeyNavigation, true);
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <MaterialCompositorProvider>
-      <div className="taskmap-target-theme" style={{ height: "100%" }}>
-        <DatabaseSessionGate runtime={runtime}>
-          <RetainedCanvasApplication runtime={runtime} />
-          <section style={{ position: "fixed", bottom: 56, right: 12, zIndex: 100000 }}>
-            <Button onClick={() => void runtime.controller.lock()}>Lock preview</Button>
-            <Button onClick={() => void runtime.forceLockPreview()}>Force lock preview</Button>
-            <Button onClick={() => void runtime.controller.close()}>Close preview database</Button>
-          </section>
-        </DatabaseSessionGate>
-        <DatabaseWindowChrome prepareClose={runtime.controller.close} />
-      </div>
-    </MaterialCompositorProvider>
+    <div className="taskmap-target-theme" style={{ height: "100%" }}>
+      <DatabaseSessionGate runtime={runtime}>
+        <RetainedCanvasApplication runtime={runtime} />
+        <section style={{ position: "fixed", bottom: 56, right: 12, zIndex: 100000 }}>
+          <Button onClick={() => void runtime.controller.lock()}>Lock preview</Button>
+          <Button onClick={() => void runtime.forceLockPreview()}>Force lock preview</Button>
+          <Button onClick={() => void runtime.controller.close()}>Close preview database</Button>
+        </section>
+      </DatabaseSessionGate>
+      <DatabaseWindowChrome prepareClose={runtime.controller.close} />
+    </div>
   </StrictMode>,
 );
 

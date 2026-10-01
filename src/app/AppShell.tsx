@@ -1,6 +1,5 @@
 import { lazy, Suspense } from "react";
 import { DatabaseApplication, DatabaseApplicationFallback } from "./database/DatabaseApplication";
-import { MaterialCompositorProvider } from "../ui/materials/MaterialCompositorProvider";
 import { AppProviders } from "./AppProviders";
 import { ApplicationErrorBoundary } from "./errors/ApplicationErrorBoundary";
 import { defaultApplicationErrorReporter } from "./errors/applicationErrorReporter";
@@ -19,18 +18,16 @@ export default function AppShell() {
       reporter={defaultApplicationErrorReporter}
       fallback={DevelopmentPhase2Entry ? undefined : <DatabaseApplicationFallback />}
     >
-      <MaterialCompositorProvider>
-        {DevelopmentPhase2Entry ? null : <DatabaseApplication />}
-        <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
-          <AppProviders>
-            {DevelopmentPhase2Entry ? (
-              <Suspense fallback={null}>
-                <DevelopmentPhase2Entry enabled />
-              </Suspense>
-            ) : null}
-          </AppProviders>
-        </ApplicationErrorBoundary>
-      </MaterialCompositorProvider>
+      {DevelopmentPhase2Entry ? null : <DatabaseApplication />}
+      <ApplicationErrorBoundary reporter={defaultApplicationErrorReporter}>
+        <AppProviders>
+          {DevelopmentPhase2Entry ? (
+            <Suspense fallback={null}>
+              <DevelopmentPhase2Entry enabled />
+            </Suspense>
+          ) : null}
+        </AppProviders>
+      </ApplicationErrorBoundary>
     </ApplicationErrorBoundary>
   );
 }

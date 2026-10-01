@@ -4,10 +4,8 @@ import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const appPath = new URL("../App.tsx", import.meta.url);
-const appShellPath = new URL("../app/AppShell.tsx", import.meta.url);
 const modalsPath = new URL("./Modals.tsx", import.meta.url);
 const colorPickerPath = new URL("./ColorPickerMenu.tsx", import.meta.url);
-const compositorCssPath = new URL("../ui/materials/MaterialCompositor.css", import.meta.url);
 const materialTypesPath = new URL("../ui/materials/materialTypes.ts", import.meta.url);
 const themePath = new URL("../ui/theme/theme.css", import.meta.url);
 const modalPatternPath = new URL("../ui/patterns/overlays/ModalLayer.tsx", import.meta.url);
@@ -20,18 +18,15 @@ const settingsCssPath = new URL("../ui/patterns/settings/SettingsPatterns.css", 
 const productionDialogsPath = new URL("./ProductionDialogs.tsx", import.meta.url);
 
 describe("Phase 4.5C3A Settings architecture contracts", () => {
-  it("defines semantic scrim/compositor/content layers without changing the modal canvas layer", async () => {
-    const [theme, compositorCss, modalPattern, modalCss] = await Promise.all([
+  it("defines semantic scrim/content layers without changing the modal canvas layer", async () => {
+    const [theme, modalPattern, modalCss] = await Promise.all([
       readFile(themePath, "utf8"),
-      readFile(compositorCssPath, "utf8"),
       readFile(modalPatternPath, "utf8"),
       readFile(modalCssPath, "utf8"),
     ]);
 
     expect(theme).toContain("--taskmap-layer-modal-scrim: 9999");
-    expect(theme).toContain("--taskmap-layer-modal-compositor: 10000");
     expect(theme).toContain("--taskmap-layer-modal-content: 10001");
-    expect(compositorCss).toContain("z-index: var(--taskmap-layer-modal-compositor)");
     expect(modalCss).toContain("z-index: var(--taskmap-layer-modal-scrim)");
     expect(modalCss).toContain("z-index: var(--taskmap-layer-modal-content)");
     expect(modalCss).toContain("background: rgb(0 0 0 / 0.36)");
@@ -96,22 +91,19 @@ describe("Phase 4.5C3A Settings architecture contracts", () => {
   });
 
   it("keeps overlay and application boundaries outside C3A", async () => {
-    const [app, appShell, colorPicker, materialTypes, modalPattern, settingsPattern] =
-      await Promise.all([
-        readFile(appPath, "utf8"),
-        readFile(appShellPath, "utf8"),
-        readFile(colorPickerPath, "utf8"),
-        readFile(materialTypesPath, "utf8"),
-        readFile(modalPatternPath, "utf8"),
-        readFile(settingsPatternPath, "utf8"),
-      ]);
+    const [app, colorPicker, materialTypes, modalPattern, settingsPattern] = await Promise.all([
+      readFile(appPath, "utf8"),
+      readFile(colorPickerPath, "utf8"),
+      readFile(materialTypesPath, "utf8"),
+      readFile(modalPatternPath, "utf8"),
+      readFile(settingsPatternPath, "utf8"),
+    ]);
     const [modalCss, settingsCss] = await Promise.all([
       readFile(modalCssPath, "utf8"),
       readFile(settingsCssPath, "utf8"),
     ]);
     const patterns = `${modalPattern}\n${modalCss}\n${settingsPattern}\n${settingsCss}`;
 
-    expect(appShell.match(/<MaterialCompositorProvider\b/g)).toHaveLength(1);
     expect(materialTypes).toMatch(/MaterialPlane\s*=\s*"base"\s*\|\s*"modal"/);
     expect(patterns).not.toMatch(
       /requestAnimationFrame|backdrop-filter|createBrowserAcrylicRuntime|acrylicCache|Redux|persistence|database|domain|tauri/i,

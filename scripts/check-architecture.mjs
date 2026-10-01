@@ -21,12 +21,9 @@ const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 const MATERIAL_SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
 const LEGACY_TAURI_IMPORTS = new Set([
   "src/App.tsx",
-  "src/components/CommandRunnerModals.test.tsx",
-  "src/components/CommandRunnerModals.tsx",
   "src/components/MarkdownContent.tsx",
   "src/components/TextCardNode.tsx",
   "src/hooks/useAppUpdates.ts",
-  "src/hooks/useDiscordRpc.ts",
   "src/hooks/useImageCache.test.tsx",
   "src/hooks/useImageCache.ts",
 ]);
@@ -151,9 +148,6 @@ for (const file of targetFiles) {
       "react",
       "../features/phase2-database/DevelopmentPhase2Entry",
       "./database/DatabaseApplication",
-      "../ui/dev/DevelopmentUiLab",
-      "../ui/materials/MaterialCompositorProvider",
-      "../ui/materials/materialCompositorPresentation",
       "./AppProviders",
       "./errors/ApplicationErrorBoundary",
       "./errors/applicationErrorReporter",
@@ -177,26 +171,6 @@ for (const file of targetFiles) {
         `${rel}: motion must not import application, domain, persistence, Redux, or Tauri code`,
       );
     }
-  }
-
-  if (
-    rel.startsWith("src/ui/primitives/") &&
-    importSpecifiers(source).some((specifier) =>
-      /(?:materials\/compositor|materialCompositorCoordinator)/.test(specifier),
-    )
-  ) {
-    violations.push(`${rel}: primitives must use the material boundary, not compositor internals`);
-  }
-
-  if (
-    rel.startsWith("src/ui/dev/") &&
-    importSpecifiers(source).some(
-      (specifier) =>
-        /(?:^|\/)(?:domain|platform|legacy|persistence)(?:\/|$)/.test(specifier) ||
-        /(?:@tauri-apps|react-redux|@reduxjs\/toolkit)/.test(specifier),
-    )
-  ) {
-    violations.push(`${rel}: development UI must not import production state or persistence`);
   }
 
   if (lines > 400 && !LEGACY_TARGET_FILES.has(rel)) {
@@ -233,20 +207,6 @@ for (const file of newRustFiles) {
   if (/\b(?:keyring|pbkdf2)\b|\b(?:migrate|migration|legacy)_\w*/i.test(source)) {
     violations.push(
       `${rel}: new Phase 2 modules must not contain legacy migration or keyring code`,
-    );
-  }
-}
-
-for (const legacyFile of ["storage.rs", "model.rs"]) {
-  const file = path.join(RUST_ROOT, legacyFile);
-  const source = await readFile(file, "utf8");
-  if (
-    /\b(?:argon2|chacha20poly1305|zeroize|fs2)\b|\b(?:format_info|encrypted_document)\b/.test(
-      source,
-    )
-  ) {
-    violations.push(
-      `${relative(file)}: Phase 2 database, crypto, session, and locking logic belongs in new Rust modules`,
     );
   }
 }

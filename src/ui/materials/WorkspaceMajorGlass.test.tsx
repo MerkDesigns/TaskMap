@@ -1,11 +1,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { useContext } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import {
-  MajorGlassLayerContext,
-  WorkspaceMajorGlassEnabled,
-  type MajorGlassLayerOwner,
-} from "./MajorGlassLayer";
+import { MajorGlassLayerContext, type MajorGlassLayerOwner } from "./MajorGlassLayer";
 import {
   WorkspaceMajorGlass,
   WorkspaceMajorGlassBridge,
@@ -92,11 +88,9 @@ it("keeps the owner's mask across re-renders after the window size changes", () 
     return null;
   };
   const view = (
-    <WorkspaceMajorGlassEnabled.Provider value>
-      <WorkspaceMajorGlass>
-        <Probe />
-      </WorkspaceMajorGlass>
-    </WorkspaceMajorGlassEnabled.Provider>
+    <WorkspaceMajorGlass>
+      <Probe />
+    </WorkspaceMajorGlass>
   );
   const { container, rerender } = render(view);
   const dispose = owner!.register(panel, 20);
@@ -134,21 +128,19 @@ it("bridges base Majors outside the workspace subtree only while a workspace pla
     </WorkspaceMajorGlassBridge>,
   );
   expect(bridged).toBeNull();
-  const view = (enabled: boolean) => (
-    <WorkspaceMajorGlassEnabled.Provider value={enabled}>
-      <WorkspaceMajorGlass>
-        <WorkspaceProbe />
-      </WorkspaceMajorGlass>
-    </WorkspaceMajorGlassEnabled.Provider>
+  const view = (
+    <WorkspaceMajorGlass>
+      <WorkspaceProbe />
+    </WorkspaceMajorGlass>
   );
-  const mounted = render(view(true));
+  const mounted = render(view);
   expect(workspace).not.toBeNull();
   expect(bridged).toBe(workspace);
-  mounted.rerender(view(false));
-  expect(bridged).toBeNull();
-  mounted.rerender(view(true));
-  expect(bridged).toBe(workspace);
   mounted.unmount();
+  expect(bridged).toBeNull();
+  const remounted = render(view);
+  expect(bridged).toBe(workspace);
+  remounted.unmount();
   expect(bridged).toBeNull();
   bridge.unmount();
 });
