@@ -7,7 +7,7 @@ use std::sync::Mutex;
 static WRITER: Mutex<()> = Mutex::new(());
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ElementColors {
     pub container: String,
     pub text_card: String,
@@ -17,7 +17,7 @@ pub(crate) struct ElementColors {
 }
 /// Corner radii of the workspace chrome in whole pixels (Settings → Visual → Interface).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields, default)]
+#[serde(rename_all = "camelCase", default)]
 pub(crate) struct ChromeRadii {
     pub side_panel: u8,
     pub canvas_card: u8,
@@ -52,7 +52,7 @@ fn default_close_to_tray() -> bool {
 /// Longest "lock after this long in the tray" choice: one day.
 pub(crate) const MAX_TRAY_LOCK_MINUTES: u32 = 24 * 60;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct DevicePreferences {
     pub default_element_colors: ElementColors,
     pub recent_colors: Vec<String>,
@@ -77,7 +77,7 @@ pub(crate) struct DevicePreferences {
     pub tray_lock_minutes: u32,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct PreferencesState {
     pub version: u32,
     pub edition: String,
@@ -154,23 +154,41 @@ pub(crate) fn load(directory: &Path, edition: &str) -> ServiceResult<Preferences
     if !matches!(edition, "stable" | "development") {
         return Err(ServiceFailure::PermissionDenied);
     }
-    let Some(bytes) =
-        settings_file::read(&directory.join("device-preferences-v1.json"), 16 * 1024)?
-    else {
-        return Ok(PreferencesState {
-            version: 1,
-            edition: edition.to_string(),
-            revision: 0,
-            preferences: DevicePreferences::default(),
-        });
+    let path = directory.join(PREFERENCES_FILE);
+    let defaults = || PreferencesState {
+        version: 1,
+        edition: edition.to_string(),
+        revision: 0,
+        preferences: DevicePreferences::default(),
     };
-    let state: PreferencesState =
-        serde_json::from_slice(&bytes).map_err(|_| ServiceFailure::Settings)?;
-    if state.version != 1 || state.edition != edition || state.revision > 9_007_199_254_740_991 {
-        return Err(ServiceFailure::Settings);
+    let Some(bytes) = settings_file::read(&path, 16 * 1024)? else {
+        return Ok(defaults());
+    };
+    match serde_json::from_slice::<PreferencesState>(&bytes) {
+        // Another edition's file in this folder is an isolation failure, not a broken file.
+        Ok(state) if state.edition != edition => Err(ServiceFailure::Settings),
+        Ok(state)
+            if state.version == 1
+                && state.revision <= 9_007_199_254_740_991
+                && state.preferences.validate().is_ok() =>
+        {
+            Ok(state)
+        }
+        // Unreadable, invalid or from an unknown file version: keep a copy and continue with
+        // defaults, so a bad settings file never blocks TaskMap (the next save replaces it).
+        _ => {
+            set_aside(&path);
+            Ok(defaults())
+        }
     }
-    state.preferences.validate()?;
-    Ok(state)
+}
+
+const PREFERENCES_FILE: &str = "device-preferences-v1.json";
+
+fn set_aside(path: &Path) {
+    let backup = path.with_extension("json.bak");
+    let _ = std::fs::remove_file(&backup);
+    let _ = std::fs::rename(path, backup);
 }
 pub(crate) fn save(
     directory: &Path,
@@ -193,7 +211,7 @@ pub(crate) fn save(
     state.revision += 1;
     state.preferences = preferences;
     settings_file::write(
-        &directory.join("device-preferences-v1.json"),
+        &directory.join(PREFERENCES_FILE),
         &serde_json::to_vec(&state).map_err(|_| ServiceFailure::Settings)?,
     )?;
     Ok(state)
@@ -222,5 +240,39 @@ mod tests {
         assert_eq!(radii.side_panel, 25);
         assert_eq!(radii.settings, 12);
         assert_eq!(radii.settings_island, 8);
+    }
+
+    #[test]
+    fn settings_written_by_a_newer_taskmap_still_load() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut state =
+            serde_json::to_value(super::load(directory.path(), "stable").unwrap()).unwrap();
+        state["preferences"]["settingFromTheFuture"] = serde_json::json!(true);
+        state["preferences"]["toolbarButtonsVisible"] = serde_json::json!(false);
+        std::fs::write(
+            directory.path().join(super::PREFERENCES_FILE),
+            serde_json::to_vec(&state).unwrap(),
+        )
+        .unwrap();
+
+        let loaded = super::load(directory.path(), "stable").unwrap();
+        assert!(!loaded.preferences.toolbar_buttons_visible);
+    }
+
+    #[test]
+    fn an_unreadable_settings_file_is_kept_aside_and_defaults_are_used() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join(super::PREFERENCES_FILE);
+        std::fs::write(&file, b"{ not json").unwrap();
+
+        let loaded = super::load(directory.path(), "stable").unwrap();
+
+        assert_eq!(loaded.revision, 0);
+        assert_eq!(loaded.preferences, super::DevicePreferences::default());
+        assert!(!file.exists());
+        assert_eq!(
+            std::fs::read(directory.path().join("device-preferences-v1.json.bak")).unwrap(),
+            b"{ not json"
+        );
     }
 }

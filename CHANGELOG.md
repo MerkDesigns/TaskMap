@@ -40,6 +40,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- A settings file written by a newer TaskMap, or a damaged one, no longer stops a database from
+  opening: newer settings are ignored and a damaged file is kept as a `.bak` copy.
 - Text cards inside containers keep their shadows when "Canvas-only shadows" is on.
 
 ### Removed

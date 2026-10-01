@@ -74,7 +74,7 @@ fn selected_file_import_uses_the_same_recipe_and_rechecks_authority() {
 }
 
 #[test]
-fn device_preferences_are_strict_revisioned_and_edition_isolated() {
+fn device_preferences_are_revisioned_and_edition_isolated() {
     let root = tempfile::tempdir().unwrap();
     let stable = root.path().join("stable");
     let dev = root.path().join("dev");
