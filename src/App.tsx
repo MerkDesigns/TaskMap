@@ -118,7 +118,6 @@ import {
 import { createCanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
-import { TransientInteractionProvider } from "./app/interactions/TransientInteractionProvider";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
 import { createViewport, viewportWorldRectangle } from "./canvas/geometry/viewportMath";
 import { rectanglesIntersect, type ElementGeometry } from "./canvas/geometry/canvasGeometry";
@@ -6667,629 +6666,581 @@ function App({
     ],
   );
   return (
-    <TransientInteractionProvider service={interactionController}>
-      <WorkspaceRoot
-        className="taskmap-workspace-root--canvas"
-        spellCheck={false}
-        onContextMenu={suppressContextMenu}
-        onPointerDownCapture={handleMainPointerDownCapture}
-      >
-        <div className="h-full">
-          <section className="relative h-full overflow-hidden">
-            <WorkspaceChromeLayer>
-              {leftPanelOpen && (
-                <Suspense fallback={null}>
-                  <WorkspaceSidePanel
-                    ref={leftPanelRef}
-                    backdropRevision={activeCanvas.id}
-                    closing={leftPanelClosing}
-                    label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
-                    radius={radii.sidePanel}
-                    className="taskmap-workspace-side-panel--switching"
-                  >
-                    <WorkspaceSidePanelContentSwitcher
-                      activeIndex={leftPanelActiveIndex}
-                      views={[
-                        <CanvasManager
-                          key="canvases"
-                          active={leftPanelActiveIndex === 0}
-                          canvases={canvasManagerCanvases}
-                          activeCanvasId={activeCanvas.id}
-                          cycleHighlightCanvasId={canvasCycleHighlightId}
-                          closing={leftPanelClosing}
-                          cardRadius={radii.canvasCard}
-                          previewGap={CANVAS_PREVIEW_GAP}
-                          minimalView={canvasManagerMinimalView}
-                          sharedPanel
-                          viewportWidth={stageWidth}
-                          viewportHeight={stageHeight}
-                          controller={interactionController}
-                          onMinimalViewChange={setCanvasManagerMinimalView}
-                          onCreateCanvas={createCanvas}
-                          onSelectCanvas={selectCanvas}
-                          onUpdateCanvas={updateCanvas}
-                          onDeleteCanvas={deleteCanvas}
-                          onReorderCanvases={reorderCanvases}
-                        />,
-                        <ExtensionsPanel
-                          availableExtensions={retained ? retainedViewExtensions : undefined}
-                          key="extensions"
-                          active={leftPanelActiveIndex === 1}
-                          closing={leftPanelClosing}
-                          panelRef={leftPanelRef}
-                          cardRadius={radii.extensionCard}
-                          sharedPanel
-                          onDropExtension={dropExtensionOnCanvas}
-                        />,
-                      ]}
-                    />
-                  </WorkspaceSidePanel>
-                </Suspense>
-              )}
-              {minimapEnabled && minimapMounted && (
-                <Minimap
-                  controller={interactionController}
-                  elements={elements}
-                  textBlocks={textBlocks}
-                  textCards={looseTextCards}
-                  images={looseImages}
-                  mindmapConnections={mindmapConnections}
-                  canvasWidth={canvasWidth}
-                  canvasHeight={canvasHeight}
-                  visible={minimapVisible}
-                  zoom={legacyZoom}
-                  viewportWorld={minimapViewportWorld}
-                  onResetZoom={resetZoom}
-                />
-              )}
-              {!retained && <WindowChrome radius={radii.chrome} />}
-              <FloatingToolbar
-                canRedo={historyState.canRedo}
-                canUndo={historyState.canUndo}
-                canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
-                extensionsOpen={extensionsOpen && !extensionsClosing}
-                minimapEnabled={minimapEnabled}
-                privacyModeEnabled={privacyModeEnabled}
-                sleepModeEnabled={chromeAutoHideEnabled}
-                onSleepModeEnabledChange={setChromeAutoHideEnabled}
-                toolbarRadius={radii.chrome}
-                onMinimapEnabledChange={setMinimapEnabled}
-                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-                onRedo={redo}
-                onToggleExtensions={toggleExtensionsPanel}
-                onToggleCanvases={toggleCanvasManager}
-                onUndo={undo}
-                onOpenSettings={() => setSettingsOpen(true)}
-              />
-            </WorkspaceChromeLayer>
-            {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
+    <WorkspaceRoot
+      className="taskmap-workspace-root--canvas"
+      spellCheck={false}
+      onContextMenu={suppressContextMenu}
+      onPointerDownCapture={handleMainPointerDownCapture}
+    >
+      <div className="h-full">
+        <section className="relative h-full overflow-hidden">
+          <WorkspaceChromeLayer>
+            {leftPanelOpen && (
               <Suspense fallback={null}>
-                <DevelopmentFpsCounter />
-              </Suspense>
-            )}
-            {quickExtensionsMenu && (
-              <Suspense fallback={null}>
-                <QuickExtensionsMenu
-                  availableExtensions={retained ? retainedViewExtensions : undefined}
-                  left={quickExtensionsMenu.left}
-                  top={quickExtensionsMenu.top}
-                  majorRadius={radii.quickExtensions}
-                  minorRadius={radii.quickExtensionsCard}
-                  onClose={() => setQuickExtensionsMenu(null)}
-                  onDropExtension={dropExtensionOnCanvas}
-                />
-              </Suspense>
-            )}
-            <WorkspaceBackdropLayer
-              ref={stageRef}
-              data-stage
-              className={
-                interactionSnapshot.activeInteraction?.kind === "pan" ||
-                interactionSnapshot.activeInteraction?.kind === "move"
-                  ? "cursor-grabbing"
-                  : "cursor-default"
-              }
-              onPointerDownCapture={handleStagePointerDownCapture}
-              onPointerDown={handleStagePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={stopDrag}
-              onPointerCancel={cancelDrag}
-              onLostPointerCapture={cancelDrag}
-              onWheel={handleWheel}
-              onAuxClick={(event) => event.preventDefault()}
-            >
-              <CanvasFrame
-                ref={worldRef}
-                className="absolute"
-                data-grid-style={canvasGridStyle}
-                data-image-url-version={imageUrlVersion}
-                style={
-                  {
-                    "--taskmap-canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
-                    "--taskmap-canvas-dot-size":
-                      "calc(1.25px * var(--taskmap-camera-inverse-zoom, 1))",
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    transform: "var(--taskmap-camera-transform)",
-                    transformOrigin: "0 0",
-                  } as React.CSSProperties
-                }
-                onContextMenu={handleCanvasContextMenu}
-                onPointerDown={handleWorldPointerDown}
-              >
-                {snapGuides.map((guide) => (
-                  <div
-                    key={`${guide.axis}-${guide.position}`}
-                    className="pointer-events-none absolute z-0"
-                    style={
-                      guide.axis === "x"
-                        ? {
-                            left: guide.position,
-                            top: 0,
-                            width: "calc(2px * var(--taskmap-camera-inverse-zoom, 1))",
-                            height: canvasHeight,
-                            transform: "translateX(-50%)",
-                            backgroundImage:
-                              "repeating-linear-gradient(to bottom, rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px)",
-                            maskImage: `linear-gradient(to bottom, transparent 0, black ${Math.max(
-                              guide.pointerPosition - 260,
-                              0,
-                            )}px, black ${Math.min(guide.pointerPosition + 260, canvasHeight)}px, transparent 100%)`,
-                            WebkitMaskImage: `linear-gradient(to bottom, transparent 0, black ${Math.max(
-                              guide.pointerPosition - 260,
-                              0,
-                            )}px, black ${Math.min(guide.pointerPosition + 260, canvasHeight)}px, transparent 100%)`,
-                          }
-                        : {
-                            left: 0,
-                            top: guide.position,
-                            width: canvasWidth,
-                            height: "calc(2px * var(--taskmap-camera-inverse-zoom, 1))",
-                            transform: "translateY(-50%)",
-                            backgroundImage:
-                              "repeating-linear-gradient(to right, rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px)",
-                            maskImage: `linear-gradient(to right, transparent 0, black ${Math.max(
-                              guide.pointerPosition - 260,
-                              0,
-                            )}px, black ${Math.min(guide.pointerPosition + 260, canvasWidth)}px, transparent 100%)`,
-                            WebkitMaskImage: `linear-gradient(to right, transparent 0, black ${Math.max(
-                              guide.pointerPosition - 260,
-                              0,
-                            )}px, black ${Math.min(guide.pointerPosition + 260, canvasWidth)}px, transparent 100%)`,
-                          }
-                    }
+                <WorkspaceSidePanel
+                  ref={leftPanelRef}
+                  backdropRevision={activeCanvas.id}
+                  closing={leftPanelClosing}
+                  label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
+                  radius={radii.sidePanel}
+                  className="taskmap-workspace-side-panel--switching"
+                >
+                  <WorkspaceSidePanelContentSwitcher
+                    activeIndex={leftPanelActiveIndex}
+                    views={[
+                      <CanvasManager
+                        key="canvases"
+                        active={leftPanelActiveIndex === 0}
+                        canvases={canvasManagerCanvases}
+                        activeCanvasId={activeCanvas.id}
+                        cycleHighlightCanvasId={canvasCycleHighlightId}
+                        closing={leftPanelClosing}
+                        cardRadius={radii.canvasCard}
+                        previewGap={CANVAS_PREVIEW_GAP}
+                        minimalView={canvasManagerMinimalView}
+                        sharedPanel
+                        viewportWidth={stageWidth}
+                        viewportHeight={stageHeight}
+                        controller={interactionController}
+                        onMinimalViewChange={setCanvasManagerMinimalView}
+                        onCreateCanvas={createCanvas}
+                        onSelectCanvas={selectCanvas}
+                        onUpdateCanvas={updateCanvas}
+                        onDeleteCanvas={deleteCanvas}
+                        onReorderCanvases={reorderCanvases}
+                      />,
+                      <ExtensionsPanel
+                        availableExtensions={retained ? retainedViewExtensions : undefined}
+                        key="extensions"
+                        active={leftPanelActiveIndex === 1}
+                        closing={leftPanelClosing}
+                        panelRef={leftPanelRef}
+                        cardRadius={radii.extensionCard}
+                        sharedPanel
+                        onDropExtension={dropExtensionOnCanvas}
+                      />,
+                    ]}
                   />
-                ))}
-                {extensionDropRipples.map((ripple) => {
-                  const bounds = ripple.bounds;
-
-                  const rippleX = clamp(ripple.offsetX, 0, bounds.width);
-                  const rippleY = clamp(ripple.offsetY, 0, bounds.height);
-
-                  return (
-                    <div
-                      key={ripple.id}
-                      className="extension-drop-ripple-surface"
-                      style={{
-                        left: bounds.left,
-                        top: bounds.top,
-                        width: bounds.width,
-                        height: bounds.height,
-                        borderRadius: bounds.borderRadius,
-                        borderTopLeftRadius: bounds.borderTopLeftRadius,
-                        borderTopRightRadius: bounds.borderTopRightRadius,
-                        borderBottomRightRadius: bounds.borderBottomRightRadius,
-                        borderBottomLeftRadius: bounds.borderBottomLeftRadius,
-                      }}
-                    >
-                      <ExtensionDropEffect
-                        originX={rippleX}
-                        originY={rippleY}
-                        width={bounds.width}
-                        height={bounds.height}
-                      />
-                    </div>
-                  );
-                })}
-                <MindmapConnections
-                  connections={mindmapConnections}
-                  connectableBoundsById={connectableBoundsById}
-                  canvasWidth={canvasWidth}
-                  canvasHeight={canvasHeight}
-                  connectionMode={mindmapConnectionMode}
-                  preview={mindmapConnectionDrag}
-                  onConnectionClick={openMindmapConnectionMenu}
+                </WorkspaceSidePanel>
+              </Suspense>
+            )}
+            {minimapEnabled && minimapMounted && (
+              <Minimap
+                controller={interactionController}
+                elements={elements}
+                textBlocks={textBlocks}
+                textCards={looseTextCards}
+                images={looseImages}
+                mindmapConnections={mindmapConnections}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                visible={minimapVisible}
+                zoom={legacyZoom}
+                viewportWorld={minimapViewportWorld}
+                onResetZoom={resetZoom}
+              />
+            )}
+            {!retained && <WindowChrome radius={radii.chrome} />}
+            <FloatingToolbar
+              canRedo={historyState.canRedo}
+              canUndo={historyState.canUndo}
+              canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
+              extensionsOpen={extensionsOpen && !extensionsClosing}
+              minimapEnabled={minimapEnabled}
+              privacyModeEnabled={privacyModeEnabled}
+              sleepModeEnabled={chromeAutoHideEnabled}
+              onSleepModeEnabledChange={setChromeAutoHideEnabled}
+              toolbarRadius={radii.chrome}
+              onMinimapEnabledChange={setMinimapEnabled}
+              onPrivacyModeEnabledChange={setPrivacyModeEnabled}
+              onRedo={redo}
+              onToggleExtensions={toggleExtensionsPanel}
+              onToggleCanvases={toggleCanvasManager}
+              onUndo={undo}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          </WorkspaceChromeLayer>
+          {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
+            <Suspense fallback={null}>
+              <DevelopmentFpsCounter />
+            </Suspense>
+          )}
+          {quickExtensionsMenu && (
+            <Suspense fallback={null}>
+              <QuickExtensionsMenu
+                availableExtensions={retained ? retainedViewExtensions : undefined}
+                left={quickExtensionsMenu.left}
+                top={quickExtensionsMenu.top}
+                majorRadius={radii.quickExtensions}
+                minorRadius={radii.quickExtensionsCard}
+                onClose={() => setQuickExtensionsMenu(null)}
+                onDropExtension={dropExtensionOnCanvas}
+              />
+            </Suspense>
+          )}
+          <WorkspaceBackdropLayer
+            ref={stageRef}
+            data-stage
+            className={
+              interactionSnapshot.activeInteraction?.kind === "pan" ||
+              interactionSnapshot.activeInteraction?.kind === "move"
+                ? "cursor-grabbing"
+                : "cursor-default"
+            }
+            onPointerDownCapture={handleStagePointerDownCapture}
+            onPointerDown={handleStagePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={stopDrag}
+            onPointerCancel={cancelDrag}
+            onLostPointerCapture={cancelDrag}
+            onWheel={handleWheel}
+            onAuxClick={(event) => event.preventDefault()}
+          >
+            <CanvasFrame
+              ref={worldRef}
+              className="absolute"
+              data-grid-style={canvasGridStyle}
+              data-image-url-version={imageUrlVersion}
+              style={
+                {
+                  "--taskmap-canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
+                  "--taskmap-canvas-dot-size":
+                    "calc(1.25px * var(--taskmap-camera-inverse-zoom, 1))",
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: "var(--taskmap-camera-transform)",
+                  transformOrigin: "0 0",
+                } as React.CSSProperties
+              }
+              onContextMenu={handleCanvasContextMenu}
+              onPointerDown={handleWorldPointerDown}
+            >
+              {snapGuides.map((guide) => (
+                <div
+                  key={`${guide.axis}-${guide.position}`}
+                  className="pointer-events-none absolute z-0"
+                  style={
+                    guide.axis === "x"
+                      ? {
+                          left: guide.position,
+                          top: 0,
+                          width: "calc(2px * var(--taskmap-camera-inverse-zoom, 1))",
+                          height: canvasHeight,
+                          transform: "translateX(-50%)",
+                          backgroundImage:
+                            "repeating-linear-gradient(to bottom, rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px)",
+                          maskImage: `linear-gradient(to bottom, transparent 0, black ${Math.max(
+                            guide.pointerPosition - 260,
+                            0,
+                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasHeight)}px, transparent 100%)`,
+                          WebkitMaskImage: `linear-gradient(to bottom, transparent 0, black ${Math.max(
+                            guide.pointerPosition - 260,
+                            0,
+                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasHeight)}px, transparent 100%)`,
+                        }
+                      : {
+                          left: 0,
+                          top: guide.position,
+                          width: canvasWidth,
+                          height: "calc(2px * var(--taskmap-camera-inverse-zoom, 1))",
+                          transform: "translateY(-50%)",
+                          backgroundImage:
+                            "repeating-linear-gradient(to right, rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px)",
+                          maskImage: `linear-gradient(to right, transparent 0, black ${Math.max(
+                            guide.pointerPosition - 260,
+                            0,
+                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasWidth)}px, transparent 100%)`,
+                          WebkitMaskImage: `linear-gradient(to right, transparent 0, black ${Math.max(
+                            guide.pointerPosition - 260,
+                            0,
+                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasWidth)}px, transparent 100%)`,
+                        }
+                  }
                 />
-                <LegacyCanvasVisibility
-                  controller={interactionController}
-                  elements={cullableElements}
-                  pinnedIds={pinnedRenderIds}
-                >
-                  {(visibleRenderIds) => (
-                    <>
-                      {shadowsUnderElements && (
-                        <div
-                          className="pointer-events-none absolute inset-0 z-10"
-                          aria-hidden="true"
-                        >
-                          {canvasElementShadows
-                            .filter((shadow) => visibleRenderIds.has(shadow.id))
-                            .map((shadow) => (
-                              <div
-                                key={`canvas-shadow-${shadow.id}`}
-                                className={`canvas-element-shadow canvas-element-shadow-${shadow.strength} absolute`}
-                                style={{
-                                  left: shadow.left,
-                                  top: shadow.top,
-                                  width: shadow.width,
-                                  height: shadow.height,
-                                  borderRadius: shadow.radius,
-                                }}
-                              />
-                            ))}
-                          {draggedCanvasElementShadows
-                            .filter((shadow) => visibleRenderIds.has(shadow.id))
-                            .map((shadow) => (
-                              <div
-                                key={`canvas-drag-shadow-${shadow.id}`}
-                                className="canvas-drag-shadow absolute"
-                                style={{
-                                  left: shadow.left,
-                                  top: shadow.top,
-                                  width: shadow.width,
-                                  height: shadow.height,
-                                  borderRadius: shadow.radius,
-                                }}
-                              />
-                            ))}
-                        </div>
-                      )}
-                      {layeredElements
-                        .filter((element) => visibleRenderIds.has(element.id))
-                        .map((element) => {
-                          // Keep the settling card in the index list so neighbours keep
-                          // their correct visible slots; it is rendered in the loose
-                          // layer (for its free-flying settle animation) and merely
-                          // skipped in the container loop below. Excluding it here
-                          // instead shifts every later card up a row for the settle
-                          // window, which reads as a brief shuffle.
-                          const allContainedCards = (
-                            orderedTextCardsByContainerId.get(element.id) ?? []
-                          ).filter((card) => !draggedTextCardIds.includes(card.id));
-                          const containedCards = getContainerVisibleTextCards(
-                            element,
-                            allContainedCards,
-                          );
-                          const insertionCount =
-                            activeTextCardPresentation?.targetContainerId === element.id
-                              ? activeTextCardPresentation.ids.length
-                              : 0;
-                          const containerScrollOffset = getContainerScrollOffset(element);
-                          const containerCardRenderRange = getVirtualRowRange({
-                            rowCount: containedCards.length + insertionCount,
-                            rowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
-                            rowGap: CONTAINER_TEXT_CARD_GAP,
-                            padding: CONTAINER_TEXT_CARD_PADDING,
-                            scrollOffset: containerScrollOffset,
-                            viewportHeight: getContainerViewportHeight(element),
-                            overscanRows: CONTAINER_TEXT_CARD_OVERSCAN_ROWS,
-                          });
-                          const containerMultiSelected =
-                            selectedIds.length > 1 && selectedIds.includes(element.id);
+              ))}
+              {extensionDropRipples.map((ripple) => {
+                const bounds = ripple.bounds;
 
-                          return (
-                            <ContainerNode
-                              key={element.id}
-                              element={element}
-                              selected={outlinedIds.includes(element.id)}
-                              multiSelected={containerMultiSelected}
-                              entering={enteringIds.includes(element.id)}
-                              deleting={deletingIds.includes(element.id)}
-                              moving={draggedShadowIds.has(element.id)}
-                              shadowsUnderElements={shadowsUnderElements}
-                              recentColors={recentColors}
-                              renaming={renamingId === element.id}
-                              renameDraft={renamingId === element.id ? renameDraft : ""}
-                              onRenameDraftChange={setRenameDraft}
-                              onSaveRename={canvasNodeActions.saveRename}
-                              onCancelRename={canvasNodeActions.cancelRename}
-                              onSelect={canvasNodeActions.selectCanvasElement}
-                              onStartMove={canvasNodeActions.startMove}
-                              onStartResize={canvasNodeActions.startResize}
-                              onToggleMenu={canvasNodeActions.toggleMenu}
-                              onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
-                              onToggleLock={canvasNodeActions.toggleLockExtension}
-                              onUpdateAccent={canvasNodeActions.updateContainerAccent}
-                              onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                              onCopyJsonForAi={canvasNodeActions.copyContainerJsonForAi}
-                              onPasteJsonFromAi={canvasNodeActions.pasteContainerJsonFromAi}
-                              onOpenJsonEditor={canvasNodeActions.openContainerJsonEditor}
-                              onHeaderButtonsVisibleChange={
-                                canvasNodeActions.updateContainerHeaderButtonsVisible
-                              }
-                              onSearchChange={canvasNodeActions.updateContainerSearchQuery}
-                              onOpenContentMenu={canvasNodeActions.openContainerContentMenu}
-                              onWheelContent={canvasNodeActions.handleContainerWheel}
-                              onStartContentSelection={
-                                canvasNodeActions.startContainerContentSelection
-                              }
-                              cardCount={allContainedCards.length}
-                              contentRevision={containerContentRevision}
-                              contentEditRevision={
-                                editingTextCardContainerId === element.id
-                                  ? `${editingTextCardId}\u0000${textCardDraft}`
-                                  : ""
-                              }
-                            >
-                              {containedCards.map((card, visibleIndex) => {
-                                if (releasingTextCardIds.includes(card.id)) return null;
-                                const previewRowOffset = getLegacyTextCardPreviewRowOffset({
-                                  targetContainerId:
-                                    activeTextCardPresentation?.targetContainerId ?? null,
-                                  containerId: element.id,
-                                  insertionIndex:
-                                    activeTextCardPresentation?.insertionIndex ?? null,
-                                  visibleIndex,
-                                  insertionCount,
-                                });
-                                const previewPixelShift =
-                                  previewRowOffset *
-                                  (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
-                                const animationPinned =
-                                  editingTextCardId === card.id ||
-                                  enteringTextCardIds.includes(card.id) ||
-                                  deletingTextCardIds.includes(card.id) ||
-                                  pulsingTextCardIds.includes(card.id);
-                                if (
-                                  !animationPinned &&
-                                  !isVirtualRowInRange(
-                                    visibleIndex,
-                                    containerCardRenderRange,
-                                    previewRowOffset,
-                                  )
-                                ) {
-                                  return null;
-                                }
+                const rippleX = clamp(ripple.offsetX, 0, bounds.width);
+                const rippleY = clamp(ripple.offsetY, 0, bounds.height);
 
-                                const compactSearchPosition = {
-                                  x: element.x + CONTAINER_TEXT_CARD_PADDING,
-                                  y:
-                                    getContainerCardStackTop(element) +
-                                    visibleIndex *
-                                      (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-                                    containerScrollOffset +
-                                    previewPixelShift,
-                                };
-                                const position = {
-                                  ...toContainerRelativePosition(compactSearchPosition, element),
-                                  maxWidth: Math.max(
-                                    120,
-                                    element.width - CONTAINER_TEXT_CARD_PADDING * 2,
-                                  ),
-                                };
-
-                                return (
-                                  <TextCardNode
-                                    key={card.id}
-                                    card={card}
-                                    accentBar={card.kind !== "mindmap"}
-                                    multiline={card.kind === "mindmap"}
-                                    overflowVisible={card.kind === "mindmap"}
-                                    onSizeChange={rememberTextCardSize}
-                                    editing={editingTextCardId === card.id}
-                                    draft={editingTextCardId === card.id ? textCardDraft : ""}
-                                    position={position}
-                                    entering={enteringTextCardIds.includes(card.id)}
-                                    deleting={deletingTextCardIds.includes(card.id)}
-                                    pulsing={pulsingTextCardIds.includes(card.id)}
-                                    moving={draggedShadowIds.has(card.id)}
-                                    selected={outlinedIds.includes(card.id)}
-                                    interactionDisabled={containerMultiSelected}
-                                    linksDisabled={selectedIds.length > 1}
-                                    privacyHidden={Boolean(element.extensions?.privacy?.enabled)}
-                                    shadowsUnderElements={shadowsUnderElements}
-                                    onDraftChange={setTextCardDraft}
-                                    onSave={canvasNodeActions.saveTextCardEdit}
-                                    onCancel={canvasNodeActions.cancelTextCardEdit}
-                                    onStartMove={canvasNodeActions.startTextCardMove}
-                                    onOpenMenu={canvasNodeActions.openTextCardMenu}
-                                    onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                                  />
-                                );
-                              })}
-                            </ContainerNode>
-                          );
-                        })}
-                      {layeredTextBlocks
-                        .filter((element) => visibleRenderIds.has(element.id))
-                        .map((element) => {
-                          const textBlockMultiSelected =
-                            selectedIds.length > 1 && selectedIds.includes(element.id);
-
-                          return (
-                            <TextBlockNode
-                              key={element.id}
-                              element={element}
-                              selected={outlinedIds.includes(element.id)}
-                              multiSelected={textBlockMultiSelected}
-                              entering={enteringTextBlockIds.includes(element.id)}
-                              deleting={deletingTextBlockIds.includes(element.id)}
-                              pulsing={pulsingTextBlockIds.includes(element.id)}
-                              moving={draggedShadowIds.has(element.id)}
-                              shadowsUnderElements={shadowsUnderElements}
-                              recentColors={recentColors}
-                              editing={editingTextBlockId === element.id}
-                              draft={editingTextBlockId === element.id ? textBlockDraft : ""}
-                              renaming={renamingId === element.id}
-                              renameDraft={renamingId === element.id ? renameDraft : ""}
-                              onDraftChange={setTextBlockDraft}
-                              onSave={canvasNodeActions.saveTextBlockEdit}
-                              onCancel={canvasNodeActions.cancelTextBlockEdit}
-                              onRenameDraftChange={setRenameDraft}
-                              onSaveRename={canvasNodeActions.saveRename}
-                              onCancelRename={canvasNodeActions.cancelRename}
-                              onStartEdit={canvasNodeActions.startTextBlockEdit}
-                              onSelect={canvasNodeActions.selectCanvasElement}
-                              onStartMove={canvasNodeActions.startMove}
-                              onStartResize={canvasNodeActions.startResize}
-                              onToggleMenu={canvasNodeActions.openTextBlockMenu}
-                              onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
-                              onToggleLock={canvasNodeActions.toggleLockExtension}
-                              onUpdateAccent={canvasNodeActions.updateTextBlockAccent}
-                              onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                              onHeaderButtonsVisibleChange={
-                                canvasNodeActions.updateTextBlockHeaderButtonsVisible
-                              }
+                return (
+                  <div
+                    key={ripple.id}
+                    className="extension-drop-ripple-surface"
+                    style={{
+                      left: bounds.left,
+                      top: bounds.top,
+                      width: bounds.width,
+                      height: bounds.height,
+                      borderRadius: bounds.borderRadius,
+                      borderTopLeftRadius: bounds.borderTopLeftRadius,
+                      borderTopRightRadius: bounds.borderTopRightRadius,
+                      borderBottomRightRadius: bounds.borderBottomRightRadius,
+                      borderBottomLeftRadius: bounds.borderBottomLeftRadius,
+                    }}
+                  >
+                    <ExtensionDropEffect
+                      originX={rippleX}
+                      originY={rippleY}
+                      width={bounds.width}
+                      height={bounds.height}
+                    />
+                  </div>
+                );
+              })}
+              <MindmapConnections
+                connections={mindmapConnections}
+                connectableBoundsById={connectableBoundsById}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                connectionMode={mindmapConnectionMode}
+                preview={mindmapConnectionDrag}
+                onConnectionClick={openMindmapConnectionMenu}
+              />
+              <LegacyCanvasVisibility
+                controller={interactionController}
+                elements={cullableElements}
+                pinnedIds={pinnedRenderIds}
+              >
+                {(visibleRenderIds) => (
+                  <>
+                    {shadowsUnderElements && (
+                      <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+                        {canvasElementShadows
+                          .filter((shadow) => visibleRenderIds.has(shadow.id))
+                          .map((shadow) => (
+                            <div
+                              key={`canvas-shadow-${shadow.id}`}
+                              className={`canvas-element-shadow canvas-element-shadow-${shadow.strength} absolute`}
+                              style={{
+                                left: shadow.left,
+                                top: shadow.top,
+                                width: shadow.width,
+                                height: shadow.height,
+                                borderRadius: shadow.radius,
+                              }}
                             />
-                          );
-                        })}
-                      {layeredLooseTextCards
-                        .filter((card) => visibleRenderIds.has(card.id))
-                        .map((card) => {
-                          if (
-                            activeTextCardPresentation?.ids.includes(card.id) ||
-                            releasingTextCardIds.includes(card.id)
-                          ) {
-                            return null;
-                          }
-                          const position = getTextCardRenderPosition(card);
-                          return (
-                            <TextCardNode
-                              key={card.id}
-                              card={card}
-                              accentBar={card.kind !== "mindmap"}
-                              multiline={card.kind === "mindmap"}
-                              overflowVisible={card.kind === "mindmap"}
-                              onSizeChange={rememberTextCardSize}
-                              editing={editingTextCardId === card.id}
-                              draft={editingTextCardId === card.id ? textCardDraft : ""}
-                              position={position}
-                              entering={enteringTextCardIds.includes(card.id)}
-                              deleting={deletingTextCardIds.includes(card.id)}
-                              pulsing={pulsingTextCardIds.includes(card.id)}
-                              dragging={draggedShadowIds.has(card.id)}
-                              dragPrimary={
-                                interactionSnapshot.activeInteraction?.kind === "move" &&
-                                interactionSnapshot.activeInteraction.targetIds[0] === card.id
-                              }
-                              dragBundleIndex={dragPinnedIds.indexOf(card.id)}
-                              dragPickupX={0}
-                              dragPickupY={0}
-                              dragSwayX={0}
-                              dragSwayY={0}
-                              moving={draggedShadowIds.has(card.id)}
-                              selected={outlinedIds.includes(card.id)}
-                              linksDisabled={selectedIds.length > 1}
-                              shadowsUnderElements={shadowsUnderElements}
-                              onDraftChange={setTextCardDraft}
-                              onSave={canvasNodeActions.saveTextCardEdit}
-                              onCancel={canvasNodeActions.cancelTextCardEdit}
-                              onStartMove={canvasNodeActions.startTextCardMove}
-                              onOpenMenu={canvasNodeActions.openTextCardMenu}
-                              onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                          ))}
+                        {draggedCanvasElementShadows
+                          .filter((shadow) => visibleRenderIds.has(shadow.id))
+                          .map((shadow) => (
+                            <div
+                              key={`canvas-drag-shadow-${shadow.id}`}
+                              className="canvas-drag-shadow absolute"
+                              style={{
+                                left: shadow.left,
+                                top: shadow.top,
+                                width: shadow.width,
+                                height: shadow.height,
+                                borderRadius: shadow.radius,
+                              }}
                             />
-                          );
-                        })}
-                      {layeredLooseImages
-                        .filter((image) => visibleRenderIds.has(image.id))
-                        .map((image) => (
-                          <ImagePresentation
-                            key={image.id}
-                            image={image}
-                            url={retained ? null : getImageUrl(image.imageId, image.format)}
-                            loading={
-                              loadingImageIds.includes(image.id) ||
-                              (!retained && isImageLoading(image.imageId))
-                            }
-                            entering={enteringImageIds.includes(image.id)}
-                            deleting={deletingImageIds.includes(image.id)}
-                            dragging={draggedShadowIds.has(image.id)}
-                            moving={
-                              interactionSnapshot.activeInteraction?.kind === "move" &&
-                              draggedShadowIds.has(image.id)
-                            }
-                            resizing={
-                              interactionSnapshot.activeInteraction?.kind === "resize" &&
-                              draggedShadowIds.has(image.id)
-                            }
-                            selected={outlinedIds.includes(image.id)}
+                          ))}
+                      </div>
+                    )}
+                    {layeredElements
+                      .filter((element) => visibleRenderIds.has(element.id))
+                      .map((element) => {
+                        // Keep the settling card in the index list so neighbours keep
+                        // their correct visible slots; it is rendered in the loose
+                        // layer (for its free-flying settle animation) and merely
+                        // skipped in the container loop below. Excluding it here
+                        // instead shifts every later card up a row for the settle
+                        // window, which reads as a brief shuffle.
+                        const allContainedCards = (
+                          orderedTextCardsByContainerId.get(element.id) ?? []
+                        ).filter((card) => !draggedTextCardIds.includes(card.id));
+                        const containedCards = getContainerVisibleTextCards(
+                          element,
+                          allContainedCards,
+                        );
+                        const insertionCount =
+                          activeTextCardPresentation?.targetContainerId === element.id
+                            ? activeTextCardPresentation.ids.length
+                            : 0;
+                        const containerScrollOffset = getContainerScrollOffset(element);
+                        const containerCardRenderRange = getVirtualRowRange({
+                          rowCount: containedCards.length + insertionCount,
+                          rowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+                          rowGap: CONTAINER_TEXT_CARD_GAP,
+                          padding: CONTAINER_TEXT_CARD_PADDING,
+                          scrollOffset: containerScrollOffset,
+                          viewportHeight: getContainerViewportHeight(element),
+                          overscanRows: CONTAINER_TEXT_CARD_OVERSCAN_ROWS,
+                        });
+                        const containerMultiSelected =
+                          selectedIds.length > 1 && selectedIds.includes(element.id);
+
+                        return (
+                          <ContainerNode
+                            key={element.id}
+                            element={element}
+                            selected={outlinedIds.includes(element.id)}
+                            multiSelected={containerMultiSelected}
+                            entering={enteringIds.includes(element.id)}
+                            deleting={deletingIds.includes(element.id)}
+                            moving={draggedShadowIds.has(element.id)}
                             shadowsUnderElements={shadowsUnderElements}
-                            onStartMove={canvasNodeActions.startImageMove}
-                            onStartResize={canvasNodeActions.startImageResize}
-                            onOpenMenu={canvasNodeActions.openImageMenu}
-                            onPick={canvasNodeActions.pickImageForElement}
+                            recentColors={recentColors}
+                            renaming={renamingId === element.id}
+                            renameDraft={renamingId === element.id ? renameDraft : ""}
+                            onRenameDraftChange={setRenameDraft}
+                            onSaveRename={canvasNodeActions.saveRename}
+                            onCancelRename={canvasNodeActions.cancelRename}
+                            onSelect={canvasNodeActions.selectCanvasElement}
+                            onStartMove={canvasNodeActions.startMove}
+                            onStartResize={canvasNodeActions.startResize}
+                            onToggleMenu={canvasNodeActions.toggleMenu}
+                            onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
+                            onToggleLock={canvasNodeActions.toggleLockExtension}
+                            onUpdateAccent={canvasNodeActions.updateContainerAccent}
+                            onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+                            onCopyJsonForAi={canvasNodeActions.copyContainerJsonForAi}
+                            onPasteJsonFromAi={canvasNodeActions.pasteContainerJsonFromAi}
+                            onOpenJsonEditor={canvasNodeActions.openContainerJsonEditor}
+                            onHeaderButtonsVisibleChange={
+                              canvasNodeActions.updateContainerHeaderButtonsVisible
+                            }
+                            onSearchChange={canvasNodeActions.updateContainerSearchQuery}
+                            onOpenContentMenu={canvasNodeActions.openContainerContentMenu}
+                            onWheelContent={canvasNodeActions.handleContainerWheel}
+                            onStartContentSelection={
+                              canvasNodeActions.startContainerContentSelection
+                            }
+                            cardCount={allContainedCards.length}
+                            contentRevision={containerContentRevision}
+                            contentEditRevision={
+                              editingTextCardContainerId === element.id
+                                ? `${editingTextCardId}\u0000${textCardDraft}`
+                                : ""
+                            }
+                          >
+                            {containedCards.map((card, visibleIndex) => {
+                              if (releasingTextCardIds.includes(card.id)) return null;
+                              const previewRowOffset = getLegacyTextCardPreviewRowOffset({
+                                targetContainerId:
+                                  activeTextCardPresentation?.targetContainerId ?? null,
+                                containerId: element.id,
+                                insertionIndex: activeTextCardPresentation?.insertionIndex ?? null,
+                                visibleIndex,
+                                insertionCount,
+                              });
+                              const previewPixelShift =
+                                previewRowOffset *
+                                (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
+                              const animationPinned =
+                                editingTextCardId === card.id ||
+                                enteringTextCardIds.includes(card.id) ||
+                                deletingTextCardIds.includes(card.id) ||
+                                pulsingTextCardIds.includes(card.id);
+                              if (
+                                !animationPinned &&
+                                !isVirtualRowInRange(
+                                  visibleIndex,
+                                  containerCardRenderRange,
+                                  previewRowOffset,
+                                )
+                              ) {
+                                return null;
+                              }
+
+                              const compactSearchPosition = {
+                                x: element.x + CONTAINER_TEXT_CARD_PADDING,
+                                y:
+                                  getContainerCardStackTop(element) +
+                                  visibleIndex *
+                                    (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
+                                  containerScrollOffset +
+                                  previewPixelShift,
+                              };
+                              const position = {
+                                ...toContainerRelativePosition(compactSearchPosition, element),
+                                maxWidth: Math.max(
+                                  120,
+                                  element.width - CONTAINER_TEXT_CARD_PADDING * 2,
+                                ),
+                              };
+
+                              return (
+                                <TextCardNode
+                                  key={card.id}
+                                  card={card}
+                                  accentBar={card.kind !== "mindmap"}
+                                  multiline={card.kind === "mindmap"}
+                                  overflowVisible={card.kind === "mindmap"}
+                                  onSizeChange={rememberTextCardSize}
+                                  editing={editingTextCardId === card.id}
+                                  draft={editingTextCardId === card.id ? textCardDraft : ""}
+                                  position={position}
+                                  entering={enteringTextCardIds.includes(card.id)}
+                                  deleting={deletingTextCardIds.includes(card.id)}
+                                  pulsing={pulsingTextCardIds.includes(card.id)}
+                                  moving={draggedShadowIds.has(card.id)}
+                                  selected={outlinedIds.includes(card.id)}
+                                  interactionDisabled={containerMultiSelected}
+                                  linksDisabled={selectedIds.length > 1}
+                                  privacyHidden={Boolean(element.extensions?.privacy?.enabled)}
+                                  shadowsUnderElements={shadowsUnderElements}
+                                  onDraftChange={setTextCardDraft}
+                                  onSave={canvasNodeActions.saveTextCardEdit}
+                                  onCancel={canvasNodeActions.cancelTextCardEdit}
+                                  onStartMove={canvasNodeActions.startTextCardMove}
+                                  onOpenMenu={canvasNodeActions.openTextCardMenu}
+                                  onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                                />
+                              );
+                            })}
+                          </ContainerNode>
+                        );
+                      })}
+                    {layeredTextBlocks
+                      .filter((element) => visibleRenderIds.has(element.id))
+                      .map((element) => {
+                        const textBlockMultiSelected =
+                          selectedIds.length > 1 && selectedIds.includes(element.id);
+
+                        return (
+                          <TextBlockNode
+                            key={element.id}
+                            element={element}
+                            selected={outlinedIds.includes(element.id)}
+                            multiSelected={textBlockMultiSelected}
+                            entering={enteringTextBlockIds.includes(element.id)}
+                            deleting={deletingTextBlockIds.includes(element.id)}
+                            pulsing={pulsingTextBlockIds.includes(element.id)}
+                            moving={draggedShadowIds.has(element.id)}
+                            shadowsUnderElements={shadowsUnderElements}
+                            recentColors={recentColors}
+                            editing={editingTextBlockId === element.id}
+                            draft={editingTextBlockId === element.id ? textBlockDraft : ""}
+                            renaming={renamingId === element.id}
+                            renameDraft={renamingId === element.id ? renameDraft : ""}
+                            onDraftChange={setTextBlockDraft}
+                            onSave={canvasNodeActions.saveTextBlockEdit}
+                            onCancel={canvasNodeActions.cancelTextBlockEdit}
+                            onRenameDraftChange={setRenameDraft}
+                            onSaveRename={canvasNodeActions.saveRename}
+                            onCancelRename={canvasNodeActions.cancelRename}
+                            onStartEdit={canvasNodeActions.startTextBlockEdit}
+                            onSelect={canvasNodeActions.selectCanvasElement}
+                            onStartMove={canvasNodeActions.startMove}
+                            onStartResize={canvasNodeActions.startResize}
+                            onToggleMenu={canvasNodeActions.openTextBlockMenu}
+                            onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
+                            onToggleLock={canvasNodeActions.toggleLockExtension}
+                            onUpdateAccent={canvasNodeActions.updateTextBlockAccent}
+                            onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+                            onHeaderButtonsVisibleChange={
+                              canvasNodeActions.updateTextBlockHeaderButtonsVisible
+                            }
                           />
-                        ))}
-                    </>
-                  )}
-                </LegacyCanvasVisibility>
-              </CanvasFrame>
-              {activeTextCardPresentation && (
-                <div
-                  className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
-                  style={{
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
-                    transformOrigin: "0 0",
-                  }}
-                >
-                  {activeTextCardPresentation.ids.map((id, dragBundleIndex) => {
-                    const card = textCardsById.get(id);
-                    const offset = activeTextCardPresentation.offsets.find(
-                      (candidate) => candidate.id === id,
-                    );
-                    if (!card) return null;
-                    const position = getLegacyTextCardDragRenderPosition(
-                      activeTextCardPresentation,
-                      id,
-                    );
-                    return (
-                      <TextCardNode
-                        key={`drag-overlay-${id}`}
-                        card={card}
-                        accentBar={card.kind !== "mindmap"}
-                        multiline={card.kind === "mindmap"}
-                        overflowVisible={card.kind === "mindmap"}
-                        onSizeChange={rememberTextCardSize}
-                        editing={false}
-                        draft={card.text}
-                        position={position}
-                        dragging
-                        dragAtTrueSize={activeTextCardPresentation.trueSize}
-                        dragPrimary={id === activeTextCardPresentation.primaryId}
-                        dragBundleIndex={dragBundleIndex}
-                        dragPickupX={offset?.pickupX ?? 0}
-                        dragPickupY={offset?.pickupY ?? 0}
-                        dragSwayX={activeTextCardPresentation.sway.x}
-                        dragSwayY={activeTextCardPresentation.sway.y}
-                        selected={outlinedIds.includes(id)}
-                        linksDisabled
-                        shadowsUnderElements={shadowsUnderElements}
-                        onDraftChange={setTextCardDraft}
-                        onSave={canvasNodeActions.saveTextCardEdit}
-                        onCancel={canvasNodeActions.cancelTextCardEdit}
-                        onStartMove={canvasNodeActions.startTextCardMove}
-                        onOpenMenu={canvasNodeActions.openTextCardMenu}
-                        onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-              {textCardInteractionSnapshot.release && (
-                <div
-                  className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
-                  style={{
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
-                    transformOrigin: "0 0",
-                  }}
-                >
-                  {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => (
+                        );
+                      })}
+                    {layeredLooseTextCards
+                      .filter((card) => visibleRenderIds.has(card.id))
+                      .map((card) => {
+                        if (
+                          activeTextCardPresentation?.ids.includes(card.id) ||
+                          releasingTextCardIds.includes(card.id)
+                        ) {
+                          return null;
+                        }
+                        const position = getTextCardRenderPosition(card);
+                        return (
+                          <TextCardNode
+                            key={card.id}
+                            card={card}
+                            accentBar={card.kind !== "mindmap"}
+                            multiline={card.kind === "mindmap"}
+                            overflowVisible={card.kind === "mindmap"}
+                            onSizeChange={rememberTextCardSize}
+                            editing={editingTextCardId === card.id}
+                            draft={editingTextCardId === card.id ? textCardDraft : ""}
+                            position={position}
+                            entering={enteringTextCardIds.includes(card.id)}
+                            deleting={deletingTextCardIds.includes(card.id)}
+                            pulsing={pulsingTextCardIds.includes(card.id)}
+                            dragging={draggedShadowIds.has(card.id)}
+                            dragPrimary={
+                              interactionSnapshot.activeInteraction?.kind === "move" &&
+                              interactionSnapshot.activeInteraction.targetIds[0] === card.id
+                            }
+                            dragBundleIndex={dragPinnedIds.indexOf(card.id)}
+                            dragPickupX={0}
+                            dragPickupY={0}
+                            dragSwayX={0}
+                            dragSwayY={0}
+                            moving={draggedShadowIds.has(card.id)}
+                            selected={outlinedIds.includes(card.id)}
+                            linksDisabled={selectedIds.length > 1}
+                            shadowsUnderElements={shadowsUnderElements}
+                            onDraftChange={setTextCardDraft}
+                            onSave={canvasNodeActions.saveTextCardEdit}
+                            onCancel={canvasNodeActions.cancelTextCardEdit}
+                            onStartMove={canvasNodeActions.startTextCardMove}
+                            onOpenMenu={canvasNodeActions.openTextCardMenu}
+                            onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                          />
+                        );
+                      })}
+                    {layeredLooseImages
+                      .filter((image) => visibleRenderIds.has(image.id))
+                      .map((image) => (
+                        <ImagePresentation
+                          key={image.id}
+                          image={image}
+                          url={retained ? null : getImageUrl(image.imageId, image.format)}
+                          loading={
+                            loadingImageIds.includes(image.id) ||
+                            (!retained && isImageLoading(image.imageId))
+                          }
+                          entering={enteringImageIds.includes(image.id)}
+                          deleting={deletingImageIds.includes(image.id)}
+                          dragging={draggedShadowIds.has(image.id)}
+                          moving={
+                            interactionSnapshot.activeInteraction?.kind === "move" &&
+                            draggedShadowIds.has(image.id)
+                          }
+                          resizing={
+                            interactionSnapshot.activeInteraction?.kind === "resize" &&
+                            draggedShadowIds.has(image.id)
+                          }
+                          selected={outlinedIds.includes(image.id)}
+                          shadowsUnderElements={shadowsUnderElements}
+                          onStartMove={canvasNodeActions.startImageMove}
+                          onStartResize={canvasNodeActions.startImageResize}
+                          onOpenMenu={canvasNodeActions.openImageMenu}
+                          onPick={canvasNodeActions.pickImageForElement}
+                        />
+                      ))}
+                  </>
+                )}
+              </LegacyCanvasVisibility>
+            </CanvasFrame>
+            {activeTextCardPresentation && (
+              <div
+                className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                {activeTextCardPresentation.ids.map((id, dragBundleIndex) => {
+                  const card = textCardsById.get(id);
+                  const offset = activeTextCardPresentation.offsets.find(
+                    (candidate) => candidate.id === id,
+                  );
+                  if (!card) return null;
+                  const position = getLegacyTextCardDragRenderPosition(
+                    activeTextCardPresentation,
+                    id,
+                  );
+                  return (
                     <TextCardNode
-                      key={`release-overlay-${card.id}`}
+                      key={`drag-overlay-${id}`}
                       card={card}
                       accentBar={card.kind !== "mindmap"}
                       multiline={card.kind === "mindmap"}
@@ -7297,10 +7248,16 @@ function App({
                       onSizeChange={rememberTextCardSize}
                       editing={false}
                       draft={card.text}
-                      position={textCardInteractionSnapshot.release?.active ? to : from}
-                      settling
-                      forceInteractive
-                      selected={outlinedIds.includes(card.id)}
+                      position={position}
+                      dragging
+                      dragAtTrueSize={activeTextCardPresentation.trueSize}
+                      dragPrimary={id === activeTextCardPresentation.primaryId}
+                      dragBundleIndex={dragBundleIndex}
+                      dragPickupX={offset?.pickupX ?? 0}
+                      dragPickupY={offset?.pickupY ?? 0}
+                      dragSwayX={activeTextCardPresentation.sway.x}
+                      dragSwayY={activeTextCardPresentation.sway.y}
+                      selected={outlinedIds.includes(id)}
                       linksDisabled
                       shadowsUnderElements={shadowsUnderElements}
                       onDraftChange={setTextCardDraft}
@@ -7310,477 +7267,508 @@ function App({
                       onOpenMenu={canvasNodeActions.openTextCardMenu}
                       onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
                     />
-                  ))}
-                </div>
+                  );
+                })}
+              </div>
+            )}
+            {textCardInteractionSnapshot.release && (
+              <div
+                className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => (
+                  <TextCardNode
+                    key={`release-overlay-${card.id}`}
+                    card={card}
+                    accentBar={card.kind !== "mindmap"}
+                    multiline={card.kind === "mindmap"}
+                    overflowVisible={card.kind === "mindmap"}
+                    onSizeChange={rememberTextCardSize}
+                    editing={false}
+                    draft={card.text}
+                    position={textCardInteractionSnapshot.release?.active ? to : from}
+                    settling
+                    forceInteractive
+                    selected={outlinedIds.includes(card.id)}
+                    linksDisabled
+                    shadowsUnderElements={shadowsUnderElements}
+                    onDraftChange={setTextCardDraft}
+                    onSave={canvasNodeActions.saveTextCardEdit}
+                    onCancel={canvasNodeActions.cancelTextCardEdit}
+                    onStartMove={canvasNodeActions.startTextCardMove}
+                    onOpenMenu={canvasNodeActions.openTextCardMenu}
+                    onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                  />
+                ))}
+              </div>
+            )}
+            {mindmapConnectionMode && (
+              <div
+                className="pointer-events-none absolute left-0 top-0 z-[110] overflow-visible"
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                {Array.from(connectableBoundsById.entries()).map(([ownerId, bounds]) => {
+                  const mindmap = textCardsById.get(ownerId);
+                  const accent =
+                    containersById.get(ownerId)?.accent ??
+                    textBlocksById.get(ownerId)?.accent ??
+                    imagesById.get(ownerId)?.accent ??
+                    (mindmap?.kind === "mindmap"
+                      ? getTextCardAccent(mindmap.accent)
+                      : defaultElementColors.mindmap);
+                  return (
+                    <div
+                      key={ownerId}
+                      className="pointer-events-none absolute"
+                      style={{
+                        left: bounds.x,
+                        top: bounds.y,
+                        width: bounds.width,
+                        height: bounds.height,
+                      }}
+                    >
+                      <MindmapConnectors
+                        ownerId={ownerId}
+                        accent={accent}
+                        connectionMode
+                        activeSourcePort={
+                          mindmapConnectionDrag?.sourceId === ownerId
+                            ? mindmapConnectionDrag.sourcePort
+                            : undefined
+                        }
+                        activeTargetPort={
+                          mindmapConnectionDrag?.targetId === ownerId
+                            ? mindmapConnectionDrag.targetPort
+                            : undefined
+                        }
+                        onStartConnection={startMindmapConnection}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {selectionBounds && (
+              <div
+                ref={selectionRef}
+                className="pointer-events-none absolute z-30 rounded-md border border-dashed border-[#2dd8c8]/80 bg-[#2dd8c8]/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
+              />
+            )}
+          </WorkspaceBackdropLayer>
+
+          {containerMenu && contextMenuElement && (
+            <ContainerContextMenu
+              key={`${containerMenu.id}-${containerMenu.left}-${containerMenu.top}`}
+              menu={containerMenu}
+              element={contextMenuElement}
+              closing={false}
+              isMultiTarget={isMultiContextAction(contextMenuElement.id)}
+              extensionState={getSelectedExtensionState(getContextActionIds(contextMenuElement.id))}
+              onStartRename={startRename}
+              onUpdateAccent={updateContextAccent}
+              onCut={cutContainer}
+              onCopy={copyContainer}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
+              onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
+              onRemoveInheritCardColorExtension={(id) =>
+                stripContextExtension(id, "inheritCardColor")
+              }
+              onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
+              onMoveLayer={moveCanvasLayers}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {closingContainerMenu && closingContextMenuElement && (
+            <ContainerContextMenu
+              key={`closing-${closingContainerMenu.id}-${closingContainerMenu.left}-${closingContainerMenu.top}`}
+              menu={closingContainerMenu}
+              element={closingContextMenuElement}
+              closing
+              isMultiTarget={isMultiContextAction(closingContextMenuElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingContextMenuElement.id),
               )}
-              {mindmapConnectionMode && (
-                <div
-                  className="pointer-events-none absolute left-0 top-0 z-[110] overflow-visible"
-                  style={{
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
-                    transformOrigin: "0 0",
+              onStartRename={startRename}
+              onUpdateAccent={updateContextAccent}
+              onCut={cutContainer}
+              onCopy={copyContainer}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
+              onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
+              onRemoveInheritCardColorExtension={(id) =>
+                stripContextExtension(id, "inheritCardColor")
+              }
+              onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
+              onMoveLayer={moveCanvasLayers}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {containerContentMenu && (
+            <ContainerContentContextMenu
+              key={`${containerContentMenu.containerId}-${containerContentMenu.clientX}-${containerContentMenu.clientY}`}
+              menu={containerContentMenu}
+              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              closing={false}
+              onPaste={pasteCopiedItem}
+              onCreateTextCard={createTextCardInContainer}
+            />
+          )}
+
+          {closingContainerContentMenu && (
+            <ContainerContentContextMenu
+              key={`closing-${closingContainerContentMenu.containerId}-${closingContainerContentMenu.clientX}-${closingContainerContentMenu.clientY}`}
+              menu={closingContainerContentMenu}
+              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              closing
+              onPaste={pasteCopiedItem}
+              onCreateTextCard={createTextCardInContainer}
+            />
+          )}
+
+          {textCardMenu && textCardContextElement && (
+            <TextCardContextMenu
+              key={`${textCardMenu.id}-${textCardMenu.left}-${textCardMenu.top}`}
+              menu={textCardMenu}
+              card={textCardContextElement}
+              closing={false}
+              isMultiTarget={isMultiContextAction(textCardContextElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(textCardContextElement.id),
+              )}
+              onStartEdit={startTextCardEdit}
+              onUpdateAccent={updateContextAccent}
+              recentColors={recentColors}
+              onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+              onUpdateLink={updateTextCardLink}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
+              onCut={cutTextCard}
+              onCopy={copyTextCard}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
+              onMoveLayer={moveCanvasLayers}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {closingTextCardMenu && closingTextCardContextElement && (
+            <TextCardContextMenu
+              key={`closing-${closingTextCardMenu.id}-${closingTextCardMenu.left}-${closingTextCardMenu.top}`}
+              menu={closingTextCardMenu}
+              card={closingTextCardContextElement}
+              closing
+              isMultiTarget={isMultiContextAction(closingTextCardContextElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingTextCardContextElement.id),
+              )}
+              onStartEdit={startTextCardEdit}
+              onUpdateAccent={updateContextAccent}
+              recentColors={recentColors}
+              onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+              onUpdateLink={updateTextCardLink}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
+              onCut={cutTextCard}
+              onCopy={copyTextCard}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
+              onMoveLayer={moveCanvasLayers}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {textBlockMenu && textBlockContextElement && (
+            <TextBlockContextMenu
+              key={`${textBlockMenu.id}-${textBlockMenu.left}-${textBlockMenu.top}`}
+              menu={textBlockMenu}
+              element={textBlockContextElement}
+              closing={false}
+              isMultiTarget={isMultiContextAction(textBlockContextElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(textBlockContextElement.id),
+              )}
+              onStartEdit={startRename}
+              onUpdateAccent={updateContextAccent}
+              onCut={cutTextBlock}
+              onCopy={copyTextBlock}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onMoveLayer={moveCanvasLayers}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {closingTextBlockMenu && closingTextBlockContextElement && (
+            <TextBlockContextMenu
+              key={`closing-${closingTextBlockMenu.id}-${closingTextBlockMenu.left}-${closingTextBlockMenu.top}`}
+              menu={closingTextBlockMenu}
+              element={closingTextBlockContextElement}
+              closing
+              isMultiTarget={isMultiContextAction(closingTextBlockContextElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingTextBlockContextElement.id),
+              )}
+              onStartEdit={startRename}
+              onUpdateAccent={updateContextAccent}
+              onCut={cutTextBlock}
+              onCopy={copyTextBlock}
+              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
+              onMoveLayer={moveCanvasLayers}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {imageMenu && imageContextElement && (
+            <ImageContextMenu
+              key={`${imageMenu.id}-${imageMenu.left}-${imageMenu.top}`}
+              menu={imageMenu}
+              image={imageContextElement}
+              closing={false}
+              isMultiTarget={isMultiContextAction(imageContextElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(imageContextElement.id),
+              )}
+              onReplace={pickImageForElement}
+              onUpdateAccent={updateContextAccent}
+              onToggleBackground={toggleImageBackground}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
+              onMoveLayer={moveCanvasLayers}
+              onCut={cutImage}
+              onCopy={copyImage}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {closingImageMenu && closingImageContextElement && (
+            <ImageContextMenu
+              key={`closing-${closingImageMenu.id}-${closingImageMenu.left}-${closingImageMenu.top}`}
+              menu={closingImageMenu}
+              image={closingImageContextElement}
+              closing
+              isMultiTarget={isMultiContextAction(closingImageContextElement.id)}
+              extensionState={getSelectedExtensionState(
+                getContextActionIds(closingImageContextElement.id),
+              )}
+              onReplace={pickImageForElement}
+              onUpdateAccent={updateContextAccent}
+              onToggleBackground={toggleImageBackground}
+              onToggleLock={canvasNodeActions.toggleLockExtension}
+              onMoveLayer={moveCanvasLayers}
+              onCut={cutImage}
+              onCopy={copyImage}
+              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
+              onDelete={deleteContextSelection}
+            />
+          )}
+
+          {mindmapConnectionMenu && mindmapConnectionContextElement && (
+            <MindmapConnectionContextMenu
+              menu={mindmapConnectionMenu}
+              connection={mindmapConnectionContextElement}
+              onDelete={removeMindmapConnection}
+            />
+          )}
+
+          {canvasMenu && (
+            <CanvasContextMenu
+              key={`${canvasMenu.clientX}-${canvasMenu.clientY}`}
+              menu={canvasMenu}
+              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              closing={false}
+              onPaste={pasteCopiedItem}
+              onCreate={createContainer}
+              onCreateTextCard={createTextCard}
+              onCreateTextBlock={createTextBlock}
+              onCreateImage={createImageFromMenu}
+              onCreateMindmap={createMindmap}
+              onClear={requestClearCanvas}
+            />
+          )}
+
+          {closingCanvasMenu && (
+            <CanvasContextMenu
+              key={`closing-${closingCanvasMenu.clientX}-${closingCanvasMenu.clientY}`}
+              menu={closingCanvasMenu}
+              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              closing
+              onPaste={pasteCopiedItem}
+              onCreate={createContainer}
+              onCreateTextCard={createTextCard}
+              onCreateTextBlock={createTextBlock}
+              onCreateImage={createImageFromMenu}
+              onCreateMindmap={createMindmap}
+              onClear={requestClearCanvas}
+            />
+          )}
+
+          <ModalPresence open={clearModalOpen}>
+            <Suspense fallback={null}>
+              <ClearCanvasModal onCancel={() => setClearModalOpen(false)} onConfirm={clearCanvas} />
+            </Suspense>
+          </ModalPresence>
+
+          {containerJsonEditor &&
+            containersById.get(containerJsonEditor.containerId)?.extensions?.copyPasteJson && (
+              <ContainerJsonEditorWindow
+                key={containerJsonEditor.containerId}
+                containerName={
+                  containersById.get(containerJsonEditor.containerId)?.name ?? "Container"
+                }
+                initialJson={containerJsonEditor.initialJson}
+                onApply={(json) => {
+                  applyContainerJsonFromAi(containerJsonEditor.containerId, json);
+                }}
+                onClose={() => {
+                  retainedJsonEdit.current?.cancel();
+                  retainedJsonEdit.current = null;
+                  setContainerJsonEditor(null);
+                }}
+              />
+            )}
+
+          <ModalPresence
+            open={settingsOpen}
+            onDismiss={() => {
+              gridOpacityEdit?.cancel();
+              setSettingsOpen(false);
+            }}
+          >
+            <Suspense fallback={null}>
+              <SettingsModal
+                databaseActions={
+                  retained
+                    ? {
+                        lock: async () => {
+                          // The animation plays before the lock: locking purges the document,
+                          // so afterwards there would be no canvas left to animate.
+                          setSettingsOpen(false);
+                          await beginWorkspaceOutro();
+                          const locked = (await retained.runtime.controller.lock()).ok;
+                          if (!locked) cancelWorkspaceOutro();
+                          return locked;
+                        },
+                        close: async () => (await retained.runtime.controller.close()).ok,
+                      }
+                    : undefined
+                }
+                gridOpacityEdit={gridOpacityEdit}
+                canvasGridStyle={canvasGridStyle}
+                onCanvasGridStyleChange={setCanvasGridStyle}
+                canvasGridOpacity={canvasGridOpacity[canvasGridStyle]}
+                onCanvasGridOpacityChange={(opacity) =>
+                  setCanvasGridOpacity((current) => ({
+                    ...current,
+                    [canvasGridStyle]: opacity,
+                  }))
+                }
+                defaultElementColors={defaultElementColors}
+                onDefaultElementColorChange={(elementType, color) =>
+                  setDefaultElementColors((current) => ({ ...current, [elementType]: color }))
+                }
+                recentColors={recentColors}
+                onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+                shadowsUnderElements={shadowsUnderElements}
+                onShadowsUnderElementsChange={setShadowsUnderElements}
+                allowLockedElementDeletion={allowLockedElementDeletion}
+                onAllowLockedElementDeletionChange={setAllowLockedElementDeletion}
+                onExportData={exportData}
+                onImportData={importData}
+                availableUpdate={availableUpdate}
+                appVersion={appVersion}
+                fpsCounterVisible={fpsCounterVisible}
+                onFpsCounterVisibleChange={setFpsCounterVisible}
+                privacyModeEnabled={privacyModeEnabled}
+                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
+                chromeRadii={chromeRadii}
+                onChromeRadiusChange={(key, radius) =>
+                  setChromeRadii((current) => ({ ...current, [key]: radius }))
+                }
+                sleepDelayMs={chromeAutoHideDelayMs}
+                onSleepDelayChange={setChromeAutoHideDelayMs}
+                temporaryPanelsVisible={temporaryPanelsVisible}
+                onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
+                onCheckForUpdate={checkForAppUpdate}
+                onInstallUpdate={installAppUpdate}
+                onClose={() => {
+                  gridOpacityEdit?.cancel();
+                  setSettingsOpen(false);
+                }}
+              />
+            </Suspense>
+          </ModalPresence>
+
+          <ModalPresence open={updateModalOpen && Boolean(availableUpdate) && !settingsOpen}>
+            <Suspense fallback={null}>
+              {availableUpdate ? (
+                <UpdateAvailableModal
+                  update={availableUpdate}
+                  onInstall={installAppUpdate}
+                  onDismiss={dismissUpdateModal}
+                />
+              ) : null}
+            </Suspense>
+          </ModalPresence>
+
+          {settingsError && (
+            <div
+              role="alert"
+              className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100"
+            >
+              {settingsError}
+            </div>
+          )}
+          {storageError && (
+            <div className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">
+              <div className="mb-1 font-semibold">Storage error</div>
+              <div className="text-red-100/75">{storageError.message}</div>
+              {storageError.canReset && (
+                <button
+                  className="mt-3 flex h-9 items-center gap-2 rounded-md bg-red-300/14 px-3 text-sm text-red-100 transition-colors hover:bg-red-300/22"
+                  onClick={() => {
+                    resetLocalDatabase().catch((error) => {
+                      const storageFailure = createStorageError(
+                        "Failed to reset local database",
+                        error,
+                      );
+                      setStorageError(storageFailure);
+                      console.error(storageFailure.message);
+                    });
                   }}
                 >
-                  {Array.from(connectableBoundsById.entries()).map(([ownerId, bounds]) => {
-                    const mindmap = textCardsById.get(ownerId);
-                    const accent =
-                      containersById.get(ownerId)?.accent ??
-                      textBlocksById.get(ownerId)?.accent ??
-                      imagesById.get(ownerId)?.accent ??
-                      (mindmap?.kind === "mindmap"
-                        ? getTextCardAccent(mindmap.accent)
-                        : defaultElementColors.mindmap);
-                    return (
-                      <div
-                        key={ownerId}
-                        className="pointer-events-none absolute"
-                        style={{
-                          left: bounds.x,
-                          top: bounds.y,
-                          width: bounds.width,
-                          height: bounds.height,
-                        }}
-                      >
-                        <MindmapConnectors
-                          ownerId={ownerId}
-                          accent={accent}
-                          connectionMode
-                          activeSourcePort={
-                            mindmapConnectionDrag?.sourceId === ownerId
-                              ? mindmapConnectionDrag.sourcePort
-                              : undefined
-                          }
-                          activeTargetPort={
-                            mindmapConnectionDrag?.targetId === ownerId
-                              ? mindmapConnectionDrag.targetPort
-                              : undefined
-                          }
-                          onStartConnection={startMindmapConnection}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                  <IconRotateClockwise size={17} stroke={2} />
+                  <span>Reset local data</span>
+                </button>
               )}
-              {selectionBounds && (
-                <div
-                  ref={selectionRef}
-                  className="pointer-events-none absolute z-30 rounded-md border border-dashed border-[#2dd8c8]/80 bg-[#2dd8c8]/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
-                />
-              )}
-            </WorkspaceBackdropLayer>
+            </div>
+          )}
 
-            {containerMenu && contextMenuElement && (
-              <ContainerContextMenu
-                key={`${containerMenu.id}-${containerMenu.left}-${containerMenu.top}`}
-                menu={containerMenu}
-                element={contextMenuElement}
-                closing={false}
-                isMultiTarget={isMultiContextAction(contextMenuElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(contextMenuElement.id),
-                )}
-                onStartRename={startRename}
-                onUpdateAccent={updateContextAccent}
-                onCut={cutContainer}
-                onCopy={copyContainer}
-                onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-                onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-                onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
-                onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
-                onRemoveInheritCardColorExtension={(id) =>
-                  stripContextExtension(id, "inheritCardColor")
-                }
-                onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
-                onMoveLayer={moveCanvasLayers}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {closingContainerMenu && closingContextMenuElement && (
-              <ContainerContextMenu
-                key={`closing-${closingContainerMenu.id}-${closingContainerMenu.left}-${closingContainerMenu.top}`}
-                menu={closingContainerMenu}
-                element={closingContextMenuElement}
-                closing
-                isMultiTarget={isMultiContextAction(closingContextMenuElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(closingContextMenuElement.id),
-                )}
-                onStartRename={startRename}
-                onUpdateAccent={updateContextAccent}
-                onCut={cutContainer}
-                onCopy={copyContainer}
-                onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-                onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-                onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
-                onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
-                onRemoveInheritCardColorExtension={(id) =>
-                  stripContextExtension(id, "inheritCardColor")
-                }
-                onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
-                onMoveLayer={moveCanvasLayers}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {containerContentMenu && (
-              <ContainerContentContextMenu
-                key={`${containerContentMenu.containerId}-${containerContentMenu.clientX}-${containerContentMenu.clientY}`}
-                menu={containerContentMenu}
-                hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
-                closing={false}
-                onPaste={pasteCopiedItem}
-                onCreateTextCard={createTextCardInContainer}
-              />
-            )}
-
-            {closingContainerContentMenu && (
-              <ContainerContentContextMenu
-                key={`closing-${closingContainerContentMenu.containerId}-${closingContainerContentMenu.clientX}-${closingContainerContentMenu.clientY}`}
-                menu={closingContainerContentMenu}
-                hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
-                closing
-                onPaste={pasteCopiedItem}
-                onCreateTextCard={createTextCardInContainer}
-              />
-            )}
-
-            {textCardMenu && textCardContextElement && (
-              <TextCardContextMenu
-                key={`${textCardMenu.id}-${textCardMenu.left}-${textCardMenu.top}`}
-                menu={textCardMenu}
-                card={textCardContextElement}
-                closing={false}
-                isMultiTarget={isMultiContextAction(textCardContextElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(textCardContextElement.id),
-                )}
-                onStartEdit={startTextCardEdit}
-                onUpdateAccent={updateContextAccent}
-                recentColors={recentColors}
-                onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                onUpdateLink={updateTextCardLink}
-                onToggleLock={canvasNodeActions.toggleLockExtension}
-                onCut={cutTextCard}
-                onCopy={copyTextCard}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-                onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
-                onMoveLayer={moveCanvasLayers}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {closingTextCardMenu && closingTextCardContextElement && (
-              <TextCardContextMenu
-                key={`closing-${closingTextCardMenu.id}-${closingTextCardMenu.left}-${closingTextCardMenu.top}`}
-                menu={closingTextCardMenu}
-                card={closingTextCardContextElement}
-                closing
-                isMultiTarget={isMultiContextAction(closingTextCardContextElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(closingTextCardContextElement.id),
-                )}
-                onStartEdit={startTextCardEdit}
-                onUpdateAccent={updateContextAccent}
-                recentColors={recentColors}
-                onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                onUpdateLink={updateTextCardLink}
-                onToggleLock={canvasNodeActions.toggleLockExtension}
-                onCut={cutTextCard}
-                onCopy={copyTextCard}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-                onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
-                onMoveLayer={moveCanvasLayers}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {textBlockMenu && textBlockContextElement && (
-              <TextBlockContextMenu
-                key={`${textBlockMenu.id}-${textBlockMenu.left}-${textBlockMenu.top}`}
-                menu={textBlockMenu}
-                element={textBlockContextElement}
-                closing={false}
-                isMultiTarget={isMultiContextAction(textBlockContextElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(textBlockContextElement.id),
-                )}
-                onStartEdit={startRename}
-                onUpdateAccent={updateContextAccent}
-                onCut={cutTextBlock}
-                onCopy={copyTextBlock}
-                onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-                onMoveLayer={moveCanvasLayers}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {closingTextBlockMenu && closingTextBlockContextElement && (
-              <TextBlockContextMenu
-                key={`closing-${closingTextBlockMenu.id}-${closingTextBlockMenu.left}-${closingTextBlockMenu.top}`}
-                menu={closingTextBlockMenu}
-                element={closingTextBlockContextElement}
-                closing
-                isMultiTarget={isMultiContextAction(closingTextBlockContextElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(closingTextBlockContextElement.id),
-                )}
-                onStartEdit={startRename}
-                onUpdateAccent={updateContextAccent}
-                onCut={cutTextBlock}
-                onCopy={copyTextBlock}
-                onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-                onMoveLayer={moveCanvasLayers}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {imageMenu && imageContextElement && (
-              <ImageContextMenu
-                key={`${imageMenu.id}-${imageMenu.left}-${imageMenu.top}`}
-                menu={imageMenu}
-                image={imageContextElement}
-                closing={false}
-                isMultiTarget={isMultiContextAction(imageContextElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(imageContextElement.id),
-                )}
-                onReplace={pickImageForElement}
-                onUpdateAccent={updateContextAccent}
-                onToggleBackground={toggleImageBackground}
-                onToggleLock={canvasNodeActions.toggleLockExtension}
-                onMoveLayer={moveCanvasLayers}
-                onCut={cutImage}
-                onCopy={copyImage}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {closingImageMenu && closingImageContextElement && (
-              <ImageContextMenu
-                key={`closing-${closingImageMenu.id}-${closingImageMenu.left}-${closingImageMenu.top}`}
-                menu={closingImageMenu}
-                image={closingImageContextElement}
-                closing
-                isMultiTarget={isMultiContextAction(closingImageContextElement.id)}
-                extensionState={getSelectedExtensionState(
-                  getContextActionIds(closingImageContextElement.id),
-                )}
-                onReplace={pickImageForElement}
-                onUpdateAccent={updateContextAccent}
-                onToggleBackground={toggleImageBackground}
-                onToggleLock={canvasNodeActions.toggleLockExtension}
-                onMoveLayer={moveCanvasLayers}
-                onCut={cutImage}
-                onCopy={copyImage}
-                onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-                onDelete={deleteContextSelection}
-              />
-            )}
-
-            {mindmapConnectionMenu && mindmapConnectionContextElement && (
-              <MindmapConnectionContextMenu
-                menu={mindmapConnectionMenu}
-                connection={mindmapConnectionContextElement}
-                onDelete={removeMindmapConnection}
-              />
-            )}
-
-            {canvasMenu && (
-              <CanvasContextMenu
-                key={`${canvasMenu.clientX}-${canvasMenu.clientY}`}
-                menu={canvasMenu}
-                hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
-                closing={false}
-                onPaste={pasteCopiedItem}
-                onCreate={createContainer}
-                onCreateTextCard={createTextCard}
-                onCreateTextBlock={createTextBlock}
-                onCreateImage={createImageFromMenu}
-                onCreateMindmap={createMindmap}
-                onClear={requestClearCanvas}
-              />
-            )}
-
-            {closingCanvasMenu && (
-              <CanvasContextMenu
-                key={`closing-${closingCanvasMenu.clientX}-${closingCanvasMenu.clientY}`}
-                menu={closingCanvasMenu}
-                hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
-                closing
-                onPaste={pasteCopiedItem}
-                onCreate={createContainer}
-                onCreateTextCard={createTextCard}
-                onCreateTextBlock={createTextBlock}
-                onCreateImage={createImageFromMenu}
-                onCreateMindmap={createMindmap}
-                onClear={requestClearCanvas}
-              />
-            )}
-
-            <ModalPresence open={clearModalOpen}>
-              <Suspense fallback={null}>
-                <ClearCanvasModal
-                  onCancel={() => setClearModalOpen(false)}
-                  onConfirm={clearCanvas}
-                />
-              </Suspense>
-            </ModalPresence>
-
-            {containerJsonEditor &&
-              containersById.get(containerJsonEditor.containerId)?.extensions?.copyPasteJson && (
-                <ContainerJsonEditorWindow
-                  key={containerJsonEditor.containerId}
-                  containerName={
-                    containersById.get(containerJsonEditor.containerId)?.name ?? "Container"
-                  }
-                  initialJson={containerJsonEditor.initialJson}
-                  onApply={(json) => {
-                    applyContainerJsonFromAi(containerJsonEditor.containerId, json);
-                  }}
-                  onClose={() => {
-                    retainedJsonEdit.current?.cancel();
-                    retainedJsonEdit.current = null;
-                    setContainerJsonEditor(null);
-                  }}
-                />
-              )}
-
-            <ModalPresence
-              open={settingsOpen}
-              onDismiss={() => {
-                gridOpacityEdit?.cancel();
-                setSettingsOpen(false);
-              }}
-            >
-              <Suspense fallback={null}>
-                <SettingsModal
-                  databaseActions={
-                    retained
-                      ? {
-                          lock: async () => {
-                            // The animation plays before the lock: locking purges the document,
-                            // so afterwards there would be no canvas left to animate.
-                            setSettingsOpen(false);
-                            await beginWorkspaceOutro();
-                            const locked = (await retained.runtime.controller.lock()).ok;
-                            if (!locked) cancelWorkspaceOutro();
-                            return locked;
-                          },
-                          close: async () => (await retained.runtime.controller.close()).ok,
-                        }
-                      : undefined
-                  }
-                  gridOpacityEdit={gridOpacityEdit}
-                  canvasGridStyle={canvasGridStyle}
-                  onCanvasGridStyleChange={setCanvasGridStyle}
-                  canvasGridOpacity={canvasGridOpacity[canvasGridStyle]}
-                  onCanvasGridOpacityChange={(opacity) =>
-                    setCanvasGridOpacity((current) => ({
-                      ...current,
-                      [canvasGridStyle]: opacity,
-                    }))
-                  }
-                  defaultElementColors={defaultElementColors}
-                  onDefaultElementColorChange={(elementType, color) =>
-                    setDefaultElementColors((current) => ({ ...current, [elementType]: color }))
-                  }
-                  recentColors={recentColors}
-                  onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                  shadowsUnderElements={shadowsUnderElements}
-                  onShadowsUnderElementsChange={setShadowsUnderElements}
-                  allowLockedElementDeletion={allowLockedElementDeletion}
-                  onAllowLockedElementDeletionChange={setAllowLockedElementDeletion}
-                  onExportData={exportData}
-                  onImportData={importData}
-                  availableUpdate={availableUpdate}
-                  appVersion={appVersion}
-                  fpsCounterVisible={fpsCounterVisible}
-                  onFpsCounterVisibleChange={setFpsCounterVisible}
-                  privacyModeEnabled={privacyModeEnabled}
-                  onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-                  chromeRadii={chromeRadii}
-                  onChromeRadiusChange={(key, radius) =>
-                    setChromeRadii((current) => ({ ...current, [key]: radius }))
-                  }
-                  sleepDelayMs={chromeAutoHideDelayMs}
-                  onSleepDelayChange={setChromeAutoHideDelayMs}
-                  temporaryPanelsVisible={temporaryPanelsVisible}
-                  onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
-                  onCheckForUpdate={checkForAppUpdate}
-                  onInstallUpdate={installAppUpdate}
-                  onClose={() => {
-                    gridOpacityEdit?.cancel();
-                    setSettingsOpen(false);
-                  }}
-                />
-              </Suspense>
-            </ModalPresence>
-
-            <ModalPresence open={updateModalOpen && Boolean(availableUpdate) && !settingsOpen}>
-              <Suspense fallback={null}>
-                {availableUpdate ? (
-                  <UpdateAvailableModal
-                    update={availableUpdate}
-                    onInstall={installAppUpdate}
-                    onDismiss={dismissUpdateModal}
-                  />
-                ) : null}
-              </Suspense>
-            </ModalPresence>
-
-            {settingsError && (
-              <div
-                role="alert"
-                className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100"
-              >
-                {settingsError}
-              </div>
-            )}
-            {storageError && (
-              <div className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">
-                <div className="mb-1 font-semibold">Storage error</div>
-                <div className="text-red-100/75">{storageError.message}</div>
-                {storageError.canReset && (
-                  <button
-                    className="mt-3 flex h-9 items-center gap-2 rounded-md bg-red-300/14 px-3 text-sm text-red-100 transition-colors hover:bg-red-300/22"
-                    onClick={() => {
-                      resetLocalDatabase().catch((error) => {
-                        const storageFailure = createStorageError(
-                          "Failed to reset local database",
-                          error,
-                        );
-                        setStorageError(storageFailure);
-                        console.error(storageFailure.message);
-                      });
-                    }}
-                  >
-                    <IconRotateClockwise size={17} stroke={2} />
-                    <span>Reset local data</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            <ToastStack toasts={toasts} onDismiss={dismissToast} />
-          </section>
-        </div>
-      </WorkspaceRoot>
-    </TransientInteractionProvider>
+          <ToastStack toasts={toasts} onDismiss={dismissToast} />
+        </section>
+      </div>
+    </WorkspaceRoot>
   );
 }
 

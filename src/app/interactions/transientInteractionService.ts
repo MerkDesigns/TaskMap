@@ -21,14 +21,3 @@ export interface TransientInteractionService {
   readonly getSnapshot: () => TransientInteractionSnapshot;
   readonly subscribe: (listener: TransientInteractionListener) => UnsubscribeTransientInteraction;
 }
-
-const idleSnapshot: TransientInteractionSnapshot = Object.freeze({
-  activeInteraction: null,
-});
-
-export function createDefaultTransientInteractionService(): TransientInteractionService {
-  return {
-    getSnapshot: () => idleSnapshot,
-    subscribe: () => () => undefined,
-  };
-}

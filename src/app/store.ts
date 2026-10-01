@@ -1,4 +1,4 @@
-import { configureStore, createSlice } from "@reduxjs/toolkit";
+import { configureStore } from "@reduxjs/toolkit";
 import type { TransactionDependencies } from "../domain/commands/executeDocumentCommand";
 import { createEntityId } from "../domain/ids/entityIds";
 import {
@@ -10,20 +10,6 @@ import { documentWorkspaceSlice } from "./workspace/workspaceSlice";
 import type { HistoryCapacity } from "../domain/history/historyTypes";
 import type { DocumentAcceptance } from "../domain/document/documentAcceptance";
 import type { DomainCommandHandler } from "../domain/commands/commandHandler";
-
-export interface ApplicationState {
-  readonly activeBoundary: "legacy";
-}
-
-const initialApplicationState: ApplicationState = {
-  activeBoundary: "legacy",
-};
-
-const applicationSlice = createSlice({
-  name: "application",
-  initialState: initialApplicationState,
-  reducers: {},
-});
 
 export interface CreateAppStoreOptions {
   readonly commandHandlers?: readonly DomainCommandHandler[];
@@ -43,7 +29,6 @@ const defaultTransactionDependencies: TransactionDependencies = {
 export function createAppStore(options: CreateAppStoreOptions = {}) {
   const store = configureStore({
     reducer: {
-      application: applicationSlice.reducer,
       documentWorkspace: documentWorkspaceSlice.reducer,
     },
   });
@@ -66,8 +51,6 @@ export function createAppStore(options: CreateAppStoreOptions = {}) {
     },
   });
 }
-
-export const appStore = createAppStore();
 
 export type AppStore = ReturnType<typeof createAppStore>;
 export type RootState = ReturnType<AppStore["getState"]>;
