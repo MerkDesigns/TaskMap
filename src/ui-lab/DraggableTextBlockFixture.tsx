@@ -1,29 +1,35 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { TextBlockRenderer } from "../elements/text-block/TextBlockRenderer";
-import type { TextBlockElement } from "../types";
+import { asEntityId } from "../domain/ids/entityIds";
+import type { TextBlockDocumentElement } from "../elements/text-block/textBlockModel";
+import type { TextBlockActions } from "../elements/text-block/textBlockView";
 import { Button } from "../ui/primitives/Button";
 import { Surface } from "./system/Surface";
 import "./draggableTextBlockFixture.css";
 
 const INITIAL_POSITION = { x: 48, y: 238 } as const;
 
-const TEXT_BLOCK: TextBlockElement = {
-  id: "ui-lab-red-text-block",
-  name: "Moving red production TextBlock",
-  text: [
-    "## Live backdrop sample",
-    "Drag this real production node beneath the Major and Minor glass surfaces.",
-    "",
-    "- Saturated red header and rim",
-    "- Multi-line ordinary content",
-    "- Live movement for blur inspection",
-  ].join("\n"),
-  x: 0,
-  y: 0,
-  width: 340,
-  height: 230,
-  accent: "#f01846",
+const TEXT_BLOCK: TextBlockDocumentElement = {
+  id: asEntityId("element", "element-00000000-0000-4000-8000-0000000000b1"),
+  canvasId: asEntityId("canvas", "canvas-00000000-0000-4000-8000-0000000000b2"),
+  type: "text-block",
+  geometry: { x: 0, y: 0, width: 340, height: 230 },
+  data: {
+    name: "Moving red production TextBlock",
+    text: [
+      "## Live backdrop sample",
+      "Drag this real production node beneath the Major and Minor glass surfaces.",
+      "",
+      "- Saturated red header and rim",
+      "- Multi-line ordinary content",
+      "- Live movement for blur inspection",
+    ].join("\n"),
+    accent: "#f01846",
+    headerButtonsVisible: true,
+  },
 };
+
+const ignore = () => undefined;
 
 type Point = { x: number; y: number };
 
@@ -106,6 +112,24 @@ export function DraggableTextBlockFixture() {
   };
 
   const resetPosition = () => applyPosition({ ...INITIAL_POSITION });
+  const actions: TextBlockActions = {
+    onDraftChange: ignore,
+    onSave: ignore,
+    onCancel: ignore,
+    onRenameDraftChange: ignore,
+    onSaveRename: ignore,
+    onCancelRename: ignore,
+    onStartEdit: ignore,
+    onSelect: ignore,
+    onStartMove: (event) => startMove(event),
+    onStartResize: (event) => event.stopPropagation(),
+    onToggleMenu: (event) => event.stopPropagation(),
+    onTogglePrivacy: ignore,
+    onToggleLock: ignore,
+    onUpdateAccent: ignore,
+    onRememberRecentColor: ignore,
+    onHeaderButtonsVisibleChange: ignore,
+  };
 
   return (
     <section
@@ -140,34 +164,23 @@ export function DraggableTextBlockFixture() {
         >
           <TextBlockRenderer
             element={TEXT_BLOCK}
-            selected={false}
-            multiSelected={false}
-            entering={false}
-            deleting={false}
-            pulsing={false}
-            moving={moving}
-            shadowsUnderElements={false}
-            recentColors={[]}
-            editing={false}
-            draft=""
-            renaming={false}
-            renameDraft=""
-            onDraftChange={() => undefined}
-            onSave={() => undefined}
-            onCancel={() => undefined}
-            onRenameDraftChange={() => undefined}
-            onSaveRename={() => undefined}
-            onCancelRename={() => undefined}
-            onStartEdit={() => undefined}
-            onSelect={() => undefined}
-            onStartMove={startMove}
-            onStartResize={(event) => event.stopPropagation()}
-            onToggleMenu={(event) => event.stopPropagation()}
-            onTogglePrivacy={() => undefined}
-            onToggleLock={() => undefined}
-            onUpdateAccent={() => undefined}
-            onRememberRecentColor={() => undefined}
-            onHeaderButtonsVisibleChange={() => undefined}
+            actions={actions}
+            view={{
+              layer: 0,
+              extensions: undefined,
+              selected: false,
+              multiSelected: false,
+              entering: false,
+              deleting: false,
+              pulsing: false,
+              moving,
+              shadowsUnderElements: false,
+              recentColors: [],
+              editing: false,
+              draft: "",
+              renaming: false,
+              renameDraft: "",
+            }}
           />
         </div>
 

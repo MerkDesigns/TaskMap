@@ -1,8 +1,9 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { Suspense, lazy, memo, useEffect, useRef, useState } from "react";
-import type { PointerEvent, WheelEvent } from "react";
-import type { TextBlockElement } from "../../types";
-import { TextBlockHeader, type TextBlockHeaderProps } from "./TextBlockHeader";
+import type { WheelEvent } from "react";
+import { TextBlockHeader } from "./TextBlockHeader";
+import type { TextBlockDocumentElement } from "./textBlockModel";
+import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
 import "../elementHeader.css";
 import "./textBlock.css";
 
@@ -12,46 +13,15 @@ const MarkdownContent = lazy(() =>
   })),
 );
 
-export type TextBlockRendererProps = Omit<TextBlockHeaderProps, "article"> & {
-  readonly selected: boolean;
-  readonly multiSelected: boolean;
-  readonly entering: boolean;
-  readonly deleting: boolean;
-  readonly pulsing: boolean;
-  readonly moving: boolean;
-  readonly shadowsUnderElements: boolean;
-  readonly editing: boolean;
-  readonly draft: string;
-  readonly onDraftChange: (value: string) => void;
-  readonly onSave: (id: string) => void;
-  readonly onCancel: () => void;
-  readonly onStartEdit: (element: TextBlockElement) => void;
-  readonly onSelect: (element: TextBlockElement, additive?: boolean) => void;
-  readonly onStartResize: (
-    event: PointerEvent<HTMLButtonElement>,
-    element: TextBlockElement,
-  ) => void;
-};
+export interface TextBlockRendererProps {
+  readonly element: TextBlockDocumentElement;
+  readonly view: TextBlockViewState;
+  readonly actions: TextBlockActions;
+}
 
-function TextBlockRendererComponent({
-  selected,
-  multiSelected,
-  entering,
-  deleting,
-  pulsing,
-  moving,
-  shadowsUnderElements,
-  editing,
-  draft,
-  onDraftChange,
-  onSave,
-  onCancel,
-  onStartEdit,
-  onSelect,
-  onStartResize,
-  ...headerProps
-}: TextBlockRendererProps) {
-  const { element, onStartMove } = headerProps;
+function TextBlockRendererComponent({ element, view, actions }: TextBlockRendererProps) {
+  const { id, geometry, data } = element;
+  const { editing, multiSelected } = view;
   const [article, setArticle] = useState<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -76,57 +46,57 @@ function TextBlockRendererComponent({
     if (editing || scrollable) event.stopPropagation();
   };
 
-  const shadowClass = shadowsUnderElements
+  const shadowClass = view.shadowsUnderElements
     ? ""
-    : ` canvas-attached-shadow-shell${moving ? " canvas-attached-drag-shadow" : ""}`;
+    : ` canvas-attached-shadow-shell${view.moving ? " canvas-attached-drag-shadow" : ""}`;
 
   return (
     <article
       ref={setArticle}
       className={`taskmap-text-block${shadowClass}`}
-      data-moving={moving || undefined}
+      data-moving={view.moving || undefined}
       data-multi-selected={multiSelected || undefined}
-      data-entering={entering || undefined}
-      data-deleting={deleting || undefined}
-      data-pulsing={pulsing || undefined}
+      data-entering={view.entering || undefined}
+      data-deleting={view.deleting || undefined}
+      data-pulsing={view.pulsing || undefined}
       style={{
-        zIndex: 20 + (element.layer ?? 0),
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        backgroundColor: element.accent,
-        borderColor: selected
-          ? `color-mix(in srgb, ${element.accent} 72%, white 28%)`
-          : element.accent,
+        zIndex: 20 + view.layer,
+        left: geometry.x,
+        top: geometry.y,
+        width: geometry.width,
+        height: geometry.height,
+        backgroundColor: data.accent,
+        borderColor: view.selected
+          ? `color-mix(in srgb, ${data.accent} 72%, white 28%)`
+          : data.accent,
       }}
       onPointerDown={(event) => {
         if (event.button !== 1) event.stopPropagation();
         if (event.button === 0 && multiSelected) {
-          onStartMove(event, element);
+          actions.onStartMove(event, id);
           return;
         }
-        if (event.button === 0) onSelect(element, event.shiftKey);
+        if (event.button === 0) actions.onSelect(id, event.shiftKey);
       }}
     >
       <div className="taskmap-text-block__frame">
-        <TextBlockHeader {...headerProps} article={article} />
+        <TextBlockHeader element={element} view={view} actions={actions} article={article} />
         <div
           className="taskmap-text-block__content"
-          data-privacy-hidden={Boolean(element.extensions?.privacy?.enabled) || undefined}
+          data-privacy-hidden={Boolean(view.extensions?.privacy?.enabled) || undefined}
           onWheel={keepScrollableWheel}
           onPointerDown={(event) => {
             if (event.button !== 0) return;
             event.stopPropagation();
             if (multiSelected) {
-              onStartMove(event, element);
+              actions.onStartMove(event, id);
               return;
             }
-            onSelect(element, event.shiftKey);
+            actions.onSelect(id, event.shiftKey);
           }}
           onDoubleClick={(event) => {
             event.stopPropagation();
-            onStartEdit(element);
+            actions.onStartEdit(id);
           }}
         >
           {editing ? (
@@ -134,14 +104,14 @@ function TextBlockRendererComponent({
               <textarea
                 ref={textareaRef}
                 className="taskmap-scrollbar-hidden taskmap-text-block__textarea"
-                value={draft}
+                value={view.draft}
                 spellCheck={false}
-                onChange={(event) => onDraftChange(event.target.value)}
+                onChange={(event) => actions.onDraftChange(event.target.value)}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
-                onBlur={() => onSave(element.id)}
+                onBlur={() => actions.onSave(id)}
                 onKeyDown={(event) => {
-                  if (event.key === "Escape") onCancel();
+                  if (event.key === "Escape") actions.onCancel();
                 }}
               />
             </div>
@@ -151,10 +121,8 @@ function TextBlockRendererComponent({
               data-text-block-content
               className="markdown-content taskmap-scrollbar-hidden taskmap-text-block__markdown"
             >
-              <Suspense
-                fallback={<div className="taskmap-text-block__fallback">{element.text}</div>}
-              >
-                <MarkdownContent>{element.text}</MarkdownContent>
+              <Suspense fallback={<div className="taskmap-text-block__fallback">{data.text}</div>}>
+                <MarkdownContent>{data.text}</MarkdownContent>
               </Suspense>
             </div>
           )}
@@ -163,7 +131,7 @@ function TextBlockRendererComponent({
           className="taskmap-text-block__resize"
           onPointerDown={(event) => {
             event.currentTarget.blur();
-            onStartResize(event, element);
+            actions.onStartResize(event, id);
           }}
           title="Resize text block"
         >
@@ -171,7 +139,7 @@ function TextBlockRendererComponent({
         </button>
         <div
           className={`selection-overlay taskmap-text-block__selection${
-            selected ? " selection-overlay-active" : ""
+            view.selected ? " selection-overlay-active" : ""
           }`}
         />
       </div>
@@ -179,4 +147,16 @@ function TextBlockRendererComponent({
   );
 }
 
-export const TextBlockRenderer = memo(TextBlockRendererComponent);
+/** Callers rebuild the view state each render; compare it by value so idle blocks never re-render. */
+const areTextBlockPropsEqual = (previous: TextBlockRendererProps, next: TextBlockRendererProps) => {
+  if (previous.element !== next.element || previous.actions !== next.actions) return false;
+  const previousView = previous.view as unknown as Record<string, unknown>;
+  const nextView = next.view as unknown as Record<string, unknown>;
+  const keys = Object.keys(previousView);
+  return (
+    keys.length === Object.keys(nextView).length &&
+    keys.every((key) => previousView[key] === nextView[key])
+  );
+};
+
+export const TextBlockRenderer = memo(TextBlockRendererComponent, areTextBlockPropsEqual);

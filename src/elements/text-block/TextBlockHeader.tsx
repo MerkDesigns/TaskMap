@@ -11,15 +11,16 @@ import {
   IconPuzzle,
 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent, PointerEvent, SyntheticEvent } from "react";
+import type { MouseEvent, SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
 import { ColorPickerMenu } from "../../components/ColorPickerMenu";
-import type { TextBlockElement } from "../../types";
 import {
   useHeaderExtensionLayout,
   type HeaderExtensionItem,
   type HeaderLayoutMetrics,
 } from "../useHeaderExtensionLayout";
+import type { TextBlockDocumentElement } from "./textBlockModel";
+import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
 
 type HeaderExtension = "lock" | "privacy" | "colorPicker";
 
@@ -33,49 +34,23 @@ const TEXT_BLOCK_HEADER_METRICS: HeaderLayoutMetrics = {
 };
 
 export interface TextBlockHeaderProps {
-  readonly element: TextBlockElement;
+  readonly element: TextBlockDocumentElement;
+  readonly view: TextBlockViewState;
+  readonly actions: TextBlockActions;
   /** The text block's article; the overflow popover renders into it, outside the frame's clip. */
   readonly article: HTMLElement | null;
-  readonly recentColors: string[];
-  readonly renaming: boolean;
-  readonly renameDraft: string;
-  readonly onRenameDraftChange: (value: string) => void;
-  readonly onSaveRename: (id: string) => void;
-  readonly onCancelRename: () => void;
-  readonly onStartMove: (event: PointerEvent<HTMLElement>, element: TextBlockElement) => void;
-  readonly onToggleMenu: (event: MouseEvent<HTMLButtonElement>, element: TextBlockElement) => void;
-  readonly onTogglePrivacy: (id: string) => void;
-  readonly onToggleLock: (id: string) => void;
-  readonly onUpdateAccent: (id: string, accent: string) => void;
-  readonly onRememberRecentColor: (color?: string) => void;
-  readonly onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
 }
 
 type Position = { left: number; top: number };
 
 const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
 
-export function TextBlockHeader({
-  element,
-  article,
-  recentColors,
-  renaming,
-  renameDraft,
-  onRenameDraftChange,
-  onSaveRename,
-  onCancelRename,
-  onStartMove,
-  onToggleMenu,
-  onTogglePrivacy,
-  onToggleLock,
-  onUpdateAccent,
-  onRememberRecentColor,
-  onHeaderButtonsVisibleChange,
-}: TextBlockHeaderProps) {
-  const extensions = element.extensions;
+export function TextBlockHeader({ element, view, actions, article }: TextBlockHeaderProps) {
+  const { id, geometry, data } = element;
+  const { extensions, renaming, renameDraft } = view;
   const privacyEnabled = Boolean(extensions?.privacy?.enabled);
   const lockEnabled = Boolean(extensions?.lock?.enabled);
-  const buttonsVisible = element.headerButtonsVisible ?? true;
+  const buttonsVisible = data.headerButtonsVisible;
   const items = useMemo(() => {
     const installed: HeaderExtensionItem<HeaderExtension>[] = [];
     if (extensions?.lock) installed.push({ key: "lock", width: BUTTON_WIDTH });
@@ -88,7 +63,7 @@ export function TextBlockHeader({
   const { collapsible, visibleItems, visibleWidth, overflowItems } = useHeaderExtensionLayout(
     items,
     buttonsVisible,
-    { name: element.name, renaming },
+    { name: data.name, renaming },
     TEXT_BLOCK_HEADER_METRICS,
     headerRef,
     titleRef,
@@ -133,7 +108,7 @@ export function TextBlockHeader({
     // The popover is positioned in the article's own (camera-scaled) coordinates.
     const articleRect = article.getBoundingClientRect();
     const buttonRect = event.currentTarget.getBoundingClientRect();
-    const scale = articleRect.width / Math.max(element.width, 1) || 1;
+    const scale = articleRect.width / Math.max(geometry.width, 1) || 1;
     setOverflowPosition({
       left: (buttonRect.left + buttonRect.width / 2 - articleRect.left) / scale,
       top: (buttonRect.top - articleRect.top) / scale - 10,
@@ -149,7 +124,7 @@ export function TextBlockHeader({
             className="taskmap-element-header__button"
             onClick={(event) => {
               event.stopPropagation();
-              onToggleLock(element.id);
+              actions.onToggleLock(id);
             }}
             onPointerDown={stopPropagation}
             title={lockEnabled ? "Unlock" : "Lock"}
@@ -168,7 +143,7 @@ export function TextBlockHeader({
             className="taskmap-element-header__button"
             onClick={(event) => {
               event.stopPropagation();
-              onTogglePrivacy(element.id);
+              actions.onTogglePrivacy(id);
             }}
             onPointerDown={stopPropagation}
             title={privacyEnabled ? "Show content" : "Hide content"}
@@ -208,8 +183,8 @@ export function TextBlockHeader({
       <div
         ref={headerRef}
         className="taskmap-text-block__header"
-        style={{ backgroundColor: element.accent }}
-        onPointerDown={(event) => onStartMove(event, element)}
+        style={{ backgroundColor: data.accent }}
+        onPointerDown={(event) => actions.onStartMove(event, id)}
       >
         <div ref={titleRef} className="taskmap-text-block__title">
           <IconNotes size={18} stroke={2} />
@@ -220,19 +195,19 @@ export function TextBlockHeader({
               value={renameDraft}
               autoFocus
               spellCheck={false}
-              onChange={(event) => onRenameDraftChange(event.target.value)}
+              onChange={(event) => actions.onRenameDraftChange(event.target.value)}
               onFocus={(event) => event.target.select()}
               onPointerDown={stopPropagation}
               onClick={stopPropagation}
-              onBlur={() => onSaveRename(element.id)}
+              onBlur={() => actions.onSaveRename(id)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") onSaveRename(element.id);
-                if (event.key === "Escape") onCancelRename();
+                if (event.key === "Enter") actions.onSaveRename(id);
+                if (event.key === "Escape") actions.onCancelRename();
               }}
             />
           ) : (
             <span className="taskmap-element-header__name taskmap-text-block__name">
-              {element.name}
+              {data.name}
             </span>
           )}
         </div>
@@ -243,7 +218,7 @@ export function TextBlockHeader({
               data-kind="collapse"
               onClick={(event) => {
                 event.stopPropagation();
-                onHeaderButtonsVisibleChange(element.id, !buttonsVisible);
+                actions.onHeaderButtonsVisibleChange(id, !buttonsVisible);
               }}
               onPointerDown={stopPropagation}
               title={buttonsVisible ? "Hide extension buttons" : "Show extension buttons"}
@@ -277,7 +252,7 @@ export function TextBlockHeader({
           <button
             className="taskmap-element-header__button"
             data-kind="menu"
-            onClick={(event) => onToggleMenu(event, element)}
+            onClick={(event) => actions.onToggleMenu(event, id)}
             onPointerDown={stopPropagation}
             title="Text block menu"
           >
@@ -305,13 +280,13 @@ export function TextBlockHeader({
         )}
       {colorMenuPosition && (
         <ColorPickerMenu
-          color={element.accent}
+          color={data.accent}
           left={colorMenuPosition.left}
           top={colorMenuPosition.top}
-          recentColors={recentColors}
-          onChange={(accent) => onUpdateAccent(element.id, accent)}
+          recentColors={[...view.recentColors]}
+          onChange={(accent) => actions.onUpdateAccent(id, accent)}
           onClose={(recentColor) => {
-            onRememberRecentColor(recentColor);
+            actions.onRememberRecentColor(recentColor);
             setColorMenuPosition(null);
           }}
         />

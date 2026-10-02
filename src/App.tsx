@@ -50,6 +50,8 @@ import { TextCardRenderer, type TextCardActions } from "./elements/text-card/Tex
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
 import { TextCardMenu, type TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import { TextBlockRenderer } from "./elements/text-block/TextBlockRenderer";
+import type { TextBlockActions } from "./elements/text-block/textBlockView";
+import { asTextBlockDocumentElement } from "./elements/text-block/textBlockViewProjection";
 import { ToastStack } from "./components/ToastStack";
 import {
   CANVAS_WIDTH,
@@ -6446,6 +6448,32 @@ function App({
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
+  const withTextBlock = (id: string, action: (textBlock: TextBlockElement) => void) => {
+    const textBlock = textBlocksById.get(id);
+    if (textBlock) action(textBlock);
+  };
+  const textBlockActions: TextBlockActions = useStableCallbacks({
+    onDraftChange: setTextBlockDraft,
+    onSave: saveTextBlockEdit,
+    onCancel: cancelTextBlockEdit,
+    onRenameDraftChange: setRenameDraft,
+    onSaveRename: saveRename,
+    onCancelRename: cancelRename,
+    onStartEdit: (id: string) => withTextBlock(id, startTextBlockEdit),
+    onSelect: (id: string, additive: boolean) =>
+      withTextBlock(id, (textBlock) => selectCanvasElement(textBlock, additive)),
+    onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
+      withTextBlock(id, (textBlock) => startMove(event, textBlock)),
+    onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) =>
+      withTextBlock(id, (textBlock) => startResize(event, textBlock)),
+    onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
+      withTextBlock(id, (textBlock) => openTextBlockMenu(event, textBlock)),
+    onTogglePrivacy: togglePrivacyExtension,
+    onToggleLock: toggleLockExtension,
+    onUpdateAccent: updateTextBlockAccent,
+    onRememberRecentColor: rememberRecentColor,
+    onHeaderButtonsVisibleChange: updateTextBlockHeaderButtonsVisible,
+  });
   const containerActions: ContainerActions = useStableCallbacks({
     onRenameDraftChange: setRenameDraft,
     onSaveRename: saveRename,
@@ -7113,43 +7141,32 @@ function App({
                     {layeredTextBlocks
                       .filter((element) => visibleRenderIds.has(element.id))
                       .map((element) => {
-                        const textBlockMultiSelected =
-                          selectedIds.length > 1 && selectedIds.includes(element.id);
-
+                        const textBlockElement = asTextBlockDocumentElement(
+                          documentElements[element.id as ElementId],
+                        );
+                        if (!textBlockElement) return null;
                         return (
                           <TextBlockRenderer
                             key={element.id}
-                            element={element}
-                            selected={outlinedIds.includes(element.id)}
-                            multiSelected={textBlockMultiSelected}
-                            entering={enteringTextBlockIds.includes(element.id)}
-                            deleting={deletingTextBlockIds.includes(element.id)}
-                            pulsing={pulsingTextBlockIds.includes(element.id)}
-                            moving={draggedShadowIds.has(element.id)}
-                            shadowsUnderElements={shadowsUnderElements}
-                            recentColors={recentColors}
-                            editing={editingTextBlockId === element.id}
-                            draft={editingTextBlockId === element.id ? textBlockDraft : ""}
-                            renaming={renamingId === element.id}
-                            renameDraft={renamingId === element.id ? renameDraft : ""}
-                            onDraftChange={setTextBlockDraft}
-                            onSave={canvasNodeActions.saveTextBlockEdit}
-                            onCancel={canvasNodeActions.cancelTextBlockEdit}
-                            onRenameDraftChange={setRenameDraft}
-                            onSaveRename={canvasNodeActions.saveRename}
-                            onCancelRename={canvasNodeActions.cancelRename}
-                            onStartEdit={canvasNodeActions.startTextBlockEdit}
-                            onSelect={canvasNodeActions.selectCanvasElement}
-                            onStartMove={canvasNodeActions.startMove}
-                            onStartResize={canvasNodeActions.startResize}
-                            onToggleMenu={canvasNodeActions.openTextBlockMenu}
-                            onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
-                            onToggleLock={canvasNodeActions.toggleLockExtension}
-                            onUpdateAccent={canvasNodeActions.updateTextBlockAccent}
-                            onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                            onHeaderButtonsVisibleChange={
-                              canvasNodeActions.updateTextBlockHeaderButtonsVisible
-                            }
+                            element={textBlockElement}
+                            actions={textBlockActions}
+                            view={{
+                              layer: element.layer ?? 0,
+                              extensions: element.extensions,
+                              selected: outlinedIds.includes(element.id),
+                              multiSelected:
+                                selectedIds.length > 1 && selectedIds.includes(element.id),
+                              entering: enteringTextBlockIds.includes(element.id),
+                              deleting: deletingTextBlockIds.includes(element.id),
+                              pulsing: pulsingTextBlockIds.includes(element.id),
+                              moving: draggedShadowIds.has(element.id),
+                              shadowsUnderElements,
+                              recentColors,
+                              editing: editingTextBlockId === element.id,
+                              draft: editingTextBlockId === element.id ? textBlockDraft : "",
+                              renaming: renamingId === element.id,
+                              renameDraft: renamingId === element.id ? renameDraft : "",
+                            }}
                           />
                         );
                       })}
