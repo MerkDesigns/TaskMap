@@ -67,3 +67,16 @@ export function useRetainedCanvasDocument(): ReturnType<typeof useCanvasDocument
     };
   }, [runtime, snapshot]);
 }
+
+/** The admitted document's elements; the reference changes only when the document does. */
+export function useRetainedDocumentElements() {
+  const context = useContext(RetainedCanvasContext);
+  if (!context) throw new Error("The retained canvas requires its session owner.");
+  const snapshot = useSyncExternalStore(
+    context.binding.subscribe,
+    context.binding.getSnapshot,
+    context.binding.getSnapshot,
+  );
+  if (snapshot.phase !== "ready") throw new Error("The canvas session has been revoked.");
+  return snapshot.elements;
+}

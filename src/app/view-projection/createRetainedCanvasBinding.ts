@@ -23,6 +23,8 @@ export type RetainedCanvasBindingSnapshot =
       readonly canvases: readonly RetainedCanvasView[];
       readonly activeCanvas: RetainedCanvasView | null;
       readonly settings: TaskMapDocument["documentSettings"];
+      /** The admitted document's elements, for renderers that read normalized element data. */
+      readonly elements: TaskMapDocument["elements"];
     };
 const revoked: RetainedCanvasBindingSnapshot = Object.freeze({ phase: "revoked" });
 
@@ -127,6 +129,7 @@ export function createRetainedCanvasBinding(options: Options) {
       canvases: result.canvases,
       activeCanvas: result.canvases.find(({ id }) => id === next.activeCanvasId) ?? null,
       settings: next.documentSettings,
+      elements: next.elements,
     });
     notify();
   };

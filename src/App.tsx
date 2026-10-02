@@ -45,7 +45,8 @@ import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { MindmapConnectors } from "./components/MindmapConnectors";
 import { MindmapConnections } from "./components/MindmapConnections";
-import { TextCardRenderer } from "./elements/text-card/TextCardRenderer";
+import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
+import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
 import {
@@ -82,7 +83,10 @@ import { useAutosave } from "./hooks/useAutosave";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
-import type { RetainedCanvasContextValue } from "./legacy/RetainedCanvasContext";
+import {
+  useRetainedDocumentElements,
+  type RetainedCanvasContextValue,
+} from "./legacy/RetainedCanvasContext";
 import { createRetainedViewElement } from "./legacy/retainedViewCreation";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
 import {
@@ -297,6 +301,12 @@ const createAppMetadata = (data: AppData): AppData => ({
 });
 
 type CallbackMap = Record<string, (...args: never[]) => unknown>;
+
+/** Null when no checkbox extension is installed on the card. */
+const textCardChecked = (card: TextCardElement) => {
+  const checkbox = card.extensions?.checkbox;
+  return checkbox ? Boolean(checkbox.checked) : null;
+};
 
 const useStableCallbacks = <T extends CallbackMap>(callbacks: T): T => {
   const callbacksRef = useRef<T | null>(callbacks);
@@ -3926,8 +3936,9 @@ function App({
     });
   };
 
-  const startTextCardMove = (event: PointerEvent<HTMLElement>, card: TextCardElement) => {
-    if (editingTextCardId === card.id) return;
+  const startTextCardMove = (event: PointerEvent<HTMLElement>, id: string) => {
+    const card = textCardsById.get(id);
+    if (!card || editingTextCardId === card.id) return;
     // Mind-map nodes never drop into containers, and text-card placement rejects other element
     // types (which cancelled every mind-map drag); they move like any other loose element.
     const usesGenericLooseGroup =
@@ -4031,18 +4042,18 @@ function App({
     });
   };
 
-  const openTextCardMenu = (event: React.MouseEvent<HTMLElement>, card: TextCardElement) => {
+  const openTextCardMenu = (event: React.MouseEvent<HTMLElement>, id: string) => {
     event.preventDefault();
     event.stopPropagation();
     closeContextMenus();
     setRenamingId(null);
     setEditingTextCardId(null);
-    if (!selectedIds.includes(card.id)) {
-      setSelectedIds([card.id]);
+    if (!selectedIds.includes(id)) {
+      setSelectedIds([id]);
     }
     setClosingTextCardMenu(null);
     setTextCardMenu({
-      id: card.id,
+      id,
       left: event.clientX + 8,
       top: event.clientY + 8,
     });
@@ -6469,6 +6480,19 @@ function App({
     openContainerJsonEditor,
     pasteContainerJsonFromAi,
   });
+  const textCardActions = useMemo<TextCardActions>(
+    () => ({
+      onDraftChange: setTextCardDraft,
+      onSave: canvasNodeActions.saveTextCardEdit,
+      onCancel: canvasNodeActions.cancelTextCardEdit,
+      onStartMove: canvasNodeActions.startTextCardMove,
+      onOpenMenu: canvasNodeActions.openTextCardMenu,
+      onToggleCheckbox: canvasNodeActions.toggleTextCardCheckbox,
+      onSizeChange: rememberTextCardSize,
+    }),
+    [canvasNodeActions, rememberTextCardSize],
+  );
+  const documentElements = useRetainedDocumentElements();
   const editingTextCardContainerId = editingTextCardId
     ? textCardsById.get(editingTextCardId)?.containerId
     : undefined;
@@ -7069,37 +7093,35 @@ function App({
                                 ),
                               };
 
+                              const cardElement = asTextCardRendererElement(
+                                documentElements[card.id as ElementId],
+                              );
+                              if (!cardElement) return null;
                               return (
                                 <TextCardRenderer
                                   key={card.id}
-                                  card={card}
-                                  accentBar={card.kind !== "mindmap"}
-                                  multiline={card.kind === "mindmap"}
-                                  overflowVisible={card.kind === "mindmap"}
-                                  onSizeChange={rememberTextCardSize}
-                                  editing={editingTextCardId === card.id}
-                                  draft={editingTextCardId === card.id ? textCardDraft : ""}
-                                  position={position}
-                                  entering={enteringTextCardIds.includes(card.id)}
-                                  deleting={deletingTextCardIds.includes(card.id)}
-                                  pulsing={pulsingTextCardIds.includes(card.id)}
-                                  moving={draggedShadowIds.has(card.id)}
-                                  selected={outlinedIds.includes(card.id)}
-                                  interactionDisabled={containerMultiSelected}
-                                  linksDisabled={selectedIds.length > 1}
-                                  privacyHidden={Boolean(element.extensions?.privacy?.enabled)}
-                                  // The shared under-element shadow layer sits below containers, so
-                                  // contained cards keep their own shadow; only dragged cards are
-                                  // drawn on that layer.
-                                  shadowsUnderElements={
-                                    shadowsUnderElements && draggedShadowIds.has(card.id)
-                                  }
-                                  onDraftChange={setTextCardDraft}
-                                  onSave={canvasNodeActions.saveTextCardEdit}
-                                  onCancel={canvasNodeActions.cancelTextCardEdit}
-                                  onStartMove={canvasNodeActions.startTextCardMove}
-                                  onOpenMenu={canvasNodeActions.openTextCardMenu}
-                                  onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                                  element={cardElement}
+                                  actions={textCardActions}
+                                  view={{
+                                    layer: card.layer ?? 0,
+                                    checked: textCardChecked(card),
+                                    editing: editingTextCardId === card.id,
+                                    draft: editingTextCardId === card.id ? textCardDraft : "",
+                                    position,
+                                    entering: enteringTextCardIds.includes(card.id),
+                                    deleting: deletingTextCardIds.includes(card.id),
+                                    pulsing: pulsingTextCardIds.includes(card.id),
+                                    motion: draggedShadowIds.has(card.id) ? "moving" : undefined,
+                                    selected: outlinedIds.includes(card.id),
+                                    interaction: containerMultiSelected ? "disabled" : undefined,
+                                    linksDisabled: selectedIds.length > 1,
+                                    privacyHidden: Boolean(element.extensions?.privacy?.enabled),
+                                    // The shared under-element shadow layer sits below containers,
+                                    // so contained cards keep their own shadow; only dragged cards
+                                    // are drawn on that layer.
+                                    shadowsUnderElements:
+                                      shadowsUnderElements && draggedShadowIds.has(card.id),
+                                  }}
                                 />
                               );
                             })}
@@ -7158,41 +7180,44 @@ function App({
                         ) {
                           return null;
                         }
-                        const position = getTextCardRenderPosition(card);
+                        const cardElement = asTextCardRendererElement(
+                          documentElements[card.id as ElementId],
+                        );
+                        if (!cardElement) return null;
+                        const dragged = draggedShadowIds.has(card.id);
                         return (
                           <TextCardRenderer
                             key={card.id}
-                            card={card}
-                            accentBar={card.kind !== "mindmap"}
-                            multiline={card.kind === "mindmap"}
-                            overflowVisible={card.kind === "mindmap"}
-                            onSizeChange={rememberTextCardSize}
-                            editing={editingTextCardId === card.id}
-                            draft={editingTextCardId === card.id ? textCardDraft : ""}
-                            position={position}
-                            entering={enteringTextCardIds.includes(card.id)}
-                            deleting={deletingTextCardIds.includes(card.id)}
-                            pulsing={pulsingTextCardIds.includes(card.id)}
-                            dragging={draggedShadowIds.has(card.id)}
-                            dragPrimary={
-                              interactionSnapshot.activeInteraction?.kind === "move" &&
-                              interactionSnapshot.activeInteraction.targetIds[0] === card.id
-                            }
-                            dragBundleIndex={dragPinnedIds.indexOf(card.id)}
-                            dragPickupX={0}
-                            dragPickupY={0}
-                            dragSwayX={0}
-                            dragSwayY={0}
-                            moving={draggedShadowIds.has(card.id)}
-                            selected={outlinedIds.includes(card.id)}
-                            linksDisabled={selectedIds.length > 1}
-                            shadowsUnderElements={shadowsUnderElements}
-                            onDraftChange={setTextCardDraft}
-                            onSave={canvasNodeActions.saveTextCardEdit}
-                            onCancel={canvasNodeActions.cancelTextCardEdit}
-                            onStartMove={canvasNodeActions.startTextCardMove}
-                            onOpenMenu={canvasNodeActions.openTextCardMenu}
-                            onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                            element={cardElement}
+                            actions={textCardActions}
+                            view={{
+                              layer: card.layer ?? 0,
+                              checked: textCardChecked(card),
+                              editing: editingTextCardId === card.id,
+                              draft: editingTextCardId === card.id ? textCardDraft : "",
+                              position: getTextCardRenderPosition(card),
+                              entering: enteringTextCardIds.includes(card.id),
+                              deleting: deletingTextCardIds.includes(card.id),
+                              pulsing: pulsingTextCardIds.includes(card.id),
+                              drag: dragged
+                                ? {
+                                    primary:
+                                      interactionSnapshot.activeInteraction?.kind === "move" &&
+                                      interactionSnapshot.activeInteraction.targetIds[0] ===
+                                        card.id,
+                                    atTrueSize: false,
+                                    bundleIndex: dragPinnedIds.indexOf(card.id),
+                                    pickupX: 0,
+                                    pickupY: 0,
+                                    swayX: 0,
+                                    swayY: 0,
+                                  }
+                                : undefined,
+                              motion: dragged ? "moving" : undefined,
+                              selected: outlinedIds.includes(card.id),
+                              linksDisabled: selectedIds.length > 1,
+                              shadowsUnderElements,
+                            }}
                           />
                         );
                       })}
@@ -7242,10 +7267,11 @@ function App({
               >
                 {activeTextCardPresentation.ids.map((id, dragBundleIndex) => {
                   const card = textCardsById.get(id);
+                  const cardElement = asTextCardRendererElement(documentElements[id as ElementId]);
                   const offset = activeTextCardPresentation.offsets.find(
                     (candidate) => candidate.id === id,
                   );
-                  if (!card) return null;
+                  if (!card || !cardElement) return null;
                   const position = getLegacyTextCardDragRenderPosition(
                     activeTextCardPresentation,
                     id,
@@ -7253,31 +7279,27 @@ function App({
                   return (
                     <TextCardRenderer
                       key={`drag-overlay-${id}`}
-                      card={card}
-                      accentBar={card.kind !== "mindmap"}
-                      multiline={card.kind === "mindmap"}
-                      overflowVisible={card.kind === "mindmap"}
-                      onSizeChange={rememberTextCardSize}
-                      editing={false}
-                      draft={card.text}
-                      position={position}
-                      dragging
-                      dragAtTrueSize={activeTextCardPresentation.trueSize}
-                      dragPrimary={id === activeTextCardPresentation.primaryId}
-                      dragBundleIndex={dragBundleIndex}
-                      dragPickupX={offset?.pickupX ?? 0}
-                      dragPickupY={offset?.pickupY ?? 0}
-                      dragSwayX={activeTextCardPresentation.sway.x}
-                      dragSwayY={activeTextCardPresentation.sway.y}
-                      selected={outlinedIds.includes(id)}
-                      linksDisabled
-                      shadowsUnderElements={shadowsUnderElements}
-                      onDraftChange={setTextCardDraft}
-                      onSave={canvasNodeActions.saveTextCardEdit}
-                      onCancel={canvasNodeActions.cancelTextCardEdit}
-                      onStartMove={canvasNodeActions.startTextCardMove}
-                      onOpenMenu={canvasNodeActions.openTextCardMenu}
-                      onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
+                      element={cardElement}
+                      actions={textCardActions}
+                      view={{
+                        layer: card.layer ?? 0,
+                        checked: textCardChecked(card),
+                        editing: false,
+                        draft: "",
+                        position,
+                        drag: {
+                          primary: id === activeTextCardPresentation.primaryId,
+                          atTrueSize: activeTextCardPresentation.trueSize,
+                          bundleIndex: dragBundleIndex,
+                          pickupX: offset?.pickupX ?? 0,
+                          pickupY: offset?.pickupY ?? 0,
+                          swayX: activeTextCardPresentation.sway.x,
+                          swayY: activeTextCardPresentation.sway.y,
+                        },
+                        selected: outlinedIds.includes(id),
+                        linksDisabled: true,
+                        shadowsUnderElements,
+                      }}
                     />
                   );
                 })}
@@ -7293,30 +7315,31 @@ function App({
                   transformOrigin: "0 0",
                 }}
               >
-                {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => (
-                  <TextCardRenderer
-                    key={`release-overlay-${card.id}`}
-                    card={card}
-                    accentBar={card.kind !== "mindmap"}
-                    multiline={card.kind === "mindmap"}
-                    overflowVisible={card.kind === "mindmap"}
-                    onSizeChange={rememberTextCardSize}
-                    editing={false}
-                    draft={card.text}
-                    position={textCardInteractionSnapshot.release?.active ? to : from}
-                    settling
-                    forceInteractive
-                    selected={outlinedIds.includes(card.id)}
-                    linksDisabled
-                    shadowsUnderElements={shadowsUnderElements}
-                    onDraftChange={setTextCardDraft}
-                    onSave={canvasNodeActions.saveTextCardEdit}
-                    onCancel={canvasNodeActions.cancelTextCardEdit}
-                    onStartMove={canvasNodeActions.startTextCardMove}
-                    onOpenMenu={canvasNodeActions.openTextCardMenu}
-                    onToggleCheckbox={canvasNodeActions.toggleTextCardCheckbox}
-                  />
-                ))}
+                {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => {
+                  const cardElement = asTextCardRendererElement(
+                    documentElements[card.id as ElementId],
+                  );
+                  if (!cardElement) return null;
+                  return (
+                    <TextCardRenderer
+                      key={`release-overlay-${card.id}`}
+                      element={cardElement}
+                      actions={textCardActions}
+                      view={{
+                        layer: card.layer ?? 0,
+                        checked: textCardChecked(card),
+                        editing: false,
+                        draft: "",
+                        position: textCardInteractionSnapshot.release?.active ? to : from,
+                        motion: "settling",
+                        interaction: "forced",
+                        selected: outlinedIds.includes(card.id),
+                        linksDisabled: true,
+                        shadowsUnderElements,
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
             {mindmapConnectionMode && (

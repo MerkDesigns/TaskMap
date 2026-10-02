@@ -44,15 +44,15 @@ Before porting a feature, use existing evidence or capture the relevant interact
 
 ## Elements
 
-| Feature              | Decision                     | Required behavior                                                                   | Status                                                                                                   |
-| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Containers           | Keep                         | Preserve rendering, header, child content, scrolling, resizing and menus            | Retained presentation; Phase 5 ownership migration pending                                               |
-| Text cards           | Keep                         | Preserve editing, links, bundle pickup, insertion/reparent/detach, settle and menus | Renderer owned by `src/elements/text-card` (CSS, no Tailwind); data contract, registry and menus pending |
-| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors and menus                                | Retained presentation; Phase 5 ownership migration pending                                               |
-| Images               | Keep                         | Preserve import, display, move, resize, background option and menus                 | Database/media integration accepted; Phase 5 presentation pending                                        |
-| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                   | Accepted for database/media integration                                                                  |
-| Mind-map nodes       | Keep and redesign internally | Preserve user workflow and visible semantics                                        | Phase 5 ownership migration pending                                                                      |
-| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion and rendering                                    | Phase 5 ownership migration pending                                                                      |
+| Feature              | Decision                     | Required behavior                                                                   | Status                                                                                                        |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Containers           | Keep                         | Preserve rendering, header, child content, scrolling, resizing and menus            | Retained presentation; Phase 5 ownership migration pending                                                    |
+| Text cards           | Keep                         | Preserve editing, links, bundle pickup, insertion/reparent/detach, settle and menus | Renderer owned by `src/elements/text-card`; reads the normalized element plus typed view state; menus pending |
+| Text blocks          | Keep                         | Preserve editing, resizing, titles, colors and menus                                | Retained presentation; Phase 5 ownership migration pending                                                    |
+| Images               | Keep                         | Preserve import, display, move, resize, background option and menus                 | Database/media integration accepted; Phase 5 presentation pending                                             |
+| GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                   | Accepted for database/media integration                                                                       |
+| Mind-map nodes       | Keep and redesign internally | Preserve user workflow and visible semantics                                        | Phase 5 ownership migration pending                                                                           |
+| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion and rendering                                    | Phase 5 ownership migration pending                                                                           |
 
 ## Extensions
 
