@@ -148,6 +148,12 @@ intervals, not GPU-presented FPS, and add diagnostic overhead. They are disabled
 Lock must remove the workbench, its overrides and its sampling loop. Production builds exclude it.
 The old storage-free standalone UI Lab app was removed in 4.5H; the workbench is the only UI Lab.
 
+Canvas interactions (drags, drops into containers, extension installs, menus, editing) need trusted
+input: synthetic DOM pointer events cannot take pointer capture. Launch `npm run app:dev:devtools`
+(the MCP launch plus the WebView2 DevTools protocol on localhost:9333) and drive the window with
+`node scripts/drive-dev-window.mjs` (`eval`, `click`, `drag`, `type`, `key`, `shot`). It neither
+moves the OS cursor nor captures the screen. Development launches only.
+
 ## 9. Glass correctness acceptance
 
 Use the hard acceptance matrix in `GLASS-SYSTEM-CONTRACT.md`.

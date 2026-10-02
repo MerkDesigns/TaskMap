@@ -313,7 +313,8 @@ installer/         installer bootstrapper (own Tauri crate): runs the embedded N
                    silently, detects existing installs, creates shortcuts (ADR 007)
 
 scripts/           boundary checks (architecture, production exclusion, security), dev launcher,
-                   fixture generators, release installer build (build-installer.mjs)
+                   trusted-input window driver, fixture generators, release installer build
+                   (build-installer.mjs)
 config/            Vite, TypeScript, ESLint, Prettier, PostCSS/Tailwind configuration
 docs/              contracts, roadmap/state, ADRs (`decisions/`), evidence, archived work log
 ```

@@ -24,6 +24,7 @@
     "test:watch": "vitest --config config/vite.config.ts",
     "app:dev": "node scripts/dev-app.mjs --config src-tauri/tauri.dev.conf.json",
     "app:dev:mcp": "node scripts/dev-app.mjs --features mcp-development --config src-tauri/tauri.mcp.dev.conf.json",
+    "app:dev:devtools": "node scripts/dev-app.mjs --devtools-port 9333 --features mcp-development --config src-tauri/tauri.mcp.dev.conf.json",
     "app:profile:mcp": "node scripts/dev-app.mjs --features mcp-development --config src-tauri/tauri.mcp.dev.conf.json --config src-tauri/tauri.profile.conf.json",
     "app:ui-lab": "npm run app:dev:mcp",
     "app:stable": "node scripts/dev-app.mjs",

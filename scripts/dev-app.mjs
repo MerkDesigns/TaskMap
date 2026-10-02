@@ -6,7 +6,10 @@
 // this checkout, waits for the development ports to be free, and names any foreign owner instead of
 // killing it. Installed TaskMap builds are never touched.
 //
-// Usage: node scripts/dev-app.mjs [tauri dev arguments...]
+// Usage: node scripts/dev-app.mjs [--devtools-port <port>] [tauri dev arguments...]
+//
+// --devtools-port exposes the WebView2 DevTools protocol on localhost so
+// scripts/drive-dev-window.mjs can send trusted input to the development window.
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -15,8 +18,17 @@ import path from "node:path";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const debugTarget = path.join(root, "src-tauri", "target").toLowerCase();
 const args = process.argv.slice(2);
-// Vite always; the MCP bridge port only for MCP-enabled builds.
-const PORTS = args.some((arg) => arg.includes("mcp-development")) ? [6969, 9223] : [6969];
+const devtoolsFlag = args.indexOf("--devtools-port");
+const devtoolsPort = devtoolsFlag === -1 ? null : Number(args[devtoolsFlag + 1]);
+if (devtoolsFlag !== -1) {
+  if (!Number.isInteger(devtoolsPort)) throw new Error("--devtools-port needs a port number");
+  args.splice(devtoolsFlag, 2);
+}
+// Vite always; the MCP bridge and DevTools ports only when those launches ask for them.
+const PORTS = [
+  ...(args.some((arg) => arg.includes("mcp-development")) ? [6969, 9223] : [6969]),
+  ...(devtoolsPort === null ? [] : [devtoolsPort]),
+];
 
 function processes() {
   if (process.platform !== "win32") return [];
@@ -103,8 +115,21 @@ async function waitForPorts() {
 stopStaleProcesses();
 await waitForPorts();
 
+const env = { ...process.env };
+if (devtoolsPort !== null) {
+  // WebView2 reads extra Chromium switches from this variable when the window is created.
+  env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = [
+    env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS,
+    `--remote-debugging-port=${devtoolsPort}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  console.log(`[dev-app] DevTools protocol on 127.0.0.1:${devtoolsPort}`);
+}
+
 const child = spawn("npx", ["tauri", "dev", ...args], {
   cwd: root,
+  env,
   stdio: "inherit",
   shell: true,
 });
