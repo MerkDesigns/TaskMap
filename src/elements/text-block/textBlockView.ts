@@ -1,12 +1,6 @@
 import type { MouseEvent, PointerEvent } from "react";
 import type { ElementExtensions } from "../../types";
-
-export interface ElementGeometryView {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
+import type { ElementGeometryView } from "../elementPlacement";
 
 /** Transient presentation state of a text block; everything persistent is read from its element. */
 export interface TextBlockViewState {

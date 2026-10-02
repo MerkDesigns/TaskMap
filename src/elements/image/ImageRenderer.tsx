@@ -1,6 +1,7 @@
 import { IconArrowDownRight, IconLoader2, IconPhotoPlus } from "@tabler/icons-react";
 import { memo, useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
+import { placementStyle, shallowEqual } from "../elementPlacement";
 import type { ImageDocumentElement, ImageMediaMetadata } from "./imageModel";
 import "./image.css";
 
@@ -125,10 +126,7 @@ function ImageRendererComponent({ element, view, actions, leases }: ImageRendere
       data-deleting={view.deleting || undefined}
       style={{
         zIndex: view.dragging ? 10000 : 20 + view.layer,
-        left: geometry.x,
-        top: geometry.y,
-        width: geometry.width,
-        height: geometry.height,
+        ...placementStyle(element.geometry, geometry),
         borderColor: chromeless
           ? undefined
           : view.selected
@@ -174,13 +172,6 @@ function ImageRendererComponent({ element, view, actions, leases }: ImageRendere
     </div>
   );
 }
-
-const shallowEqual = (a: object, b: object) => {
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = Object.keys(left);
-  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
-};
 
 /** Callers rebuild the view state each render; compare it by value so idle images never re-render. */
 const areImagePropsEqual = (previous: ImageRendererProps, next: ImageRendererProps) => {

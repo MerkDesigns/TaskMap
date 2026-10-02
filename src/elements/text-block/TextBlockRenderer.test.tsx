@@ -156,13 +156,13 @@ describe("TextBlockRenderer", () => {
     );
   });
 
-  it("follows the live geometry while it is moved or resized, before the document changes", () => {
+  it("shows a live move as a translation from its stored position, and a resize as its size", () => {
     const { article } = renderTextBlock(textBlock(), {
       geometry: { x: 90, y: 120, width: 500, height: 260 },
     });
 
-    expect(article.style.left).toBe("90px");
-    expect(article.style.top).toBe("120px");
+    expect(article.style.left).toBe("10px");
+    expect(article.style.transform).toBe("translate3d(80px, 100px, 0)");
     expect(article.style.width).toBe("500px");
   });
 });

@@ -1,6 +1,7 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { Suspense, lazy, memo, useEffect, useRef, useState } from "react";
 import type { WheelEvent } from "react";
+import { placementStyle, shallowEqual } from "../elementPlacement";
 import { TextBlockHeader } from "./TextBlockHeader";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
@@ -62,10 +63,7 @@ function TextBlockRendererComponent({ element, view, actions }: TextBlockRendere
       data-pulsing={view.pulsing || undefined}
       style={{
         zIndex: 20 + view.layer,
-        left: geometry.x,
-        top: geometry.y,
-        width: geometry.width,
-        height: geometry.height,
+        ...placementStyle(element.geometry, geometry),
         backgroundColor: data.accent,
         borderColor: view.selected
           ? `color-mix(in srgb, ${data.accent} 72%, white 28%)`
@@ -147,13 +145,6 @@ function TextBlockRendererComponent({ element, view, actions }: TextBlockRendere
     </article>
   );
 }
-
-const shallowEqual = (a: object, b: object) => {
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = Object.keys(left);
-  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
-};
 
 /** Callers rebuild the view state each render; compare it by value so idle blocks never re-render. */
 const areTextBlockPropsEqual = (previous: TextBlockRendererProps, next: TextBlockRendererProps) => {

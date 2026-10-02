@@ -1,6 +1,7 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type { ReactNode } from "react";
+import { placementStyle, shallowEqual } from "../elementPlacement";
 import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";
 import type { ContainerActions, ContainerViewState } from "./containerView";
@@ -34,10 +35,7 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
       data-deleting={view.deleting || undefined}
       style={{
         zIndex: 20 + view.layer,
-        left: geometry.x,
-        top: geometry.y,
-        width: geometry.width,
-        height: geometry.height,
+        ...placementStyle(element.geometry, geometry),
         backgroundColor: data.accent,
         borderColor: view.selected
           ? `color-mix(in srgb, ${data.accent} 72%, white 28%)`
@@ -89,13 +87,6 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
     </article>
   );
 }
-
-const shallowEqual = (a: object, b: object) => {
-  const left = a as Record<string, unknown>;
-  const right = b as Record<string, unknown>;
-  const keys = Object.keys(left);
-  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
-};
 
 /**
  * Children are recreated every render; the view's revision tokens stand in for them. Callers
