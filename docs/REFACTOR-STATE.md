@@ -58,8 +58,8 @@
    `ContainerExtensionButtons`) and reads the normalized element plus `ContainerViewState`; its
    menu lives there too. The Text Block renderer lives in
    `src/elements/text-block/` (own CSS; header controls shared through `elementHeader.css` and
-   `useHeaderExtensionLayout`) and reads the normalized element plus `TextBlockViewState`. Next:
-   the Text Block menu moves there.
+   `useHeaderExtensionLayout`) and reads the normalized element plus `TextBlockViewState`; its
+   menu lives there too. Next: Image/GIF, the same way.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.

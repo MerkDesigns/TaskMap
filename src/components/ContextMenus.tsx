@@ -8,7 +8,6 @@ import {
   IconBox,
   IconLock,
   IconLockOpen,
-  IconPencil,
   IconNotes,
   IconPhoto,
   IconSquare,
@@ -19,7 +18,7 @@ import {
 } from "@tabler/icons-react";
 import { useRef } from "react";
 import { ACCENT_PRESETS } from "../constants";
-import { ImageElement, MindmapConnection, TextBlockElement } from "../types";
+import { ImageElement, MindmapConnection } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { Tooltip } from "../ui/primitives/Tooltip";
 import { ContextMenuSurface } from "../ui/primitives/ContextMenu";
@@ -197,157 +196,6 @@ export function MindmapConnectionContextMenu({
         onClick={() => onDelete(connection.id)}
       >
         Delete connection
-      </ContextMenuItem>
-    </ContextMenuSurface>
-  );
-}
-
-type TextBlockContextMenuProps = {
-  menu: { id: string; left: number; top: number };
-  element: TextBlockElement;
-  closing: boolean;
-  isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"privacy" | "lock" | "colorPicker", boolean>>;
-  onStartEdit: (element: TextBlockElement) => void;
-  onUpdateAccent: (id: string, accent: string) => void;
-  onCut: (element: TextBlockElement) => void;
-  onCopy: (element: TextBlockElement) => void;
-  onRemovePrivacyExtension: (id: string) => void;
-  onRemoveLockExtension: (id: string) => void;
-  onRemoveColorPickerExtension: (id: string) => void;
-  onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
-  onDelete: (id: string) => void;
-};
-
-export function TextBlockContextMenu({
-  menu,
-  element,
-  closing,
-  isMultiTarget = false,
-  extensionState,
-  onStartEdit,
-  onUpdateAccent,
-  onCut,
-  onCopy,
-  onRemovePrivacyExtension,
-  onRemoveLockExtension,
-  onRemoveColorPickerExtension,
-  onMoveLayer,
-  onDelete,
-}: TextBlockContextMenuProps) {
-  const menuRef = useRef<HTMLElement | null>(null);
-  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  const extensions = extensionState ?? {
-    privacy: Boolean(element.extensions?.privacy),
-    lock: Boolean(element.extensions?.lock),
-    colorPicker: Boolean(element.extensions?.colorPicker),
-  };
-  const presets = ACCENT_PRESETS;
-
-  return (
-    <ContextMenuSurface
-      ref={menuRef}
-      label="Text block menu"
-      motionState={closing ? "closing" : "open"}
-      position={position}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <ContextMenuItem
-        icon={<IconPencil size={17} stroke={2} />}
-        onClick={() => onStartEdit(element)}
-      >
-        Edit Text
-      </ContextMenuItem>
-      <ContextMenuDivider />
-      <ContextMenuSwatches>
-        {presets.map((preset) => (
-          <ContextMenuSwatch
-            key={preset.accent}
-            color={preset.swatch}
-            selected={element.accent === preset.accent}
-            title="Text block color"
-            aria-label={`Text block color ${preset.swatch}`}
-            onClick={() => onUpdateAccent(element.id, preset.accent)}
-          />
-        ))}
-      </ContextMenuSwatches>
-      <ContextMenuDivider />
-      <ContextMenuActionGroup label="Layer order">
-        <Tooltip label="Send to back" openDelayMs={1000}>
-          <ContextMenuIconAction
-            aria-label="Send to back"
-            icon={<IconArrowAutofitDown size={20} stroke={2} />}
-            onClick={() => onMoveLayer(element.id, "back")}
-          />
-        </Tooltip>
-        <Tooltip label="Send one layer back" openDelayMs={1000}>
-          <ContextMenuIconAction
-            aria-label="Send one layer back"
-            icon={<IconArrowAutofitDownFilled size={20} />}
-            onClick={() => onMoveLayer(element.id, "backward")}
-          />
-        </Tooltip>
-        <Tooltip label="Bring one layer forward" openDelayMs={1000}>
-          <ContextMenuIconAction
-            aria-label="Bring one layer forward"
-            icon={<IconArrowAutofitUpFilled size={20} />}
-            onClick={() => onMoveLayer(element.id, "forward")}
-          />
-        </Tooltip>
-        <Tooltip label="Bring to front" openDelayMs={1000}>
-          <ContextMenuIconAction
-            aria-label="Bring to front"
-            icon={<IconArrowAutofitUp size={20} stroke={2} />}
-            onClick={() => onMoveLayer(element.id, "front")}
-          />
-        </Tooltip>
-      </ContextMenuActionGroup>
-      <ContextMenuDivider />
-      <ContextMenuItem icon={<IconCut size={17} stroke={2} />} onClick={() => onCut(element)}>
-        {isMultiTarget ? "Cut selected" : "Cut"}
-      </ContextMenuItem>
-      <ContextMenuItem icon={<IconCopy size={17} stroke={2} />} onClick={() => onCopy(element)}>
-        {isMultiTarget ? "Copy selected" : "Copy"}
-      </ContextMenuItem>
-      {(extensions.privacy || extensions.lock || extensions.colorPicker) && (
-        <>
-          <ContextMenuDivider />
-          <ContextMenuSection label="Remove Extensions">
-            {extensions.privacy && (
-              <ContextMenuItem
-                icon={<IconTrash size={17} stroke={2} />}
-                onClick={() => onRemovePrivacyExtension(element.id)}
-              >
-                Privacy
-              </ContextMenuItem>
-            )}
-            {extensions.lock && (
-              <ContextMenuItem
-                icon={<IconTrash size={17} stroke={2} />}
-                onClick={() => onRemoveLockExtension(element.id)}
-              >
-                Lock
-              </ContextMenuItem>
-            )}
-            {extensions.colorPicker && (
-              <ContextMenuItem
-                icon={<IconTrash size={17} stroke={2} />}
-                onClick={() => onRemoveColorPickerExtension(element.id)}
-              >
-                Extra colors
-              </ContextMenuItem>
-            )}
-          </ContextMenuSection>
-        </>
-      )}
-      <ContextMenuDivider />
-      <ContextMenuItem
-        danger
-        icon={<IconTrash size={17} stroke={2} />}
-        onClick={() => onDelete(element.id)}
-      >
-        {isMultiTarget ? "Remove selected" : "Remove"}
       </ContextMenuItem>
     </ContextMenuSurface>
   );

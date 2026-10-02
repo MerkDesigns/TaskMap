@@ -22,7 +22,6 @@ import {
   ContainerContentContextMenu,
   ImageContextMenu,
   MindmapConnectionContextMenu,
-  TextBlockContextMenu,
 } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
@@ -51,6 +50,7 @@ import { asTextCardRendererElement } from "./elements/text-card/textCardViewProj
 import { TextCardMenu, type TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import { TextBlockRenderer } from "./elements/text-block/TextBlockRenderer";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
+import { TextBlockMenu, type TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
 import { asTextBlockDocumentElement } from "./elements/text-block/textBlockViewProjection";
 import { ToastStack } from "./components/ToastStack";
 import {
@@ -6452,6 +6452,15 @@ function App({
     const textBlock = textBlocksById.get(id);
     if (textBlock) action(textBlock);
   };
+  const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
+    onStartRename: (id: string) => withTextBlock(id, startRename),
+    onUpdateAccent: updateContextAccent,
+    onCut: (id: string) => withTextBlock(id, cutTextBlock),
+    onCopy: (id: string) => withTextBlock(id, copyTextBlock),
+    onRemoveExtension: stripContextExtension,
+    onMoveLayer: moveCanvasLayers,
+    onDelete: deleteContextSelection,
+  });
   const textBlockActions: TextBlockActions = useStableCallbacks({
     onDraftChange: setTextBlockDraft,
     onSave: saveTextBlockEdit,
@@ -7464,49 +7473,29 @@ function App({
             );
           })}
 
-          {textBlockMenu && textBlockContextElement && (
-            <TextBlockContextMenu
-              key={`${textBlockMenu.id}-${textBlockMenu.left}-${textBlockMenu.top}`}
-              menu={textBlockMenu}
-              element={textBlockContextElement}
-              closing={false}
-              isMultiTarget={isMultiContextAction(textBlockContextElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(textBlockContextElement.id),
-              )}
-              onStartEdit={startRename}
-              onUpdateAccent={updateContextAccent}
-              onCut={cutTextBlock}
-              onCopy={copyTextBlock}
-              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-              onMoveLayer={moveCanvasLayers}
-              onDelete={deleteContextSelection}
-            />
-          )}
-
-          {closingTextBlockMenu && closingTextBlockContextElement && (
-            <TextBlockContextMenu
-              key={`closing-${closingTextBlockMenu.id}-${closingTextBlockMenu.left}-${closingTextBlockMenu.top}`}
-              menu={closingTextBlockMenu}
-              element={closingTextBlockContextElement}
-              closing
-              isMultiTarget={isMultiContextAction(closingTextBlockContextElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(closingTextBlockContextElement.id),
-              )}
-              onStartEdit={startRename}
-              onUpdateAccent={updateContextAccent}
-              onCut={cutTextBlock}
-              onCopy={copyTextBlock}
-              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-              onMoveLayer={moveCanvasLayers}
-              onDelete={deleteContextSelection}
-            />
-          )}
+          {[
+            { menu: textBlockMenu, textBlock: textBlockContextElement, closing: false },
+            {
+              menu: closingTextBlockMenu,
+              textBlock: closingTextBlockContextElement,
+              closing: true,
+            },
+          ].map(({ menu, textBlock, closing }) => {
+            const element =
+              menu && asTextBlockDocumentElement(documentElements[menu.id as ElementId]);
+            if (!menu || !textBlock || !element) return null;
+            return (
+              <TextBlockMenu
+                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
+                element={element}
+                position={menu}
+                closing={closing}
+                isMultiTarget={isMultiContextAction(textBlock.id)}
+                installed={getSelectedExtensionState(getContextActionIds(textBlock.id))}
+                actions={textBlockMenuActions}
+              />
+            );
+          })}
 
           {imageMenu && imageContextElement && (
             <ImageContextMenu
