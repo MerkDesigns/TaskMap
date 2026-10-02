@@ -44,6 +44,8 @@ Architecture v1 (`architecture-v1`), not yet released.
   opening: newer settings are ignored and a damaged file is kept as a `.bak` copy.
 - Text cards inside containers keep their shadows when "Canvas-only shadows" is on.
 - Mind-map nodes can be dragged again.
+- A checked text-card checkbox has a darker fill, so the check mark stands out instead of the box
+  lighting up.
 
 ### Removed
 

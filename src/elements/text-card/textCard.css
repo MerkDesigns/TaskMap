@@ -134,8 +134,9 @@
   place-items: center;
 }
 
+/* A darker fill than the card, so the check reads as a mark rather than a lit-up square. */
 .taskmap-text-card__checkbox[aria-pressed="true"] .taskmap-text-card__checkbox-box {
-  background-color: rgb(255 255 255 / 0.18);
+  background-color: rgb(0 0 0 / 0.28);
 }
 
 /* Editors overlay an invisible sizer copy of the draft, so the card grows with the text. */
