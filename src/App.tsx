@@ -25,7 +25,7 @@ import {
   MindmapConnectionContextMenu,
   TextBlockContextMenu,
 } from "./components/ContextMenus";
-import { ContainerNode } from "./components/ContainerNode";
+import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import {
@@ -6958,7 +6958,7 @@ function App({
                           selectedIds.length > 1 && selectedIds.includes(element.id);
 
                         return (
-                          <ContainerNode
+                          <ContainerRenderer
                             key={element.id}
                             element={element}
                             selected={outlinedIds.includes(element.id)}
@@ -7079,7 +7079,7 @@ function App({
                                 />
                               );
                             })}
-                          </ContainerNode>
+                          </ContainerRenderer>
                         );
                       })}
                     {layeredTextBlocks

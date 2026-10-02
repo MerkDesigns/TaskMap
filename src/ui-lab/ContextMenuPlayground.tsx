@@ -1,6 +1,6 @@
 import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import { CanvasContextMenu, ContainerContextMenu } from "../components/ContextMenus";
-import { ContainerNode } from "../components/ContainerNode";
+import { ContainerRenderer } from "../elements/container/ContainerRenderer";
 import { EXTENSION_REGISTRY } from "../extensions/registry";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import type { ContainerElement, ContainerMenuState, ElementExtensions } from "../types";
@@ -89,7 +89,7 @@ export function ContextMenuPlayground() {
         }}
       >
         <div className="taskmap-ui-lab-context-menu__container" onContextMenu={openContainerMenu}>
-          <ContainerNode
+          <ContainerRenderer
             element={element}
             selected={selected}
             multiSelected={false}

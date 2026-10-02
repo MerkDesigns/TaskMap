@@ -288,7 +288,7 @@ src/
 │                  preferences, media resources, interactions, view projection, DEV workbench
 ├─ domain/         pure document schema, invariants, commands, history and IDs (no React/Tauri/DOM)
 ├─ canvas/         pure geometry, viewport and culling math
-├─ elements/       element models, schemas, projections and renderers (Text Card so far; the
+├─ elements/       element models, schemas, projections and renderers (Text Card and Container so far; the
 │                  rest move here in Phase 5)
 ├─ extensions/     extension definitions, configuration and compatibility
 ├─ features/       product features with their own UI (database entry, minimap)

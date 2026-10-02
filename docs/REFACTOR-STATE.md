@@ -53,8 +53,9 @@
    `src/platform/opener`) and read the normalized `text-card`/`mind-map-node` element from the
    canvas binding plus typed view state; App passes ids to their actions. Text-card editing state
    (draft, editing id) stays in `App.tsx` until its canvas composition is decomposed. Registration in
-   `src/elements/registry.ts` waits until something dispatches through the registry. Next: the
-   Container renderer, the same way.
+   `src/elements/registry.ts` waits until something dispatches through the registry. The
+   Container renderer lives in `src/elements/container/` (own CSS; header extension buttons in
+   `ContainerExtensionButtons`). Next: it reads the normalized element, then its menu moves.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.

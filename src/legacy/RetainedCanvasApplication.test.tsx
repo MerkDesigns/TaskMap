@@ -209,7 +209,7 @@ it("mounts the actual canvas once in StrictMode and routes creation/history with
     expect(
       Object.values(runtime.controller.store.getState().documentWorkspace.document!.elements),
     ).toHaveLength(1);
-    const content = mounted.container.querySelector("article [class*='--container-bg']")!;
+    const content = mounted.container.querySelector(".taskmap-container__content")!;
     fireEvent.contextMenu(content, { clientX: 510, clientY: 380 });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Create text card" }));
     const withCard = runtime.controller.store.getState().documentWorkspace;
