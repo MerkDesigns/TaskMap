@@ -1,6 +1,10 @@
 import type { DocumentElement } from "../../domain/document/documentTypes";
 import type { ImageElement, ElementExtensions } from "../../types";
-import { imageElementSchema, type ImageMediaMetadata } from "./imageModel";
+import {
+  imageElementSchema,
+  type ImageDocumentElement,
+  type ImageMediaMetadata,
+} from "./imageModel";
 
 // Deliberately no legacy imageId/hash, format or URL. The future renderer binding must use the
 // session-bound media service, not pass this through useImageCache or legacy image commands.
@@ -36,4 +40,19 @@ export function projectImage(
     ...(reference?.pixelHeight == null ? {} : { naturalHeight: reference.pixelHeight }),
     media: reference,
   });
+}
+
+/** The media of an image projected by `projectImage`; null for an empty image. */
+export function retainedImageMedia(image: ImageElement): ImageMediaMetadata | null {
+  return (image as unknown as RetainedImageView).media ?? null;
+}
+
+/**
+ * The element as an image, or null for any other type. The canvas binding only admits documents
+ * whose images passed their schema in the projection.
+ */
+export function asImageDocumentElement(
+  element: DocumentElement | undefined,
+): ImageDocumentElement | null {
+  return element?.type === "image" ? (element as ImageDocumentElement) : null;
 }

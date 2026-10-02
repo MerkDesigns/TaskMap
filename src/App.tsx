@@ -37,11 +37,14 @@ import {
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { WindowChrome } from "./components/WindowChrome";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
-import { ImageNode } from "./components/ImageNode";
-import { RetainedImageNode } from "./legacy/RetainedImageNode";
+import { ImageRenderer, type ImageActions } from "./elements/image/ImageRenderer";
 import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
 import type { ImageDrop } from "./platform/media/imageDropClient";
-import type { RetainedImageView } from "./elements/image/imageViewProjection";
+import {
+  asImageDocumentElement,
+  retainedImageMedia,
+  type RetainedImageView,
+} from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { MindmapConnectors } from "./components/MindmapConnectors";
 import { MindmapConnections } from "./components/MindmapConnections";
@@ -1020,7 +1023,7 @@ function App({
           ),
     [images, retained],
   );
-  const { imageUrlVersion, getImageUrl, isImageLoading, storeImageFromBytes } = useImageCache({
+  const { imageUrlVersion, storeImageFromBytes } = useImageCache({
     activeImages: activeCachedImages,
     onStoreError: (error) => {
       showToast({
@@ -1030,7 +1033,6 @@ function App({
       });
     },
   });
-  const ImagePresentation = retained ? RetainedImageNode : ImageNode;
   // Latest image drop/paste handlers, refreshed each render so the once-mounted
   // OS drag-drop and clipboard listeners never call stale closures.
   const imageDropOpsRef = useRef<{
@@ -6483,6 +6485,19 @@ function App({
     onRememberRecentColor: rememberRecentColor,
     onHeaderButtonsVisibleChange: updateTextBlockHeaderButtonsVisible,
   });
+  const withImage = (id: string, action: (image: ImageElement) => void) => {
+    const image = imagesById.get(id);
+    if (image) action(image);
+  };
+  const imageActions: ImageActions = useStableCallbacks({
+    onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
+      withImage(id, (image) => startImageMove(event, image)),
+    onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) =>
+      withImage(id, (image) => startImageResize(event, image)),
+    onOpenMenu: (event: React.MouseEvent<HTMLElement>, id: string) =>
+      withImage(id, (image) => openImageMenu(event, image)),
+    onPick: pickImageForElement,
+  });
   const containerActions: ContainerActions = useStableCallbacks({
     onRenameDraftChange: setRenameDraft,
     onSaveRename: saveRename,
@@ -7243,34 +7258,41 @@ function App({
                       })}
                     {layeredLooseImages
                       .filter((image) => visibleRenderIds.has(image.id))
-                      .map((image) => (
-                        <ImagePresentation
-                          key={image.id}
-                          image={image}
-                          url={retained ? null : getImageUrl(image.imageId, image.format)}
-                          loading={
-                            loadingImageIds.includes(image.id) ||
-                            (!retained && isImageLoading(image.imageId))
-                          }
-                          entering={enteringImageIds.includes(image.id)}
-                          deleting={deletingImageIds.includes(image.id)}
-                          dragging={draggedShadowIds.has(image.id)}
-                          moving={
-                            interactionSnapshot.activeInteraction?.kind === "move" &&
-                            draggedShadowIds.has(image.id)
-                          }
-                          resizing={
-                            interactionSnapshot.activeInteraction?.kind === "resize" &&
-                            draggedShadowIds.has(image.id)
-                          }
-                          selected={outlinedIds.includes(image.id)}
-                          shadowsUnderElements={shadowsUnderElements}
-                          onStartMove={canvasNodeActions.startImageMove}
-                          onStartResize={canvasNodeActions.startImageResize}
-                          onOpenMenu={canvasNodeActions.openImageMenu}
-                          onPick={canvasNodeActions.pickImageForElement}
-                        />
-                      ))}
+                      .map((image) => {
+                        const imageElement = asImageDocumentElement(
+                          documentElements[image.id as ElementId],
+                        );
+                        if (!retained || !imageElement) return null;
+                        const dragged = draggedShadowIds.has(image.id);
+                        return (
+                          <ImageRenderer
+                            key={image.id}
+                            element={imageElement}
+                            actions={imageActions}
+                            leases={retained.runtime.media}
+                            view={{
+                              layer: image.layer ?? 0,
+                              geometry: {
+                                x: image.x,
+                                y: image.y,
+                                width: image.width,
+                                height: image.height,
+                              },
+                              media: retainedImageMedia(image),
+                              importing: loadingImageIds.includes(image.id),
+                              selected: outlinedIds.includes(image.id),
+                              entering: enteringImageIds.includes(image.id),
+                              deleting: deletingImageIds.includes(image.id),
+                              dragging: dragged,
+                              gesture:
+                                dragged &&
+                                (interactionSnapshot.activeInteraction?.kind === "move" ||
+                                  interactionSnapshot.activeInteraction?.kind === "resize"),
+                              shadowsUnderElements,
+                            }}
+                          />
+                        );
+                      })}
                   </>
                 )}
               </LegacyCanvasVisibility>
