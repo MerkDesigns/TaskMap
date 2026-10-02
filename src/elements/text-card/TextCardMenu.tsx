@@ -1,8 +1,4 @@
 import {
-  IconArrowAutofitDown,
-  IconArrowAutofitDownFilled,
-  IconArrowAutofitUp,
-  IconArrowAutofitUpFilled,
   IconCheck,
   IconCopy,
   IconCut,
@@ -15,27 +11,24 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode, SyntheticEvent } from "react";
+import type { SyntheticEvent } from "react";
 import { ColorPickerMenu } from "../../components/ColorPickerMenu";
 import { ACCENT_PRESETS, getTextCardAccent } from "../../constants";
 import { IconButton } from "../../ui/primitives/Button";
 import { ContextMenuSurface } from "../../ui/primitives/ContextMenu";
 import {
-  ContextMenuActionGroup,
   ContextMenuDivider,
-  ContextMenuIconAction,
   ContextMenuItem,
   ContextMenuSection,
   ContextMenuSwatch,
   ContextMenuSwatches,
 } from "../../ui/primitives/ContextMenuParts";
 import { TextField } from "../../ui/primitives/FormControls";
-import { Tooltip } from "../../ui/primitives/Tooltip";
 import { useClampedFixedPosition } from "../../useClampedFixedPosition";
+import { LayerOrderActions, type LayerMove } from "../LayerOrderActions";
 import type { TextCardRendererElement } from "./TextCardRenderer";
 
 export type TextCardMenuExtension = "lock" | "colorPicker" | "checkbox";
-export type LayerMove = "back" | "backward" | "forward" | "front";
 
 export interface TextCardMenuActions {
   readonly onStartEdit: (id: string) => void;
@@ -63,25 +56,6 @@ export interface TextCardMenuProps {
   readonly recentColors: readonly string[];
   readonly actions: TextCardMenuActions;
 }
-
-const LAYER_MOVES: readonly { direction: LayerMove; label: string; icon: ReactNode }[] = [
-  { direction: "back", label: "Send to back", icon: <IconArrowAutofitDown size={20} stroke={2} /> },
-  {
-    direction: "backward",
-    label: "Send one layer back",
-    icon: <IconArrowAutofitDownFilled size={20} />,
-  },
-  {
-    direction: "forward",
-    label: "Bring one layer forward",
-    icon: <IconArrowAutofitUpFilled size={20} />,
-  },
-  {
-    direction: "front",
-    label: "Bring to front",
-    icon: <IconArrowAutofitUp size={20} stroke={2} />,
-  },
-];
 
 const REMOVABLE_EXTENSIONS: readonly { extension: TextCardMenuExtension; label: string }[] = [
   { extension: "lock", label: "Lock" },
@@ -194,17 +168,7 @@ export function TextCardMenu({
         <ContextMenuDivider />
         {!contained && (
           <>
-            <ContextMenuActionGroup label="Layer order">
-              {LAYER_MOVES.map(({ direction, label, icon }) => (
-                <Tooltip key={direction} label={label} openDelayMs={1000}>
-                  <ContextMenuIconAction
-                    aria-label={label}
-                    icon={icon}
-                    onClick={() => actions.onMoveLayer(id, direction)}
-                  />
-                </Tooltip>
-              ))}
-            </ContextMenuActionGroup>
+            <LayerOrderActions onMove={(direction) => actions.onMoveLayer(id, direction)} />
             <ContextMenuDivider />
           </>
         )}

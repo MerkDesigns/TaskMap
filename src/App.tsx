@@ -20,13 +20,13 @@ import { IconRotateClockwise } from "@tabler/icons-react";
 import {
   CanvasContextMenu,
   ContainerContentContextMenu,
-  ContainerContextMenu,
   ImageContextMenu,
   MindmapConnectionContextMenu,
   TextBlockContextMenu,
 } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
+import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
@@ -6437,6 +6437,15 @@ function App({
     const container = containersById.get(id);
     if (container) action(container);
   };
+  const containerMenuActions: ContainerMenuActions = useStableCallbacks({
+    onStartRename: (id: string) => withContainer(id, startRename),
+    onUpdateAccent: updateContextAccent,
+    onCut: (id: string) => withContainer(id, cutContainer),
+    onCopy: (id: string) => withContainer(id, copyContainer),
+    onRemoveExtension: stripContextExtension,
+    onMoveLayer: moveCanvasLayers,
+    onDelete: deleteContextSelection,
+  });
   const containerActions: ContainerActions = useStableCallbacks({
     onRenameDraftChange: setRenameDraft,
     onSaveRename: saveRename,
@@ -7374,61 +7383,25 @@ function App({
             )}
           </WorkspaceBackdropLayer>
 
-          {containerMenu && contextMenuElement && (
-            <ContainerContextMenu
-              key={`${containerMenu.id}-${containerMenu.left}-${containerMenu.top}`}
-              menu={containerMenu}
-              element={contextMenuElement}
-              closing={false}
-              isMultiTarget={isMultiContextAction(contextMenuElement.id)}
-              extensionState={getSelectedExtensionState(getContextActionIds(contextMenuElement.id))}
-              onStartRename={startRename}
-              onUpdateAccent={updateContextAccent}
-              onCut={cutContainer}
-              onCopy={copyContainer}
-              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-              onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-              onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
-              onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
-              onRemoveInheritCardColorExtension={(id) =>
-                stripContextExtension(id, "inheritCardColor")
-              }
-              onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
-              onMoveLayer={moveCanvasLayers}
-              onDelete={deleteContextSelection}
-            />
-          )}
-
-          {closingContainerMenu && closingContextMenuElement && (
-            <ContainerContextMenu
-              key={`closing-${closingContainerMenu.id}-${closingContainerMenu.left}-${closingContainerMenu.top}`}
-              menu={closingContainerMenu}
-              element={closingContextMenuElement}
-              closing
-              isMultiTarget={isMultiContextAction(closingContextMenuElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(closingContextMenuElement.id),
-              )}
-              onStartRename={startRename}
-              onUpdateAccent={updateContextAccent}
-              onCut={cutContainer}
-              onCopy={copyContainer}
-              onRemovePrivacyExtension={(id) => stripContextExtension(id, "privacy")}
-              onRemoveSearchExtension={(id) => stripContextExtension(id, "search")}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-              onRemoveAutoCheckboxExtension={(id) => stripContextExtension(id, "autoCheckbox")}
-              onRemoveCounterExtension={(id) => stripContextExtension(id, "counter")}
-              onRemoveInheritCardColorExtension={(id) =>
-                stripContextExtension(id, "inheritCardColor")
-              }
-              onRemoveCopyPasteJsonExtension={(id) => stripContextExtension(id, "copyPasteJson")}
-              onMoveLayer={moveCanvasLayers}
-              onDelete={deleteContextSelection}
-            />
-          )}
+          {[
+            { menu: containerMenu, container: contextMenuElement, closing: false },
+            { menu: closingContainerMenu, container: closingContextMenuElement, closing: true },
+          ].map(({ menu, container, closing }) => {
+            const element =
+              menu && asContainerDocumentElement(documentElements[menu.id as ElementId]);
+            if (!menu || !container || !element) return null;
+            return (
+              <ContainerMenu
+                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
+                element={element}
+                position={menu}
+                closing={closing}
+                isMultiTarget={isMultiContextAction(container.id)}
+                installed={getSelectedExtensionState(getContextActionIds(container.id))}
+                actions={containerMenuActions}
+              />
+            );
+          })}
 
           {containerContentMenu && (
             <ContainerContentContextMenu

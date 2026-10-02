@@ -1,90 +1,56 @@
-import { useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { CanvasContextMenu, ContainerContextMenu } from "../components/ContextMenus";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
+import { CanvasContextMenu } from "../components/ContextMenus";
 import { asEntityId } from "../domain/ids/entityIds";
-import { ContainerRenderer } from "../elements/container/ContainerRenderer";
+import { ContainerMenu, type ContainerMenuActions } from "../elements/container/ContainerMenu";
 import type { ContainerDocumentElement } from "../elements/container/containerModel";
+import { ContainerRenderer } from "../elements/container/ContainerRenderer";
 import type { ContainerActions } from "../elements/container/containerView";
 import { EXTENSION_REGISTRY } from "../extensions/registry";
+import type { ElementExtensions } from "../types";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
-import type { ContainerElement, ContainerMenuState, ElementExtensions } from "../types";
 import "./uiLab.css";
 
 type PlaygroundMenu =
-  | { readonly kind: "container"; readonly value: ContainerMenuState }
+  | { readonly kind: "container"; readonly value: { left: number; top: number } }
   | { readonly kind: "canvas"; readonly value: { clientX: number; clientY: number } };
 
 const CONTENT_REVISION = {};
 
-const PLAYGROUND_ID = "element-00000000-0000-4000-8000-0000000000a1";
-const PLAYGROUND_CANVAS_ID = asEntityId("canvas", "canvas-00000000-0000-4000-8000-0000000000a2");
+const PLAYGROUND_CONTAINER: ContainerDocumentElement = {
+  id: asEntityId("element", "element-00000000-0000-4000-8000-0000000000a1"),
+  canvasId: asEntityId("canvas", "canvas-00000000-0000-4000-8000-0000000000a2"),
+  type: "container",
+  geometry: { x: 56, y: 56, width: 440, height: 260 },
+  data: { name: "Production Container", accent: "#9f4f42", headerButtonsVisible: true },
+};
 
-function createPlaygroundContainer(): ContainerElement {
-  return {
-    id: PLAYGROUND_ID,
-    name: "Production Container",
-    x: 56,
-    y: 56,
-    width: 440,
-    height: 260,
-    accent: "#9f4f42",
-    headerButtonsVisible: true,
-    extensions: {
-      search: EXTENSION_REGISTRY.search.createDefault(),
-      lock: EXTENSION_REGISTRY.lock.createDefault(),
-      colorPicker: EXTENSION_REGISTRY.colorPicker.createDefault(),
-    },
-  };
-}
-
-/** The renderer reads document elements; the playground keeps a retained-shape container for its menu. */
-function toDocumentElement(element: ContainerElement): ContainerDocumentElement {
-  return {
-    id: asEntityId("element", element.id),
-    canvasId: PLAYGROUND_CANVAS_ID,
-    type: "container",
-    geometry: { x: element.x, y: element.y, width: element.width, height: element.height },
-    data: {
-      name: element.name,
-      accent: element.accent,
-      headerButtonsVisible: element.headerButtonsVisible ?? true,
-    },
-  };
-}
+const PLAYGROUND_EXTENSIONS: ElementExtensions = {
+  search: EXTENSION_REGISTRY.search.createDefault(),
+  lock: EXTENSION_REGISTRY.lock.createDefault(),
+  colorPicker: EXTENSION_REGISTRY.colorPicker.createDefault(),
+};
 
 export function ContextMenuPlayground() {
-  const [element, setElement] = useState(createPlaygroundContainer);
+  const [element, setElement] = useState(PLAYGROUND_CONTAINER);
+  const [extensions, setExtensions] = useState(PLAYGROUND_EXTENSIONS);
   const [menu, setMenu] = useState<PlaygroundMenu | null>(null);
   const [selected, setSelected] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const [renameDraft, setRenameDraft] = useState(element.name);
+  const [renameDraft, setRenameDraft] = useState(element.data.name);
 
-  const openContainerMenu = (
-    event: ReactMouseEvent<HTMLElement>,
-    target: ContainerElement = element,
-  ) => {
+  const updateData = (data: Partial<ContainerDocumentElement["data"]>) =>
+    setElement((current) => ({ ...current, data: { ...current.data, ...data } }));
+  const openContainerMenu = (event: ReactMouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setMenu({
-      kind: "container",
-      value: { id: target.id, left: event.clientX, top: event.clientY },
-    });
+    setMenu({ kind: "container", value: { left: event.clientX, top: event.clientY } });
   };
-
-  const removeExtension = (extensionId: keyof ElementExtensions) => {
-    setElement((current) => {
-      const extensions = { ...current.extensions };
-      delete extensions[extensionId];
-      return { ...current, extensions };
-    });
-    setMenu(null);
-  };
-
   const closeMenu = () => setMenu(null);
-  const documentElement = useMemo(() => toDocumentElement(element), [element]);
+
   const actions: ContainerActions = {
     onRenameDraftChange: setRenameDraft,
     onSaveRename: () => {
-      setElement((current) => ({ ...current, name: renameDraft.trim() || current.name }));
+      updateData({ name: renameDraft.trim() || element.data.name });
       setRenaming(false);
     },
     onCancelRename: () => setRenaming(false),
@@ -94,28 +60,38 @@ export function ContextMenuPlayground() {
     onToggleMenu: (event) => openContainerMenu(event),
     onTogglePrivacy: () => undefined,
     onToggleLock: () =>
-      setElement((current) => ({
-        ...current,
-        extensions: {
-          ...current.extensions,
-          lock: { enabled: !current.extensions?.lock?.enabled },
-        },
-      })),
-    onUpdateAccent: (_, accent) => setElement((current) => ({ ...current, accent })),
+      setExtensions((current) => ({ ...current, lock: { enabled: !current.lock?.enabled } })),
+    onUpdateAccent: (_, accent) => updateData({ accent }),
     onRememberRecentColor: () => undefined,
     onCopyJsonForAi: async () => undefined,
     onPasteJsonFromAi: async () => undefined,
     onOpenJsonEditor: () => undefined,
-    onHeaderButtonsVisibleChange: (_, visible) =>
-      setElement((current) => ({ ...current, headerButtonsVisible: visible })),
-    onSearchChange: (_, query) =>
-      setElement((current) => ({
-        ...current,
-        extensions: { ...current.extensions, search: { query } },
-      })),
+    onHeaderButtonsVisibleChange: (_, visible) => updateData({ headerButtonsVisible: visible }),
+    onSearchChange: (_, query) => setExtensions((current) => ({ ...current, search: { query } })),
     onOpenContentMenu: (event) => openContainerMenu(event),
     onWheelContent: () => undefined,
     onStartContentSelection: (event) => event.stopPropagation(),
+  };
+
+  const menuActions: ContainerMenuActions = {
+    onStartRename: () => {
+      setRenameDraft(element.data.name);
+      setRenaming(true);
+      closeMenu();
+    },
+    onUpdateAccent: (_, accent) => updateData({ accent }),
+    onCut: closeMenu,
+    onCopy: closeMenu,
+    onRemoveExtension: (_, extension) => {
+      setExtensions((current) => {
+        const next = { ...current };
+        delete next[extension];
+        return next;
+      });
+      closeMenu();
+    },
+    onMoveLayer: closeMenu,
+    onDelete: closeMenu,
   };
 
   return (
@@ -148,11 +124,11 @@ export function ContextMenuPlayground() {
       >
         <div className="taskmap-ui-lab-context-menu__container" onContextMenu={openContainerMenu}>
           <ContainerRenderer
-            element={documentElement}
+            element={element}
             actions={actions}
             view={{
               layer: 0,
-              extensions: element.extensions,
+              extensions,
               cardCount: 0,
               selected,
               multiSelected: false,
@@ -171,28 +147,17 @@ export function ContextMenuPlayground() {
       </CanvasFrame>
 
       {menu?.kind === "container" ? (
-        <ContainerContextMenu
-          menu={menu.value}
+        <ContainerMenu
           element={element}
+          position={menu.value}
           closing={false}
-          onStartRename={() => {
-            setRenameDraft(element.name);
-            setRenaming(true);
-            closeMenu();
+          isMultiTarget={false}
+          installed={{
+            search: Boolean(extensions.search),
+            lock: Boolean(extensions.lock),
+            colorPicker: Boolean(extensions.colorPicker),
           }}
-          onUpdateAccent={(_, accent) => setElement((current) => ({ ...current, accent }))}
-          onCut={closeMenu}
-          onCopy={closeMenu}
-          onRemovePrivacyExtension={() => removeExtension("privacy")}
-          onRemoveSearchExtension={() => removeExtension("search")}
-          onRemoveLockExtension={() => removeExtension("lock")}
-          onRemoveColorPickerExtension={() => removeExtension("colorPicker")}
-          onRemoveAutoCheckboxExtension={() => removeExtension("autoCheckbox")}
-          onRemoveCounterExtension={() => removeExtension("counter")}
-          onRemoveInheritCardColorExtension={() => removeExtension("inheritCardColor")}
-          onRemoveCopyPasteJsonExtension={() => removeExtension("copyPasteJson")}
-          onMoveLayer={closeMenu}
-          onDelete={closeMenu}
+          actions={menuActions}
         />
       ) : null}
 
