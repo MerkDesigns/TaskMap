@@ -56,7 +56,9 @@
    `src/elements/registry.ts` waits until something dispatches through the registry. The
    Container renderer lives in `src/elements/container/` (own CSS; header extension buttons in
    `ContainerExtensionButtons`) and reads the normalized element plus `ContainerViewState`; its
-   menu lives there too. Next: the Text Block, the same way.
+   menu lives there too. The Text Block renderer lives in
+   `src/elements/text-block/` (own CSS; header controls shared through `elementHeader.css` and
+   `useHeaderExtensionLayout`). Next: it reads the normalized element, then its menu moves.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.

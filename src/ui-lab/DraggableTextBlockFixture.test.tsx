@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe("DraggableTextBlockFixture", () => {
-  it("renders the real production TextBlockNode beneath Major and nested Minor glass", () => {
+  it("renders the real production text block beneath Major and nested Minor glass", () => {
     const { container } = render(<DraggableTextBlockFixture />);
     const nodeLayer = container.querySelector<HTMLElement>("[data-ui-lab-draggable-text-block]");
     const node = nodeLayer?.querySelector<HTMLElement>("article");
@@ -58,7 +58,7 @@ describe("DraggableTextBlockFixture", () => {
     vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
     const { container } = render(<DraggableTextBlockFixture />);
     const nodeLayer = container.querySelector<HTMLElement>("[data-ui-lab-draggable-text-block]")!;
-    const handle = nodeLayer.querySelector<HTMLElement>(".cursor-grab")!;
+    const handle = nodeLayer.querySelector<HTMLElement>(".taskmap-text-block__header")!;
     const setPointerCapture = vi.fn();
     Object.defineProperty(handle, "setPointerCapture", { value: setPointerCapture });
 

@@ -49,7 +49,7 @@ import { MindmapConnections } from "./components/MindmapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
 import { TextCardMenu, type TextCardMenuActions } from "./elements/text-card/TextCardMenu";
-import { TextBlockNode } from "./components/TextBlockNode";
+import { TextBlockRenderer } from "./elements/text-block/TextBlockRenderer";
 import { ToastStack } from "./components/ToastStack";
 import {
   CANVAS_WIDTH,
@@ -7117,7 +7117,7 @@ function App({
                           selectedIds.length > 1 && selectedIds.includes(element.id);
 
                         return (
-                          <TextBlockNode
+                          <TextBlockRenderer
                             key={element.id}
                             element={element}
                             selected={outlinedIds.includes(element.id)}

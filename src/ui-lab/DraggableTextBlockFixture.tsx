@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { TextBlockNode } from "../components/TextBlockNode";
+import { TextBlockRenderer } from "../elements/text-block/TextBlockRenderer";
 import type { TextBlockElement } from "../types";
 import { Button } from "../ui/primitives/Button";
 import { Surface } from "./system/Surface";
@@ -138,7 +138,7 @@ export function DraggableTextBlockFixture() {
             top: INITIAL_POSITION.y,
           }}
         >
-          <TextBlockNode
+          <TextBlockRenderer
             element={TEXT_BLOCK}
             selected={false}
             multiSelected={false}

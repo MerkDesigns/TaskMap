@@ -1,0 +1,180 @@
+/* Text Block: an accent-coloured shell with a compact header over a Markdown body that switches to
+   a plain editor while editing. State lives in data attributes set by TextBlockRenderer. Header
+   controls come from elementHeader.css. */
+
+.taskmap-text-block {
+  position: absolute;
+  z-index: 20;
+  overflow: visible;
+  border: 2px solid var(--container-chrome);
+  border-radius: 0.75rem;
+  transition-duration: 150ms;
+  transition-property: border-color;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* The keyframes are shared with containers and text cards in index.css; a pulse wins over the
+   enter/exit animations, as it is applied last. */
+.taskmap-text-block[data-entering] {
+  animation: container-enter 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center;
+}
+
+.taskmap-text-block[data-deleting] {
+  animation: container-exit 150ms ease-in both;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.taskmap-text-block[data-pulsing] {
+  animation: text-card-pulse 240ms ease-out both;
+}
+
+.taskmap-text-block__frame {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.taskmap-text-block__header {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  color: #fff;
+  cursor: grab;
+}
+
+.taskmap-text-block[data-moving] .taskmap-text-block__header {
+  cursor: grabbing;
+}
+
+.taskmap-text-block__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.taskmap-text-block__title > svg {
+  flex-shrink: 0;
+  color: rgb(255 255 255 / 0.8);
+}
+
+.taskmap-text-block__name {
+  font-size: 14px;
+}
+
+.taskmap-text-block__rename {
+  height: 1.75rem;
+  font-size: 14px;
+}
+
+.taskmap-text-block__content {
+  height: calc(100% - 40px);
+  background-color: var(--container-bg);
+  transition-duration: 150ms;
+  transition-property: filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-text-block__content[data-privacy-hidden] {
+  filter: blur(5px);
+  user-select: none;
+}
+
+/* While several elements are selected the body is a drag handle for the group. */
+.taskmap-text-block[data-multi-selected] .taskmap-text-block__content {
+  cursor: grab;
+}
+
+.taskmap-text-block[data-multi-selected][data-moving] .taskmap-text-block__content {
+  cursor: grabbing;
+}
+
+.taskmap-text-block__editor {
+  position: relative;
+  height: 100%;
+}
+
+.taskmap-text-block__textarea {
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem 1rem;
+  overflow: auto;
+  background-color: transparent;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.5rem;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  resize: none;
+}
+
+.taskmap-text-block__textarea::selection {
+  background-color: rgb(255 255 255 / 0.25);
+}
+
+.taskmap-text-block__markdown {
+  height: 100%;
+  padding: 0.75rem 1rem;
+  overflow: auto;
+  font-size: 16px;
+  line-height: 1.5rem;
+  overflow-wrap: break-word;
+  user-select: text;
+}
+
+.taskmap-text-block__fallback {
+  white-space: pre-wrap;
+}
+
+.taskmap-text-block__resize {
+  position: absolute;
+  z-index: 30;
+  right: 0.375rem;
+  bottom: 0.375rem;
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  color: rgb(255 255 255 / 0.45);
+  cursor: nwse-resize;
+  opacity: 0;
+  place-items: center;
+  pointer-events: none;
+  transition-duration: 150ms;
+  transition-property: opacity, background-color, color;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+.taskmap-text-block:hover .taskmap-text-block__resize,
+.taskmap-text-block__resize:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.taskmap-text-block__resize:hover {
+  background-color: rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.8);
+}
+
+.taskmap-text-block__resize:active {
+  background-color: rgb(255 255 255 / 0.15);
+  color: #fff;
+}
+
+.taskmap-text-block__resize:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.taskmap-text-block__selection {
+  z-index: 50;
+  border-radius: 10px;
+  pointer-events: none;
+}
