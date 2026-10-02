@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";
 import type { ContainerActions, ContainerViewState } from "./containerView";
+import "../elementHeader.css";
 import "./container.css";
 
 export interface ContainerRendererProps {

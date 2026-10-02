@@ -17,9 +17,11 @@ import { ColorPickerMenu } from "../../components/ColorPickerMenu";
 import { ContextMenu } from "../../ui/primitives/ContextMenu";
 import { ContextMenuDivider, ContextMenuItem } from "../../ui/primitives/ContextMenuParts";
 import { useClampedFixedPosition } from "../../useClampedFixedPosition";
+import { useHeaderExtensionLayout } from "../useHeaderExtensionLayout";
 import {
   ContainerExtensionButton,
-  useHeaderExtensionLayout,
+  CONTAINER_HEADER_METRICS,
+  useContainerHeaderExtensions,
   type HeaderExtension,
 } from "./ContainerExtensionButtons";
 import type { ContainerDocumentElement } from "./containerModel";
@@ -45,16 +47,15 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
   const copyPasteJsonInstalled = Boolean(extensions?.copyPasteJson);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLDivElement | null>(null);
-  const { collapsible, buttonsVisible, visibleItems, visibleWidth, overflowItems } =
-    useHeaderExtensionLayout(
-      extensions,
-      data.headerButtonsVisible,
-      data.name,
-      cardCount,
-      renaming,
-      rowRef,
-      titleRef,
-    );
+  const buttonsVisible = data.headerButtonsVisible;
+  const { collapsible, visibleItems, visibleWidth, overflowItems } = useHeaderExtensionLayout(
+    useContainerHeaderExtensions(extensions, cardCount),
+    data.headerButtonsVisible,
+    { name: data.name, renaming },
+    CONTAINER_HEADER_METRICS,
+    rowRef,
+    titleRef,
+  );
   const hasOverflow = overflowItems.length > 0;
   const [overflowPosition, setOverflowPosition] = useState<Position | null>(null);
   const [colorMenuPosition, setColorMenuPosition] = useState<Position | null>(null);
@@ -180,7 +181,7 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
             {renaming ? (
               <input
                 data-container-rename-input
-                className="taskmap-container__rename"
+                className="taskmap-element-header__rename taskmap-container__rename"
                 value={renameDraft}
                 autoFocus
                 spellCheck={false}
@@ -195,13 +196,15 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
                 }}
               />
             ) : (
-              <span className="taskmap-container__name">{data.name}</span>
+              <span className="taskmap-element-header__name taskmap-container__name">
+                {data.name}
+              </span>
             )}
           </div>
-          <div className="taskmap-container__controls">
+          <div className="taskmap-element-header__controls">
             {collapsible && (
               <button
-                className="taskmap-container__button"
+                className="taskmap-element-header__button"
                 data-kind="collapse"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -218,7 +221,7 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
               </button>
             )}
             <div
-              className="taskmap-container__extensions"
+              className="taskmap-element-header__extensions"
               data-collapsed={(collapsible && !buttonsVisible) || undefined}
               style={{ maxWidth: !collapsible || buttonsVisible ? visibleWidth : 0 }}
             >
@@ -227,7 +230,7 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
             {hasOverflow && (
               <button
                 ref={overflowButtonRef}
-                className="taskmap-container__button"
+                className="taskmap-element-header__button"
                 data-kind="overflow"
                 onClick={toggleOverflow}
                 onPointerDown={stopPropagation}
@@ -237,7 +240,7 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
               </button>
             )}
             <button
-              className="taskmap-container__button"
+              className="taskmap-element-header__button"
               data-kind="menu"
               onClick={(event) => actions.onToggleMenu(event, id)}
               onPointerDown={stopPropagation}
@@ -282,13 +285,13 @@ export function ContainerHeader({ element, view, actions, article }: ContainerHe
         createPortal(
           <div
             ref={overflowMenuRef}
-            className="taskmap-container__overflow"
+            className="taskmap-element-header__overflow"
             style={{ left: overflowPosition.left, top: overflowPosition.top }}
             onPointerDown={stopPropagation}
             onContextMenu={(event) => event.preventDefault()}
           >
-            <span className="taskmap-container__overflow-arrow" />
-            <span className="taskmap-container__overflow-items">
+            <span className="taskmap-element-header__overflow-arrow" />
+            <span className="taskmap-element-header__overflow-items">
               {overflowItems.map((item) => renderExtension(item.key))}
             </span>
           </div>,

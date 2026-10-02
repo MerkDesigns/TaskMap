@@ -1,0 +1,142 @@
+/* Element header controls shared by containers and text blocks: extension buttons that collapse
+   behind a toggle, an overflow popover for buttons that do not fit, and the menu button. */
+
+.taskmap-element-header__controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.taskmap-element-header__button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.375rem;
+  color: rgb(255 255 255 / 0.7);
+  place-items: center;
+  transition-duration: 150ms;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-element-header__button:hover {
+  background-color: rgb(255 255 255 / 0.1);
+  color: #fff;
+}
+
+.taskmap-element-header__button:active {
+  background-color: rgb(255 255 255 / 0.15);
+}
+
+.taskmap-element-header__button[data-active] {
+  background-color: rgb(255 255 255 / 0.1);
+  color: #fff;
+}
+
+.taskmap-element-header__button[data-kind="collapse"] {
+  width: 1.25rem;
+  flex-shrink: 1;
+  color: rgb(255 255 255 / 0.65);
+}
+
+.taskmap-element-header__button[data-kind="overflow"] {
+  width: 1.75rem;
+  flex-shrink: 1;
+}
+
+.taskmap-element-header__button[data-kind="menu"] {
+  width: 1.75rem;
+  flex-shrink: 1;
+  color: rgb(255 255 255 / 0.75);
+}
+
+.taskmap-element-header__button[data-kind]:hover {
+  color: #fff;
+}
+
+/* Extension buttons slide shut when the header's collapse toggle hides them. */
+.taskmap-element-header__extensions {
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 1;
+  transform: translateX(0);
+  transition-duration: 150ms;
+  transition-property: max-width, opacity, transform;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+.taskmap-element-header__extensions[data-collapsed] {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(0.5rem);
+}
+
+/* Extension buttons that do not fit the header, in a popover above the overflow button. */
+.taskmap-element-header__overflow {
+  position: absolute;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: 0.5rem;
+  background-color: #1b1b1e;
+  box-shadow: 0 14px 32px rgb(0 0 0 / 0.52);
+  gap: 0.25rem;
+  transform: translate(-50%, -100%);
+}
+
+.taskmap-element-header__overflow-arrow {
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-color: rgb(255 255 255 / 0.15);
+  border-style: solid;
+  border-width: 0 1px 1px 0;
+  background-color: #1b1b1e;
+  transform: translate(-50%, 0) rotate(45deg);
+}
+
+.taskmap-element-header__overflow-items {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.taskmap-element-header__rename {
+  min-width: 0;
+  flex: 1 1 0%;
+  padding: 0 0.5rem;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 0.375rem;
+  appearance: none;
+  background-color: rgb(0 0 0 / 0.18);
+  color: #fff;
+  font-weight: 600;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.taskmap-element-header__rename::selection {
+  background-color: rgb(255 255 255 / 0.2);
+}
+
+.taskmap-element-header__rename:focus {
+  border-color: rgb(255 255 255 / 0.45);
+}
+
+.taskmap-element-header__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
