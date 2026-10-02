@@ -26,6 +26,8 @@ import {
   TextBlockContextMenu,
 } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
+import type { ContainerActions } from "./elements/container/containerView";
+import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import {
@@ -6431,6 +6433,38 @@ function App({
     [canvasNodeActions, rememberTextCardSize],
   );
   const documentElements = useRetainedDocumentElements();
+  const withContainer = (id: string, action: (container: ContainerElement) => void) => {
+    const container = containersById.get(id);
+    if (container) action(container);
+  };
+  const containerActions: ContainerActions = useStableCallbacks({
+    onRenameDraftChange: setRenameDraft,
+    onSaveRename: saveRename,
+    onCancelRename: cancelRename,
+    onSelect: (id: string, additive: boolean) =>
+      withContainer(id, (container) => selectCanvasElement(container, additive)),
+    onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
+      withContainer(id, (container) => startMove(event, container)),
+    onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) =>
+      withContainer(id, (container) => startResize(event, container)),
+    onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
+      withContainer(id, (container) => toggleMenu(event, container)),
+    onTogglePrivacy: togglePrivacyExtension,
+    onToggleLock: toggleLockExtension,
+    onUpdateAccent: updateContainerAccent,
+    onRememberRecentColor: rememberRecentColor,
+    onCopyJsonForAi: copyContainerJsonForAi,
+    onPasteJsonFromAi: pasteContainerJsonFromAi,
+    onOpenJsonEditor: openContainerJsonEditor,
+    onHeaderButtonsVisibleChange: updateContainerHeaderButtonsVisible,
+    onSearchChange: updateContainerSearchQuery,
+    onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, id: string) =>
+      withContainer(id, (container) => openContainerContentMenu(event, container)),
+    onWheelContent: (event: WheelEvent<HTMLElement>, id: string) =>
+      withContainer(id, (container) => handleContainerWheel(event, container)),
+    onStartContentSelection: (event: PointerEvent<HTMLElement>, id: string) =>
+      withContainer(id, (container) => startContainerContentSelection(event, container)),
+  });
   const withTextCard = (id: string, action: (card: TextCardElement) => void) => {
     const card = textCardsById.get(id);
     if (card) action(card);
@@ -6956,50 +6990,35 @@ function App({
                         });
                         const containerMultiSelected =
                           selectedIds.length > 1 && selectedIds.includes(element.id);
+                        const containerElement = asContainerDocumentElement(
+                          documentElements[element.id as ElementId],
+                        );
+                        if (!containerElement) return null;
 
                         return (
                           <ContainerRenderer
                             key={element.id}
-                            element={element}
-                            selected={outlinedIds.includes(element.id)}
-                            multiSelected={containerMultiSelected}
-                            entering={enteringIds.includes(element.id)}
-                            deleting={deletingIds.includes(element.id)}
-                            moving={draggedShadowIds.has(element.id)}
-                            shadowsUnderElements={shadowsUnderElements}
-                            recentColors={recentColors}
-                            renaming={renamingId === element.id}
-                            renameDraft={renamingId === element.id ? renameDraft : ""}
-                            onRenameDraftChange={setRenameDraft}
-                            onSaveRename={canvasNodeActions.saveRename}
-                            onCancelRename={canvasNodeActions.cancelRename}
-                            onSelect={canvasNodeActions.selectCanvasElement}
-                            onStartMove={canvasNodeActions.startMove}
-                            onStartResize={canvasNodeActions.startResize}
-                            onToggleMenu={canvasNodeActions.toggleMenu}
-                            onTogglePrivacy={canvasNodeActions.togglePrivacyExtension}
-                            onToggleLock={canvasNodeActions.toggleLockExtension}
-                            onUpdateAccent={canvasNodeActions.updateContainerAccent}
-                            onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                            onCopyJsonForAi={canvasNodeActions.copyContainerJsonForAi}
-                            onPasteJsonFromAi={canvasNodeActions.pasteContainerJsonFromAi}
-                            onOpenJsonEditor={canvasNodeActions.openContainerJsonEditor}
-                            onHeaderButtonsVisibleChange={
-                              canvasNodeActions.updateContainerHeaderButtonsVisible
-                            }
-                            onSearchChange={canvasNodeActions.updateContainerSearchQuery}
-                            onOpenContentMenu={canvasNodeActions.openContainerContentMenu}
-                            onWheelContent={canvasNodeActions.handleContainerWheel}
-                            onStartContentSelection={
-                              canvasNodeActions.startContainerContentSelection
-                            }
-                            cardCount={allContainedCards.length}
-                            contentRevision={containerContentRevision}
-                            contentEditRevision={
-                              editingTextCardContainerId === element.id
-                                ? `${editingTextCardId}\u0000${textCardDraft}`
-                                : ""
-                            }
+                            element={containerElement}
+                            actions={containerActions}
+                            view={{
+                              layer: element.layer ?? 0,
+                              extensions: element.extensions,
+                              cardCount: allContainedCards.length,
+                              selected: outlinedIds.includes(element.id),
+                              multiSelected: containerMultiSelected,
+                              entering: enteringIds.includes(element.id),
+                              deleting: deletingIds.includes(element.id),
+                              moving: draggedShadowIds.has(element.id),
+                              shadowsUnderElements,
+                              recentColors,
+                              renaming: renamingId === element.id,
+                              renameDraft: renamingId === element.id ? renameDraft : "",
+                              contentRevision: containerContentRevision,
+                              contentEditRevision:
+                                editingTextCardContainerId === element.id
+                                  ? `${editingTextCardId}\u0000${textCardDraft}`
+                                  : "",
+                            }}
                           >
                             {containedCards.map((card, visibleIndex) => {
                               if (releasingTextCardIds.includes(card.id)) return null;

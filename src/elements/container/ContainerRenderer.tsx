@@ -1,110 +1,78 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { memo, useState } from "react";
-import type { MouseEvent, PointerEvent, ReactNode, WheelEvent } from "react";
-import type { ContainerElement } from "../../types";
-import { ContainerHeader, type ContainerHeaderProps } from "./ContainerHeader";
+import type { ReactNode } from "react";
+import { ContainerHeader } from "./ContainerHeader";
+import type { ContainerDocumentElement } from "./containerModel";
+import type { ContainerActions, ContainerViewState } from "./containerView";
 import "./container.css";
 
-export type ContainerRendererProps = Omit<ContainerHeaderProps, "article"> & {
-  readonly selected: boolean;
-  readonly multiSelected: boolean;
-  readonly entering: boolean;
-  readonly deleting: boolean;
-  readonly moving: boolean;
-  readonly shadowsUnderElements: boolean;
-  readonly onSelect: (element: ContainerElement, additive?: boolean) => void;
-  readonly onStartResize: (
-    event: PointerEvent<HTMLButtonElement>,
-    element: ContainerElement,
-  ) => void;
-  readonly onOpenContentMenu: (event: MouseEvent<HTMLElement>, element: ContainerElement) => void;
-  readonly onWheelContent: (event: WheelEvent<HTMLElement>, element: ContainerElement) => void;
-  readonly onStartContentSelection: (
-    event: PointerEvent<HTMLElement>,
-    element: ContainerElement,
-  ) => void;
-  /** Change tokens for the hosted cards; they re-render the container when its content changes. */
-  readonly contentRevision: object;
-  readonly contentEditRevision: string;
+export interface ContainerRendererProps {
+  readonly element: ContainerDocumentElement;
+  readonly view: ContainerViewState;
+  readonly actions: ContainerActions;
   /** The container's text cards, positioned inside its frame. */
   readonly children?: ReactNode;
-};
+}
 
-function ContainerRendererComponent({
-  selected,
-  multiSelected,
-  entering,
-  deleting,
-  moving,
-  shadowsUnderElements,
-  onSelect,
-  onStartResize,
-  onOpenContentMenu,
-  onWheelContent,
-  onStartContentSelection,
-  contentRevision: _contentRevision,
-  contentEditRevision: _contentEditRevision,
-  children,
-  ...headerProps
-}: ContainerRendererProps) {
-  const { element, onStartMove } = headerProps;
+function ContainerRendererComponent({ element, view, actions, children }: ContainerRendererProps) {
+  const { id, geometry, data } = element;
   const [article, setArticle] = useState<HTMLElement | null>(null);
-  const shadowClass = shadowsUnderElements
+  const shadowClass = view.shadowsUnderElements
     ? ""
-    : ` canvas-attached-shadow-shell${moving ? " canvas-attached-drag-shadow" : ""}`;
+    : ` canvas-attached-shadow-shell${view.moving ? " canvas-attached-drag-shadow" : ""}`;
 
   return (
     <article
       ref={setArticle}
       className={`taskmap-container${shadowClass}`}
-      data-search={Boolean(element.extensions?.search) || undefined}
-      data-moving={moving || undefined}
-      data-multi-selected={multiSelected || undefined}
-      data-entering={entering || undefined}
-      data-deleting={deleting || undefined}
+      data-search={Boolean(view.extensions?.search) || undefined}
+      data-moving={view.moving || undefined}
+      data-multi-selected={view.multiSelected || undefined}
+      data-entering={view.entering || undefined}
+      data-deleting={view.deleting || undefined}
       style={{
-        zIndex: 20 + (element.layer ?? 0),
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        backgroundColor: element.accent,
-        borderColor: selected
-          ? `color-mix(in srgb, ${element.accent} 72%, white 28%)`
-          : element.accent,
+        zIndex: 20 + view.layer,
+        left: geometry.x,
+        top: geometry.y,
+        width: geometry.width,
+        height: geometry.height,
+        backgroundColor: data.accent,
+        borderColor: view.selected
+          ? `color-mix(in srgb, ${data.accent} 72%, white 28%)`
+          : data.accent,
       }}
       onPointerDown={(event) => {
         if (event.button !== 1) event.stopPropagation();
-        if (event.button === 0 && multiSelected) {
-          onStartMove(event, element);
+        if (event.button === 0 && view.multiSelected) {
+          actions.onStartMove(event, id);
           return;
         }
-        if (event.button === 0) onSelect(element, event.shiftKey);
+        if (event.button === 0) actions.onSelect(id, event.shiftKey);
       }}
-      onWheelCapture={(event) => onWheelContent(event, element)}
+      onWheelCapture={(event) => actions.onWheelContent(event, id)}
     >
       <div className="taskmap-container__frame">
-        <ContainerHeader {...headerProps} article={article} />
+        <ContainerHeader element={element} view={view} actions={actions} article={article} />
         <div
           className="taskmap-container__content"
-          data-privacy-hidden={Boolean(element.extensions?.privacy?.enabled) || undefined}
+          data-privacy-hidden={Boolean(view.extensions?.privacy?.enabled) || undefined}
           onContextMenu={(event) => {
-            if (multiSelected) {
+            if (view.multiSelected) {
               event.preventDefault();
               event.stopPropagation();
               return;
             }
-            onOpenContentMenu(event, element);
+            actions.onOpenContentMenu(event, id);
           }}
-          onPointerDown={(event) => onStartContentSelection(event, element)}
-          onWheelCapture={(event) => onWheelContent(event, element)}
+          onPointerDown={(event) => actions.onStartContentSelection(event, id)}
+          onWheelCapture={(event) => actions.onWheelContent(event, id)}
         />
         {children}
         <button
           className="taskmap-container__resize"
           onPointerDown={(event) => {
             event.currentTarget.blur();
-            onStartResize(event, element);
+            actions.onStartResize(event, id);
           }}
           title="Resize container"
         >
@@ -112,7 +80,7 @@ function ContainerRendererComponent({
         </button>
         <div
           className={`selection-overlay taskmap-container__selection${
-            selected ? " selection-overlay-active" : ""
+            view.selected ? " selection-overlay-active" : ""
           }`}
         />
       </div>
@@ -120,13 +88,19 @@ function ContainerRendererComponent({
   );
 }
 
-/** Children are recreated every render; the revision tokens stand in for them. */
+/**
+ * Children are recreated every render; the view's revision tokens stand in for them. Callers
+ * rebuild the view state each render, so it is compared by value.
+ */
 const areContainerPropsEqual = (previous: ContainerRendererProps, next: ContainerRendererProps) => {
-  const previousValues = previous as unknown as Record<string, unknown>;
-  const nextValues = next as unknown as Record<string, unknown>;
-  const keys = new Set([...Object.keys(previousValues), ...Object.keys(nextValues)]);
-  keys.delete("children");
-  return [...keys].every((key) => previousValues[key] === nextValues[key]);
+  if (previous.element !== next.element || previous.actions !== next.actions) return false;
+  const previousView = previous.view as unknown as Record<string, unknown>;
+  const nextView = next.view as unknown as Record<string, unknown>;
+  const keys = Object.keys(previousView);
+  return (
+    keys.length === Object.keys(nextView).length &&
+    keys.every((key) => previousView[key] === nextView[key])
+  );
 };
 
 export const ContainerRenderer = memo(ContainerRendererComponent, areContainerPropsEqual);

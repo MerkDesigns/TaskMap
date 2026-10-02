@@ -8,7 +8,7 @@ import {
 } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent, RefObject, SyntheticEvent } from "react";
-import type { ContainerElement } from "../../types";
+import type { ElementExtensions } from "../../types";
 
 export type HeaderExtension = "lock" | "privacy" | "colorPicker" | "counter" | "copyPasteJson";
 
@@ -24,13 +24,14 @@ const BUTTON_WIDTH = 36;
  * overflow popover. Widths are fixed per button so the split never waits for a render.
  */
 export function useHeaderExtensionLayout(
-  element: ContainerElement,
+  extensions: ElementExtensions | undefined,
+  headerButtonsVisible: boolean,
+  name: string,
   cardCount: number,
   renaming: boolean,
   rowRef: RefObject<HTMLElement | null>,
   titleRef: RefObject<HTMLElement | null>,
 ) {
-  const extensions = element.extensions;
   const counterWidth = extensions?.counter ? Math.max(36, String(cardCount).length * 8 + 26) : 0;
   const items = useMemo(() => {
     const installed: HeaderExtensionItem[] = [];
@@ -50,7 +51,7 @@ export function useHeaderExtensionLayout(
   ]);
   const totalWidth = items.reduce((total, item) => total + item.width, 0);
   const collapsible = items.length > 1;
-  const buttonsVisible = element.headerButtonsVisible ?? true;
+  const buttonsVisible = headerButtonsVisible;
   const [visibleCount, setVisibleCount] = useState(items.length);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export function useHeaderExtensionLayout(
     observer.observe(title);
     measure();
     return () => observer.disconnect();
-  }, [collapsible, element.name, items, totalWidth, renaming, rowRef, titleRef]);
+  }, [collapsible, name, items, totalWidth, renaming, rowRef, titleRef]);
 
   const visibleItems = items.slice(0, visibleCount);
   return {
@@ -95,7 +96,8 @@ export function useHeaderExtensionLayout(
 
 export interface ContainerExtensionButtonProps {
   readonly extension: HeaderExtension;
-  readonly element: ContainerElement;
+  readonly id: string;
+  readonly extensions: ElementExtensions | undefined;
   readonly cardCount: number;
   readonly jsonMenuOpen: boolean;
   readonly jsonButtonRef: RefObject<HTMLButtonElement | null>;
@@ -109,7 +111,8 @@ const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
 
 export function ContainerExtensionButton({
   extension,
-  element,
+  id,
+  extensions,
   cardCount,
   jsonMenuOpen,
   jsonButtonRef,
@@ -120,13 +123,13 @@ export function ContainerExtensionButton({
 }: ContainerExtensionButtonProps) {
   switch (extension) {
     case "lock": {
-      const enabled = Boolean(element.extensions?.lock?.enabled);
+      const enabled = Boolean(extensions?.lock?.enabled);
       return (
         <button
           className="taskmap-container__button"
           onClick={(event) => {
             event.stopPropagation();
-            onToggleLock(element.id);
+            onToggleLock(id);
           }}
           onPointerDown={stopPropagation}
           title={enabled ? "Unlock" : "Lock"}
@@ -136,13 +139,13 @@ export function ContainerExtensionButton({
       );
     }
     case "privacy": {
-      const enabled = Boolean(element.extensions?.privacy?.enabled);
+      const enabled = Boolean(extensions?.privacy?.enabled);
       return (
         <button
           className="taskmap-container__button"
           onClick={(event) => {
             event.stopPropagation();
-            onTogglePrivacy(element.id);
+            onTogglePrivacy(id);
           }}
           onPointerDown={stopPropagation}
           title={enabled ? "Show content" : "Hide content"}

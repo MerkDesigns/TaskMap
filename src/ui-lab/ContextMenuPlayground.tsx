@@ -1,6 +1,9 @@
-import { useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { CanvasContextMenu, ContainerContextMenu } from "../components/ContextMenus";
+import { asEntityId } from "../domain/ids/entityIds";
 import { ContainerRenderer } from "../elements/container/ContainerRenderer";
+import type { ContainerDocumentElement } from "../elements/container/containerModel";
+import type { ContainerActions } from "../elements/container/containerView";
 import { EXTENSION_REGISTRY } from "../extensions/registry";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import type { ContainerElement, ContainerMenuState, ElementExtensions } from "../types";
@@ -12,9 +15,12 @@ type PlaygroundMenu =
 
 const CONTENT_REVISION = {};
 
+const PLAYGROUND_ID = "element-00000000-0000-4000-8000-0000000000a1";
+const PLAYGROUND_CANVAS_ID = asEntityId("canvas", "canvas-00000000-0000-4000-8000-0000000000a2");
+
 function createPlaygroundContainer(): ContainerElement {
   return {
-    id: "ui-lab-context-menu-container",
+    id: PLAYGROUND_ID,
     name: "Production Container",
     x: 56,
     y: 56,
@@ -26,6 +32,21 @@ function createPlaygroundContainer(): ContainerElement {
       search: EXTENSION_REGISTRY.search.createDefault(),
       lock: EXTENSION_REGISTRY.lock.createDefault(),
       colorPicker: EXTENSION_REGISTRY.colorPicker.createDefault(),
+    },
+  };
+}
+
+/** The renderer reads document elements; the playground keeps a retained-shape container for its menu. */
+function toDocumentElement(element: ContainerElement): ContainerDocumentElement {
+  return {
+    id: asEntityId("element", element.id),
+    canvasId: PLAYGROUND_CANVAS_ID,
+    type: "container",
+    geometry: { x: element.x, y: element.y, width: element.width, height: element.height },
+    data: {
+      name: element.name,
+      accent: element.accent,
+      headerButtonsVisible: element.headerButtonsVisible ?? true,
     },
   };
 }
@@ -59,6 +80,43 @@ export function ContextMenuPlayground() {
   };
 
   const closeMenu = () => setMenu(null);
+  const documentElement = useMemo(() => toDocumentElement(element), [element]);
+  const actions: ContainerActions = {
+    onRenameDraftChange: setRenameDraft,
+    onSaveRename: () => {
+      setElement((current) => ({ ...current, name: renameDraft.trim() || current.name }));
+      setRenaming(false);
+    },
+    onCancelRename: () => setRenaming(false),
+    onSelect: () => setSelected(true),
+    onStartMove: (event) => event.preventDefault(),
+    onStartResize: (event) => event.preventDefault(),
+    onToggleMenu: (event) => openContainerMenu(event),
+    onTogglePrivacy: () => undefined,
+    onToggleLock: () =>
+      setElement((current) => ({
+        ...current,
+        extensions: {
+          ...current.extensions,
+          lock: { enabled: !current.extensions?.lock?.enabled },
+        },
+      })),
+    onUpdateAccent: (_, accent) => setElement((current) => ({ ...current, accent })),
+    onRememberRecentColor: () => undefined,
+    onCopyJsonForAi: async () => undefined,
+    onPasteJsonFromAi: async () => undefined,
+    onOpenJsonEditor: () => undefined,
+    onHeaderButtonsVisibleChange: (_, visible) =>
+      setElement((current) => ({ ...current, headerButtonsVisible: visible })),
+    onSearchChange: (_, query) =>
+      setElement((current) => ({
+        ...current,
+        extensions: { ...current.extensions, search: { query } },
+      })),
+    onOpenContentMenu: (event) => openContainerMenu(event),
+    onWheelContent: () => undefined,
+    onStartContentSelection: (event) => event.stopPropagation(),
+  };
 
   return (
     <section
@@ -90,58 +148,24 @@ export function ContextMenuPlayground() {
       >
         <div className="taskmap-ui-lab-context-menu__container" onContextMenu={openContainerMenu}>
           <ContainerRenderer
-            element={element}
-            selected={selected}
-            multiSelected={false}
-            entering={false}
-            deleting={false}
-            moving={false}
-            shadowsUnderElements={false}
-            recentColors={[]}
-            renaming={renaming}
-            renameDraft={renameDraft}
-            onRenameDraftChange={setRenameDraft}
-            onSaveRename={() => {
-              setElement((current) => ({ ...current, name: renameDraft.trim() || current.name }));
-              setRenaming(false);
+            element={documentElement}
+            actions={actions}
+            view={{
+              layer: 0,
+              extensions: element.extensions,
+              cardCount: 0,
+              selected,
+              multiSelected: false,
+              entering: false,
+              deleting: false,
+              moving: false,
+              shadowsUnderElements: false,
+              recentColors: [],
+              renaming,
+              renameDraft,
+              contentRevision: CONTENT_REVISION,
+              contentEditRevision: "ui-lab-context-menu",
             }}
-            onCancelRename={() => setRenaming(false)}
-            onSelect={() => setSelected(true)}
-            onStartMove={(event) => event.preventDefault()}
-            onStartResize={(event) => event.preventDefault()}
-            onToggleMenu={openContainerMenu}
-            onTogglePrivacy={() => undefined}
-            onToggleLock={() =>
-              setElement((current) => ({
-                ...current,
-                extensions: {
-                  ...current.extensions,
-                  lock: {
-                    enabled: !current.extensions?.lock?.enabled,
-                  },
-                },
-              }))
-            }
-            onUpdateAccent={(_, accent) => setElement((current) => ({ ...current, accent }))}
-            onRememberRecentColor={() => undefined}
-            onCopyJsonForAi={async () => undefined}
-            onPasteJsonFromAi={async () => undefined}
-            onOpenJsonEditor={() => undefined}
-            onHeaderButtonsVisibleChange={(_, visible) =>
-              setElement((current) => ({ ...current, headerButtonsVisible: visible }))
-            }
-            onSearchChange={(_, query) =>
-              setElement((current) => ({
-                ...current,
-                extensions: { ...current.extensions, search: { query } },
-              }))
-            }
-            onOpenContentMenu={openContainerMenu}
-            onWheelContent={() => undefined}
-            onStartContentSelection={(event) => event.stopPropagation()}
-            cardCount={0}
-            contentRevision={CONTENT_REVISION}
-            contentEditRevision="ui-lab-context-menu"
           />
         </div>
       </CanvasFrame>

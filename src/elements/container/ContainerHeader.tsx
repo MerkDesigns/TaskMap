@@ -11,10 +11,9 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
-import type { MouseEvent, PointerEvent, SyntheticEvent } from "react";
+import type { MouseEvent, SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
 import { ColorPickerMenu } from "../../components/ColorPickerMenu";
-import type { ContainerElement } from "../../types";
 import { ContextMenu } from "../../ui/primitives/ContextMenu";
 import { ContextMenuDivider, ContextMenuItem } from "../../ui/primitives/ContextMenuParts";
 import { useClampedFixedPosition } from "../../useClampedFixedPosition";
@@ -23,64 +22,39 @@ import {
   useHeaderExtensionLayout,
   type HeaderExtension,
 } from "./ContainerExtensionButtons";
+import type { ContainerDocumentElement } from "./containerModel";
+import type { ContainerActions, ContainerViewState } from "./containerView";
 
 export interface ContainerHeaderProps {
-  readonly element: ContainerElement;
+  readonly element: ContainerDocumentElement;
+  readonly view: ContainerViewState;
+  readonly actions: ContainerActions;
   /** The container's article; the overflow popover renders into it, outside the frame's clip. */
   readonly article: HTMLElement | null;
-  readonly cardCount: number;
-  readonly recentColors: string[];
-  readonly renaming: boolean;
-  readonly renameDraft: string;
-  readonly onRenameDraftChange: (value: string) => void;
-  readonly onSaveRename: (id: string) => void;
-  readonly onCancelRename: () => void;
-  readonly onStartMove: (event: PointerEvent<HTMLElement>, element: ContainerElement) => void;
-  readonly onToggleMenu: (event: MouseEvent<HTMLButtonElement>, element: ContainerElement) => void;
-  readonly onTogglePrivacy: (id: string) => void;
-  readonly onToggleLock: (id: string) => void;
-  readonly onUpdateAccent: (id: string, accent: string) => void;
-  readonly onRememberRecentColor: (color?: string) => void;
-  readonly onCopyJsonForAi: (id: string) => Promise<void>;
-  readonly onPasteJsonFromAi: (id: string) => Promise<void>;
-  readonly onOpenJsonEditor: (id: string) => void;
-  readonly onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
-  readonly onSearchChange: (id: string, query: string) => void;
 }
 
 type Position = { left: number; top: number };
 
 const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
 
-export function ContainerHeader({
-  element,
-  article,
-  cardCount,
-  recentColors,
-  renaming,
-  renameDraft,
-  onRenameDraftChange,
-  onSaveRename,
-  onCancelRename,
-  onStartMove,
-  onToggleMenu,
-  onTogglePrivacy,
-  onToggleLock,
-  onUpdateAccent,
-  onRememberRecentColor,
-  onCopyJsonForAi,
-  onPasteJsonFromAi,
-  onOpenJsonEditor,
-  onHeaderButtonsVisibleChange,
-  onSearchChange,
-}: ContainerHeaderProps) {
-  const searchInstalled = Boolean(element.extensions?.search);
-  const searchQuery = element.extensions?.search?.query ?? "";
-  const copyPasteJsonInstalled = Boolean(element.extensions?.copyPasteJson);
+export function ContainerHeader({ element, view, actions, article }: ContainerHeaderProps) {
+  const { id, geometry, data } = element;
+  const { extensions, cardCount, renaming, renameDraft } = view;
+  const searchInstalled = Boolean(extensions?.search);
+  const searchQuery = extensions?.search?.query ?? "";
+  const copyPasteJsonInstalled = Boolean(extensions?.copyPasteJson);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLDivElement | null>(null);
   const { collapsible, buttonsVisible, visibleItems, visibleWidth, overflowItems } =
-    useHeaderExtensionLayout(element, cardCount, renaming, rowRef, titleRef);
+    useHeaderExtensionLayout(
+      extensions,
+      data.headerButtonsVisible,
+      data.name,
+      cardCount,
+      renaming,
+      rowRef,
+      titleRef,
+    );
   const hasOverflow = overflowItems.length > 0;
   const [overflowPosition, setOverflowPosition] = useState<Position | null>(null);
   const [colorMenuPosition, setColorMenuPosition] = useState<Position | null>(null);
@@ -145,7 +119,7 @@ export function ContainerHeader({
     // The popover is positioned in the article's own (camera-scaled) coordinates.
     const articleRect = article.getBoundingClientRect();
     const buttonRect = event.currentTarget.getBoundingClientRect();
-    const scale = articleRect.width / Math.max(element.width, 1) || 1;
+    const scale = articleRect.width / Math.max(geometry.width, 1) || 1;
     setOverflowPosition({
       left: (buttonRect.left + buttonRect.width / 2 - articleRect.left) / scale,
       top: (buttonRect.top - articleRect.top) / scale - 10,
@@ -178,12 +152,13 @@ export function ContainerHeader({
     <ContainerExtensionButton
       key={extension}
       extension={extension}
-      element={element}
+      id={id}
+      extensions={extensions}
       cardCount={cardCount}
       jsonMenuOpen={jsonMenuPosition !== null}
       jsonButtonRef={jsonButtonRef}
-      onToggleLock={onToggleLock}
-      onTogglePrivacy={onTogglePrivacy}
+      onToggleLock={actions.onToggleLock}
+      onTogglePrivacy={actions.onTogglePrivacy}
       onToggleColorPicker={toggleColorPicker}
       onToggleJsonMenu={toggleJsonMenu}
     />
@@ -194,8 +169,8 @@ export function ContainerHeader({
     <>
       <div
         className="taskmap-container__header"
-        style={{ backgroundColor: element.accent }}
-        onPointerDown={(event) => onStartMove(event, element)}
+        style={{ backgroundColor: data.accent }}
+        onPointerDown={(event) => actions.onStartMove(event, id)}
       >
         <div ref={rowRef} className="taskmap-container__header-row">
           <div ref={titleRef} className="taskmap-container__title">
@@ -209,18 +184,18 @@ export function ContainerHeader({
                 value={renameDraft}
                 autoFocus
                 spellCheck={false}
-                onChange={(event) => onRenameDraftChange(event.target.value)}
+                onChange={(event) => actions.onRenameDraftChange(event.target.value)}
                 onFocus={(event) => event.target.select()}
                 onPointerDown={stopPropagation}
                 onClick={stopPropagation}
-                onBlur={() => onSaveRename(element.id)}
+                onBlur={() => actions.onSaveRename(id)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") onSaveRename(element.id);
-                  if (event.key === "Escape") onCancelRename();
+                  if (event.key === "Enter") actions.onSaveRename(id);
+                  if (event.key === "Escape") actions.onCancelRename();
                 }}
               />
             ) : (
-              <span className="taskmap-container__name">{element.name}</span>
+              <span className="taskmap-container__name">{data.name}</span>
             )}
           </div>
           <div className="taskmap-container__controls">
@@ -230,7 +205,7 @@ export function ContainerHeader({
                 data-kind="collapse"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onHeaderButtonsVisibleChange(element.id, !buttonsVisible);
+                  actions.onHeaderButtonsVisibleChange(id, !buttonsVisible);
                 }}
                 onPointerDown={stopPropagation}
                 title={buttonsVisible ? "Hide extension buttons" : "Show extension buttons"}
@@ -264,7 +239,7 @@ export function ContainerHeader({
             <button
               className="taskmap-container__button"
               data-kind="menu"
-              onClick={(event) => onToggleMenu(event, element)}
+              onClick={(event) => actions.onToggleMenu(event, id)}
               onPointerDown={stopPropagation}
               title="Container menu"
             >
@@ -286,12 +261,12 @@ export function ContainerHeader({
                 value={searchQuery}
                 spellCheck={false}
                 placeholder="Search"
-                onChange={(event) => onSearchChange(element.id, event.target.value)}
+                onChange={(event) => actions.onSearchChange(id, event.target.value)}
               />
               {searchQuery && (
                 <button
                   className="taskmap-container__search-clear"
-                  onClick={() => onSearchChange(element.id, "")}
+                  onClick={() => actions.onSearchChange(id, "")}
                   title="Clear search"
                 >
                   <IconX size={15} stroke={2} />
@@ -332,34 +307,34 @@ export function ContainerHeader({
       >
         <ContextMenuItem
           icon={<IconClipboardCopy size={17} stroke={2} />}
-          onClick={closeJsonMenuAnd(() => void onCopyJsonForAi(element.id))}
+          onClick={closeJsonMenuAnd(() => void actions.onCopyJsonForAi(id))}
         >
           Copy JSON for AI
         </ContextMenuItem>
         <ContextMenuDivider />
         <ContextMenuItem
           icon={<IconClipboardText size={17} stroke={2} />}
-          onClick={closeJsonMenuAnd(() => void onPasteJsonFromAi(element.id))}
+          onClick={closeJsonMenuAnd(() => void actions.onPasteJsonFromAi(id))}
         >
           Paste JSON from AI
         </ContextMenuItem>
         <ContextMenuDivider />
         <ContextMenuItem
           icon={<IconEdit size={17} stroke={2} />}
-          onClick={closeJsonMenuAnd(() => onOpenJsonEditor(element.id))}
+          onClick={closeJsonMenuAnd(() => actions.onOpenJsonEditor(id))}
         >
           Open JSON editor
         </ContextMenuItem>
       </ContextMenu>
       {colorMenuPosition && (
         <ColorPickerMenu
-          color={element.accent}
+          color={data.accent}
           left={colorMenuPosition.left}
           top={colorMenuPosition.top}
-          recentColors={recentColors}
-          onChange={(accent) => onUpdateAccent(element.id, accent)}
+          recentColors={[...view.recentColors]}
+          onChange={(accent) => actions.onUpdateAccent(id, accent)}
           onClose={(recentColor) => {
-            onRememberRecentColor(recentColor);
+            actions.onRememberRecentColor(recentColor);
             setColorMenuPosition(null);
           }}
         />
