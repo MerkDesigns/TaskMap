@@ -20,7 +20,6 @@ import { IconRotateClockwise } from "@tabler/icons-react";
 import {
   CanvasContextMenu,
   ContainerContentContextMenu,
-  ImageContextMenu,
   MindmapConnectionContextMenu,
 } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
@@ -38,6 +37,7 @@ import { FloatingToolbar } from "./components/FloatingToolbar";
 import { WindowChrome } from "./components/WindowChrome";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageRenderer, type ImageActions } from "./elements/image/ImageRenderer";
+import { ImageMenu, type ImageMenuActions } from "./elements/image/ImageMenu";
 import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
 import type { ImageDrop } from "./platform/media/imageDropClient";
 import {
@@ -6489,6 +6489,17 @@ function App({
     const image = imagesById.get(id);
     if (image) action(image);
   };
+  const imageMenuActions: ImageMenuActions = useStableCallbacks({
+    onReplace: pickImageForElement,
+    onUpdateAccent: updateContextAccent,
+    onToggleBackground: toggleImageBackground,
+    onToggleLock: toggleLockExtension,
+    onMoveLayer: moveCanvasLayers,
+    onCut: (id: string) => withImage(id, cutImage),
+    onCopy: (id: string) => withImage(id, copyImage),
+    onRemoveLock: (id: string) => stripContextExtension(id, "lock"),
+    onDelete: deleteContextSelection,
+  });
   const imageActions: ImageActions = useStableCallbacks({
     onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
       withImage(id, (image) => startImageMove(event, image)),
@@ -7531,49 +7542,27 @@ function App({
             );
           })}
 
-          {imageMenu && imageContextElement && (
-            <ImageContextMenu
-              key={`${imageMenu.id}-${imageMenu.left}-${imageMenu.top}`}
-              menu={imageMenu}
-              image={imageContextElement}
-              closing={false}
-              isMultiTarget={isMultiContextAction(imageContextElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(imageContextElement.id),
-              )}
-              onReplace={pickImageForElement}
-              onUpdateAccent={updateContextAccent}
-              onToggleBackground={toggleImageBackground}
-              onToggleLock={canvasNodeActions.toggleLockExtension}
-              onMoveLayer={moveCanvasLayers}
-              onCut={cutImage}
-              onCopy={copyImage}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onDelete={deleteContextSelection}
-            />
-          )}
-
-          {closingImageMenu && closingImageContextElement && (
-            <ImageContextMenu
-              key={`closing-${closingImageMenu.id}-${closingImageMenu.left}-${closingImageMenu.top}`}
-              menu={closingImageMenu}
-              image={closingImageContextElement}
-              closing
-              isMultiTarget={isMultiContextAction(closingImageContextElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(closingImageContextElement.id),
-              )}
-              onReplace={pickImageForElement}
-              onUpdateAccent={updateContextAccent}
-              onToggleBackground={toggleImageBackground}
-              onToggleLock={canvasNodeActions.toggleLockExtension}
-              onMoveLayer={moveCanvasLayers}
-              onCut={cutImage}
-              onCopy={copyImage}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onDelete={deleteContextSelection}
-            />
-          )}
+          {[
+            { menu: imageMenu, image: imageContextElement, closing: false },
+            { menu: closingImageMenu, image: closingImageContextElement, closing: true },
+          ].map(({ menu, image, closing }) => {
+            const element = menu && asImageDocumentElement(documentElements[menu.id as ElementId]);
+            if (!menu || !image || !element) return null;
+            return (
+              <ImageMenu
+                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
+                element={element}
+                position={menu}
+                closing={closing}
+                isMultiTarget={isMultiContextAction(image.id)}
+                lock={image.extensions?.lock ?? null}
+                lockInstalled={Boolean(
+                  getSelectedExtensionState(getContextActionIds(image.id)).lock,
+                )}
+                actions={imageMenuActions}
+              />
+            );
+          })}
 
           {mindmapConnectionMenu && mindmapConnectionContextElement && (
             <MindmapConnectionContextMenu

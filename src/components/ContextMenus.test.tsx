@@ -1,8 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ImageElement } from "../types";
-import { CanvasContextMenu, ImageContextMenu } from "./ContextMenus";
+import { CanvasContextMenu } from "./ContextMenus";
 
 afterEach(cleanup);
 
@@ -39,47 +37,5 @@ describe("canvas context menu", () => {
     fireEvent.click(screen.getByText("Create mindmap"));
     expect(onCreateMindmap).toHaveBeenCalledWith(100, 100);
     expect(screen.getByText("Create image")).toBeInTheDocument();
-  });
-});
-
-describe("image context menu", () => {
-  it("toggles an installed lock above the color swatches", async () => {
-    const user = userEvent.setup();
-    const onToggleLock = vi.fn();
-    const image: ImageElement = {
-      id: "image-locked",
-      x: 20,
-      y: 30,
-      width: 200,
-      height: 120,
-      accent: "#476FA8",
-      extensions: { lock: { enabled: false } },
-    };
-
-    render(
-      <ImageContextMenu
-        menu={{ id: image.id, left: 100, top: 100 }}
-        image={image}
-        closing={false}
-        onReplace={vi.fn()}
-        onUpdateAccent={vi.fn()}
-        onToggleBackground={vi.fn()}
-        onToggleLock={onToggleLock}
-        onMoveLayer={vi.fn()}
-        onCut={vi.fn()}
-        onCopy={vi.fn()}
-        onRemoveLockExtension={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    );
-
-    const toggle = screen.getByRole("menuitem", { name: "Unlocked" });
-    expect(toggle.querySelector(".tabler-icon-lock-open")).toBeInTheDocument();
-    const firstSwatch = screen.getAllByTitle("Image frame color")[0];
-    expect(toggle.compareDocumentPosition(firstSwatch) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    await user.click(toggle);
-    expect(onToggleLock).toHaveBeenCalledWith(image.id);
   });
 });

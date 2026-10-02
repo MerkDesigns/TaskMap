@@ -60,8 +60,8 @@
    `src/elements/text-block/` (own CSS; header controls shared through `elementHeader.css` and
    `useHeaderExtensionLayout`) and reads the normalized element plus `TextBlockViewState`; its
    menu lives there too. The Image renderer lives in `src/elements/image/` (own CSS, leases
-   session media itself) and reads the normalized element plus `ImageViewState`. Next: the Image
-   menu moves there, then mind-map nodes and connections.
+   session media itself) and reads the normalized element plus `ImageViewState`; its menu lives
+   there too. Next: mind-map nodes and connections.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.
