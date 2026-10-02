@@ -3928,8 +3928,11 @@ function App({
 
   const startTextCardMove = (event: PointerEvent<HTMLElement>, card: TextCardElement) => {
     if (editingTextCardId === card.id) return;
+    // Mind-map nodes never drop into containers, and text-card placement rejects other element
+    // types (which cancelled every mind-map drag); they move like any other loose element.
     const usesGenericLooseGroup =
-      !card.containerId && selectedIds.length > 1 && selectedIds.includes(card.id);
+      card.kind === "mindmap" ||
+      (!card.containerId && selectedIds.length > 1 && selectedIds.includes(card.id));
     if (usesGenericLooseGroup) {
       beginElementMove(event, card.id);
       return;
