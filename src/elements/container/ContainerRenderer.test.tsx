@@ -67,6 +67,7 @@ function renderContainer(
       actions={handlers}
       view={{
         layer: 0,
+        geometry: element.geometry,
         extensions: undefined,
         cardCount: 3,
         selected: false,
@@ -187,5 +188,15 @@ describe("ContainerRenderer", () => {
     const group = renderContainer(container(), { multiSelected: true });
     fireEvent.contextMenu(group.article.querySelector(".taskmap-container__content")!);
     expect(group.onOpenContentMenu).not.toHaveBeenCalled();
+  });
+
+  it("follows the live geometry while it is moved or resized, before the document changes", () => {
+    const { article } = renderContainer(container(), {
+      geometry: { x: 90, y: 120, width: 500, height: 260 },
+    });
+
+    expect(article.style.left).toBe("90px");
+    expect(article.style.top).toBe("120px");
+    expect(article.style.width).toBe("500px");
   });
 });

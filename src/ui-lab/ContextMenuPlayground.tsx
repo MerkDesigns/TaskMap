@@ -128,6 +128,7 @@ export function ContextMenuPlayground() {
             actions={actions}
             view={{
               layer: 0,
+              geometry: element.geometry,
               extensions,
               cardCount: 0,
               selected,

@@ -46,7 +46,8 @@ type Position = { left: number; top: number };
 const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
 
 export function TextBlockHeader({ element, view, actions, article }: TextBlockHeaderProps) {
-  const { id, geometry, data } = element;
+  const { id, data } = element;
+  const { geometry } = view;
   const { extensions, renaming, renameDraft } = view;
   const privacyEnabled = Boolean(extensions?.privacy?.enabled);
   const lockEnabled = Boolean(extensions?.lock?.enabled);

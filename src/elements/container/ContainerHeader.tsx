@@ -40,7 +40,8 @@ type Position = { left: number; top: number };
 const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
 
 export function ContainerHeader({ element, view, actions, article }: ContainerHeaderProps) {
-  const { id, geometry, data } = element;
+  const { id, data } = element;
+  const { geometry } = view;
   const { extensions, cardCount, renaming, renameDraft } = view;
   const searchInstalled = Boolean(extensions?.search);
   const searchQuery = extensions?.search?.query ?? "";

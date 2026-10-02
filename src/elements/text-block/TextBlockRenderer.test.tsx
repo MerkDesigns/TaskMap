@@ -69,6 +69,7 @@ function renderTextBlock(
       actions={actions}
       view={{
         layer: 0,
+        geometry: element.geometry,
         extensions: undefined,
         selected: false,
         multiSelected: false,
@@ -153,5 +154,15 @@ describe("TextBlockRenderer", () => {
       "data-privacy-hidden",
       "true",
     );
+  });
+
+  it("follows the live geometry while it is moved or resized, before the document changes", () => {
+    const { article } = renderTextBlock(textBlock(), {
+      geometry: { x: 90, y: 120, width: 500, height: 260 },
+    });
+
+    expect(article.style.left).toBe("90px");
+    expect(article.style.top).toBe("120px");
+    expect(article.style.width).toBe("500px");
   });
 });

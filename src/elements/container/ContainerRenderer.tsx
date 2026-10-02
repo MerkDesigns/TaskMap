@@ -16,7 +16,8 @@ export interface ContainerRendererProps {
 }
 
 function ContainerRendererComponent({ element, view, actions, children }: ContainerRendererProps) {
-  const { id, geometry, data } = element;
+  const { id, data } = element;
+  const { geometry } = view;
   const [article, setArticle] = useState<HTMLElement | null>(null);
   const shadowClass = view.shadowsUnderElements
     ? ""
@@ -89,19 +90,22 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
   );
 }
 
+const shallowEqual = (a: object, b: object) => {
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
+};
+
 /**
  * Children are recreated every render; the view's revision tokens stand in for them. Callers
  * rebuild the view state each render, so it is compared by value.
  */
 const areContainerPropsEqual = (previous: ContainerRendererProps, next: ContainerRendererProps) => {
   if (previous.element !== next.element || previous.actions !== next.actions) return false;
-  const previousView = previous.view as unknown as Record<string, unknown>;
-  const nextView = next.view as unknown as Record<string, unknown>;
-  const keys = Object.keys(previousView);
-  return (
-    keys.length === Object.keys(nextView).length &&
-    keys.every((key) => previousView[key] === nextView[key])
-  );
+  const { geometry: previousGeometry, ...previousView } = previous.view;
+  const { geometry: nextGeometry, ...nextView } = next.view;
+  return shallowEqual(previousView, nextView) && shallowEqual(previousGeometry, nextGeometry);
 };
 
 export const ContainerRenderer = memo(ContainerRendererComponent, areContainerPropsEqual);

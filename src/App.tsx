@@ -7048,6 +7048,12 @@ function App({
                             actions={containerActions}
                             view={{
                               layer: element.layer ?? 0,
+                              geometry: {
+                                x: element.x,
+                                y: element.y,
+                                width: element.width,
+                                height: element.height,
+                              },
                               extensions: element.extensions,
                               cardCount: allContainedCards.length,
                               selected: outlinedIds.includes(element.id),
@@ -7161,6 +7167,12 @@ function App({
                             actions={textBlockActions}
                             view={{
                               layer: element.layer ?? 0,
+                              geometry: {
+                                x: element.x,
+                                y: element.y,
+                                width: element.width,
+                                height: element.height,
+                              },
                               extensions: element.extensions,
                               selected: outlinedIds.includes(element.id),
                               multiSelected:

@@ -20,7 +20,8 @@ export interface TextBlockRendererProps {
 }
 
 function TextBlockRendererComponent({ element, view, actions }: TextBlockRendererProps) {
-  const { id, geometry, data } = element;
+  const { id, data } = element;
+  const { geometry } = view;
   const { editing, multiSelected } = view;
   const [article, setArticle] = useState<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -147,16 +148,19 @@ function TextBlockRendererComponent({ element, view, actions }: TextBlockRendere
   );
 }
 
+const shallowEqual = (a: object, b: object) => {
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
+};
+
 /** Callers rebuild the view state each render; compare it by value so idle blocks never re-render. */
 const areTextBlockPropsEqual = (previous: TextBlockRendererProps, next: TextBlockRendererProps) => {
   if (previous.element !== next.element || previous.actions !== next.actions) return false;
-  const previousView = previous.view as unknown as Record<string, unknown>;
-  const nextView = next.view as unknown as Record<string, unknown>;
-  const keys = Object.keys(previousView);
-  return (
-    keys.length === Object.keys(nextView).length &&
-    keys.every((key) => previousView[key] === nextView[key])
-  );
+  const { geometry: previousGeometry, ...previousView } = previous.view;
+  const { geometry: nextGeometry, ...nextView } = next.view;
+  return shallowEqual(previousView, nextView) && shallowEqual(previousGeometry, nextGeometry);
 };
 
 export const TextBlockRenderer = memo(TextBlockRendererComponent, areTextBlockPropsEqual);

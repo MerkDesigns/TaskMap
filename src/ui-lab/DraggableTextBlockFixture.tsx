@@ -167,6 +167,7 @@ export function DraggableTextBlockFixture() {
             actions={actions}
             view={{
               layer: 0,
+              geometry: TEXT_BLOCK.geometry,
               extensions: undefined,
               selected: false,
               multiSelected: false,

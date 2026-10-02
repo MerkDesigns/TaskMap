@@ -1,9 +1,21 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from "react";
 import type { ElementExtensions } from "../../types";
 
+export interface ElementGeometryView {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 /** Transient presentation state of a container; everything persistent is read from its element. */
 export interface ContainerViewState {
   readonly layer: number;
+  /**
+   * Where the element is shown: its stored geometry, or the live preview while it is being moved
+   * or resized (the document only changes when the gesture completes).
+   */
+  readonly geometry: ElementGeometryView;
   /** Installed extensions, from the retained extension projection. */
   readonly extensions: ElementExtensions | undefined;
   readonly cardCount: number;
