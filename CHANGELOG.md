@@ -46,8 +46,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 - Mind-map nodes can be dragged again.
 - Containers and text blocks follow the pointer while being moved or resized again, instead of
   jumping into place on release.
-- Borders inside a container (such as its text cards) no longer shimmer while the container is
-  dragged.
+- Containers, text blocks and images look exactly the same while dragged and after being placed:
+  nested borders no longer shimmer, and the header title, icon and search bar no longer shift by
+  a pixel on drop.
 - A checked text-card checkbox has a darker fill, so the check mark stands out instead of the box
   lighting up.
 

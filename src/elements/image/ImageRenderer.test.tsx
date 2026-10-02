@@ -170,7 +170,7 @@ describe("ImageRenderer", () => {
     expect(screen.queryByText("Double-click to add image")).not.toBeInTheDocument();
   });
 
-  it("shows a live move as a translation from its stored position, and a resize as its size", () => {
+  it("is placed by translation at its shown position, so moves never re-lay it out", () => {
     const { container } = render(
       <ImageRenderer
         element={element}
@@ -182,7 +182,7 @@ describe("ImageRenderer", () => {
     const image = container.querySelector<HTMLElement>(".taskmap-image")!;
 
     expect(image.style.left).toBe("0px");
-    expect(image.style.transform).toBe("translate3d(40px, 50px, 0)");
+    expect(image.style.translate).toBe("40px 50px");
     expect(image.style.width).toBe("120px");
   });
 });

@@ -8,23 +8,19 @@ export interface ElementGeometryView {
 }
 
 /**
- * Lays an element out at its stored position and shows a gesture's live position as a GPU
- * translation. Re-laying it out at a fractional canvas position every frame makes WebView2 round
- * its edges, and every nested border, differently from frame to frame, so they shimmer; a
- * translated layer keeps its rasterized pixels. Size changes from a resize apply directly.
+ * Places an element with the `translate` property on its own layer instead of left/top. WebView2
+ * rounds an element's edges, and every nested border and text line, relative to where it is laid
+ * out; at a fractional canvas position a move or drop re-rounds them, so they shimmer or shift by a
+ * pixel. Laid out at the origin and translated, the content rasterizes the same wherever it is.
+ * `translate` composes with the enter/exit animations, which animate `transform`.
  */
-export function placementStyle(
-  stored: ElementGeometryView,
-  shown: ElementGeometryView,
-): CSSProperties {
-  const dx = shown.x - stored.x;
-  const dy = shown.y - stored.y;
+export function placementStyle(shown: ElementGeometryView): CSSProperties {
   return {
-    left: stored.x,
-    top: stored.y,
+    left: 0,
+    top: 0,
     width: shown.width,
     height: shown.height,
-    transform: dx || dy ? `translate3d(${dx}px, ${dy}px, 0)` : undefined,
+    translate: `${shown.x}px ${shown.y}px`,
   };
 }
 

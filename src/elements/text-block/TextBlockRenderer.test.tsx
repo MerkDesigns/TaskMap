@@ -97,7 +97,7 @@ describe("TextBlockRenderer", () => {
 
     expect(screen.getByText("Notes")).toBeInTheDocument();
     expect(await screen.findByText("Plain body")).toBeInTheDocument();
-    expect(article.style.left).toBe("10px");
+    expect(article.style.translate).toBe("10px 20px");
     expect(article.style.height).toBe("230px");
   });
 
@@ -156,13 +156,13 @@ describe("TextBlockRenderer", () => {
     );
   });
 
-  it("shows a live move as a translation from its stored position, and a resize as its size", () => {
+  it("is placed by translation at its shown position, so moves never re-lay it out", () => {
     const { article } = renderTextBlock(textBlock(), {
       geometry: { x: 90, y: 120, width: 500, height: 260 },
     });
 
-    expect(article.style.left).toBe("10px");
-    expect(article.style.transform).toBe("translate3d(80px, 100px, 0)");
+    expect(article.style.left).toBe("0px");
+    expect(article.style.translate).toBe("90px 120px");
     expect(article.style.width).toBe("500px");
   });
 });

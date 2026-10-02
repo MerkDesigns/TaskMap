@@ -126,7 +126,7 @@ function ImageRendererComponent({ element, view, actions, leases }: ImageRendere
       data-deleting={view.deleting || undefined}
       style={{
         zIndex: view.dragging ? 10000 : 20 + view.layer,
-        ...placementStyle(element.geometry, geometry),
+        ...placementStyle(geometry),
         borderColor: chromeless
           ? undefined
           : view.selected

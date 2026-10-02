@@ -35,7 +35,7 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
       data-deleting={view.deleting || undefined}
       style={{
         zIndex: 20 + view.layer,
-        ...placementStyle(element.geometry, geometry),
+        ...placementStyle(geometry),
         backgroundColor: data.accent,
         borderColor: view.selected
           ? `color-mix(in srgb, ${data.accent} 72%, white 28%)`
