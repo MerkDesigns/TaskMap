@@ -4,7 +4,7 @@ import type { LegacyTextCardPresentation } from "./legacyTextCardInteraction";
 import { getLegacyTextCardDragRenderPosition } from "./legacyTextCardDragPresentation";
 
 describe("legacy text-card drag presentation", () => {
-  it("keeps measured interaction size out of the TextCardNode render position", () => {
+  it("keeps measured interaction size out of the TextCardRenderer render position", () => {
     const presentation: LegacyTextCardPresentation = {
       pointerId: 1,
       primaryId: "primary",

@@ -23,7 +23,6 @@ const MATERIAL_SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
 const LEGACY_TAURI_IMPORTS = new Set([
   "src/App.tsx",
   "src/components/MarkdownContent.tsx",
-  "src/components/TextCardNode.tsx",
   "src/hooks/useAppUpdates.ts",
   "src/hooks/useImageCache.test.tsx",
   "src/hooks/useImageCache.ts",

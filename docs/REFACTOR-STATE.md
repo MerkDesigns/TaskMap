@@ -49,8 +49,10 @@
    `src/installer/` UI; dev run `npm run installer:dev` simulates installing (no payload). Not yet
    done: a real `npm run installer:build` validated on a clean machine (never run a real install
    over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
-2. Start Phase 5 with the Text Card: transfer presentation ownership from retained `App.tsx` to the
-   normalized architecture without reopening persistence ownership (see `REFACTOR-ROADMAP.md`).
+2. Phase 5, Text Card: step 1 done, the renderer lives in `src/elements/text-card/TextCardRenderer`
+   (own CSS, links via `src/platform/opener`), computed-style parity verified live. Next: step 2,
+   the renderer reads the normalized element plus one typed view state and is registered in
+   `src/elements/registry.ts`; then step 3, Text Card menus/commands move out of `App.tsx`.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.

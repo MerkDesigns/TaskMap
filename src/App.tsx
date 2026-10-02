@@ -45,7 +45,7 @@ import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { MindmapConnectors } from "./components/MindmapConnectors";
 import { MindmapConnections } from "./components/MindmapConnections";
-import { TextCardNode } from "./components/TextCardNode";
+import { TextCardRenderer } from "./elements/text-card/TextCardRenderer";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
 import {
@@ -7067,7 +7067,7 @@ function App({
                               };
 
                               return (
-                                <TextCardNode
+                                <TextCardRenderer
                                   key={card.id}
                                   card={card}
                                   accentBar={card.kind !== "mindmap"}
@@ -7157,7 +7157,7 @@ function App({
                         }
                         const position = getTextCardRenderPosition(card);
                         return (
-                          <TextCardNode
+                          <TextCardRenderer
                             key={card.id}
                             card={card}
                             accentBar={card.kind !== "mindmap"}
@@ -7248,7 +7248,7 @@ function App({
                     id,
                   );
                   return (
-                    <TextCardNode
+                    <TextCardRenderer
                       key={`drag-overlay-${id}`}
                       card={card}
                       accentBar={card.kind !== "mindmap"}
@@ -7291,7 +7291,7 @@ function App({
                 }}
               >
                 {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => (
-                  <TextCardNode
+                  <TextCardRenderer
                     key={`release-overlay-${card.id}`}
                     card={card}
                     accentBar={card.kind !== "mindmap"}

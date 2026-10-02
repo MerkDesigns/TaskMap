@@ -1,0 +1,301 @@
+/* Text Card: an accent-bordered label on the canvas, inside containers, in drag overlays and as the
+   (multiline) mind-map node variant. State lives in data attributes set by TextCardRenderer. */
+
+.taskmap-text-card {
+  position: absolute;
+  z-index: 20;
+  display: inline-flex;
+  overflow: hidden;
+  align-items: center;
+  max-width: 520px;
+  padding: 7px 17px;
+  border: 1px solid;
+  border-radius: 0.5rem;
+  background-color: var(--container-bg);
+  color: #fff;
+  cursor: grab;
+  font-size: 17px;
+  font-weight: 400;
+  transform: scale(1);
+  transition-duration: 150ms;
+  transition-property: top, left, width, transform, box-shadow, opacity, border-color;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  user-select: none;
+}
+
+.taskmap-text-card:active {
+  cursor: grabbing;
+}
+
+.taskmap-text-card[data-accent-bar="true"] {
+  padding-left: 15px;
+  border-left-width: 6px;
+}
+
+/* Sized by its container (a fixed or maximum width): no content-width cap. */
+.taskmap-text-card[data-sized="true"] {
+  max-width: none;
+}
+
+.taskmap-text-card[data-overflow="visible"] {
+  overflow: visible;
+}
+
+.taskmap-text-card[data-motion="moving"] {
+  transition-property: none;
+}
+
+.taskmap-text-card[data-motion="settling"] {
+  transition-duration: 180ms;
+  transition-property: top, left, width, transform, opacity, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.taskmap-text-card[data-drag] {
+  z-index: 30;
+  cursor: grabbing;
+  opacity: 0.95;
+}
+
+/* The held card lifts slightly; after snapping into a slot it shows at its true size, instantly. */
+.taskmap-text-card[data-drag="primary"],
+.taskmap-text-card[data-drag="primary-true-size"] {
+  transform: scale(1.035);
+  transform-origin: top left;
+  transition: none;
+}
+
+.taskmap-text-card[data-drag="primary-true-size"] {
+  transform: scale(1);
+}
+
+/* Bundled cards fly from their pickup offset into a swaying stack behind the held card. */
+.taskmap-text-card[data-drag="bundle"] {
+  animation: taskmap-text-card-bundle-pickup 190ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center;
+  transition: transform 90ms ease-out;
+}
+
+/* Shared element presence animations (also used by images and text blocks). */
+.taskmap-text-card[data-entering="true"] {
+  animation: text-card-enter 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: left center;
+}
+
+.taskmap-text-card[data-deleting="true"] {
+  animation: text-card-exit 140ms ease-in both;
+  pointer-events: none;
+  transform-origin: left center;
+}
+
+.taskmap-text-card[data-pulsing="true"] {
+  animation: text-card-pulse 240ms ease-out both;
+}
+
+.taskmap-text-card[data-interaction="disabled"] {
+  pointer-events: none;
+}
+
+.taskmap-text-card[data-interaction="forced"] {
+  pointer-events: auto;
+}
+
+.taskmap-text-card[data-privacy-hidden="true"] {
+  filter: blur(5px);
+}
+
+.taskmap-text-card__checkbox {
+  display: grid;
+  width: 30px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: -7px 3px -7px -10px;
+  border-radius: 0.25rem;
+  color: transparent;
+  place-items: center;
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-text-card__checkbox:hover {
+  color: rgb(255 255 255 / 0.18);
+}
+
+.taskmap-text-card__checkbox[aria-pressed="true"] {
+  color: rgb(52 211 153);
+}
+
+.taskmap-text-card__checkbox-box {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  border: 1px solid;
+  border-radius: 0.25rem;
+  background-color: rgb(0 0 0 / 0.1);
+  place-items: center;
+}
+
+.taskmap-text-card__checkbox[aria-pressed="true"] .taskmap-text-card__checkbox-box {
+  background-color: rgb(255 255 255 / 0.18);
+}
+
+/* Editors overlay an invisible sizer copy of the draft, so the card grows with the text. */
+.taskmap-text-card__editor {
+  position: relative;
+  display: grid;
+  max-width: 480px;
+}
+
+/* Only a fixed card width stretches the single-line editor; a maximum width does not. */
+.taskmap-text-card[data-fixed-width="true"]
+  .taskmap-text-card__editor:not([data-multiline="true"]) {
+  width: 100%;
+  max-width: none;
+}
+
+.taskmap-text-card__editor[data-multiline="true"] {
+  min-width: 1ch;
+  max-width: 484px;
+}
+
+.taskmap-text-card__editor-sizer {
+  min-width: 1ch;
+  grid-column-start: 1;
+  grid-row-start: 1;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.taskmap-text-card__editor[data-multiline="true"] .taskmap-text-card__editor-sizer {
+  line-height: 1.5rem;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.taskmap-text-card__editor-input {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% + 17px);
+  min-width: calc(1ch + 17px);
+  margin: 0;
+  padding: 0 17px 0 0;
+  background-color: transparent;
+  color: #fff;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.taskmap-text-card__editor-textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: transparent;
+  color: #fff;
+  line-height: 1.5rem;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  overflow-wrap: break-word;
+  resize: none;
+  white-space: pre-wrap;
+}
+
+.taskmap-text-card__editor-input::selection,
+.taskmap-text-card__editor-textarea::selection {
+  background-color: rgb(255 255 255 / 0.25);
+}
+
+.taskmap-text-card__link {
+  display: inline-flex;
+  max-width: 100%;
+  height: 1.5rem;
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.taskmap-text-card[data-sized="true"] .taskmap-text-card__link {
+  width: 100%;
+}
+
+.taskmap-text-card__link-button {
+  max-width: 100%;
+  height: 1.25rem;
+  min-width: 0;
+  line-height: 1.25rem;
+  text-align: left;
+  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-text-card__link-button:hover {
+  opacity: 0.85;
+}
+
+.taskmap-text-card[data-sized="true"] .taskmap-text-card__link-button {
+  max-width: none;
+  flex: 1 1 0%;
+}
+
+/* With links disabled (multi-selection) the link text is a drag handle like the card. */
+.taskmap-text-card__link-button[data-disabled="true"] {
+  cursor: grab;
+}
+
+.taskmap-text-card__link-button[data-disabled="true"]:active {
+  cursor: grabbing;
+}
+
+.taskmap-text-card__link-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.taskmap-text-card__text {
+  min-width: 0;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.taskmap-text-card[data-sized="true"] .taskmap-text-card__text {
+  display: block;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-text-card__text[data-multiline="true"],
+.taskmap-text-card[data-sized="true"] .taskmap-text-card__text[data-multiline="true"] {
+  display: block;
+  overflow: visible;
+  line-height: 1.5rem;
+  overflow-wrap: break-word;
+  text-overflow: clip;
+  white-space: pre-wrap;
+}
+
+.taskmap-text-card__text[data-checked="true"] {
+  opacity: 0.55;
+  text-decoration-line: line-through;
+}
+
+.taskmap-text-card__selection {
+  z-index: 10;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+@keyframes taskmap-text-card-bundle-pickup {
+  from {
+    transform: translate(var(--bundle-pickup-x), var(--bundle-pickup-y)) rotate(0deg) scale(1);
+  }
+
+  to {
+    transform: var(--bundle-rest-transform);
+  }
+}

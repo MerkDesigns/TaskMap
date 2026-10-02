@@ -438,12 +438,6 @@ body {
   animation: text-card-pulse 240ms ease-out both;
 }
 
-.text-card-bundle-pickup {
-  animation: text-card-bundle-pickup 190ms cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: center;
-  transition: transform 90ms ease-out;
-}
-
 .canvas-element-shadow-shell {
   box-shadow: 0 18px 42px rgb(0 0 0 / 0.42);
 }
@@ -584,16 +578,6 @@ body {
 
   100% {
     filter: brightness(1);
-  }
-}
-
-@keyframes text-card-bundle-pickup {
-  from {
-    transform: translate(var(--bundle-pickup-x), var(--bundle-pickup-y)) rotate(0deg) scale(1);
-  }
-
-  to {
-    transform: var(--bundle-rest-transform);
   }
 }
 

@@ -5,7 +5,7 @@ export interface LegacyTextCardDragRenderPosition {
   readonly y: number;
 }
 
-/** Keeps measured interaction geometry out of TextCardNode's text-layout position contract. */
+/** Keeps measured interaction geometry out of TextCardRenderer's text-layout position contract. */
 export function getLegacyTextCardDragRenderPosition(
   presentation: LegacyTextCardPresentation,
   id: string,
