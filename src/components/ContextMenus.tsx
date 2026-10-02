@@ -5,36 +5,29 @@ import {
   IconArrowAutofitUpFilled,
   IconCopy,
   IconCut,
-  IconCheck,
   IconBox,
-  IconLink,
   IconLock,
   IconLockOpen,
   IconPencil,
   IconNotes,
-  IconPalette,
   IconPhoto,
   IconSquare,
   IconSquareOff,
   IconSitemap,
   IconTextSize,
   IconTrash,
-  IconX,
 } from "@tabler/icons-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ACCENT_PRESETS, getTextCardAccent } from "../constants";
+import { useRef } from "react";
+import { ACCENT_PRESETS } from "../constants";
 import {
   ContainerElement,
   ContainerMenuState,
   ImageElement,
   MindmapConnection,
   TextBlockElement,
-  TextCardElement,
 } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { Tooltip } from "../ui/primitives/Tooltip";
-import { IconButton } from "../ui/primitives/Button";
-import { TextField } from "../ui/primitives/FormControls";
 import { ContextMenuSurface } from "../ui/primitives/ContextMenu";
 import {
   ContextMenuActionGroup,
@@ -45,7 +38,6 @@ import {
   ContextMenuSwatch,
   ContextMenuSwatches,
 } from "../ui/primitives/ContextMenuParts";
-import { ColorPickerMenu } from "./ColorPickerMenu";
 
 type ContainerContextMenuProps = {
   menu: ContainerMenuState;
@@ -588,309 +580,6 @@ export function TextBlockContextMenu({
         {isMultiTarget ? "Remove selected" : "Remove"}
       </ContextMenuItem>
     </ContextMenuSurface>
-  );
-}
-
-type TextCardContextMenuProps = {
-  menu: { id: string; left: number; top: number };
-  card: TextCardElement;
-  closing: boolean;
-  isMultiTarget?: boolean;
-  extensionState?: Partial<Record<"lock" | "colorPicker" | "checkbox", boolean>>;
-  onStartEdit: (card: TextCardElement) => void;
-  onUpdateAccent: (id: string, accent: string) => void;
-  recentColors: string[];
-  onRememberRecentColor: (color?: string) => void;
-  onUpdateLink: (id: string, link: string) => void;
-  onToggleLock: (id: string) => void;
-  onCut: (card: TextCardElement) => void;
-  onCopy: (card: TextCardElement) => void;
-  onRemoveLockExtension: (id: string) => void;
-  onRemoveColorPickerExtension: (id: string) => void;
-  onRemoveCheckboxExtension: (id: string) => void;
-  onMoveLayer: (id: string, direction: "back" | "backward" | "forward" | "front") => void;
-  onDelete: (id: string) => void;
-};
-
-export function TextCardContextMenu({
-  menu,
-  card,
-  closing,
-  isMultiTarget = false,
-  extensionState,
-  onStartEdit,
-  onUpdateAccent,
-  recentColors,
-  onRememberRecentColor,
-  onUpdateLink,
-  onToggleLock,
-  onCut,
-  onCopy,
-  onRemoveLockExtension,
-  onRemoveColorPickerExtension,
-  onRemoveCheckboxExtension,
-  onMoveLayer,
-  onDelete,
-}: TextCardContextMenuProps) {
-  const activeAccent = getTextCardAccent(card.accent);
-  const extensions = extensionState ?? {
-    lock: Boolean(card.extensions?.lock),
-    colorPicker: Boolean(card.extensions?.colorPicker),
-    checkbox: card.kind !== "mindmap" && Boolean(card.extensions?.checkbox),
-  };
-  const presets = ACCENT_PRESETS;
-  const menuRef = useRef<HTMLElement | null>(null);
-  const linkButtonRef = useRef<HTMLButtonElement | null>(null);
-  const linkMenuRef = useRef<HTMLElement | null>(null);
-  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  const [linkMenuPreferredPosition, setLinkMenuPreferredPosition] = useState({
-    left: position.left + 232,
-    top: position.top,
-  });
-  const linkMenuPosition = useClampedFixedPosition(linkMenuRef, linkMenuPreferredPosition);
-  const [linkDraft, setLinkDraft] = useState(card.link ?? "");
-  const [linkMenuOpen, setLinkMenuOpen] = useState(false);
-  const [colorPickerPosition, setColorPickerPosition] = useState<{
-    left: number;
-    top: number;
-  } | null>(null);
-
-  useEffect(() => {
-    setLinkDraft(card.kind === "mindmap" ? "" : (card.link ?? ""));
-  }, [card.id, card.kind, card.link]);
-
-  useLayoutEffect(() => {
-    if (!linkMenuOpen) {
-      return;
-    }
-
-    const buttonRect = linkButtonRef.current?.getBoundingClientRect();
-    if (!buttonRect) {
-      return;
-    }
-
-    setLinkMenuPreferredPosition({
-      left: buttonRect.right + 8,
-      top: buttonRect.top,
-    });
-  }, [linkMenuOpen, position.left, position.top]);
-
-  const saveLink = () => {
-    if (card.kind !== "mindmap") {
-      onUpdateLink(card.id, linkDraft);
-    }
-  };
-
-  return (
-    <>
-      <ContextMenuSurface
-        ref={menuRef}
-        label="Text card menu"
-        motionState={closing ? "closing" : "open"}
-        position={position}
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <ContextMenuItem
-          icon={<IconPencil size={17} stroke={2} />}
-          onClick={() => onStartEdit(card)}
-        >
-          Edit Text
-        </ContextMenuItem>
-        {extensions.colorPicker && (
-          <ContextMenuItem
-            icon={<IconPalette size={17} stroke={2} />}
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              setColorPickerPosition({ left: rect.right + 8, top: rect.top });
-            }}
-          >
-            Open color picker
-          </ContextMenuItem>
-        )}
-        {card.extensions?.lock && (
-          <ContextMenuItem
-            icon={
-              card.extensions.lock.enabled ? (
-                <IconLock size={17} stroke={2} />
-              ) : (
-                <IconLockOpen size={17} stroke={2} />
-              )
-            }
-            onClick={() => onToggleLock(card.id)}
-          >
-            {card.extensions.lock.enabled ? "Locked" : "Unlocked"}
-          </ContextMenuItem>
-        )}
-        <ContextMenuDivider />
-        <ContextMenuSwatches>
-          {presets.map((preset) => (
-            <ContextMenuSwatch
-              key={preset.textCardAccent}
-              color={preset.swatch}
-              selected={activeAccent === preset.textCardAccent}
-              title="Text card color"
-              aria-label={`Text card color ${preset.swatch}`}
-              onClick={() => onUpdateAccent(card.id, preset.textCardAccent)}
-            />
-          ))}
-        </ContextMenuSwatches>
-        <ContextMenuDivider />
-        {!card.containerId && (
-          <>
-            <ContextMenuActionGroup label="Layer order">
-              <Tooltip label="Send to back" openDelayMs={1000}>
-                <ContextMenuIconAction
-                  aria-label="Send to back"
-                  icon={<IconArrowAutofitDown size={20} stroke={2} />}
-                  onClick={() => onMoveLayer(card.id, "back")}
-                />
-              </Tooltip>
-              <Tooltip label="Send one layer back" openDelayMs={1000}>
-                <ContextMenuIconAction
-                  aria-label="Send one layer back"
-                  icon={<IconArrowAutofitDownFilled size={20} />}
-                  onClick={() => onMoveLayer(card.id, "backward")}
-                />
-              </Tooltip>
-              <Tooltip label="Bring one layer forward" openDelayMs={1000}>
-                <ContextMenuIconAction
-                  aria-label="Bring one layer forward"
-                  icon={<IconArrowAutofitUpFilled size={20} />}
-                  onClick={() => onMoveLayer(card.id, "forward")}
-                />
-              </Tooltip>
-              <Tooltip label="Bring to front" openDelayMs={1000}>
-                <ContextMenuIconAction
-                  aria-label="Bring to front"
-                  icon={<IconArrowAutofitUp size={20} stroke={2} />}
-                  onClick={() => onMoveLayer(card.id, "front")}
-                />
-              </Tooltip>
-            </ContextMenuActionGroup>
-            <ContextMenuDivider />
-          </>
-        )}
-        {card.kind !== "mindmap" && (
-          <>
-            <ContextMenuItem
-              ref={linkButtonRef}
-              icon={<IconLink size={17} stroke={2} />}
-              onClick={() => setLinkMenuOpen((current) => !current)}
-            >
-              Hyperlink
-            </ContextMenuItem>
-            <ContextMenuDivider />
-          </>
-        )}
-        <ContextMenuItem icon={<IconCut size={17} stroke={2} />} onClick={() => onCut(card)}>
-          {isMultiTarget ? "Cut selected" : "Cut"}
-        </ContextMenuItem>
-        <ContextMenuItem icon={<IconCopy size={17} stroke={2} />} onClick={() => onCopy(card)}>
-          {isMultiTarget ? "Copy selected" : "Copy"}
-        </ContextMenuItem>
-        {(extensions.lock || extensions.colorPicker || extensions.checkbox) && (
-          <>
-            <ContextMenuDivider />
-            <ContextMenuSection label="Remove Extensions">
-              {extensions.lock && (
-                <ContextMenuItem
-                  icon={<IconTrash size={17} stroke={2} />}
-                  onClick={() => onRemoveLockExtension(card.id)}
-                >
-                  Lock
-                </ContextMenuItem>
-              )}
-              {extensions.colorPicker && (
-                <ContextMenuItem
-                  icon={<IconTrash size={17} stroke={2} />}
-                  onClick={() => onRemoveColorPickerExtension(card.id)}
-                >
-                  Extra colors
-                </ContextMenuItem>
-              )}
-              {extensions.checkbox && (
-                <ContextMenuItem
-                  icon={<IconTrash size={17} stroke={2} />}
-                  onClick={() => onRemoveCheckboxExtension(card.id)}
-                >
-                  Checkbox
-                </ContextMenuItem>
-              )}
-            </ContextMenuSection>
-          </>
-        )}
-        <ContextMenuDivider />
-        <ContextMenuItem
-          danger
-          icon={<IconTrash size={17} stroke={2} />}
-          onClick={() => onDelete(card.id)}
-        >
-          {isMultiTarget ? "Remove selected" : "Remove"}
-        </ContextMenuItem>
-      </ContextMenuSurface>
-
-      {linkMenuOpen && card.kind !== "mindmap" && !closing && (
-        <ContextMenuSurface
-          ref={linkMenuRef}
-          label="Hyperlink"
-          className="taskmap-context-menu--wide"
-          position={linkMenuPosition}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="taskmap-context-menu__form-row">
-            <TextField
-              value={linkDraft}
-              placeholder="https://example.com or C:\path\file"
-              spellCheck={false}
-              onChange={(event) => setLinkDraft(event.target.value)}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  saveLink();
-                }
-
-                if (event.key === "Escape") {
-                  setLinkDraft(card.link ?? "");
-                }
-              }}
-            />
-            <IconButton
-              variant="ghost"
-              size="compact"
-              aria-label="Save hyperlink"
-              title="Save hyperlink"
-              onClick={saveLink}
-              icon={<IconCheck size={17} stroke={2} />}
-            />
-            <IconButton
-              variant="ghost"
-              size="compact"
-              aria-label="Close hyperlink menu"
-              title="Close hyperlink menu"
-              onClick={() => setLinkMenuOpen(false)}
-              icon={<IconX size={17} stroke={2} />}
-            />
-          </div>
-        </ContextMenuSurface>
-      )}
-
-      {colorPickerPosition && !closing && (
-        <ColorPickerMenu
-          color={activeAccent}
-          left={colorPickerPosition.left}
-          top={colorPickerPosition.top}
-          recentColors={recentColors}
-          onChange={(accent) => onUpdateAccent(card.id, accent)}
-          onClose={(recentColor) => {
-            onRememberRecentColor(recentColor);
-            setColorPickerPosition(null);
-          }}
-        />
-      )}
-    </>
   );
 }
 

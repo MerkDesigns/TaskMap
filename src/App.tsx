@@ -24,7 +24,6 @@ import {
   ImageContextMenu,
   MindmapConnectionContextMenu,
   TextBlockContextMenu,
-  TextCardContextMenu,
 } from "./components/ContextMenus";
 import { ContainerNode } from "./components/ContainerNode";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
@@ -47,6 +46,7 @@ import { MindmapConnectors } from "./components/MindmapConnectors";
 import { MindmapConnections } from "./components/MindmapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
+import { TextCardMenu, type TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import { TextBlockNode } from "./components/TextBlockNode";
 import { ToastStack } from "./components/ToastStack";
 import {
@@ -4066,13 +4066,7 @@ function App({
   };
 
   const saveTextCardEdit = (id: string) => {
-    const nextText = textCardDraft.trim();
-    if (retained) retainedTextEdit.current?.complete(textCardDraft);
-    else if (nextText) {
-      setTextCards((current) =>
-        current.map((card) => (card.id === id ? { ...card, text: nextText } : card)),
-      );
-    }
+    retainedTextEdit.current?.complete(textCardDraft);
     setEditingTextCardId(null);
     setTextCardDraft("");
     pulseTextCard(id);
@@ -4086,47 +4080,9 @@ function App({
     setTextCardDraft("");
   };
 
-  const normalizeTextCardLink = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return undefined;
-    }
-
-    const windowsDrive = /^[a-zA-Z]:[\\/]/.test(trimmed);
-    const uncPath = /^\\\\[^\\]/.test(trimmed);
-    if (windowsDrive || uncPath) {
-      return trimmed;
-    }
-    if (/^file:/i.test(trimmed)) {
-      try {
-        return decodeURIComponent(new URL(trimmed).pathname.replace(/^\/([a-zA-Z]:)/, "$1"));
-      } catch {
-        return undefined;
-      }
-    }
-
-    const withProtocol = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    try {
-      const url = new URL(withProtocol);
-      return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol)
-        ? url.toString()
-        : undefined;
-    } catch {
-      return undefined;
-    }
-  };
-
   const updateTextCardLink = (id: string, link: string) => {
-    if (retained) {
-      captureRetainedLinkEdit(retained.runtime.callbacks, id as ElementId)?.complete(link);
-      return;
-    }
-    const normalizedLink = normalizeTextCardLink(link);
-    setTextCards((current) =>
-      current.map((card) =>
-        card.id === id && card.kind !== "mindmap" ? { ...card, link: normalizedLink } : card,
-      ),
-    );
+    if (!retained) return;
+    captureRetainedLinkEdit(retained.runtime.callbacks, id as ElementId)?.complete(link);
   };
 
   const openMindmapConnectionMenu = (
@@ -5453,25 +5409,7 @@ function App({
   };
 
   const toggleTextCardCheckbox = (id: string) => {
-    if (retained) {
-      retained.runtime.callbacks.captureExtensionToggle("checkbox", id as ElementId)?.complete();
-      return;
-    }
-    setTextCards((current) =>
-      current.map((card) =>
-        card.id === id && card.extensions?.checkbox
-          ? {
-              ...card,
-              extensions: {
-                ...card.extensions,
-                checkbox: {
-                  checked: !card.extensions.checkbox.checked,
-                },
-              },
-            }
-          : card,
-      ),
-    );
+    retained?.runtime.callbacks.captureExtensionToggle("checkbox", id as ElementId)?.complete();
   };
 
   const updateContainerSearchQuery = (id: string, query: string) => {
@@ -6493,6 +6431,22 @@ function App({
     [canvasNodeActions, rememberTextCardSize],
   );
   const documentElements = useRetainedDocumentElements();
+  const withTextCard = (id: string, action: (card: TextCardElement) => void) => {
+    const card = textCardsById.get(id);
+    if (card) action(card);
+  };
+  const textCardMenuActions: TextCardMenuActions = useStableCallbacks({
+    onStartEdit: (id: string) => withTextCard(id, startTextCardEdit),
+    onUpdateAccent: updateContextAccent,
+    onRememberRecentColor: rememberRecentColor,
+    onUpdateLink: updateTextCardLink,
+    onToggleLock: toggleLockExtension,
+    onCut: (id: string) => withTextCard(id, cutTextCard),
+    onCopy: (id: string) => withTextCard(id, copyTextCard),
+    onRemoveExtension: stripContextExtension,
+    onMoveLayer: moveCanvasLayers,
+    onDelete: deleteContextSelection,
+  });
   const editingTextCardContainerId = editingTextCardId
     ? textCardsById.get(editingTextCardId)?.containerId
     : undefined;
@@ -7479,57 +7433,27 @@ function App({
             />
           )}
 
-          {textCardMenu && textCardContextElement && (
-            <TextCardContextMenu
-              key={`${textCardMenu.id}-${textCardMenu.left}-${textCardMenu.top}`}
-              menu={textCardMenu}
-              card={textCardContextElement}
-              closing={false}
-              isMultiTarget={isMultiContextAction(textCardContextElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(textCardContextElement.id),
-              )}
-              onStartEdit={startTextCardEdit}
-              onUpdateAccent={updateContextAccent}
-              recentColors={recentColors}
-              onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-              onUpdateLink={updateTextCardLink}
-              onToggleLock={canvasNodeActions.toggleLockExtension}
-              onCut={cutTextCard}
-              onCopy={copyTextCard}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-              onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
-              onMoveLayer={moveCanvasLayers}
-              onDelete={deleteContextSelection}
-            />
-          )}
-
-          {closingTextCardMenu && closingTextCardContextElement && (
-            <TextCardContextMenu
-              key={`closing-${closingTextCardMenu.id}-${closingTextCardMenu.left}-${closingTextCardMenu.top}`}
-              menu={closingTextCardMenu}
-              card={closingTextCardContextElement}
-              closing
-              isMultiTarget={isMultiContextAction(closingTextCardContextElement.id)}
-              extensionState={getSelectedExtensionState(
-                getContextActionIds(closingTextCardContextElement.id),
-              )}
-              onStartEdit={startTextCardEdit}
-              onUpdateAccent={updateContextAccent}
-              recentColors={recentColors}
-              onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-              onUpdateLink={updateTextCardLink}
-              onToggleLock={canvasNodeActions.toggleLockExtension}
-              onCut={cutTextCard}
-              onCopy={copyTextCard}
-              onRemoveLockExtension={(id) => stripContextExtension(id, "lock")}
-              onRemoveColorPickerExtension={(id) => stripContextExtension(id, "colorPicker")}
-              onRemoveCheckboxExtension={(id) => stripContextExtension(id, "checkbox")}
-              onMoveLayer={moveCanvasLayers}
-              onDelete={deleteContextSelection}
-            />
-          )}
+          {[
+            { menu: textCardMenu, card: textCardContextElement, closing: false },
+            { menu: closingTextCardMenu, card: closingTextCardContextElement, closing: true },
+          ].map(({ menu, card, closing }) => {
+            const element =
+              menu && asTextCardRendererElement(documentElements[menu.id as ElementId]);
+            if (!menu || !card || !element) return null;
+            return (
+              <TextCardMenu
+                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
+                element={element}
+                position={menu}
+                closing={closing}
+                isMultiTarget={isMultiContextAction(card.id)}
+                lock={card.extensions?.lock ?? null}
+                installed={getSelectedExtensionState(getContextActionIds(card.id))}
+                recentColors={recentColors}
+                actions={textCardMenuActions}
+              />
+            );
+          })}
 
           {textBlockMenu && textBlockContextElement && (
             <TextBlockContextMenu

@@ -49,12 +49,12 @@
    `src/installer/` UI; dev run `npm run installer:dev` simulates installing (no payload). Not yet
    done: a real `npm run installer:build` validated on a clean machine (never run a real install
    over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
-2. Phase 5, Text Card: the renderer lives in `src/elements/text-card/TextCardRenderer` (own CSS,
-   links via `src/platform/opener`) and reads the normalized `text-card`/`mind-map-node` element
-   from the canvas binding plus one typed `TextCardViewState`; App passes ids, not legacy cards, to
-   its actions. Next: step 3, Text Card menus/commands move out of `App.tsx`. Registration in
-   `src/elements/registry.ts` waits until something dispatches through the registry (it holds no
-   placeholder definitions).
+2. Phase 5: the Text Card renderer and menu live in `src/elements/text-card/` (own CSS, links via
+   `src/platform/opener`) and read the normalized `text-card`/`mind-map-node` element from the
+   canvas binding plus typed view state; App passes ids to their actions. Text-card editing state
+   (draft, editing id) stays in `App.tsx` until its canvas composition is decomposed. Registration in
+   `src/elements/registry.ts` waits until something dispatches through the registry. Next: the
+   Container renderer, the same way.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.
