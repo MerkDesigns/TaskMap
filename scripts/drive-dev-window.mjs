@@ -10,6 +10,7 @@
 // Usage:
 //   node scripts/drive-dev-window.mjs eval "<expression>"     result of a page expression
 //   node scripts/drive-dev-window.mjs click x y [right]
+//   node scripts/drive-dev-window.mjs move x y                 hover without pressing
 //   node scripts/drive-dev-window.mjs drag x1 y1 x2 y2 [steps]
 //   node scripts/drive-dev-window.mjs type "<text>"
 //   node scripts/drive-dev-window.mjs key <Enter|Escape|Tab|Backspace|Delete|ArrowUp|...>
@@ -100,6 +101,11 @@ switch (command) {
       clickCount: 1,
     });
     await mouse("mouseReleased", x, y, { button, buttons: 0, clickCount: 1 });
+    break;
+  }
+  case "move": {
+    const [x, y] = args.map(Number);
+    await mouse("mouseMoved", x, y, { button: "none" });
     break;
   }
   case "drag": {
