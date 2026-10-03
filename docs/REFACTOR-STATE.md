@@ -62,8 +62,8 @@
    menu lives there too. The Image renderer lives in `src/elements/image/` (own CSS, leases
    session media itself) and reads the normalized element plus `ImageViewState`; its menu lives
    there too. Mind-map nodes draw through the Text Card renderer; connection lines and ports live
-   in `src/elements/mind-map/` (own CSS). The connection menu lives there too. Next: the lines read
-   normalized connections.
+   in `src/elements/mind-map/` (own CSS). The connection menu lives there too, and the lines read the
+   document's connections. Every Phase 5 element now renders from `src/elements/`.
 3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.

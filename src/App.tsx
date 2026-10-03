@@ -44,6 +44,7 @@ import {
 import { Minimap } from "./components/Minimap";
 import { MindMapPorts } from "./elements/mind-map/MindMapPorts";
 import { MindMapConnectionMenu } from "./elements/mind-map/MindMapConnectionMenu";
+import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
@@ -71,7 +72,6 @@ import {
   ElementExtensions,
   ImageElement,
   ImageMeta,
-  MindmapConnection,
   MindmapPort,
   TaskCanvas,
   TextBlockElement,
@@ -88,6 +88,7 @@ import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
 import {
+  useRetainedDocumentConnections,
   useRetainedDocumentElements,
   type RetainedCanvasContextValue,
 } from "./legacy/RetainedCanvasContext";
@@ -4088,16 +4089,13 @@ function App({
     captureRetainedLinkEdit(retained.runtime.callbacks, id as ElementId)?.complete(link);
   };
 
-  const openMindmapConnectionMenu = (
-    event: PointerEvent<SVGPathElement>,
-    connection: MindmapConnection,
-  ) => {
+  const openMindmapConnectionMenu = (event: PointerEvent<SVGPathElement>, connectionId: string) => {
     if (!mindmapConnectionMode) return;
     event.preventDefault();
     event.stopPropagation();
     closeContextMenus();
     setMindmapConnectionMenu({
-      id: connection.id,
+      id: connectionId,
       left: event.clientX + 8,
       top: event.clientY + 8,
     });
@@ -6434,6 +6432,11 @@ function App({
     [canvasNodeActions, rememberTextCardSize],
   );
   const documentElements = useRetainedDocumentElements();
+  const documentConnections = useRetainedDocumentConnections();
+  const activeMindMapConnections = useMemo(
+    () => canvasMindMapConnections(documentConnections, activeCanvas.id),
+    [documentConnections, activeCanvas.id],
+  );
   const withContainer = (id: string, action: (container: ContainerElement) => void) => {
     const container = containersById.get(id);
     if (container) action(container);
@@ -6978,7 +6981,7 @@ function App({
                 );
               })}
               <MindMapConnections
-                connections={mindmapConnections}
+                connections={activeMindMapConnections}
                 connectableBoundsById={connectableBoundsById}
                 canvasWidth={canvasWidth}
                 canvasHeight={canvasHeight}

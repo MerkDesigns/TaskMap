@@ -1,7 +1,12 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MindmapBounds } from "../../mindmapMath";
+import { asEntityId } from "../../domain/ids/entityIds";
+import type { MindMapDocumentConnection } from "./mindMapConnectionModel";
 import { MindMapConnections } from "./MindMapConnections";
+
+const ONE = asEntityId("element", "element-00000000-0000-4000-8000-000000000011");
+const TWO = asEntityId("element", "element-00000000-0000-4000-8000-000000000012");
 
 afterEach(cleanup);
 
@@ -9,15 +14,16 @@ describe("MindMapConnections", () => {
   it("exposes a wide clickable stroke only while connection mode is active", () => {
     const onConnectionClick = vi.fn();
     const connectableBounds = new Map<string, MindmapBounds>([
-      ["one", { x: 0, y: 0, width: 128, height: 44 }],
-      ["two", { x: 300, y: 100, width: 128, height: 44 }],
+      [ONE, { x: 0, y: 0, width: 128, height: 44 }],
+      [TWO, { x: 300, y: 100, width: 128, height: 44 }],
     ]);
-    const connection = {
-      id: "connection-1",
-      sourceId: "one",
-      sourcePort: "right" as const,
-      targetId: "two",
-      targetPort: "left" as const,
+    const connection: MindMapDocumentConnection = {
+      id: asEntityId("connection", "connection-00000000-0000-4000-8000-000000000001"),
+      canvasId: asEntityId("canvas", "canvas-00000000-0000-4000-8000-000000000002"),
+      type: "mind-map",
+      source: { elementId: ONE, portId: "right" },
+      target: { elementId: TWO, portId: "left" },
+      data: {},
     };
     const { container } = render(
       <MindMapConnections
@@ -31,13 +37,13 @@ describe("MindMapConnections", () => {
     );
 
     const hitPath = container.querySelector<SVGPathElement>(
-      '[data-mindmap-connection-id="connection-1"]',
+      `[data-mindmap-connection-id="${connection.id}"]`,
     );
     expect(hitPath).toHaveStyle({ pointerEvents: "stroke" });
     expect(
-      container.querySelector('[data-mindmap-connection-delete-overlay="connection-1"]'),
+      container.querySelector(`[data-mindmap-connection-delete-overlay="${connection.id}"]`),
     ).toHaveAttribute("stroke", "rgba(239, 68, 68, 0.95)");
     fireEvent.pointerDown(hitPath!);
-    expect(onConnectionClick).toHaveBeenCalledWith(expect.anything(), connection);
+    expect(onConnectionClick).toHaveBeenCalledWith(expect.anything(), connection.id);
   });
 });

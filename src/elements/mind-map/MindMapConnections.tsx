@@ -6,7 +6,8 @@ import {
   type MindmapBounds,
   type MindmapPoint,
 } from "../../mindmapMath";
-import type { MindmapConnection, MindmapPort } from "../../types";
+import type { MindmapPort } from "../../types";
+import type { MindMapDocumentConnection } from "./mindMapConnectionModel";
 import "./mindMap.css";
 
 /** A connection being drawn: to a target port once one is under the pointer, else to the pointer. */
@@ -18,7 +19,7 @@ export interface MindMapConnectionPreview {
 }
 
 export interface MindMapConnectionsProps {
-  readonly connections: readonly MindmapConnection[];
+  readonly connections: readonly MindMapDocumentConnection[];
   /** Shown bounds of every connectable element, including live move/resize previews. */
   readonly connectableBoundsById: ReadonlyMap<string, MindmapBounds>;
   readonly canvasWidth: number;
@@ -26,10 +27,7 @@ export interface MindMapConnectionsProps {
   /** Connection mode makes lines clickable, to delete them. */
   readonly connectionMode: boolean;
   readonly preview?: MindMapConnectionPreview | null;
-  readonly onConnectionClick: (
-    event: PointerEvent<SVGPathElement>,
-    connection: MindmapConnection,
-  ) => void;
+  readonly onConnectionClick: (event: PointerEvent<SVGPathElement>, connectionId: string) => void;
 }
 
 export function MindMapConnections({
@@ -49,14 +47,15 @@ export function MindMapConnections({
       aria-hidden="true"
     >
       {connections.map((connection) => {
-        const source = connectableBoundsById.get(connection.sourceId);
-        const target = connectableBoundsById.get(connection.targetId);
-        if (!source || !target) return null;
+        const { source, target } = connection;
+        const sourceBounds = connectableBoundsById.get(source.elementId);
+        const targetBounds = connectableBoundsById.get(target.elementId);
+        if (!sourceBounds || !targetBounds) return null;
         const path = getMindmapConnectionPath(
-          getMindmapPortPoint(source, connection.sourcePort),
-          connection.sourcePort,
-          getMindmapPortPoint(target, connection.targetPort),
-          connection.targetPort,
+          getMindmapPortPoint(sourceBounds, source.portId),
+          source.portId,
+          getMindmapPortPoint(targetBounds, target.portId),
+          target.portId,
         );
         return (
           <g key={connection.id} className="taskmap-mind-map-connection">
@@ -77,7 +76,7 @@ export function MindMapConnections({
               stroke="transparent"
               strokeWidth={14}
               style={{ pointerEvents: connectionMode ? "stroke" : "none" }}
-              onPointerDown={(event) => onConnectionClick(event, connection)}
+              onPointerDown={(event) => onConnectionClick(event, connection.id)}
             />
             {connectionMode && (
               <path
