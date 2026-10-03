@@ -13,6 +13,7 @@
 //   node scripts/drive-dev-window.mjs move x y [held]          hover, or drag after a press
 //   node scripts/drive-dev-window.mjs press x y | release x y  hold the left button across calls
 //   node scripts/drive-dev-window.mjs drag x1 y1 x2 y2 [steps]
+//   node scripts/drive-dev-window.mjs wheel x y deltaY [ctrl]   scroll, or ctrl+wheel
 //   node scripts/drive-dev-window.mjs type "<text>"
 //   node scripts/drive-dev-window.mjs key <Enter|Escape|Tab|Backspace|Delete|ArrowUp|...>
 //   node scripts/drive-dev-window.mjs shot <file.png> [x y width height]   page pixels, zoomed 4x
@@ -116,6 +117,18 @@ switch (command) {
     await mouse(command === "press" ? "mousePressed" : "mouseReleased", x, y, {
       buttons: command === "press" ? 1 : 0,
       clickCount: 1,
+    });
+    break;
+  }
+  case "wheel": {
+    const [x, y, deltaY] = args.map(Number);
+    await send("Input.dispatchMouseEvent", {
+      type: "mouseWheel",
+      x,
+      y,
+      deltaX: 0,
+      deltaY,
+      modifiers: args[3] === "ctrl" ? 2 : 0,
     });
     break;
   }
