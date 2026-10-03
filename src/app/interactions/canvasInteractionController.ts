@@ -112,6 +112,17 @@ export function createCanvasInteractionController(
     }
   });
 
+  /** Applies a camera change; during a canvas pan it composes with the pan's own movement. */
+  const transformCamera = (transform: (viewport: CanvasViewport) => CanvasViewport) => {
+    const activePan = gesture?.kind === "pan" ? gesture : null;
+    if (activePan) panFrames.cancel();
+    publish({
+      viewport: activePan
+        ? updatePanViewport(activePan, snapshot.viewport.screen, transform)
+        : transform(snapshot.viewport),
+    });
+  };
+
   const start = (next: PrimaryGesture, active: CanvasInteractionSnapshot["activeInteraction"]) => {
     if (disposed || gesture) return false;
     gesture = next;
@@ -341,24 +352,12 @@ export function createCanvasInteractionController(
     },
     wheelZoom: (screen, deltaY) => {
       if (disposed) return;
-      const activePan = gesture?.kind === "pan" ? gesture : null;
-      if (activePan) panFrames.cancel();
-      const viewport = activePan
-        ? updatePanViewport(activePan, snapshot.viewport.screen, (current) =>
-            wheelZoomViewport(current, screen, deltaY),
-          )
-        : wheelZoomViewport(snapshot.viewport, screen, deltaY);
-      publish({ viewport });
+      transformCamera((current) => wheelZoomViewport(current, screen, deltaY));
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     resetZoom: () => {
       if (disposed) return;
-      const activePan = gesture?.kind === "pan" ? gesture : null;
-      if (activePan) panFrames.cancel();
-      const viewport = activePan
-        ? updatePanViewport(activePan, snapshot.viewport.screen, resetViewportZoom)
-        : resetViewportZoom(snapshot.viewport);
-      publish({ viewport });
+      transformCamera(resetViewportZoom);
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     centerOn: (world, settled) => {
@@ -369,13 +368,7 @@ export function createCanvasInteractionController(
     },
     resizeViewport: (screen) => {
       if (disposed) return;
-      const activePan = gesture?.kind === "pan" ? gesture : null;
-      if (activePan) panFrames.cancel();
-      const resize = (current: CanvasViewport) => createViewport(current.pan, current.zoom, screen);
-      const viewport = activePan
-        ? updatePanViewport(activePan, snapshot.viewport.screen, resize)
-        : resize(snapshot.viewport);
-      publish({ viewport });
+      transformCamera((current) => createViewport(current.pan, current.zoom, screen));
     },
     replaceCanvas: (canvasKey, viewport) => {
       if (disposed) return;
