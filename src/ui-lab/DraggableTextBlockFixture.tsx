@@ -3,6 +3,7 @@ import { TextBlockRenderer } from "../elements/text-block/TextBlockRenderer";
 import { asEntityId } from "../domain/ids/entityIds";
 import type { TextBlockDocumentElement } from "../elements/text-block/textBlockModel";
 import type { TextBlockActions } from "../elements/text-block/textBlockView";
+import type { ExtensionCommands } from "../extensions/headerControl";
 import { Button } from "../ui/primitives/Button";
 import { Surface } from "./system/Surface";
 import "./draggableTextBlockFixture.css";
@@ -112,6 +113,14 @@ export function DraggableTextBlockFixture() {
   };
 
   const resetPosition = () => applyPosition({ ...INITIAL_POSITION });
+  const extensionCommands: ExtensionCommands = {
+    toggle: ignore,
+    updateAccent: ignore,
+    rememberRecentColor: ignore,
+    copyJsonForAi: async () => undefined,
+    pasteJsonFromAi: async () => undefined,
+    openJsonEditor: ignore,
+  };
   const actions: TextBlockActions = {
     onDraftChange: ignore,
     onSave: ignore,
@@ -124,10 +133,6 @@ export function DraggableTextBlockFixture() {
     onStartMove: (event) => startMove(event),
     onStartResize: (event) => event.stopPropagation(),
     onToggleMenu: (event) => event.stopPropagation(),
-    onTogglePrivacy: ignore,
-    onToggleLock: ignore,
-    onUpdateAccent: ignore,
-    onRememberRecentColor: ignore,
     onHeaderButtonsVisibleChange: ignore,
   };
 
@@ -165,6 +170,7 @@ export function DraggableTextBlockFixture() {
           <TextBlockRenderer
             element={TEXT_BLOCK}
             actions={actions}
+            extensionCommands={extensionCommands}
             view={{
               layer: 0,
               geometry: TEXT_BLOCK.geometry,

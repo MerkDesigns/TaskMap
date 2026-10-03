@@ -5,6 +5,7 @@ import { ContainerMenu, type ContainerMenuActions } from "../elements/container/
 import type { ContainerDocumentElement } from "../elements/container/containerModel";
 import { ContainerRenderer } from "../elements/container/ContainerRenderer";
 import type { ContainerActions } from "../elements/container/containerView";
+import type { ExtensionCommands } from "../extensions/headerControl";
 import { EXTENSION_REGISTRY } from "../extensions/registry";
 import type { ElementExtensions } from "../types";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
@@ -58,19 +59,24 @@ export function ContextMenuPlayground() {
     onStartMove: (event) => event.preventDefault(),
     onStartResize: (event) => event.preventDefault(),
     onToggleMenu: (event) => openContainerMenu(event),
-    onTogglePrivacy: () => undefined,
-    onToggleLock: () =>
-      setExtensions((current) => ({ ...current, lock: { enabled: !current.lock?.enabled } })),
-    onUpdateAccent: (_, accent) => updateData({ accent }),
-    onRememberRecentColor: () => undefined,
-    onCopyJsonForAi: async () => undefined,
-    onPasteJsonFromAi: async () => undefined,
-    onOpenJsonEditor: () => undefined,
     onHeaderButtonsVisibleChange: (_, visible) => updateData({ headerButtonsVisible: visible }),
     onSearchChange: (_, query) => setExtensions((current) => ({ ...current, search: { query } })),
     onOpenContentMenu: (event) => openContainerMenu(event),
     onWheelContent: () => undefined,
     onStartContentSelection: (event) => event.stopPropagation(),
+  };
+
+  const extensionCommands: ExtensionCommands = {
+    toggle: (extension) =>
+      setExtensions((current) => ({
+        ...current,
+        [extension]: { enabled: !current[extension]?.enabled },
+      })),
+    updateAccent: (_, accent) => updateData({ accent }),
+    rememberRecentColor: () => undefined,
+    copyJsonForAi: async () => undefined,
+    pasteJsonFromAi: async () => undefined,
+    openJsonEditor: () => undefined,
   };
 
   const menuActions: ContainerMenuActions = {
@@ -126,6 +132,7 @@ export function ContextMenuPlayground() {
           <ContainerRenderer
             element={element}
             actions={actions}
+            extensionCommands={extensionCommands}
             view={{
               layer: 0,
               geometry: element.geometry,

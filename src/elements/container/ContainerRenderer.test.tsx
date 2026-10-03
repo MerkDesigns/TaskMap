@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { ContainerDocumentElement } from "./containerModel";
 import { ContainerRenderer } from "./ContainerRenderer";
+import type { ExtensionCommands } from "../../extensions/headerControl";
 import type { ContainerActions, ContainerViewState } from "./containerView";
 
 vi.stubGlobal(
@@ -48,23 +49,25 @@ function renderContainer(
     onStartMove: vi.fn(),
     onStartResize: vi.fn(),
     onToggleMenu: vi.fn(),
-    onTogglePrivacy: vi.fn(),
-    onToggleLock: vi.fn(),
-    onUpdateAccent: vi.fn(),
-    onRememberRecentColor: vi.fn(),
-    onCopyJsonForAi: vi.fn(async () => undefined),
-    onPasteJsonFromAi: vi.fn(async () => undefined),
-    onOpenJsonEditor: vi.fn(),
     onHeaderButtonsVisibleChange: vi.fn(),
     onSearchChange: vi.fn(),
     onOpenContentMenu: vi.fn(),
     onWheelContent: vi.fn(),
     onStartContentSelection: vi.fn(),
   } satisfies ContainerActions;
+  const extensionCommands = {
+    toggle: vi.fn(),
+    updateAccent: vi.fn(),
+    rememberRecentColor: vi.fn(),
+    copyJsonForAi: vi.fn(async () => undefined),
+    pasteJsonFromAi: vi.fn(async () => undefined),
+    openJsonEditor: vi.fn(),
+  } satisfies ExtensionCommands;
   const { container: root } = render(
     <ContainerRenderer
       element={element}
       actions={handlers}
+      extensionCommands={extensionCommands}
       view={{
         layer: 0,
         geometry: element.geometry,
@@ -86,7 +89,7 @@ function renderContainer(
     />,
   );
   const article = root.querySelector<HTMLElement>(".taskmap-container")!;
-  return { article, ...handlers };
+  return { article, extensionCommands, ...handlers };
 }
 
 describe("ContainerRenderer", () => {
@@ -150,7 +153,7 @@ describe("ContainerRenderer", () => {
 
   // jsdom has no layout, so every extension button sits in the overflow popover.
   it("toggles lock and privacy from their header buttons and blurs hidden content", () => {
-    const { article, onToggleLock, onTogglePrivacy } = renderContainer(container(), {
+    const { article, extensionCommands } = renderContainer(container(), {
       extensions: { lock: { enabled: true }, privacy: { enabled: true } },
     });
 
@@ -158,16 +161,30 @@ describe("ContainerRenderer", () => {
     fireEvent.click(screen.getByTitle("Unlock"));
     fireEvent.click(screen.getByTitle("Show content"));
 
-    expect(onToggleLock).toHaveBeenCalledWith(CONTAINER_ID);
-    expect(onTogglePrivacy).toHaveBeenCalledWith(CONTAINER_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("lock", CONTAINER_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("privacy", CONTAINER_ID);
     expect(article.querySelector(".taskmap-container__content")).toHaveAttribute(
       "data-privacy-hidden",
       "true",
     );
   });
 
+  it("keeps a panel opened from the overflow popover after the popover closes", () => {
+    const { extensionCommands } = renderContainer(container(), {
+      extensions: { lock: { enabled: false }, colorPicker: { enabled: true } },
+    });
+
+    fireEvent.click(screen.getByTitle("More extensions"));
+    fireEvent.click(screen.getByTitle("Open color picker"));
+
+    expect(screen.queryByTitle("Lock")).not.toBeInTheDocument();
+    const picker = screen.getByTitle("Visual color picker");
+    fireEvent.change(picker, { target: { value: "#123456" } });
+    expect(extensionCommands.updateAccent).toHaveBeenCalledWith(CONTAINER_ID, "#123456");
+  });
+
   it("counts its cards and opens the Copy/Paste JSON actions", () => {
-    const { onOpenJsonEditor } = renderContainer(container(), {
+    const { extensionCommands } = renderContainer(container(), {
       extensions: { counter: { enabled: true }, copyPasteJson: { enabled: true } },
     });
 
@@ -176,7 +193,7 @@ describe("ContainerRenderer", () => {
     fireEvent.click(screen.getByTitle("Copy/Paste JSON"));
     fireEvent.click(screen.getByRole("menuitem", { name: "Open JSON editor" }));
 
-    expect(onOpenJsonEditor).toHaveBeenCalledWith(CONTAINER_ID);
+    expect(extensionCommands.openJsonEditor).toHaveBeenCalledWith(CONTAINER_ID);
   });
 
   it("opens the content menu on right click, except while part of a group selection", () => {

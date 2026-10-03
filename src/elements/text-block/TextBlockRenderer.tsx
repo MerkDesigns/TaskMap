@@ -1,6 +1,7 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { Suspense, lazy, memo, useEffect, useRef, useState } from "react";
 import type { WheelEvent } from "react";
+import type { ExtensionCommands } from "../../extensions/headerControl";
 import { placementStyle, shallowEqual } from "../elementPlacement";
 import { TextBlockHeader } from "./TextBlockHeader";
 import type { TextBlockDocumentElement } from "./textBlockModel";
@@ -19,9 +20,16 @@ export interface TextBlockRendererProps {
   readonly element: TextBlockDocumentElement;
   readonly view: TextBlockViewState;
   readonly actions: TextBlockActions;
+  /** Commands for the installed extensions' header controls; referentially stable. */
+  readonly extensionCommands: ExtensionCommands;
 }
 
-function TextBlockRendererComponent({ element, view, actions }: TextBlockRendererProps) {
+function TextBlockRendererComponent({
+  element,
+  view,
+  actions,
+  extensionCommands,
+}: TextBlockRendererProps) {
   const { id, data } = element;
   const { geometry } = view;
   const { editing, multiSelected } = view;
@@ -80,7 +88,13 @@ function TextBlockRendererComponent({ element, view, actions }: TextBlockRendere
       }}
     >
       <div className="taskmap-text-block__frame">
-        <TextBlockHeader element={element} view={view} actions={actions} article={article} />
+        <TextBlockHeader
+          element={element}
+          view={view}
+          actions={actions}
+          extensionCommands={extensionCommands}
+          article={article}
+        />
         <div
           className="taskmap-text-block__content"
           data-privacy-hidden={Boolean(view.extensions?.privacy?.enabled) || undefined}
@@ -149,7 +163,13 @@ function TextBlockRendererComponent({ element, view, actions }: TextBlockRendere
 
 /** Callers rebuild the view state each render; compare it by value so idle blocks never re-render. */
 const areTextBlockPropsEqual = (previous: TextBlockRendererProps, next: TextBlockRendererProps) => {
-  if (previous.element !== next.element || previous.actions !== next.actions) return false;
+  if (
+    previous.element !== next.element ||
+    previous.actions !== next.actions ||
+    previous.extensionCommands !== next.extensionCommands
+  ) {
+    return false;
+  }
   const { geometry: previousGeometry, ...previousView } = previous.view;
   const { geometry: nextGeometry, ...nextView } = next.view;
   return shallowEqual(previousView, nextView) && shallowEqual(previousGeometry, nextGeometry);

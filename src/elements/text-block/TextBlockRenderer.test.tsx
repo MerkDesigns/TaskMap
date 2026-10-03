@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 import { TextBlockRenderer } from "./TextBlockRenderer";
+import type { ExtensionCommands } from "../../extensions/headerControl";
 import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
 
 vi.stubGlobal(
@@ -57,16 +58,21 @@ function renderTextBlock(
     onStartMove: vi.fn(),
     onStartResize: vi.fn(),
     onToggleMenu: vi.fn(),
-    onTogglePrivacy: vi.fn(),
-    onToggleLock: vi.fn(),
-    onUpdateAccent: vi.fn(),
-    onRememberRecentColor: vi.fn(),
     onHeaderButtonsVisibleChange: vi.fn(),
   } satisfies TextBlockActions;
+  const extensionCommands = {
+    toggle: vi.fn(),
+    updateAccent: vi.fn(),
+    rememberRecentColor: vi.fn(),
+    copyJsonForAi: vi.fn(async () => undefined),
+    pasteJsonFromAi: vi.fn(async () => undefined),
+    openJsonEditor: vi.fn(),
+  } satisfies ExtensionCommands;
   const { container } = render(
     <TextBlockRenderer
       element={element}
       actions={actions}
+      extensionCommands={extensionCommands}
       view={{
         layer: 0,
         geometry: element.geometry,
@@ -88,7 +94,7 @@ function renderTextBlock(
     />,
   );
   const article = container.querySelector<HTMLElement>(".taskmap-text-block")!;
-  return { article, actions };
+  return { article, actions, extensionCommands };
 }
 
 describe("TextBlockRenderer", () => {
@@ -137,7 +143,7 @@ describe("TextBlockRenderer", () => {
   });
 
   it("opens its menu and toggles installed extensions from the overflow popover", () => {
-    const { article, actions } = renderTextBlock(textBlock(), {
+    const { article, actions, extensionCommands } = renderTextBlock(textBlock(), {
       extensions: { lock: { enabled: false }, privacy: { enabled: true } },
     });
 
@@ -148,8 +154,8 @@ describe("TextBlockRenderer", () => {
     fireEvent.click(screen.getByTitle("Show content"));
 
     expect(actions.onToggleMenu).toHaveBeenCalledOnce();
-    expect(actions.onToggleLock).toHaveBeenCalledWith(BLOCK_ID);
-    expect(actions.onTogglePrivacy).toHaveBeenCalledWith(BLOCK_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("lock", BLOCK_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("privacy", BLOCK_ID);
     expect(article.querySelector(".taskmap-text-block__content")).toHaveAttribute(
       "data-privacy-hidden",
       "true",

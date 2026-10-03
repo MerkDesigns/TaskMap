@@ -40,9 +40,5 @@ export interface TextBlockActions {
   readonly onStartMove: (event: PointerEvent<HTMLElement>, id: string) => void;
   readonly onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) => void;
   readonly onToggleMenu: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
-  readonly onTogglePrivacy: (id: string) => void;
-  readonly onToggleLock: (id: string) => void;
-  readonly onUpdateAccent: (id: string, accent: string) => void;
-  readonly onRememberRecentColor: (color?: string) => void;
   readonly onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
 }

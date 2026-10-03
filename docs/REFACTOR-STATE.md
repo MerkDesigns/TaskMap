@@ -11,8 +11,7 @@
   Block, Image and mind-map connections, each with its own CSS, reading the normalized element plus
   typed view state, with its menu next to it.
 - **Next: Phase 6 — extensions.**
-- Open PR: MerkDesigns/TaskMap#2 (`architecture-v1` → `main`), kept open for review; the user
-  merges nothing into `main` yet.
+- No open pull request; the user merges nothing into `main` yet.
 
 ## Active ownership and accepted behavior
 
@@ -50,10 +49,13 @@
    `src/installer/` UI; dev run `npm run installer:dev` simulates installing (no payload). Not yet
    done: a real `npm run installer:build` validated on a clean machine (never run a real install
    over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
-2. Phase 6, extensions: the definitions (schema, default state, compatibility) are registered in
-   `src/extensions/architectureRegistry.ts`; their behavior and controls still live in `App.tsx`
-   and the element renderers (header buttons, menus, view-state extension fields). Move them one
-   extension at a time so each owns its controls and commands.
+2. Phase 6, extensions (ADR 008: extensions contribute UI through typed contribution points):
+   the definitions are registered in `src/extensions/architectureRegistry.ts`. Header controls are
+   migrated: Lock, Privacy, Extra colors, Counter and Copy/Paste JSON own their header control in
+   their module (`headerControlRegistry.ts`), the container and text-block headers host them through
+   `useElementHeaderExtensions`, and commands go through one `ExtensionCommands` port. Next: the
+   text-card checkbox as an element adornment, extension menu items, then behavior (lock, search,
+   privacy, auto checkboxes, inherit card color, JSON copy/paste) out of `App.tsx`.
    Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
    `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
    through the registry; loose text cards and mind-map nodes still position with left/top rather

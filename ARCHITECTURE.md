@@ -290,7 +290,8 @@ src/
 ├─ canvas/         pure geometry, viewport and culling math
 ├─ elements/       element models, schemas, projections and renderers (Text Card, Container, Text Block, Image and mind-map connections so far; the
 │                  rest move here in Phase 5)
-├─ extensions/     extension definitions, configuration and compatibility
+├─ extensions/     extension definitions, configuration, compatibility and UI contributions
+│                  (header controls, ADR 008)
 ├─ features/       product features with their own UI (database entry, minimap)
 ├─ installer/      the installer bootstrapper's UI (separate entry: installer/index.html)
 ├─ platform/       the only TypeScript code that talks to Tauri (typed native clients)

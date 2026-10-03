@@ -20,6 +20,7 @@ import { IconRotateClockwise } from "@tabler/icons-react";
 import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
+import type { ExtensionCommands } from "./extensions/headerControl";
 import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
@@ -6463,6 +6464,18 @@ function App({
     const textBlock = textBlocksById.get(id);
     if (textBlock) action(textBlock);
   };
+  const extensionCommands: ExtensionCommands = useStableCallbacks({
+    toggle: (extension: "lock" | "privacy", elementId: string) =>
+      extension === "lock" ? toggleLockExtension(elementId) : togglePrivacyExtension(elementId),
+    updateAccent: (elementId: string, accent: string) =>
+      containersById.has(elementId)
+        ? updateContainerAccent(elementId, accent)
+        : updateTextBlockAccent(elementId, accent),
+    rememberRecentColor,
+    copyJsonForAi: copyContainerJsonForAi,
+    pasteJsonFromAi: pasteContainerJsonFromAi,
+    openJsonEditor: openContainerJsonEditor,
+  });
   const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withTextBlock(id, startRename),
     onUpdateAccent: updateContextAccent,
@@ -6488,10 +6501,6 @@ function App({
       withTextBlock(id, (textBlock) => startResize(event, textBlock)),
     onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
       withTextBlock(id, (textBlock) => openTextBlockMenu(event, textBlock)),
-    onTogglePrivacy: togglePrivacyExtension,
-    onToggleLock: toggleLockExtension,
-    onUpdateAccent: updateTextBlockAccent,
-    onRememberRecentColor: rememberRecentColor,
     onHeaderButtonsVisibleChange: updateTextBlockHeaderButtonsVisible,
   });
   const withImage = (id: string, action: (image: ImageElement) => void) => {
@@ -6530,13 +6539,6 @@ function App({
       withContainer(id, (container) => startResize(event, container)),
     onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
       withContainer(id, (container) => toggleMenu(event, container)),
-    onTogglePrivacy: togglePrivacyExtension,
-    onToggleLock: toggleLockExtension,
-    onUpdateAccent: updateContainerAccent,
-    onRememberRecentColor: rememberRecentColor,
-    onCopyJsonForAi: copyContainerJsonForAi,
-    onPasteJsonFromAi: pasteContainerJsonFromAi,
-    onOpenJsonEditor: openContainerJsonEditor,
     onHeaderButtonsVisibleChange: updateContainerHeaderButtonsVisible,
     onSearchChange: updateContainerSearchQuery,
     onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, id: string) =>
@@ -7082,6 +7084,7 @@ function App({
                             key={element.id}
                             element={containerElement}
                             actions={containerActions}
+                            extensionCommands={extensionCommands}
                             view={{
                               layer: element.layer ?? 0,
                               geometry: {
@@ -7201,6 +7204,7 @@ function App({
                             key={element.id}
                             element={textBlockElement}
                             actions={textBlockActions}
+                            extensionCommands={extensionCommands}
                             view={{
                               layer: element.layer ?? 0,
                               geometry: {

@@ -1,6 +1,7 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type { ReactNode } from "react";
+import type { ExtensionCommands } from "../../extensions/headerControl";
 import { placementStyle, shallowEqual } from "../elementPlacement";
 import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";
@@ -13,11 +14,19 @@ export interface ContainerRendererProps {
   readonly element: ContainerDocumentElement;
   readonly view: ContainerViewState;
   readonly actions: ContainerActions;
+  /** Commands for the installed extensions' header controls; referentially stable. */
+  readonly extensionCommands: ExtensionCommands;
   /** The container's text cards, positioned inside its frame. */
   readonly children?: ReactNode;
 }
 
-function ContainerRendererComponent({ element, view, actions, children }: ContainerRendererProps) {
+function ContainerRendererComponent({
+  element,
+  view,
+  actions,
+  extensionCommands,
+  children,
+}: ContainerRendererProps) {
   const { id, data } = element;
   const { geometry } = view;
   const [article, setArticle] = useState<HTMLElement | null>(null);
@@ -53,7 +62,13 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
       onWheelCapture={(event) => actions.onWheelContent(event, id)}
     >
       <div className="taskmap-container__frame">
-        <ContainerHeader element={element} view={view} actions={actions} article={article} />
+        <ContainerHeader
+          element={element}
+          view={view}
+          actions={actions}
+          extensionCommands={extensionCommands}
+          article={article}
+        />
         <div
           className="taskmap-container__content"
           data-privacy-hidden={Boolean(view.extensions?.privacy?.enabled) || undefined}
@@ -94,7 +109,13 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
  * rebuild the view state each render, so it is compared by value.
  */
 const areContainerPropsEqual = (previous: ContainerRendererProps, next: ContainerRendererProps) => {
-  if (previous.element !== next.element || previous.actions !== next.actions) return false;
+  if (
+    previous.element !== next.element ||
+    previous.actions !== next.actions ||
+    previous.extensionCommands !== next.extensionCommands
+  ) {
+    return false;
+  }
   const { geometry: previousGeometry, ...previousView } = previous.view;
   const { geometry: nextGeometry, ...nextView } = next.view;
   return shallowEqual(previousView, nextView) && shallowEqual(previousGeometry, nextGeometry);

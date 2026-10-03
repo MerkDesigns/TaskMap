@@ -37,13 +37,6 @@ export interface ContainerActions {
   readonly onStartMove: (event: PointerEvent<HTMLElement>, id: string) => void;
   readonly onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) => void;
   readonly onToggleMenu: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
-  readonly onTogglePrivacy: (id: string) => void;
-  readonly onToggleLock: (id: string) => void;
-  readonly onUpdateAccent: (id: string, accent: string) => void;
-  readonly onRememberRecentColor: (color?: string) => void;
-  readonly onCopyJsonForAi: (id: string) => Promise<void>;
-  readonly onPasteJsonFromAi: (id: string) => Promise<void>;
-  readonly onOpenJsonEditor: (id: string) => void;
   readonly onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
   readonly onSearchChange: (id: string, query: string) => void;
   readonly onOpenContentMenu: (event: MouseEvent<HTMLElement>, id: string) => void;
