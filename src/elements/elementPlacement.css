@@ -1,0 +1,10 @@
+/* Placed elements get their own layer, so a move or drop never re-rounds their content (see
+   placementStyle). A layer keeps the raster scale it was created at: while the camera zoom
+   changes the layers are dropped, and they are recreated, sharp at the new scale, once it settles. */
+.taskmap-placed-element {
+  will-change: translate;
+}
+
+[data-camera-zooming] .taskmap-placed-element {
+  will-change: auto;
+}

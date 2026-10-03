@@ -13,7 +13,6 @@
   transition-property: translate, width, height, box-shadow, opacity, border-color;
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
   user-select: none;
-  will-change: translate;
 }
 
 /* Without the Background extension only the picture shows, so a transparent PNG keeps its shape. */

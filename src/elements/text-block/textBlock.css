@@ -11,7 +11,6 @@
   transition-duration: 150ms;
   transition-property: border-color;
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
-  will-change: translate;
 }
 
 /* The keyframes are shared with containers and text cards in index.css; a pulse wins over the

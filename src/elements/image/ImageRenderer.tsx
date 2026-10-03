@@ -3,6 +3,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 import { placementStyle, shallowEqual } from "../elementPlacement";
 import type { ImageDocumentElement, ImageMediaMetadata } from "./imageModel";
+import "../elementPlacement.css";
 import "./image.css";
 
 /** Session-bound media URLs; a lease keeps its object URL alive until released. */
@@ -118,7 +119,7 @@ function ImageRendererComponent({ element, view, actions, leases }: ImageRendere
 
   return (
     <div
-      className={`taskmap-image${shadowClass}`}
+      className={`taskmap-image taskmap-placed-element${shadowClass}`}
       data-chromeless={chromeless || undefined}
       data-dragging={view.dragging || undefined}
       data-gesture={view.gesture || undefined}

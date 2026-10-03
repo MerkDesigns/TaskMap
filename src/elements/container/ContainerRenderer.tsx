@@ -6,6 +6,7 @@ import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";
 import type { ContainerActions, ContainerViewState } from "./containerView";
 import "../elementHeader.css";
+import "../elementPlacement.css";
 import "./container.css";
 
 export interface ContainerRendererProps {
@@ -27,7 +28,7 @@ function ContainerRendererComponent({ element, view, actions, children }: Contai
   return (
     <article
       ref={setArticle}
-      className={`taskmap-container${shadowClass}`}
+      className={`taskmap-container taskmap-placed-element${shadowClass}`}
       data-search={Boolean(view.extensions?.search) || undefined}
       data-moving={view.moving || undefined}
       data-multi-selected={view.multiSelected || undefined}

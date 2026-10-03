@@ -98,6 +98,31 @@ describe("legacy camera presentation isolation", () => {
     expect(measurements).not.toHaveBeenCalled();
   });
 
+  it("marks the stage as zooming while the zoom changes, and not for pans", () => {
+    vi.useFakeTimers();
+    try {
+      const { controller } = setup();
+      const stage = screen.getByTestId("stage");
+      act(() => controller.beginPan(1, { x: 0, y: 0 }));
+      act(() =>
+        controller.updatePointer({ pointerId: 1, screen: { x: -40, y: 0 }, snapping: false }),
+      );
+      act(() => controller.cancelPointer(1));
+      expect(stage).not.toHaveAttribute("data-camera-zooming");
+
+      act(() => controller.wheelZoom({ x: 200, y: 200 }, -100));
+      expect(stage).toHaveAttribute("data-camera-zooming");
+      act(() => vi.advanceTimersByTime(100));
+      act(() => controller.wheelZoom({ x: 200, y: 200 }, -100));
+      act(() => vi.advanceTimersByTime(100));
+      expect(stage).toHaveAttribute("data-camera-zooming");
+      act(() => vi.advanceTimersByTime(100));
+      expect(stage).not.toHaveAttribute("data-camera-zooming");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps a mounted selection aligned when the camera changes without a React render", () => {
     const { controller, appRender } = setup();
     act(() =>

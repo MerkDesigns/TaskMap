@@ -1,6 +1,9 @@
 import { useLayoutEffect, type RefObject } from "react";
 import type { CanvasInteractionController } from "../../app/interactions/canvasInteractionTypes";
 
+/** How long the zoom must stay unchanged before element layers are recreated at its scale. */
+const ZOOM_SETTLE_MS = 150;
+
 /** The stage variables are inherited by the world and every camera-aligned overlay. */
 export function useLegacyCameraPresentation(
   controller: CanvasInteractionController,
@@ -9,12 +12,25 @@ export function useLegacyCameraPresentation(
 ): void {
   useLayoutEffect(() => {
     let previousViewport: ReturnType<typeof controller.getSnapshot>["viewport"] | null = null;
+    let settleTimer: number | undefined;
+    let zoomingStage: HTMLElement | null = null;
+    // Element layers keep the raster scale they were created at, so a zoom change marks the stage
+    // as zooming (dropping them, see elementPlacement.css) until the zoom settles.
+    const markZooming = (stage: HTMLElement) => {
+      zoomingStage = stage;
+      stage.dataset.cameraZooming = "";
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        delete stage.dataset.cameraZooming;
+      }, ZOOM_SETTLE_MS);
+    };
     const present = () => {
       const { viewport, selectionRectangle } = controller.getSnapshot();
       const stage = stageRef.current;
       if (!stage) return;
       const { pan, zoom } = viewport;
       if (viewport !== previousViewport) {
+        if (previousViewport && previousViewport.zoom !== zoom) markZooming(stage);
         previousViewport = viewport;
         stage.style.setProperty(
           "--taskmap-camera-transform",
@@ -35,7 +51,12 @@ export function useLegacyCameraPresentation(
       }
     };
     present();
-    return controller.subscribe(present);
+    const unsubscribe = controller.subscribe(present);
+    return () => {
+      unsubscribe();
+      window.clearTimeout(settleTimer);
+      if (zoomingStage) delete zoomingStage.dataset.cameraZooming;
+    };
   }, [controller, stageRef, selectionRef]);
 
   // A selection overlay can mount after the controller publication that created it.

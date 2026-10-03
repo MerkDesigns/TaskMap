@@ -6,6 +6,7 @@ import { TextBlockHeader } from "./TextBlockHeader";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
 import "../elementHeader.css";
+import "../elementPlacement.css";
 import "./textBlock.css";
 
 const MarkdownContent = lazy(() =>
@@ -55,7 +56,7 @@ function TextBlockRendererComponent({ element, view, actions }: TextBlockRendere
   return (
     <article
       ref={setArticle}
-      className={`taskmap-text-block${shadowClass}`}
+      className={`taskmap-text-block taskmap-placed-element${shadowClass}`}
       data-moving={view.moving || undefined}
       data-multi-selected={multiSelected || undefined}
       data-entering={view.entering || undefined}
