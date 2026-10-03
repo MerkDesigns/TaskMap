@@ -74,7 +74,16 @@ export function ContextMenuPlayground() {
         [extension]: { enabled: !current[extension]?.enabled },
       }));
     },
+    remove: (extension) => {
+      setExtensions((current) => {
+        const next = { ...current };
+        delete next[extension];
+        return next;
+      });
+      closeMenu();
+    },
     updateAccent: (_, accent) => updateData({ accent }),
+    updateSelectionAccent: (_, accent) => updateData({ accent }),
     rememberRecentColor: () => undefined,
     copyJsonForAi: async () => undefined,
     pasteJsonFromAi: async () => undefined,
@@ -90,14 +99,6 @@ export function ContextMenuPlayground() {
     onUpdateAccent: (_, accent) => updateData({ accent }),
     onCut: closeMenu,
     onCopy: closeMenu,
-    onRemoveExtension: (_, extension) => {
-      setExtensions((current) => {
-        const next = { ...current };
-        delete next[extension];
-        return next;
-      });
-      closeMenu();
-    },
     onMoveLayer: closeMenu,
     onDelete: closeMenu,
   };
@@ -162,11 +163,9 @@ export function ContextMenuPlayground() {
           position={menu.value}
           closing={false}
           isMultiTarget={false}
-          installed={{
-            search: Boolean(extensions.search),
-            lock: Boolean(extensions.lock),
-            colorPicker: Boolean(extensions.colorPicker),
-          }}
+          extensions={extensions}
+          installedOnTargets={new Set(Object.keys(extensions) as (keyof typeof extensions)[])}
+          extensionCommands={extensionCommands}
           actions={menuActions}
         />
       ) : null}

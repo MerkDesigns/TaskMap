@@ -35,8 +35,14 @@ An extension owns its UI and reaches the application through a command port. Ele
 - The second point is the **text-card adornment** (`cardAdornment.ts`,
   `cardAdornmentRegistry.ts`): content drawn before the card's text, plus a named text state
   (`done`) that the card styles. Mind-map nodes, which share the Text Card renderer, take none.
-- Further contribution points (menu items, and behavioral effects such as lock, search filtering
-  and privacy) follow the same pattern as their extensions migrate.
+- The third point is the **element menu item** (`menuItem.ts`, `menuItemRegistry.ts`): an item in
+  an element's context menu, plus an optional panel beside the menu. Items are offered while their
+  extension is installed on any menu target; an item that acts on the element itself (the Lock
+  toggle) renders only when the element has the extension. The menus host the items and the
+  "Remove Extensions" section, labelled by the extension definitions; removal and the menu's
+  selection-wide recolour are port commands.
+- Further contribution points (behavioral effects such as lock, search filtering and privacy)
+  follow the same pattern as their extensions migrate.
 
 ## Consequences
 

@@ -62,7 +62,9 @@ function renderTextBlock(
   } satisfies TextBlockActions;
   const extensionCommands = {
     toggle: vi.fn(),
+    remove: vi.fn(),
     updateAccent: vi.fn(),
+    updateSelectionAccent: vi.fn(),
     rememberRecentColor: vi.fn(),
     copyJsonForAi: vi.fn(async () => undefined),
     pasteJsonFromAi: vi.fn(async () => undefined),

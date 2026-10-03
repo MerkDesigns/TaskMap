@@ -115,7 +115,9 @@ export function DraggableTextBlockFixture() {
   const resetPosition = () => applyPosition({ ...INITIAL_POSITION });
   const extensionCommands: ExtensionCommands = {
     toggle: ignore,
+    remove: ignore,
     updateAccent: ignore,
+    updateSelectionAccent: ignore,
     rememberRecentColor: ignore,
     copyJsonForAi: async () => undefined,
     pasteJsonFromAi: async () => undefined,

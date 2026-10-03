@@ -10,7 +10,7 @@ export const inheritCardColorConfigurationSchema = z
 
 export const inheritCardColorDefinition = defineRetainedExtension({
   id: asEntityId("extension", "inherit-card-color"),
-  label: "Inherit color",
+  label: "Inherit Card Color",
   compatibleElementTypes: ["container"],
   conflictsWith: [],
   stateSchema: inheritCardColorConfigurationSchema,

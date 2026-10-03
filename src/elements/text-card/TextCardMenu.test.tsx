@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { MindMapNodeDocumentElement } from "../mind-map/mindMapModel";
 import type { TextCardDocumentElement } from "./textCardModel";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { TextCardMenu, type TextCardMenuActions, type TextCardMenuProps } from "./TextCardMenu";
 
 afterEach(cleanup);
@@ -34,35 +35,43 @@ function renderMenu(props: Partial<TextCardMenuProps> = {}) {
   const actions = {
     onStartEdit: vi.fn(),
     onUpdateAccent: vi.fn(),
-    onRememberRecentColor: vi.fn(),
     onUpdateLink: vi.fn(),
-    onToggleLock: vi.fn(),
     onCut: vi.fn(),
     onCopy: vi.fn(),
-    onRemoveExtension: vi.fn(),
     onMoveLayer: vi.fn(),
     onDelete: vi.fn(),
   } satisfies TextCardMenuActions;
+  const extensionCommands = {
+    toggle: vi.fn(),
+    remove: vi.fn(),
+    updateAccent: vi.fn(),
+    updateSelectionAccent: vi.fn(),
+    rememberRecentColor: vi.fn(),
+    copyJsonForAi: vi.fn(async () => undefined),
+    pasteJsonFromAi: vi.fn(async () => undefined),
+    openJsonEditor: vi.fn(),
+  } satisfies ExtensionCommands;
   render(
     <TextCardMenu
       element={textCard()}
       position={{ left: 100, top: 100 }}
       closing={false}
       isMultiTarget={false}
-      lock={null}
-      installed={{}}
+      extensions={undefined}
+      installedOnTargets={new Set()}
+      extensionCommands={extensionCommands}
       recentColors={[]}
       actions={actions}
       {...props}
     />,
   );
-  return actions;
+  return { actions, extensionCommands };
 }
 
 describe("TextCardMenu", () => {
   it("opens the Extra Colors picker directly below Edit Text", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({ installed: { colorPicker: true } });
+    const { extensionCommands } = renderMenu({ installedOnTargets: new Set(["colorPicker"]) });
 
     const editText = screen.getByRole("menuitem", { name: "Edit Text" });
     const openPicker = screen.getByRole("menuitem", { name: "Open color picker" });
@@ -74,15 +83,15 @@ describe("TextCardMenu", () => {
     const colorInput = screen.getByTitle("Visual color picker");
     expect(colorInput.closest("[data-color-picker-menu]")).toHaveAttribute("data-context-menu");
     fireEvent.change(colorInput, { target: { value: "#123456" } });
-    expect(actions.onUpdateAccent).toHaveBeenCalledWith(CARD_ID, "#123456");
+    expect(extensionCommands.updateSelectionAccent).toHaveBeenCalledWith(CARD_ID, "#123456");
 
     await user.click(screen.getByTitle("Close"));
-    expect(actions.onRememberRecentColor).toHaveBeenCalledWith("#123456");
+    expect(extensionCommands.rememberRecentColor).toHaveBeenCalledWith("#123456");
   });
 
   it("starts editing, cuts, copies and removes the card by id", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
 
     await user.click(screen.getByRole("menuitem", { name: "Edit Text" }));
     await user.click(screen.getByRole("menuitem", { name: "Cut" }));
@@ -104,7 +113,7 @@ describe("TextCardMenu", () => {
 
   it("saves the hyperlink draft prefilled with the card's link", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({ element: textCard({ link: "https://example.com/" }) });
+    const { actions } = renderMenu({ element: textCard({ link: "https://example.com/" }) });
 
     await user.click(screen.getByRole("menuitem", { name: "Hyperlink" }));
     const field = screen.getByPlaceholderText("https://example.com or C:\\path\\file");
@@ -126,12 +135,19 @@ describe("TextCardMenu", () => {
 
   it("offers installed extensions for removal", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({ installed: { checkbox: true, lock: false } });
+    const { extensionCommands } = renderMenu({ installedOnTargets: new Set(["checkbox"]) });
 
     expect(screen.queryByRole("menuitem", { name: "Lock" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Checkbox" }));
 
-    expect(actions.onRemoveExtension).toHaveBeenCalledWith(CARD_ID, "checkbox");
+    expect(extensionCommands.remove).toHaveBeenCalledWith("checkbox", CARD_ID);
+  });
+
+  it("offers the lock toggle only when the card itself has a lock", () => {
+    renderMenu({ installedOnTargets: new Set(["lock"]), isMultiTarget: true });
+
+    expect(screen.queryByRole("menuitem", { name: /^(Locked|Unlocked)$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Lock" })).toBeInTheDocument();
   });
 });
 
@@ -144,10 +160,11 @@ describe("TextCardMenu for mind-map nodes", () => {
 
   it("toggles an installed lock above the color swatches for a selected group", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({
+    const { extensionCommands } = renderMenu({
       element: mindMapNode(),
       isMultiTarget: true,
-      lock: { enabled: true },
+      extensions: { lock: { enabled: true } },
+      installedOnTargets: new Set(["lock"]),
     });
 
     const toggle = screen.getByRole("menuitem", { name: "Locked" });
@@ -157,6 +174,6 @@ describe("TextCardMenu for mind-map nodes", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     await user.click(toggle);
-    expect(actions.onToggleLock).toHaveBeenCalledWith(CARD_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("lock", CARD_ID);
   });
 });

@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { ImageMenu, type ImageMenuActions, type ImageMenuProps } from "./ImageMenu";
 import type { ImageDocumentElement } from "./imageModel";
 
@@ -22,32 +23,44 @@ function renderMenu(props: Partial<ImageMenuProps> = {}) {
     onReplace: vi.fn(),
     onUpdateAccent: vi.fn(),
     onToggleBackground: vi.fn(),
-    onToggleLock: vi.fn(),
     onMoveLayer: vi.fn(),
     onCut: vi.fn(),
     onCopy: vi.fn(),
-    onRemoveLock: vi.fn(),
     onDelete: vi.fn(),
   } satisfies ImageMenuActions;
+  const extensionCommands = {
+    toggle: vi.fn(),
+    remove: vi.fn(),
+    updateAccent: vi.fn(),
+    updateSelectionAccent: vi.fn(),
+    rememberRecentColor: vi.fn(),
+    copyJsonForAi: vi.fn(async () => undefined),
+    pasteJsonFromAi: vi.fn(async () => undefined),
+    openJsonEditor: vi.fn(),
+  } satisfies ExtensionCommands;
   render(
     <ImageMenu
       element={image()}
       position={{ left: 100, top: 100 }}
       closing={false}
       isMultiTarget={false}
-      lock={null}
-      lockInstalled={false}
+      extensions={undefined}
+      installedOnTargets={new Set()}
+      extensionCommands={extensionCommands}
       actions={actions}
       {...props}
     />,
   );
-  return actions;
+  return { actions, extensionCommands };
 }
 
 describe("ImageMenu", () => {
   it("toggles an installed lock above the color swatches", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({ lock: { enabled: false }, lockInstalled: true });
+    const { extensionCommands } = renderMenu({
+      extensions: { lock: { enabled: false } },
+      installedOnTargets: new Set(["lock"]),
+    });
 
     const toggle = screen.getByRole("menuitem", { name: "Unlocked" });
     expect(toggle.querySelector(".tabler-icon-lock-open")).toBeInTheDocument();
@@ -56,14 +69,14 @@ describe("ImageMenu", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     await user.click(toggle);
-    expect(actions.onToggleLock).toHaveBeenCalledWith(IMAGE_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("lock", IMAGE_ID);
     await user.click(screen.getByRole("menuitem", { name: "Lock" }));
-    expect(actions.onRemoveLock).toHaveBeenCalledWith(IMAGE_ID);
+    expect(extensionCommands.remove).toHaveBeenCalledWith("lock", IMAGE_ID);
   });
 
   it("offers to hide the background, or to show it again", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
     await user.click(screen.getByRole("menuitem", { name: "Hide background" }));
     expect(actions.onToggleBackground).toHaveBeenCalledWith(IMAGE_ID);
     cleanup();
@@ -74,7 +87,7 @@ describe("ImageMenu", () => {
 
   it("replaces, cuts, copies and removes the image by id", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
 
     await user.click(screen.getByRole("menuitem", { name: "Replace image" }));
     await user.click(screen.getByRole("menuitem", { name: "Cut" }));

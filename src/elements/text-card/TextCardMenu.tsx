@@ -3,42 +3,36 @@ import {
   IconCopy,
   IconCut,
   IconLink,
-  IconLock,
-  IconLockOpen,
-  IconPalette,
   IconPencil,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
-import { ColorPickerMenu } from "../../components/ColorPickerMenu";
 import { ACCENT_PRESETS, getTextCardAccent } from "../../constants";
+import type { ElementExtensions } from "../../types";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
+import type { RetainedExtensionKey } from "../../extensions/retainedExtensionDefinition";
 import { IconButton } from "../../ui/primitives/Button";
 import { ContextMenuSurface } from "../../ui/primitives/ContextMenu";
 import {
   ContextMenuDivider,
   ContextMenuItem,
-  ContextMenuSection,
   ContextMenuSwatch,
   ContextMenuSwatches,
 } from "../../ui/primitives/ContextMenuParts";
 import { TextField } from "../../ui/primitives/FormControls";
 import { useClampedFixedPosition } from "../../useClampedFixedPosition";
 import { LayerOrderActions, type LayerMove } from "../LayerOrderActions";
+import { useElementMenuExtensions } from "../useElementMenuExtensions";
 import type { TextCardRendererElement } from "./TextCardRenderer";
-
-export type TextCardMenuExtension = "lock" | "colorPicker" | "checkbox";
 
 export interface TextCardMenuActions {
   readonly onStartEdit: (id: string) => void;
   readonly onUpdateAccent: (id: string, accent: string) => void;
-  readonly onRememberRecentColor: (color?: string) => void;
   readonly onUpdateLink: (id: string, link: string) => void;
-  readonly onToggleLock: (id: string) => void;
   readonly onCut: (id: string) => void;
   readonly onCopy: (id: string) => void;
-  readonly onRemoveExtension: (id: string, extension: TextCardMenuExtension) => void;
   readonly onMoveLayer: (id: string, direction: LayerMove) => void;
   readonly onDelete: (id: string) => void;
 }
@@ -49,27 +43,23 @@ export interface TextCardMenuProps {
   readonly closing: boolean;
   /** The menu acts on the whole selection, so Cut/Copy/Remove say "selected". */
   readonly isMultiTarget: boolean;
-  /** The card's own lock, toggled from the menu; null when none is installed. */
-  readonly lock: { readonly enabled: boolean } | null;
-  /** Extensions installed on any of the menu's targets, offered for removal. */
-  readonly installed: Readonly<Partial<Record<TextCardMenuExtension, boolean>>>;
+  /** The element's own installed extensions. */
+  readonly extensions: ElementExtensions | undefined;
+  /** Extensions installed on any of the menu's targets. */
+  readonly installedOnTargets: ReadonlySet<RetainedExtensionKey>;
+  readonly extensionCommands: ExtensionCommands;
   readonly recentColors: readonly string[];
   readonly actions: TextCardMenuActions;
 }
-
-const REMOVABLE_EXTENSIONS: readonly { extension: TextCardMenuExtension; label: string }[] = [
-  { extension: "lock", label: "Lock" },
-  { extension: "colorPicker", label: "Extra colors" },
-  { extension: "checkbox", label: "Checkbox" },
-];
 
 export function TextCardMenu({
   element,
   position: preferredPosition,
   closing,
   isMultiTarget,
-  lock,
-  installed,
+  extensions,
+  installedOnTargets,
+  extensionCommands,
   recentColors,
   actions,
 }: TextCardMenuProps) {
@@ -89,10 +79,18 @@ export function TextCardMenu({
   const linkMenuPosition = useClampedFixedPosition(linkMenuRef, linkMenuPreferredPosition);
   const [linkDraft, setLinkDraft] = useState(link ?? "");
   const [linkMenuOpen, setLinkMenuOpen] = useState(false);
-  const [colorPickerPosition, setColorPickerPosition] = useState<{
-    left: number;
-    top: number;
-  } | null>(null);
+  const menuExtensions = useElementMenuExtensions({
+    context: {
+      elementId: id,
+      host: element.type === "text-card" ? "text-card" : "mind-map-node",
+      extensions: extensions ?? {},
+      installedOnTargets,
+      accent: activeAccent,
+      recentColors: recentColors,
+    },
+    commands: extensionCommands,
+    closing,
+  });
 
   useEffect(() => {
     setLinkDraft(link ?? "");
@@ -108,7 +106,6 @@ export function TextCardMenu({
   const saveLink = () => {
     if (link !== null) actions.onUpdateLink(id, linkDraft);
   };
-  const removable = REMOVABLE_EXTENSIONS.filter(({ extension }) => installed[extension]);
   const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
 
   return (
@@ -127,31 +124,7 @@ export function TextCardMenu({
         >
           Edit Text
         </ContextMenuItem>
-        {installed.colorPicker && (
-          <ContextMenuItem
-            icon={<IconPalette size={17} stroke={2} />}
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              setColorPickerPosition({ left: rect.right + 8, top: rect.top });
-            }}
-          >
-            Open color picker
-          </ContextMenuItem>
-        )}
-        {lock && (
-          <ContextMenuItem
-            icon={
-              lock.enabled ? (
-                <IconLock size={17} stroke={2} />
-              ) : (
-                <IconLockOpen size={17} stroke={2} />
-              )
-            }
-            onClick={() => actions.onToggleLock(id)}
-          >
-            {lock.enabled ? "Locked" : "Unlocked"}
-          </ContextMenuItem>
-        )}
+        {menuExtensions.items}
         <ContextMenuDivider />
         <ContextMenuSwatches>
           {ACCENT_PRESETS.map((preset) => (
@@ -193,22 +166,7 @@ export function TextCardMenu({
         >
           {isMultiTarget ? "Copy selected" : "Copy"}
         </ContextMenuItem>
-        {removable.length > 0 && (
-          <>
-            <ContextMenuDivider />
-            <ContextMenuSection label="Remove Extensions">
-              {removable.map(({ extension, label }) => (
-                <ContextMenuItem
-                  key={extension}
-                  icon={<IconTrash size={17} stroke={2} />}
-                  onClick={() => actions.onRemoveExtension(id, extension)}
-                >
-                  {label}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuSection>
-          </>
-        )}
+        {menuExtensions.removal}
         <ContextMenuDivider />
         <ContextMenuItem
           danger
@@ -261,19 +219,7 @@ export function TextCardMenu({
         </ContextMenuSurface>
       )}
 
-      {colorPickerPosition && !closing && (
-        <ColorPickerMenu
-          color={activeAccent}
-          left={colorPickerPosition.left}
-          top={colorPickerPosition.top}
-          recentColors={[...recentColors]}
-          onChange={(accent) => actions.onUpdateAccent(id, accent)}
-          onClose={(recentColor) => {
-            actions.onRememberRecentColor(recentColor);
-            setColorPickerPosition(null);
-          }}
-        />
-      )}
+      {menuExtensions.panels}
     </>
   );
 }

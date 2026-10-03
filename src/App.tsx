@@ -21,6 +21,7 @@ import { CanvasContextMenu, ContainerContentContextMenu } from "./components/Con
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
 import type { ExtensionCommands } from "./extensions/extensionCommands";
+import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
@@ -4846,28 +4847,20 @@ function App({
 
   const isMultiContextAction = (id: string) => selectedIds.length > 1 && selectedIds.includes(id);
 
-  const getSelectedExtensionState = (ids: string[]) => {
-    const hasExtension = (id: string, key: keyof ElementExtensions) =>
-      Boolean(
-        (
-          containersById.get(id) ??
-          textBlocksById.get(id) ??
-          textCardsById.get(id) ??
-          imagesById.get(id)
-        )?.extensions?.[key],
-      );
-
-    return {
-      privacy: ids.some((id) => hasExtension(id, "privacy")),
-      search: ids.some((id) => hasExtension(id, "search")),
-      lock: ids.some((id) => hasExtension(id, "lock")),
-      colorPicker: ids.some((id) => hasExtension(id, "colorPicker")),
-      checkbox: ids.some((id) => hasExtension(id, "checkbox")),
-      autoCheckbox: ids.some((id) => hasExtension(id, "autoCheckbox")),
-      counter: ids.some((id) => hasExtension(id, "counter")),
-      inheritCardColor: ids.some((id) => hasExtension(id, "inheritCardColor")),
-      copyPasteJson: ids.some((id) => hasExtension(id, "copyPasteJson")),
-    };
+  /** Extensions installed on any of a context menu's targets. */
+  const getContextInstalledExtensions = (id: string): ReadonlySet<RetainedExtensionKey> => {
+    const installed = new Set<RetainedExtensionKey>();
+    for (const targetId of getContextActionIds(id)) {
+      const extensions = (
+        containersById.get(targetId) ??
+        textBlocksById.get(targetId) ??
+        textCardsById.get(targetId) ??
+        imagesById.get(targetId)
+      )?.extensions;
+      for (const [key, state] of Object.entries(extensions ?? {}))
+        if (state) installed.add(key as RetainedExtensionKey);
+    }
+    return installed;
   };
 
   const getElementAccentForKind = (accent: string, kind: "text-card" | "other") => {
@@ -6449,7 +6442,6 @@ function App({
     onUpdateAccent: updateContextAccent,
     onCut: (id: string) => withContainer(id, cutContainer),
     onCopy: (id: string) => withContainer(id, copyContainer),
-    onRemoveExtension: stripContextExtension,
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
@@ -6463,10 +6455,13 @@ function App({
       else if (extension === "privacy") togglePrivacyExtension(elementId);
       else toggleTextCardCheckbox(elementId);
     },
+    remove: (extension: RetainedExtensionKey, elementId: string) =>
+      stripContextExtension(elementId, extension),
     updateAccent: (elementId: string, accent: string) =>
       containersById.has(elementId)
         ? updateContainerAccent(elementId, accent)
         : updateTextBlockAccent(elementId, accent),
+    updateSelectionAccent: updateContextAccent,
     rememberRecentColor,
     copyJsonForAi: copyContainerJsonForAi,
     pasteJsonFromAi: pasteContainerJsonFromAi,
@@ -6477,7 +6472,6 @@ function App({
     onUpdateAccent: updateContextAccent,
     onCut: (id: string) => withTextBlock(id, cutTextBlock),
     onCopy: (id: string) => withTextBlock(id, copyTextBlock),
-    onRemoveExtension: stripContextExtension,
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
@@ -6507,11 +6501,9 @@ function App({
     onReplace: pickImageForElement,
     onUpdateAccent: updateContextAccent,
     onToggleBackground: toggleImageBackground,
-    onToggleLock: toggleLockExtension,
     onMoveLayer: moveCanvasLayers,
     onCut: (id: string) => withImage(id, cutImage),
     onCopy: (id: string) => withImage(id, copyImage),
-    onRemoveLock: (id: string) => stripContextExtension(id, "lock"),
     onDelete: deleteContextSelection,
   });
   const imageActions: ImageActions = useStableCallbacks({
@@ -6551,12 +6543,9 @@ function App({
   const textCardMenuActions: TextCardMenuActions = useStableCallbacks({
     onStartEdit: (id: string) => withTextCard(id, startTextCardEdit),
     onUpdateAccent: updateContextAccent,
-    onRememberRecentColor: rememberRecentColor,
     onUpdateLink: updateTextCardLink,
-    onToggleLock: toggleLockExtension,
     onCut: (id: string) => withTextCard(id, cutTextCard),
     onCopy: (id: string) => withTextCard(id, copyTextCard),
-    onRemoveExtension: stripContextExtension,
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
@@ -7482,7 +7471,9 @@ function App({
                 position={menu}
                 closing={closing}
                 isMultiTarget={isMultiContextAction(container.id)}
-                installed={getSelectedExtensionState(getContextActionIds(container.id))}
+                extensions={container.extensions}
+                installedOnTargets={getContextInstalledExtensions(container.id)}
+                extensionCommands={extensionCommands}
                 actions={containerMenuActions}
               />
             );
@@ -7524,8 +7515,9 @@ function App({
                 position={menu}
                 closing={closing}
                 isMultiTarget={isMultiContextAction(card.id)}
-                lock={card.extensions?.lock ?? null}
-                installed={getSelectedExtensionState(getContextActionIds(card.id))}
+                extensions={card.extensions}
+                installedOnTargets={getContextInstalledExtensions(card.id)}
+                extensionCommands={extensionCommands}
                 recentColors={recentColors}
                 actions={textCardMenuActions}
               />
@@ -7550,7 +7542,9 @@ function App({
                 position={menu}
                 closing={closing}
                 isMultiTarget={isMultiContextAction(textBlock.id)}
-                installed={getSelectedExtensionState(getContextActionIds(textBlock.id))}
+                extensions={textBlock.extensions}
+                installedOnTargets={getContextInstalledExtensions(textBlock.id)}
+                extensionCommands={extensionCommands}
                 actions={textBlockMenuActions}
               />
             );
@@ -7569,10 +7563,9 @@ function App({
                 position={menu}
                 closing={closing}
                 isMultiTarget={isMultiContextAction(image.id)}
-                lock={image.extensions?.lock ?? null}
-                lockInstalled={Boolean(
-                  getSelectedExtensionState(getContextActionIds(image.id)).lock,
-                )}
+                extensions={image.extensions}
+                installedOnTargets={getContextInstalledExtensions(image.id)}
+                extensionCommands={extensionCommands}
                 actions={imageMenuActions}
               />
             );

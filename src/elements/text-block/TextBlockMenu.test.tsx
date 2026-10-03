@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { TextBlockMenu, type TextBlockMenuActions, type TextBlockMenuProps } from "./TextBlockMenu";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 
@@ -23,28 +24,39 @@ function renderMenu(props: Partial<TextBlockMenuProps> = {}) {
     onUpdateAccent: vi.fn(),
     onCut: vi.fn(),
     onCopy: vi.fn(),
-    onRemoveExtension: vi.fn(),
     onMoveLayer: vi.fn(),
     onDelete: vi.fn(),
   } satisfies TextBlockMenuActions;
+  const extensionCommands = {
+    toggle: vi.fn(),
+    remove: vi.fn(),
+    updateAccent: vi.fn(),
+    updateSelectionAccent: vi.fn(),
+    rememberRecentColor: vi.fn(),
+    copyJsonForAi: vi.fn(async () => undefined),
+    pasteJsonFromAi: vi.fn(async () => undefined),
+    openJsonEditor: vi.fn(),
+  } satisfies ExtensionCommands;
   render(
     <TextBlockMenu
       element={textBlock}
       position={{ left: 100, top: 100 }}
       closing={false}
       isMultiTarget={false}
-      installed={{}}
+      extensions={undefined}
+      installedOnTargets={new Set()}
+      extensionCommands={extensionCommands}
       actions={actions}
       {...props}
     />,
   );
-  return actions;
+  return { actions, extensionCommands };
 }
 
 describe("TextBlockMenu", () => {
   it("renames, cuts, copies and removes the text block by id", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
 
     await user.click(screen.getByRole("menuitem", { name: "Edit Text" }));
     await user.click(screen.getByRole("menuitem", { name: "Cut" }));
@@ -59,7 +71,7 @@ describe("TextBlockMenu", () => {
 
   it("marks the element's accent and applies a preset", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
     const swatches = screen.getAllByRole("menuitem", { name: /Text block color/ });
 
     expect(swatches[0]).toHaveAttribute("aria-pressed", "true");
@@ -71,7 +83,7 @@ describe("TextBlockMenu", () => {
 
   it("moves the text block between layers", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
 
     await user.click(screen.getByLabelText("Bring to front"));
 
@@ -80,12 +92,12 @@ describe("TextBlockMenu", () => {
 
   it("offers only installed extensions for removal", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({ installed: { privacy: true, lock: false } });
+    const { extensionCommands } = renderMenu({ installedOnTargets: new Set(["privacy"]) });
 
     expect(screen.queryByRole("menuitem", { name: "Lock" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Privacy" }));
 
-    expect(actions.onRemoveExtension).toHaveBeenCalledWith(BLOCK_ID, "privacy");
+    expect(extensionCommands.remove).toHaveBeenCalledWith("privacy", BLOCK_ID);
   });
 
   it("names the selection in its actions when it targets several elements", () => {

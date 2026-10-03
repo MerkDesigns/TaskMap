@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { ContainerMenu, type ContainerMenuActions, type ContainerMenuProps } from "./ContainerMenu";
 import type { ContainerDocumentElement } from "./containerModel";
 
@@ -23,28 +24,39 @@ function renderMenu(props: Partial<ContainerMenuProps> = {}) {
     onUpdateAccent: vi.fn(),
     onCut: vi.fn(),
     onCopy: vi.fn(),
-    onRemoveExtension: vi.fn(),
     onMoveLayer: vi.fn(),
     onDelete: vi.fn(),
   } satisfies ContainerMenuActions;
+  const extensionCommands = {
+    toggle: vi.fn(),
+    remove: vi.fn(),
+    updateAccent: vi.fn(),
+    updateSelectionAccent: vi.fn(),
+    rememberRecentColor: vi.fn(),
+    copyJsonForAi: vi.fn(async () => undefined),
+    pasteJsonFromAi: vi.fn(async () => undefined),
+    openJsonEditor: vi.fn(),
+  } satisfies ExtensionCommands;
   render(
     <ContainerMenu
       element={container}
       position={{ left: 100, top: 100 }}
       closing={false}
       isMultiTarget={false}
-      installed={{}}
+      extensions={undefined}
+      installedOnTargets={new Set()}
+      extensionCommands={extensionCommands}
       actions={actions}
       {...props}
     />,
   );
-  return actions;
+  return { actions, extensionCommands };
 }
 
 describe("ContainerMenu", () => {
   it("renames, cuts, copies and removes the container by id", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
 
     await user.click(screen.getByRole("menuitem", { name: "Edit Container" }));
     await user.click(screen.getByRole("menuitem", { name: "Cut" }));
@@ -59,7 +71,7 @@ describe("ContainerMenu", () => {
 
   it("marks the element's accent and applies a preset", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
     const swatches = screen.getAllByRole("menuitem", { name: /Container accent/ });
 
     expect(swatches[0]).toHaveAttribute("aria-pressed", "true");
@@ -71,7 +83,7 @@ describe("ContainerMenu", () => {
 
   it("moves the container between layers", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu();
+    const { actions } = renderMenu();
 
     await user.click(screen.getByLabelText("Bring to front"));
 
@@ -80,12 +92,25 @@ describe("ContainerMenu", () => {
 
   it("offers only installed extensions for removal", async () => {
     const user = userEvent.setup();
-    const actions = renderMenu({ installed: { search: true, counter: false } });
+    const { extensionCommands } = renderMenu({
+      installedOnTargets: new Set(["search", "inheritCardColor"]),
+    });
 
     expect(screen.queryByRole("menuitem", { name: "Counter" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Inherit Card Color" })).toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Search" }));
 
-    expect(actions.onRemoveExtension).toHaveBeenCalledWith(CONTAINER_ID, "search");
+    expect(extensionCommands.remove).toHaveBeenCalledWith("search", CONTAINER_ID);
+  });
+
+  it("leaves lock and color controls to the container header", () => {
+    renderMenu({
+      extensions: { lock: { enabled: true }, colorPicker: { enabled: true } },
+      installedOnTargets: new Set(["lock", "colorPicker"]),
+    });
+
+    expect(screen.queryByRole("menuitem", { name: "Locked" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Open color picker" })).not.toBeInTheDocument();
   });
 
   it("names the selection in its actions when it targets several elements", () => {
