@@ -4,12 +4,13 @@
 
 ## Branch and phase
 
-- Branch: `architecture-v1`; pushed HEAD `b288950` (global test timeout for large-fixture suites).
-  The 4.5H cleanup below is local and uncommitted until pushed.
-- **Phase 4.5 (final UI + glass system) is complete.** 4.5A–F accepted earlier; 4.5G acceptance
-  approved by the user on 2026-10-01; 4.5H cleanup done on 2026-10-01. One active UI/material
-  architecture remains.
-- **Next: Phase 5 — element renderer migration**, starting with the Text Card.
+- Branch: `architecture-v1`, pushed.
+- **Phase 4.5 (final UI + glass system) is complete** (approved 2026-10-01).
+- **Phase 5 (element renderer migration) is complete**, signed off by the user on 2026-10-03. Every
+  canvas element renders from `src/elements/`: Text Card (and mind-map nodes), Container, Text
+  Block, Image and mind-map connections, each with its own CSS, reading the normalized element plus
+  typed view state, with its menu next to it.
+- **Next: Phase 6 — extensions.**
 - Open PR: MerkDesigns/TaskMap#2 (`architecture-v1` → `main`), kept open for review; the user
   merges nothing into `main` yet.
 
@@ -33,15 +34,15 @@
 - Settings → Visual → Interface: per-device corner radii and the sleep delay.
 - Dedicated release benchmarks remain deferred by user direction (subjective acceptance only).
 
-## Verified status (2026-10-01)
+## Verified status (2026-10-03)
 
-- `npm run check` passes after 4.5H: 233 test files / 1,517 tests, typecheck, lint, formatting,
-  architecture (539 target files), production build, production-exclusion/security checks.
-  `cargo fmt --check` and Rust edition tests pass.
-- Live dev app after cleanup: shared Major plane mounted, Canvas Browser Minor batch active with
-  output masks (no clip/SVG), glass unchanged visually; workbench App/UI Lab switching works.
-- CI: earlier failures on this branch were large-fixture tests hitting vitest's 5 s default on slow
-  runners; fixed with a global 20 s `testTimeout`.
+- `npm run check` passes: 230 test files / 1,514 tests, typecheck, lint, formatting, architecture,
+  production build, production-exclusion/security checks.
+- Phase 5 elements verified live in the dev app with trusted input (`npm run app:dev:devtools` +
+  `scripts/drive-dev-window.mjs`): computed-style parity against the pre-migration components in
+  idle/hover/gesture states, mid-drag positions, and screenshot diffs showing no shimmer while
+  dragging, no 1px shift on drop, and sharp redraws after zooming.
+- Development hot updates keep the database unlocked (the session owner is renderer-global).
 
 ## Immediate next task / handoff
 
@@ -49,22 +50,15 @@
    `src/installer/` UI; dev run `npm run installer:dev` simulates installing (no payload). Not yet
    done: a real `npm run installer:build` validated on a clean machine (never run a real install
    over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
-2. Phase 5: the Text Card renderer and menu live in `src/elements/text-card/` (own CSS, links via
-   `src/platform/opener`) and read the normalized `text-card`/`mind-map-node` element from the
-   canvas binding plus typed view state; App passes ids to their actions. Text-card editing state
-   (draft, editing id) stays in `App.tsx` until its canvas composition is decomposed. Registration in
-   `src/elements/registry.ts` waits until something dispatches through the registry. The
-   Container renderer lives in `src/elements/container/` (own CSS; header extension buttons in
-   `ContainerExtensionButtons`) and reads the normalized element plus `ContainerViewState`; its
-   menu lives there too. The Text Block renderer lives in
-   `src/elements/text-block/` (own CSS; header controls shared through `elementHeader.css` and
-   `useHeaderExtensionLayout`) and reads the normalized element plus `TextBlockViewState`; its
-   menu lives there too. The Image renderer lives in `src/elements/image/` (own CSS, leases
-   session media itself) and reads the normalized element plus `ImageViewState`; its menu lives
-   there too. Mind-map nodes draw through the Text Card renderer; connection lines and ports live
-   in `src/elements/mind-map/` (own CSS). The connection menu lives there too, and the lines read the
-   document's connections. Every Phase 5 element now renders from `src/elements/`.
-3. Not yet wired by design (Phase 5–7 plumbing, unreachable today): `src/elements/*`. Unused
+2. Phase 6, extensions: the definitions (schema, default state, compatibility) are registered in
+   `src/extensions/architectureRegistry.ts`; their behavior and controls still live in `App.tsx`
+   and the element renderers (header buttons, menus, view-state extension fields). Move them one
+   extension at a time so each owns its controls and commands.
+   Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
+   `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
+   through the registry; loose text cards and mind-map nodes still position with left/top rather
+   than `placementStyle`.
+3. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.
 
@@ -82,7 +76,6 @@ holds the user's real data and must keep working:
 
 ## Remaining gates
 
-- Phase 5 element renderer migration (Text Card, Container, Text Block, Image/GIF, Mind map).
 - Phase 6 extensions, Phase 7 Workflow Runner, Phase 8 remaining features, Phase 9 migrator.
 - Packaged stable/dev coexistence was approved with 4.5G by user direction; run the packaged check
   before the first release that ships both editions.
