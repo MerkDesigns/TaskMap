@@ -5,7 +5,7 @@ import { ContainerMenu, type ContainerMenuActions } from "../elements/container/
 import type { ContainerDocumentElement } from "../elements/container/containerModel";
 import { ContainerRenderer } from "../elements/container/ContainerRenderer";
 import type { ContainerActions } from "../elements/container/containerView";
-import type { ExtensionCommands } from "../extensions/headerControl";
+import type { ExtensionCommands } from "../extensions/extensionCommands";
 import { EXTENSION_REGISTRY } from "../extensions/registry";
 import type { ElementExtensions } from "../types";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
@@ -67,11 +67,13 @@ export function ContextMenuPlayground() {
   };
 
   const extensionCommands: ExtensionCommands = {
-    toggle: (extension) =>
+    toggle: (extension) => {
+      if (extension === "checkbox") return;
       setExtensions((current) => ({
         ...current,
         [extension]: { enabled: !current[extension]?.enabled },
-      })),
+      }));
+    },
     updateAccent: (_, accent) => updateData({ accent }),
     rememberRecentColor: () => undefined,
     copyJsonForAi: async () => undefined,

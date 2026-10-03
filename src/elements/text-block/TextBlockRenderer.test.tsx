@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 import { TextBlockRenderer } from "./TextBlockRenderer";
-import type { ExtensionCommands } from "../../extensions/headerControl";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
 
 vi.stubGlobal(

@@ -1,7 +1,7 @@
 import { IconBox, IconDotsVertical, IconSearch, IconX } from "@tabler/icons-react";
 import { useRef } from "react";
 import type { SyntheticEvent } from "react";
-import type { ExtensionCommands } from "../../extensions/headerControl";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import type { HeaderLayoutMetrics } from "../useHeaderExtensionLayout";
 import { useElementHeaderExtensions } from "../useElementHeaderExtensions";
 import type { ContainerDocumentElement } from "./containerModel";

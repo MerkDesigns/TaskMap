@@ -1,8 +1,11 @@
-import { IconCheck, IconLink } from "@tabler/icons-react";
+import { IconLink } from "@tabler/icons-react";
 import { memo, useEffect, useRef } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import { getTextCardAccent } from "../../constants";
+import { cardAdornmentsFor } from "../../extensions/cardAdornmentRegistry";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { openExternalTarget } from "../../platform/opener/externalTargetClient";
+import type { ElementExtensions } from "../../types";
 import type { MindMapNodeDocumentElement } from "../mind-map/mindMapModel";
 import type { TextCardDocumentElement } from "./textCardModel";
 import "./textCard.css";
@@ -24,8 +27,8 @@ export interface TextCardDrag {
 /** Transient presentation state; everything persistent is read from the element. */
 export interface TextCardViewState {
   readonly layer: number;
-  /** Null when no checkbox is installed on the card. */
-  readonly checked: boolean | null;
+  /** Installed extensions, from the retained extension projection; they contribute adornments. */
+  readonly extensions: ElementExtensions | undefined;
   /** Overrides the element's position and size, e.g. inside a container or while dragged. */
   readonly position?: {
     readonly x: number;
@@ -55,7 +58,6 @@ export interface TextCardActions {
   readonly onCancel: () => void;
   readonly onStartMove: (event: PointerEvent<HTMLElement>, id: string) => void;
   readonly onOpenMenu: (event: MouseEvent<HTMLElement>, id: string) => void;
-  readonly onToggleCheckbox: (id: string) => void;
   readonly onSizeChange: (id: string, size: { width: number; height: number }) => void;
 }
 
@@ -64,6 +66,8 @@ export interface TextCardRendererProps {
   readonly view: TextCardViewState;
   /** Must be referentially stable; a new object re-renders every card. */
   readonly actions: TextCardActions;
+  /** Commands for the installed extensions' adornments; referentially stable. */
+  readonly extensionCommands: ExtensionCommands;
 }
 
 /** Linked text is the accent lifted towards white, so it reads as a link on the tinted card. */
@@ -96,7 +100,12 @@ function bundleRestTransform(
 
 const stopPointer = (event: PointerEvent<HTMLElement>) => event.stopPropagation();
 
-function TextCardRendererComponent({ element, view, actions }: TextCardRendererProps) {
+function TextCardRendererComponent({
+  element,
+  view,
+  actions,
+  extensionCommands,
+}: TextCardRendererProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
@@ -105,8 +114,12 @@ function TextCardRendererComponent({ element, view, actions }: TextCardRendererP
   const isMindMapNode = element.type === "mind-map-node";
   const link = element.type === "text-card" ? element.data.link : null;
   const accent = getTextCardAccent(data.accent);
-  const checkboxInstalled = !isMindMapNode && view.checked !== null;
-  const checkboxChecked = Boolean(view.checked);
+  // Mind-map nodes share this renderer but take no text-card extensions.
+  const adornmentContext = { elementId: id, accent, extensions: view.extensions ?? {} };
+  const adornments = isMindMapNode ? [] : cardAdornmentsFor(adornmentContext);
+  const textState = adornments
+    .map((adornment) => adornment.textState?.(adornmentContext))
+    .find(Boolean);
   const sized = Boolean(position?.width || position?.maxWidth);
   const bundled = drag !== undefined && !drag.primary;
   const restTransform = bundled
@@ -206,22 +219,9 @@ function TextCardRendererComponent({ element, view, actions }: TextCardRendererP
       onPointerDown={(event) => actions.onStartMove(event, id)}
       onContextMenu={(event) => actions.onOpenMenu(event, id)}
     >
-      {checkboxInstalled && (
-        <button
-          type="button"
-          className="taskmap-text-card__checkbox"
-          aria-pressed={checkboxChecked}
-          onPointerDown={stopPointer}
-          onClick={(event) => {
-            event.stopPropagation();
-            actions.onToggleCheckbox(id);
-          }}
-        >
-          <span className="taskmap-text-card__checkbox-box" style={{ borderColor: accent }}>
-            <IconCheck size={16} stroke={2} />
-          </span>
-        </button>
-      )}
+      {adornments.map(({ extension, Leading }) => (
+        <Leading key={extension} context={adornmentContext} commands={extensionCommands} />
+      ))}
       {editing ? (
         <span className="taskmap-text-card__editor" data-multiline={isMindMapNode || undefined}>
           <span className="taskmap-text-card__editor-sizer" aria-hidden>
@@ -267,7 +267,7 @@ function TextCardRendererComponent({ element, view, actions }: TextCardRendererP
               if (!linksDisabled) openLink();
             }}
           >
-            <span className="taskmap-text-card__text" data-checked={checkboxChecked || undefined}>
+            <span className="taskmap-text-card__text" data-text-state={textState}>
               {data.text}
             </span>
           </button>
@@ -277,7 +277,7 @@ function TextCardRendererComponent({ element, view, actions }: TextCardRendererP
         <span
           className="taskmap-text-card__text"
           data-multiline={isMindMapNode || undefined}
-          data-checked={checkboxChecked || undefined}
+          data-text-state={textState}
         >
           {data.text}
         </span>
@@ -308,7 +308,13 @@ const shallowEqual = (a: object | undefined, b: object | undefined) => {
 };
 
 const arePropsEqual = (previous: TextCardRendererProps, next: TextCardRendererProps) => {
-  if (previous.element !== next.element || previous.actions !== next.actions) return false;
+  if (
+    previous.element !== next.element ||
+    previous.actions !== next.actions ||
+    previous.extensionCommands !== next.extensionCommands
+  ) {
+    return false;
+  }
   const { position: previousPosition, drag: previousDrag, ...previousView } = previous.view;
   const { position: nextPosition, drag: nextDrag, ...nextView } = next.view;
   return (

@@ -1,7 +1,7 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import type { ReactNode } from "react";
-import type { ExtensionCommands } from "../../extensions/headerControl";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { placementStyle, shallowEqual } from "../elementPlacement";
 import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";

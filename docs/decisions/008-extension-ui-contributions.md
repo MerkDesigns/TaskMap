@@ -32,9 +32,11 @@ An extension owns its UI and reaches the application through a command port. Ele
   closing.
 - Commands go through one `ExtensionCommands` port supplied by the application (today `App.tsx`
   over the retained callbacks). Elements forward the port without inspecting it.
-- Further contribution points (element adornments such as the text-card checkbox, menu items,
-  and behavioral effects such as lock, search filtering and privacy) follow the same pattern as
-  their extensions migrate.
+- The second point is the **text-card adornment** (`cardAdornment.ts`,
+  `cardAdornmentRegistry.ts`): content drawn before the card's text, plus a named text state
+  (`done`) that the card styles. Mind-map nodes, which share the Text Card renderer, take none.
+- Further contribution points (menu items, and behavioral effects such as lock, search filtering
+  and privacy) follow the same pattern as their extensions migrate.
 
 ## Consequences
 

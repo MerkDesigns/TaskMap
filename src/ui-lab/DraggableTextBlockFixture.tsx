@@ -3,7 +3,7 @@ import { TextBlockRenderer } from "../elements/text-block/TextBlockRenderer";
 import { asEntityId } from "../domain/ids/entityIds";
 import type { TextBlockDocumentElement } from "../elements/text-block/textBlockModel";
 import type { TextBlockActions } from "../elements/text-block/textBlockView";
-import type { ExtensionCommands } from "../extensions/headerControl";
+import type { ExtensionCommands } from "../extensions/extensionCommands";
 import { Button } from "../ui/primitives/Button";
 import { Surface } from "./system/Surface";
 import "./draggableTextBlockFixture.css";

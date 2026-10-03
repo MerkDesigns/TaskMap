@@ -1,7 +1,7 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { Suspense, lazy, memo, useEffect, useRef, useState } from "react";
 import type { WheelEvent } from "react";
-import type { ExtensionCommands } from "../../extensions/headerControl";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import { placementStyle, shallowEqual } from "../elementPlacement";
 import { TextBlockHeader } from "./TextBlockHeader";
 import type { TextBlockDocumentElement } from "./textBlockModel";

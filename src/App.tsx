@@ -20,7 +20,7 @@ import { IconRotateClockwise } from "@tabler/icons-react";
 import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
-import type { ExtensionCommands } from "./extensions/headerControl";
+import type { ExtensionCommands } from "./extensions/extensionCommands";
 import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
@@ -307,12 +307,6 @@ const createAppMetadata = (data: AppData): AppData => ({
 });
 
 type CallbackMap = Record<string, (...args: never[]) => unknown>;
-
-/** Null when no checkbox extension is installed on the card. */
-const textCardChecked = (card: TextCardElement) => {
-  const checkbox = card.extensions?.checkbox;
-  return checkbox ? Boolean(checkbox.checked) : null;
-};
 
 const useStableCallbacks = <T extends CallbackMap>(callbacks: T): T => {
   const callbacksRef = useRef<T | null>(callbacks);
@@ -6436,7 +6430,6 @@ function App({
       onCancel: canvasNodeActions.cancelTextCardEdit,
       onStartMove: canvasNodeActions.startTextCardMove,
       onOpenMenu: canvasNodeActions.openTextCardMenu,
-      onToggleCheckbox: canvasNodeActions.toggleTextCardCheckbox,
       onSizeChange: rememberTextCardSize,
     }),
     [canvasNodeActions, rememberTextCardSize],
@@ -6465,8 +6458,11 @@ function App({
     if (textBlock) action(textBlock);
   };
   const extensionCommands: ExtensionCommands = useStableCallbacks({
-    toggle: (extension: "lock" | "privacy", elementId: string) =>
-      extension === "lock" ? toggleLockExtension(elementId) : togglePrivacyExtension(elementId),
+    toggle: (extension: "lock" | "privacy" | "checkbox", elementId: string) => {
+      if (extension === "lock") toggleLockExtension(elementId);
+      else if (extension === "privacy") togglePrivacyExtension(elementId);
+      else toggleTextCardCheckbox(elementId);
+    },
     updateAccent: (elementId: string, accent: string) =>
       containersById.has(elementId)
         ? updateContainerAccent(elementId, accent)
@@ -7166,9 +7162,10 @@ function App({
                                   key={card.id}
                                   element={cardElement}
                                   actions={textCardActions}
+                                  extensionCommands={extensionCommands}
                                   view={{
                                     layer: card.layer ?? 0,
-                                    checked: textCardChecked(card),
+                                    extensions: card.extensions,
                                     editing: editingTextCardId === card.id,
                                     draft: editingTextCardId === card.id ? textCardDraft : "",
                                     position,
@@ -7250,9 +7247,10 @@ function App({
                             key={card.id}
                             element={cardElement}
                             actions={textCardActions}
+                            extensionCommands={extensionCommands}
                             view={{
                               layer: card.layer ?? 0,
-                              checked: textCardChecked(card),
+                              extensions: card.extensions,
                               editing: editingTextCardId === card.id,
                               draft: editingTextCardId === card.id ? textCardDraft : "",
                               position: getTextCardRenderPosition(card),
@@ -7348,9 +7346,10 @@ function App({
                       key={`drag-overlay-${id}`}
                       element={cardElement}
                       actions={textCardActions}
+                      extensionCommands={extensionCommands}
                       view={{
                         layer: card.layer ?? 0,
-                        checked: textCardChecked(card),
+                        extensions: card.extensions,
                         editing: false,
                         draft: "",
                         position,
@@ -7392,9 +7391,10 @@ function App({
                       key={`release-overlay-${card.id}`}
                       element={cardElement}
                       actions={textCardActions}
+                      extensionCommands={extensionCommands}
                       view={{
                         layer: card.layer ?? 0,
-                        checked: textCardChecked(card),
+                        extensions: card.extensions,
                         editing: false,
                         draft: "",
                         position: textCardInteractionSnapshot.release?.active ? to : from,

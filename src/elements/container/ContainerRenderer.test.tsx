@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { ContainerDocumentElement } from "./containerModel";
 import { ContainerRenderer } from "./ContainerRenderer";
-import type { ExtensionCommands } from "../../extensions/headerControl";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import type { ContainerActions, ContainerViewState } from "./containerView";
 
 vi.stubGlobal(

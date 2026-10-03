@@ -104,41 +104,6 @@
   filter: blur(5px);
 }
 
-.taskmap-text-card__checkbox {
-  display: grid;
-  width: 30px;
-  height: 32px;
-  flex-shrink: 0;
-  margin: -7px 3px -7px -10px;
-  border-radius: 0.25rem;
-  color: transparent;
-  place-items: center;
-  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.taskmap-text-card__checkbox:hover {
-  color: rgb(255 255 255 / 0.18);
-}
-
-.taskmap-text-card__checkbox[aria-pressed="true"] {
-  color: rgb(52 211 153);
-}
-
-.taskmap-text-card__checkbox-box {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  border: 1px solid;
-  border-radius: 0.25rem;
-  background-color: rgb(0 0 0 / 0.1);
-  place-items: center;
-}
-
-/* A darker fill than the card, so the check reads as a mark rather than a lit-up square. */
-.taskmap-text-card__checkbox[aria-pressed="true"] .taskmap-text-card__checkbox-box {
-  background-color: rgb(0 0 0 / 0.28);
-}
-
 /* Editors overlay an invisible sizer copy of the draft, so the card grows with the text. */
 .taskmap-text-card__editor {
   position: relative;
@@ -280,7 +245,8 @@
   white-space: pre-wrap;
 }
 
-.taskmap-text-card__text[data-checked="true"] {
+/* Done, e.g. a ticked checkbox: the text is struck through and dimmed. */
+.taskmap-text-card__text[data-text-state="done"] {
   opacity: 0.55;
   text-decoration-line: line-through;
 }

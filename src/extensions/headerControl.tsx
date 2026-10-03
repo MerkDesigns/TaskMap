@@ -1,24 +1,11 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, ComponentType, SyntheticEvent } from "react";
 import type { ElementExtensions } from "../types";
+import type { ExtensionCommands } from "./extensionCommands";
 import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 
 /** The element types whose header shows extension controls. */
 export type HeaderHost = "container" | "text-block";
-
-/**
- * The application commands extension controls use, supplied once by the application and forwarded
- * by elements without inspection.
- */
-export interface ExtensionCommands {
-  /** Flips an installed extension's enabled flag (for lock, on the selection the element is in). */
-  readonly toggle: (extension: "lock" | "privacy", elementId: string) => void;
-  readonly updateAccent: (elementId: string, accent: string) => void;
-  readonly rememberRecentColor: (color?: string) => void;
-  readonly copyJsonForAi: (elementId: string) => Promise<void>;
-  readonly pasteJsonFromAi: (elementId: string) => Promise<void>;
-  readonly openJsonEditor: (elementId: string) => void;
-}
 
 /** What a header control sees of the element it sits on. */
 export interface HeaderControlContext {

@@ -2,8 +2,8 @@ import { IconChevronLeft, IconChevronRight, IconPuzzle } from "@tabler/icons-rea
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, RefObject, SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
+import type { ExtensionCommands } from "../extensions/extensionCommands";
 import type {
-  ExtensionCommands,
   HeaderControl,
   HeaderControlContext,
   HeaderPanelAnchor,

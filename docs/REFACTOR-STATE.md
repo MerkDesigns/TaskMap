@@ -53,9 +53,11 @@
    the definitions are registered in `src/extensions/architectureRegistry.ts`. Header controls are
    migrated: Lock, Privacy, Extra colors, Counter and Copy/Paste JSON own their header control in
    their module (`headerControlRegistry.ts`), the container and text-block headers host them through
-   `useElementHeaderExtensions`, and commands go through one `ExtensionCommands` port. Next: the
-   text-card checkbox as an element adornment, extension menu items, then behavior (lock, search,
-   privacy, auto checkboxes, inherit card color, JSON copy/paste) out of `App.tsx`.
+   `useElementHeaderExtensions`, and commands go through one `ExtensionCommands` port. The
+   Checkbox is a text-card adornment (`cardAdornmentRegistry.ts`): it draws its tick box and marks
+   the card's text state; the Text Card only hosts adornments. Next: extension menu items, then
+   behavior (lock, search, privacy, auto checkboxes, inherit card color, JSON copy/paste) out of
+   `App.tsx`.
    Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
    `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
    through the registry; loose text cards and mind-map nodes still position with left/top rather

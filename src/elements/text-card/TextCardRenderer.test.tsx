@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { MindMapNodeDocumentElement } from "../mind-map/mindMapModel";
 import type { TextCardDocumentElement } from "./textCardModel";
+import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import {
   TextCardRenderer,
   type TextCardActions,
@@ -53,16 +54,25 @@ function createActions(): { [Key in keyof TextCardActions]: ReturnType<typeof vi
     onCancel: vi.fn(),
     onStartMove: vi.fn(),
     onOpenMenu: vi.fn(),
-    onToggleCheckbox: vi.fn(),
     onSizeChange: vi.fn(),
   };
 }
 
+const extensionCommands = {
+  toggle: vi.fn(),
+  updateAccent: vi.fn(),
+  rememberRecentColor: vi.fn(),
+  copyJsonForAi: vi.fn(async () => undefined),
+  pasteJsonFromAi: vi.fn(async () => undefined),
+  openJsonEditor: vi.fn(),
+} satisfies ExtensionCommands;
+
 function renderCard(element: TextCardRendererElement, view: Partial<TextCardViewState> = {}) {
   const actions = createActions();
+  extensionCommands.toggle.mockClear();
   const fullView: TextCardViewState = {
     layer: 0,
-    checked: null,
+    extensions: undefined,
     editing: false,
     draft: "",
     shadowsUnderElements: true,
@@ -73,6 +83,7 @@ function renderCard(element: TextCardRendererElement, view: Partial<TextCardView
       element={element}
       view={fullView}
       actions={actions as unknown as TextCardActions}
+      extensionCommands={extensionCommands}
     />,
   );
   const card = result.container.querySelector<HTMLElement>(`[data-text-card-id='${CARD_ID}']`)!;
@@ -177,15 +188,20 @@ describe("TextCardRenderer", () => {
   });
 
   it("toggles an installed checkbox without starting a move, and strikes the text through", () => {
-    const { actions, card } = renderCard(textCard(), { checked: true });
+    const { actions, card } = renderCard(textCard(), {
+      extensions: { checkbox: { checked: true } },
+    });
     const checkbox = screen.getByRole("button", { pressed: true });
 
     fireEvent.pointerDown(checkbox);
     fireEvent.click(checkbox);
 
-    expect(actions.onToggleCheckbox).toHaveBeenCalledWith(CARD_ID);
+    expect(extensionCommands.toggle).toHaveBeenCalledWith("checkbox", CARD_ID);
     expect(actions.onStartMove).not.toHaveBeenCalled();
-    expect(card.querySelector(".taskmap-text-card__text")).toHaveAttribute("data-checked", "true");
+    expect(card.querySelector(".taskmap-text-card__text")).toHaveAttribute(
+      "data-text-state",
+      "done",
+    );
   });
 
   it("shows no checkbox when none is installed", () => {
@@ -203,6 +219,7 @@ describe("TextCardRenderer", () => {
           element={nextElement}
           view={next}
           actions={actions as unknown as TextCardActions}
+          extensionCommands={extensionCommands}
         />,
       );
 
@@ -250,7 +267,7 @@ describe("TextCardRenderer mind-map variant", () => {
   });
 
   it("never renders a checkbox", () => {
-    renderCard(mindMapNode(), { checked: false });
+    renderCard(mindMapNode(), { extensions: { checkbox: { checked: false } } });
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });

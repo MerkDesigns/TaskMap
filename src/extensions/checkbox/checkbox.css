@@ -1,0 +1,36 @@
+/* The Checkbox extension's tick box, drawn before a text card's text. Its negative margins pull it
+   into the card's padding, so adding it barely widens the card. */
+.taskmap-extension-checkbox {
+  display: grid;
+  width: 30px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: -7px 3px -7px -10px;
+  border-radius: 0.25rem;
+  color: transparent;
+  place-items: center;
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-extension-checkbox:hover {
+  color: rgb(255 255 255 / 0.18);
+}
+
+.taskmap-extension-checkbox[aria-pressed="true"] {
+  color: rgb(52 211 153);
+}
+
+.taskmap-extension-checkbox__box {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  border: 1px solid;
+  border-radius: 0.25rem;
+  background-color: rgb(0 0 0 / 0.1);
+  place-items: center;
+}
+
+/* A darker fill than the card, so the check reads as a mark rather than a lit-up square. */
+.taskmap-extension-checkbox[aria-pressed="true"] .taskmap-extension-checkbox__box {
+  background-color: rgb(0 0 0 / 0.28);
+}
