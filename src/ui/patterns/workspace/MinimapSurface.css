@@ -55,6 +55,32 @@
   pointer-events: none;
 }
 
+/* The same see-through tint as the Canvas Browser previews, instead of the opaque cutout fill. */
+.taskmap-minimap-surface .taskmap-minimap-viewport[data-material="cutout"] {
+  background: rgb(
+    var(--taskmap-canvas-preview-tint-rgb, 0 0 0) / var(--taskmap-canvas-preview-tint-opacity, 0)
+  );
+}
+
+/* Pressing the map centres the camera there; the viewport indicator can be dragged. */
+.taskmap-minimap-viewport[data-navigable] {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.taskmap-minimap-viewport[data-navigable] .taskmap-minimap-viewport-indicator {
+  cursor: grab;
+}
+
+.taskmap-minimap-viewport[data-navigating],
+.taskmap-minimap-viewport[data-navigating] .taskmap-minimap-viewport-indicator {
+  cursor: grabbing;
+}
+
+.taskmap-minimap-surface[data-visible="false"] .taskmap-minimap-viewport {
+  pointer-events: none;
+}
+
 .taskmap-minimap-viewport-indicator {
   border-color: color-mix(in srgb, var(--taskmap-minimap-viewport) 85%, transparent);
   background: color-mix(in srgb, var(--taskmap-minimap-element) 10%, transparent);

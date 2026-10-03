@@ -1,5 +1,6 @@
 import { geometryEquals, type ElementGeometry } from "../../canvas/geometry/canvasGeometry";
 import {
+  centerViewportOn,
   createViewport,
   resetViewportZoom,
   screenToWorld,
@@ -359,6 +360,12 @@ export function createCanvasInteractionController(
         : resetViewportZoom(snapshot.viewport);
       publish({ viewport });
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
+    },
+    centerOn: (world, settled) => {
+      // A canvas pan owns the camera until it ends.
+      if (disposed || gesture?.kind === "pan") return;
+      publish({ viewport: centerViewportOn(snapshot.viewport, world) });
+      if (settled) options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     resizeViewport: (screen) => {
       if (disposed) return;

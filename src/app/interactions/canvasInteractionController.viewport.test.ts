@@ -25,6 +25,39 @@ function candidate(id: string, x: number, y: number, locked = false): Interactio
 }
 
 describe("canvas viewport controller", () => {
+  it("centres the camera on a world point and remembers it only once settled", () => {
+    const onViewportSettled = vi.fn();
+    const controller = createCanvasInteractionController({
+      canvasKey: "a",
+      viewport,
+      commitPort: commitPort(),
+      onViewportSettled,
+    });
+
+    controller.centerOn({ x: 500, y: 400 }, false);
+    expect(screenToWorld({ x: 400, y: 300 }, controller.getSnapshot().viewport)).toEqual({
+      x: 500,
+      y: 400,
+    });
+    expect(onViewportSettled).not.toHaveBeenCalled();
+
+    controller.centerOn({ x: 520, y: 400 }, true);
+    expect(onViewportSettled).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the camera to an active canvas pan", () => {
+    const controller = createCanvasInteractionController({
+      canvasKey: "a",
+      viewport,
+      commitPort: commitPort(),
+    });
+    controller.beginPan(1, { x: 0, y: 0 });
+
+    controller.centerOn({ x: 500, y: 400 }, true);
+
+    expect(controller.getSnapshot().viewport).toBe(viewport);
+  });
+
   it("publishes its initial state and subscriptions", () => {
     const controller = createCanvasInteractionController({
       canvasKey: "a",

@@ -144,6 +144,11 @@ export interface CanvasInteractionController extends TransientInteractionService
   readonly cancelPointer: (pointerId: number) => void;
   readonly wheelZoom: (screen: CanvasPoint, deltaY: number) => void;
   readonly resetZoom: () => void;
+  /**
+   * Centres the camera on a world point, e.g. from the minimap. `settled` marks the end of a
+   * navigation gesture; only then is the camera remembered.
+   */
+  readonly centerOn: (world: CanvasPoint, settled: boolean) => void;
   readonly resizeViewport: (screen: CanvasSize) => void;
   readonly replaceCanvas: (canvasKey: string, viewport: CanvasViewport) => void;
   readonly reorder: (ids: readonly string[], direction: LayerDirection) => void;

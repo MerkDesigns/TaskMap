@@ -63,6 +63,19 @@ export function wheelZoomViewport(
   return zoomViewportAt(viewport, screenAnchor, getWheelZoom(viewport.zoom, deltaY));
 }
 
+/** Pans so the world point sits at the centre of the screen, keeping the zoom. */
+export function centerViewportOn(viewport: CanvasViewport, world: CanvasPoint): CanvasViewport {
+  const point = finitePoint(world);
+  return createViewport(
+    {
+      x: viewport.screen.width / 2 - point.x * viewport.zoom,
+      y: viewport.screen.height / 2 - point.y * viewport.zoom,
+    },
+    viewport.zoom,
+    viewport.screen,
+  );
+}
+
 export function resetViewportZoom(viewport: CanvasViewport): CanvasViewport {
   return zoomViewportAt(
     viewport,

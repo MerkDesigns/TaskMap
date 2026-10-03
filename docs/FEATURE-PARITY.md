@@ -37,7 +37,7 @@ Before porting a feature, use existing evidence or capture the relevant interact
 | Move and resize     | Keep                         | Preview-only frames; one persistent completion; retained constraints | Accepted                             |
 | Snapping and guides | Keep                         | Retained Shift/snapping behavior                                     | Accepted                             |
 | Layers              | Keep                         | Preserve retained layer operations and drag behavior                 | Accepted                             |
-| Minimap             | Keep and rewire              | Preserve projection/reset workflow under the new UI system           | UI/glass acceptance pending          |
+| Minimap             | Keep and rewire              | Preserve projection/reset; pressing or dragging it pans the camera   | UI/glass acceptance pending          |
 | Grid styles         | Keep                         | Preserve retained grid choices/settings                              | Implemented                          |
 | Shadows             | Keep                         | Preserve retained setting semantics                                  | Implemented                          |
 | Undo and redo       | Keep and redesign internally | Equivalent visible results through transaction history               | Implemented                          |

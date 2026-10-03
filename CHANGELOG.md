@@ -30,6 +30,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- The minimap pans the canvas: press anywhere on it to jump there, or drag its viewport frame. It
+  stays visible while the pointer is over it, and its background is see-through like the Canvas
+  Browser previews.
 - Unlocking is much faster (about 0.15 s from Unlock to workspace on a typical database).
 - The Canvas Browser opens automatically after unlocking.
 - Closing the window keeps TaskMap running in the tray (unlocked, reopens without the password),

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { createCanvasInteractionController } from "../app/interactions/canvasInteractionController";
 import { createViewport } from "../canvas/geometry/viewportMath";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -84,15 +84,47 @@ describe("Minimap", () => {
     );
   });
 
-  it("introduces no minimap navigation interaction beyond reset", () => {
-    const onResetZoom = vi.fn();
-    renderMinimap({ onResetZoom });
+  it("centres the camera where the map is pressed and follows the drag", () => {
+    const { controller, interior } = navigableMinimap();
+
+    press(interior, "pointerDown", 88, 44);
+    expect(cameraCentre(controller)).toEqual({ x: 2000, y: 1000 });
+    press(interior, "pointerMove", 132, 44);
+    expect(cameraCentre(controller)).toEqual({ x: 3000, y: 1000 });
+    press(interior, "pointerUp", 132, 44);
+  });
+
+  it("drags the viewport indicator from where it was grabbed, without jumping", () => {
+    const { controller, interior } = navigableMinimap();
+    const before = cameraCentre(controller);
+
+    // The camera shows world x 0..800, y 0..600: minimap x 0..35.2, y 0..26.4.
+    press(interior, "pointerDown", 10, 10);
+    expect(cameraCentre(controller)).toEqual(before);
+    press(interior, "pointerMove", 32, 21);
+    expect(cameraCentre(controller)).toEqual({ x: before.x + 500, y: before.y + 250 });
+    press(interior, "pointerUp", 32, 21);
+  });
+
+  it("asks to stay visible while hovered or dragged", () => {
+    const onHoldChange = vi.fn();
+    const { interior } = navigableMinimap({ onHoldChange });
+    const shell = screen.getByLabelText("Minimap");
+
+    fireEvent.pointerEnter(shell);
+    expect(onHoldChange).toHaveBeenLastCalledWith(true);
+    press(interior, "pointerDown", 88, 44);
+    fireEvent.pointerLeave(shell);
+    expect(onHoldChange).toHaveBeenCalledTimes(1);
+    press(interior, "pointerUp", 88, 44);
+    expect(onHoldChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("is not navigable without a camera controller", () => {
+    renderMinimap({});
     const interior = document.querySelector("[data-minimap-viewport-surface]") as HTMLElement;
 
-    fireEvent.click(interior, { clientX: 40, clientY: 20 });
-    fireEvent.pointerDown(interior, { clientX: 40, clientY: 20 });
-    fireEvent.pointerMove(interior, { clientX: 60, clientY: 30 });
-    expect(onResetZoom).not.toHaveBeenCalled();
+    expect(interior).not.toHaveAttribute("data-navigable");
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 });
@@ -100,10 +132,12 @@ describe("Minimap", () => {
 function renderMinimap({
   controller,
   onResetZoom = vi.fn(),
+  onHoldChange,
   zoom = 1,
 }: {
   controller?: ReturnType<typeof createCanvasInteractionController>;
   onResetZoom?: () => void;
+  onHoldChange?: (held: boolean) => void;
   zoom?: number;
 }) {
   return render(
@@ -122,10 +156,52 @@ function renderMinimap({
           zoom={zoom}
           viewportWorld={{ x: 100, y: 200, width: 1000, height: 500 }}
           onResetZoom={onResetZoom}
+          onHoldChange={onHoldChange}
         />
       </ReducedMotionProvider>
     </>,
   );
+}
+
+function navigableMinimap({ onHoldChange }: { onHoldChange?: (held: boolean) => void } = {}) {
+  const controller = createCanvasInteractionController({
+    canvasKey: "a",
+    viewport: createViewport({ x: 0, y: 0 }, 1, { width: 800, height: 600 }),
+    commitPort: { commitMove: vi.fn(), commitResize: vi.fn(), commitLayerOrder: vi.fn() },
+  });
+  renderMinimap({ controller, onHoldChange });
+  const interior = document.querySelector("[data-minimap-viewport-surface]") as HTMLElement;
+  // jsdom has no layout: the 176 x 88 map maps onto the 4000 x 2000 canvas.
+  interior.getBoundingClientRect = () => new DOMRect(0, 0, 176, 88);
+  interior.setPointerCapture = vi.fn();
+  interior.hasPointerCapture = () => true;
+  interior.releasePointerCapture = vi.fn();
+  return { controller, interior };
+}
+
+/** jsdom has no PointerEvent, so the generic event it creates carries no pointer fields. */
+function press(
+  target: HTMLElement,
+  type: "pointerDown" | "pointerMove" | "pointerUp",
+  clientX: number,
+  clientY: number,
+) {
+  const event = createEvent[type](target);
+  Object.defineProperty(event, "clientX", { value: clientX });
+  Object.defineProperty(event, "clientY", { value: clientY });
+  Object.defineProperty(event, "button", { value: 0 });
+  Object.defineProperty(event, "pointerId", { value: 1 });
+  act(() => {
+    fireEvent(target, event);
+  });
+}
+
+function cameraCentre(controller: ReturnType<typeof createCanvasInteractionController>) {
+  const { pan, zoom, screen } = controller.getSnapshot().viewport;
+  return {
+    x: Math.round((screen.width / 2 - pan.x) / zoom),
+    y: Math.round((screen.height / 2 - pan.y) / zoom),
+  };
 }
 
 function element(id: string): HTMLElement {

@@ -5748,6 +5748,15 @@ function App({
     showMinimap();
   };
 
+  // While the pointer is on the minimap it stays up; leaving restarts its fade-out timer.
+  const holdMinimap = (held: boolean) => {
+    showMinimap();
+    if (held && minimapTimeoutRef.current) {
+      window.clearTimeout(minimapTimeoutRef.current);
+      minimapTimeoutRef.current = null;
+    }
+  };
+
   const applyAppData = (data: unknown, recordHistory = true, preserveCamera = false) => {
     applyingHistoryRef.current = !recordHistory;
     pendingDeletionTimeoutsRef.current.forEach((timeouts) =>
@@ -6829,6 +6838,7 @@ function App({
                 zoom={legacyZoom}
                 viewportWorld={minimapViewportWorld}
                 onResetZoom={resetZoom}
+                onHoldChange={holdMinimap}
               />
             )}
             {!retained && <WindowChrome radius={radii.chrome} />}

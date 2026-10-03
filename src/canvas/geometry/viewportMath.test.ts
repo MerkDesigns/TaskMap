@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_ZOOM, MIN_ZOOM } from "../../constants";
 import {
+  centerViewportOn,
   createViewport,
   resetViewportZoom,
   screenRectangleToWorld,
@@ -19,6 +20,13 @@ describe("viewport math", () => {
   it("round-trips screen and world coordinates", () => {
     const screen = { x: 345, y: 220 };
     expect(worldToScreen(screenToWorld(screen, viewport), viewport)).toEqual(screen);
+  });
+
+  it("centres a world point on the screen at the current zoom", () => {
+    const centred = centerViewportOn(viewport, { x: 400, y: 300 });
+
+    expect(centred.zoom).toBe(viewport.zoom);
+    expect(worldToScreen({ x: 400, y: 300 }, centred)).toEqual({ x: 450, y: 300 });
   });
 
   it("translates pan in screen pixels", () => {
