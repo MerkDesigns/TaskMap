@@ -17,11 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconRotateClockwise } from "@tabler/icons-react";
-import {
-  CanvasContextMenu,
-  ContainerContentContextMenu,
-  MindmapConnectionContextMenu,
-} from "./components/ContextMenus";
+import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
 import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
@@ -47,6 +43,7 @@ import {
 } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { MindMapPorts } from "./elements/mind-map/MindMapPorts";
+import { MindMapConnectionMenu } from "./elements/mind-map/MindMapConnectionMenu";
 import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
@@ -7565,9 +7562,9 @@ function App({
           })}
 
           {mindmapConnectionMenu && mindmapConnectionContextElement && (
-            <MindmapConnectionContextMenu
-              menu={mindmapConnectionMenu}
-              connection={mindmapConnectionContextElement}
+            <MindMapConnectionMenu
+              position={mindmapConnectionMenu}
+              connectionId={mindmapConnectionContextElement.id}
               onDelete={removeMindmapConnection}
             />
           )}

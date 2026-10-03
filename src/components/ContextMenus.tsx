@@ -8,7 +8,6 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useRef } from "react";
-import { MindmapConnection } from "../types";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import { ContextMenuSurface } from "../ui/primitives/ContextMenu";
 import { ContextMenuDivider, ContextMenuItem } from "../ui/primitives/ContextMenuParts";
@@ -145,38 +144,6 @@ export function CanvasContextMenu({
       <ContextMenuDivider />
       <ContextMenuItem danger icon={<IconTrash size={17} stroke={2} />} onClick={onClear}>
         Clear canvas
-      </ContextMenuItem>
-    </ContextMenuSurface>
-  );
-}
-
-type MindmapConnectionContextMenuProps = {
-  menu: { id: string; left: number; top: number };
-  connection: MindmapConnection;
-  onDelete: (id: string) => void;
-};
-
-export function MindmapConnectionContextMenu({
-  menu,
-  connection,
-  onDelete,
-}: MindmapConnectionContextMenuProps) {
-  const menuRef = useRef<HTMLElement | null>(null);
-  const position = useClampedFixedPosition(menuRef, { left: menu.left, top: menu.top });
-  return (
-    <ContextMenuSurface
-      ref={menuRef}
-      label="Connection menu"
-      position={position}
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <ContextMenuItem
-        danger
-        icon={<IconTrash size={17} stroke={2} />}
-        onClick={() => onDelete(connection.id)}
-      >
-        Delete connection
       </ContextMenuItem>
     </ContextMenuSurface>
   );
