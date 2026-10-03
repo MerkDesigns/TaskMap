@@ -28,6 +28,8 @@ vi.mock("../../features/database-entry/DatabaseWindowChrome", () => ({
 }));
 afterEach(() => {
   cleanup();
+  // The session owner lives for the renderer; each test is a new renderer.
+  delete (globalThis as Record<symbol, unknown>)[Symbol.for("taskmap.databaseSessionOwner")];
   vi.resetModules();
   fixture.create.mockReset();
   fixture.destroy.mockReset();
@@ -57,6 +59,25 @@ it("StrictMode creates one runtime and window close flushes without closing the 
   await fixture.close?.();
   expect(flush).toHaveBeenCalledTimes(1);
   expect(cancel).not.toHaveBeenCalled();
+});
+
+it("a reloaded module adopts the running session owner instead of creating a second one", async () => {
+  fixture.create.mockResolvedValue({
+    ok: true,
+    value: { controller: { getSnapshot: () => ({ phase: "unlocked", busy: false }) } },
+  });
+  const first = await import("./DatabaseApplication");
+  render(<first.DatabaseApplication />);
+  await screen.findByText("Admitted session");
+  cleanup();
+
+  // A development hot update re-evaluates the module in the same renderer.
+  vi.resetModules();
+  const reloaded = await import("./DatabaseApplication");
+  render(<reloaded.DatabaseApplication />);
+  await screen.findByText("Admitted session");
+
+  expect(fixture.create).toHaveBeenCalledTimes(1);
 });
 
 it("window close cancels an in-progress admission", async () => {

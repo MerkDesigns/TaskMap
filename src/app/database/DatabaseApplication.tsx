@@ -17,13 +17,23 @@ const DevelopmentVisualWorkbench = import.meta.env.DEV
   ? lazy(() => import("../development/DevelopmentVisualWorkbench"))
   : null;
 
-// One runtime per renderer lifetime. React StrictMode must not create two native session owners.
-let boot: ReturnType<typeof createTauriDatabaseSessionController> | undefined;
+type DatabaseBoot = ReturnType<typeof createTauriDatabaseSessionController>;
+
+// One native session owner per renderer lifetime, kept on the renderer's global object: React
+// StrictMode, and development hot updates (which can load this module more than once), must never
+// create a second owner or dispose the running one, which locked the database on every code edit.
+// A full reload starts a new renderer, and with it a new owner.
+const SESSION_OWNER = Symbol.for("taskmap.databaseSessionOwner");
+const renderer = globalThis as typeof globalThis & { [SESSION_OWNER]?: DatabaseBoot };
+const currentBoot = () => renderer[SESSION_OWNER];
 const start = () =>
-  (boot ??= createTauriDatabaseSessionController({ purgeDocumentResources() {} }));
+  (renderer[SESSION_OWNER] ??= createTauriDatabaseSessionController({
+    purgeDocumentResources() {},
+  }));
 
 async function prepareClose(): Promise<PlatformResult<void>> {
   // Closing after a pre-boot render failure must not create a database/session owner.
+  const boot = currentBoot();
   if (!boot) return { ok: true, value: undefined };
   const result = await boot.catch(() => null);
   if (!result) return { ok: true, value: undefined };
@@ -133,9 +143,3 @@ export function DatabaseApplication() {
     </div>
   );
 }
-
-if (import.meta.hot)
-  import.meta.hot.dispose(() => {
-    void boot?.then((result) => (result.ok ? result.value.controller.dispose() : undefined));
-    boot = undefined;
-  });

@@ -41,7 +41,9 @@ export function RetainedCanvasApplication({
           owner.current = null;
           // Native/session revocation must remove editors and portals before returning.
           if (attached.current && host.current) flushSync(() => setView(null));
-          else if (attached.current) setView(null);
+          // A detached instance may only be hidden (React keeps a suspended tree to show it again):
+          // it must not keep rendering the revoked binding; it binds afresh when shown.
+          else setView(null);
         },
       });
       owner.current = { runtime, binding };
