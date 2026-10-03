@@ -52,7 +52,7 @@ Before porting a feature, use existing evidence or capture the relevant interact
 | Images               | Keep                         | Preserve import, display, move, resize, background option and menus                 | Renderer and menu owned by `src/elements/image` (own CSS, session media leases), reading the normalized element       |
 | GIF playback         | Keep                         | Visible GIFs animate without blocking interaction                                   | Accepted for database/media integration                                                                               |
 | Mind-map nodes       | Keep and redesign internally | Preserve user workflow and visible semantics                                        | Phase 5 ownership migration pending                                                                                   |
-| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion and rendering                                    | Phase 5 ownership migration pending                                                                                   |
+| Mind-map connections | Keep and redesign internally | Preserve creation, ports, deletion and rendering                                    | Lines and ports owned by `src/elements/mind-map` (own CSS); data contract and menu pending                            |
 
 ## Extensions
 

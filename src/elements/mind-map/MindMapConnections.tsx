@@ -5,27 +5,34 @@ import {
   getMindmapPortPoint,
   type MindmapBounds,
   type MindmapPoint,
-} from "../mindmapMath";
-import type { MindmapConnection, MindmapPort } from "../types";
+} from "../../mindmapMath";
+import type { MindmapConnection, MindmapPort } from "../../types";
+import "./mindMap.css";
 
-type ConnectionPreview = {
-  source: MindmapPoint;
-  sourcePort: MindmapPort;
-  target: MindmapPoint;
-  targetPort?: MindmapPort;
-};
+/** A connection being drawn: to a target port once one is under the pointer, else to the pointer. */
+export interface MindMapConnectionPreview {
+  readonly source: MindmapPoint;
+  readonly sourcePort: MindmapPort;
+  readonly target: MindmapPoint;
+  readonly targetPort?: MindmapPort;
+}
 
-type MindmapConnectionsProps = {
-  connections: MindmapConnection[];
-  connectableBoundsById: Map<string, MindmapBounds>;
-  canvasWidth: number;
-  canvasHeight: number;
-  connectionMode: boolean;
-  preview?: ConnectionPreview | null;
-  onConnectionClick: (event: PointerEvent<SVGPathElement>, connection: MindmapConnection) => void;
-};
+export interface MindMapConnectionsProps {
+  readonly connections: readonly MindmapConnection[];
+  /** Shown bounds of every connectable element, including live move/resize previews. */
+  readonly connectableBoundsById: ReadonlyMap<string, MindmapBounds>;
+  readonly canvasWidth: number;
+  readonly canvasHeight: number;
+  /** Connection mode makes lines clickable, to delete them. */
+  readonly connectionMode: boolean;
+  readonly preview?: MindMapConnectionPreview | null;
+  readonly onConnectionClick: (
+    event: PointerEvent<SVGPathElement>,
+    connection: MindmapConnection,
+  ) => void;
+}
 
-export function MindmapConnections({
+export function MindMapConnections({
   connections,
   connectableBoundsById,
   canvasWidth,
@@ -33,10 +40,10 @@ export function MindmapConnections({
   connectionMode,
   preview,
   onConnectionClick,
-}: MindmapConnectionsProps) {
+}: MindMapConnectionsProps) {
   return (
     <svg
-      className="pointer-events-none absolute left-0 top-0 z-[5] overflow-visible"
+      className="taskmap-mind-map-connections"
       width={canvasWidth}
       height={canvasHeight}
       aria-hidden="true"
@@ -52,7 +59,7 @@ export function MindmapConnections({
           connection.targetPort,
         );
         return (
-          <g key={connection.id} className={connectionMode ? "group" : undefined}>
+          <g key={connection.id} className="taskmap-mind-map-connection">
             <path
               d={path}
               fill="none"
@@ -60,25 +67,27 @@ export function MindmapConnections({
               strokeWidth={2}
               strokeLinecap="round"
             />
+            {/* A wide transparent stroke makes the thin line easy to hit. */}
             <path
               data-mindmap-connection-id={connection.id}
+              className="taskmap-mind-map-connection__hit"
+              data-deletable={connectionMode || undefined}
               d={path}
               fill="none"
               stroke="transparent"
               strokeWidth={14}
-              className={connectionMode ? "cursor-pointer" : undefined}
               style={{ pointerEvents: connectionMode ? "stroke" : "none" }}
               onPointerDown={(event) => onConnectionClick(event, connection)}
             />
             {connectionMode && (
               <path
                 data-mindmap-connection-delete-overlay={connection.id}
+                className="taskmap-mind-map-connection__delete"
                 d={path}
                 fill="none"
                 stroke="rgba(239, 68, 68, 0.95)"
                 strokeWidth={4}
                 strokeLinecap="round"
-                className="pointer-events-none opacity-0 transition-opacity duration-100 group-hover:opacity-100"
               />
             )}
           </g>

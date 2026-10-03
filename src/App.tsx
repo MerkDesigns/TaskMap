@@ -46,8 +46,8 @@ import {
   type RetainedImageView,
 } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
-import { MindmapConnectors } from "./components/MindmapConnectors";
-import { MindmapConnections } from "./components/MindmapConnections";
+import { MindMapPorts } from "./elements/mind-map/MindMapPorts";
+import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
 import { TextCardMenu, type TextCardMenuActions } from "./elements/text-card/TextCardMenu";
@@ -6980,7 +6980,7 @@ function App({
                   </div>
                 );
               })}
-              <MindmapConnections
+              <MindMapConnections
                 connections={mindmapConnections}
                 connectableBoundsById={connectableBoundsById}
                 canvasWidth={canvasWidth}
@@ -7425,7 +7425,7 @@ function App({
                         height: bounds.height,
                       }}
                     >
-                      <MindmapConnectors
+                      <MindMapPorts
                         ownerId={ownerId}
                         accent={accent}
                         connectionMode

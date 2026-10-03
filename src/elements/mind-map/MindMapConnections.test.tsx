@@ -1,11 +1,11 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MindmapBounds } from "../mindmapMath";
-import { MindmapConnections } from "./MindmapConnections";
+import type { MindmapBounds } from "../../mindmapMath";
+import { MindMapConnections } from "./MindMapConnections";
 
 afterEach(cleanup);
 
-describe("MindmapConnections", () => {
+describe("MindMapConnections", () => {
   it("exposes a wide clickable stroke only while connection mode is active", () => {
     const onConnectionClick = vi.fn();
     const connectableBounds = new Map<string, MindmapBounds>([
@@ -20,7 +20,7 @@ describe("MindmapConnections", () => {
       targetPort: "left" as const,
     };
     const { container } = render(
-      <MindmapConnections
+      <MindMapConnections
         connections={[connection]}
         connectableBoundsById={connectableBounds}
         canvasWidth={3000}

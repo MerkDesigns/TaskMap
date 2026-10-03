@@ -1,0 +1,100 @@
+/* Mind-map connections (an SVG layer under the canvas elements) and the connection ports that appear
+   on connectable elements while connection mode (held C) is on. */
+
+.taskmap-mind-map-connections {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.taskmap-mind-map-connection__hit[data-deletable] {
+  cursor: pointer;
+}
+
+/* Hovering a line in connection mode marks it red; a click deletes it through its menu. */
+.taskmap-mind-map-connection__delete {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: 100ms;
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-mind-map-connection:hover .taskmap-mind-map-connection__delete {
+  opacity: 1;
+}
+
+/* Ports sit on an element's edge midpoints; one transform combines that offset with the state's
+   scale so both transition together. */
+.taskmap-mind-map-port {
+  --port-x: 0;
+  --port-y: 0;
+  --port-scale: 0.75;
+
+  position: absolute;
+  z-index: 30;
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  border-radius: 9999px;
+  background-color: #111318;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(var(--port-x), var(--port-y)) scale(var(--port-scale));
+  transition-duration: 150ms;
+  transition-property: opacity, transform, box-shadow, background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-mind-map-port[data-port="left"] {
+  --port-y: -50%;
+
+  top: 50%;
+  left: -7px;
+}
+
+.taskmap-mind-map-port[data-port="right"] {
+  --port-y: -50%;
+
+  top: 50%;
+  right: -7px;
+}
+
+.taskmap-mind-map-port[data-port="top"] {
+  --port-x: -50%;
+
+  top: -7px;
+  left: 50%;
+}
+
+.taskmap-mind-map-port[data-port="bottom"] {
+  --port-x: -50%;
+
+  bottom: -7px;
+  left: 50%;
+}
+
+.taskmap-mind-map-port[data-mode] {
+  --port-scale: 1;
+
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.taskmap-mind-map-port[data-mode]:hover {
+  --port-scale: 1.25;
+
+  background-color: rgb(255 255 255 / 0.2);
+  box-shadow: 0 0 12px rgb(255 255 255 / 0.45);
+}
+
+/* The source port of a connection being drawn, and the target port under the pointer. */
+.taskmap-mind-map-port[data-mode][data-active] {
+  --port-scale: 1.25;
+
+  background-color: rgb(255 255 255 / 0.2);
+  box-shadow: 0 0 12px rgb(255 255 255 / 0.55);
+}
