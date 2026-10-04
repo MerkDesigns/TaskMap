@@ -6,6 +6,7 @@ import { DOCUMENT_LIMITS } from "../../domain/document/documentLimits";
 import { entityIdSchema } from "../../domain/document/documentSchema";
 import type { ElementId } from "../../domain/ids/entityIds";
 import { createRetainedCanvasProjection } from "../view-projection/createRetainedCanvasProjection";
+import { deletionProtectedIds } from "../../extensions/lock/lockRule";
 
 const elementId = entityIdSchema("element");
 
@@ -44,17 +45,11 @@ export const deleteRetainedSelectionCommand = defineCommandHandler({
       const canvas = result.canvases.find(({ id }) => id === payload.canvasId)!;
       const children = [...canvas.textCards, ...canvas.images];
       const all = [...canvas.containers, ...canvas.textBlocks, ...children];
-      const locked = new Set(
-        all.filter((element) => element.extensions?.lock?.enabled).map(({ id }) => id),
+      const protectedIds = deletionProtectedIds(
+        all,
+        document.documentSettings.allowLockedElementDeletion,
       );
-      const protectedContainers = new Set(
-        children
-          .filter((child) => locked.has(child.id) && child.containerId)
-          .map((child) => child.containerId),
-      );
-      const mayDelete = (id: string) =>
-        document.documentSettings.allowLockedElementDeletion ||
-        (!locked.has(id) && !protectedContainers.has(id));
+      const mayDelete = (id: string) => !protectedIds.has(id);
       const removed = new Set<ElementId>(payload.elementIds.filter(mayDelete));
       for (const child of children) {
         if (child.containerId && removed.has(child.containerId as ElementId))

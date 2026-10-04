@@ -6,6 +6,7 @@ import type { ElementId } from "../../domain/ids/entityIds";
 import { createRetainedCanvasProjection } from "../view-projection/createRetainedCanvasProjection";
 import { updateRetainedGeometriesCommand } from "./retainedGeometryCommands";
 import { retainedPlacementSchema, samePlacement } from "./retainedPlacementContract";
+import { isLocked } from "../../extensions/lock/lockRule";
 
 export const placeRetainedElementsCommand = defineCommandHandler({
   type: "document.elements.place",
@@ -33,7 +34,7 @@ export const placeRetainedElementsCommand = defineCommandHandler({
           placement: view.containerId
             ? { containerId: view.containerId as ElementId, order: view.order! }
             : null,
-          locked: view.extensions?.lock?.enabled === true,
+          locked: isLocked(view),
         });
       }
       const moving = new Set<ElementId>();

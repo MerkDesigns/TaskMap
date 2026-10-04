@@ -8,6 +8,7 @@ import {
 import { elementGeometrySchema, entityIdSchema } from "../../domain/document/documentSchema";
 import type { TaskMapDocument } from "../../domain/document/documentTypes";
 import { createRetainedCanvasProjection } from "../view-projection/createRetainedCanvasProjection";
+import { isLocked } from "../../extensions/lock/lockRule";
 
 // The generic transaction still owns canonical-from checks, duplicate detection, atomic writes and
 // no-op suppression. This product replacement adds retained lock and resize capabilities only.
@@ -37,7 +38,7 @@ export const updateRetainedGeometriesCommand = defineCommandHandler({
         const current = document.elements[elementId].geometry;
         const resized = current.width !== to.width || current.height !== to.height;
         const translated = current.x !== to.x || current.y !== to.y;
-        if ((resized || translated) && view.extensions?.lock?.enabled) {
+        if ((resized || translated) && isLocked(view)) {
           return [
             commandRejected(
               "command.payload.updates",

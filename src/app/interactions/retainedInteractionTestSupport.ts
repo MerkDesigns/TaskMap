@@ -7,6 +7,7 @@ import { createViewport } from "../../canvas/geometry/viewportMath";
 import { createRetainedCanvasProjection } from "../view-projection/createRetainedCanvasProjection";
 import { createRetainedCanvasInteractionController } from "./createRetainedCanvasInteractionController";
 import type { InteractionElement } from "./canvasInteractionTypes";
+import { isLocked } from "../../extensions/lock/lockRule";
 
 export async function retainedInteractionSetup(input = geometryInput()) {
   const setup = await callbackSetup(input);
@@ -41,7 +42,7 @@ export async function retainedInteractionSetup(input = geometryInput()) {
         width: resizable ? element.width : 77,
         height: resizable ? element.height : 33,
       },
-      locked: element.extensions?.lock?.enabled ?? false,
+      locked: isLocked(element),
       movable: true,
       resizable,
       centerSnapping: "kind" in element && element.kind === "mindmap",

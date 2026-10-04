@@ -1,5 +1,6 @@
 import type { ElementGeometry } from "../../canvas/geometry/canvasGeometry";
 import type { ContainerElement, TextBlockElement, TextCardElement } from "../../types";
+import { isLocked } from "../../extensions/lock/lockRule";
 
 const HEADER_HEIGHT = 48;
 const SEARCH_HEIGHT = 42;
@@ -51,7 +52,7 @@ export function getLegacyTextCardDragIds(
   selectedIds: readonly string[],
 ): string[] {
   const primary = cards.find(({ id }) => id === primaryId);
-  if (!primary || primary.extensions?.lock?.enabled) return [];
+  if (!primary || isLocked(primary)) return [];
   const bundle =
     primary.containerId && selectedIds.includes(primaryId)
       ? cards
@@ -60,7 +61,7 @@ export function getLegacyTextCardDragIds(
           )
           .sort(order)
       : [primary];
-  return bundle.filter((card) => !card.extensions?.lock?.enabled).map(({ id }) => id);
+  return bundle.filter((card) => !isLocked(card)).map(({ id }) => id);
 }
 
 export function resolveLegacyTextCardPlacement(

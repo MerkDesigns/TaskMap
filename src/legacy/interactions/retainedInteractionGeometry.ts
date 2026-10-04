@@ -11,6 +11,7 @@ import {
   getLegacyTextCardDragIds,
   getLegacyTextCardFinalPosition,
 } from "./legacyTextCardPlacement";
+import { isLocked } from "../../extensions/lock/lockRule";
 
 // Unmounted compatibility boundary. Reuse retained geometry/placement calculations rather than
 // derive a second layout from canonical storage rectangles. Construct at gesture setup, never pan.
@@ -44,7 +45,7 @@ export function createRetainedInteractionGeometry(
         width: size?.width ?? LEGACY_TEXT_CARD_ROW_HEIGHT * 5,
         height: size?.height ?? LEGACY_TEXT_CARD_ROW_HEIGHT,
       },
-      locked: card.extensions?.lock?.enabled ?? false,
+      locked: isLocked(card),
       movable: true,
       resizable: false,
       centerSnapping: card.kind === "mindmap",

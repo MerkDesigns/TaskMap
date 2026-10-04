@@ -172,6 +172,7 @@ import {
 import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
 import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
+import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
 // throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
@@ -930,25 +931,26 @@ function App({
     [activeCanvas, measuredInteractionCardSizes],
   );
   const isElementLocked = (id: string) =>
-    Boolean(
-      (
-        containersById.get(id) ??
+    isLocked(
+      containersById.get(id) ??
         textBlocksById.get(id) ??
         textCardsById.get(id) ??
-        imagesById.get(id)
-      )?.extensions?.lock?.enabled,
+        imagesById.get(id),
     );
+  const deletionProtected = useMemo(
+    () =>
+      deletionProtectedIds(
+        [...elements, ...textBlocks, ...textCards, ...images],
+        allowLockedElementDeletion,
+      ),
+    [elements, textBlocks, textCards, images, allowLockedElementDeletion],
+  );
   const isConnectableElement = (id: string) =>
     containersById.has(id) ||
     textBlocksById.has(id) ||
     imagesById.has(id) ||
     textCardsById.get(id)?.kind === "mindmap";
-  const isElementDeletionLocked = (id: string) =>
-    !allowLockedElementDeletion &&
-    (isElementLocked(id) ||
-      (containersById.has(id) &&
-        (textCards.some((card) => card.containerId === id && isElementLocked(card.id)) ||
-          images.some((image) => image.containerId === id && isElementLocked(image.id)))));
+  const isElementDeletionLocked = (id: string) => deletionProtected.has(id);
   const draggedTextCardIds =
     interactionSnapshot.activeInteraction?.kind === "move"
       ? interactionSnapshot.activeInteraction.targetIds.filter((id) => textCardsById.has(id))

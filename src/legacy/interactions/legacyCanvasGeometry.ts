@@ -8,6 +8,7 @@ import type {
   TextBlockElement,
   TextCardElement,
 } from "../../types";
+import { isLocked } from "../../extensions/lock/lockRule";
 
 export const LEGACY_LOOSE_CARD_CULLING_WIDTH = 540;
 export const LEGACY_LOOSE_CARD_CULLING_HEIGHT = 320;
@@ -92,7 +93,7 @@ function interactionElement(
       width: width ?? estimateCard(element as TextCardElement).width,
       height: height ?? estimateCard(element as TextCardElement).height,
     },
-    locked: element.extensions?.lock?.enabled ?? false,
+    locked: isLocked(element),
     movable: true,
     resizable: "width" in element && "height" in element,
     centerSnapping: "kind" in element && element.kind === "mindmap",
