@@ -100,6 +100,7 @@ export function createApplicationDatabaseRuntime(
       privacy,
       views,
       media,
+      workflows: platform.workflowClient,
       importImage: (source: Blob | null, element: ImageDocumentElement) =>
         importRetainedImage(callbacks, media, source, element),
       async initializeResources() {

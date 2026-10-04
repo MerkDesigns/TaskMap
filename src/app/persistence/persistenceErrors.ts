@@ -18,6 +18,9 @@ const SAFE_MESSAGES: Readonly<Record<PlatformErrorCode, string>> = {
   revision_conflict: "The database changed outside this workspace.",
   save_failure: "The encrypted document could not be saved.",
   backup_failure: "The database backup failed.",
+  // Workflow commands never take part in saving; listed so every platform code has safe text.
+  workflow_untrusted: "A workflow was not trusted.",
+  workflow_launch_failure: "A workflow step could not be started.",
   cancelled: "The save was cancelled.",
   unexpected: "An unexpected persistence failure occurred.",
 };

@@ -14,6 +14,7 @@ const targets: Record<string, readonly string[]> = {
   counter: ["container"],
   "inherit-card-color": ["container"],
   "copy-paste-json": ["container"],
+  workflow: ["text-card"],
 };
 
 describe("retained extension definitions", () => {
@@ -52,12 +53,39 @@ describe("retained extension definitions", () => {
         ? { query: "" }
         : definition.id === "checkbox"
           ? { checked: false }
-          : { enabled: false };
+          : definition.id === "workflow"
+            ? { steps: [] }
+            : { enabled: false };
     expect(definition.parseConfiguration(configuration)).toEqual({
       ok: true,
       configuration,
       view: { [definition.viewKey]: configuration },
     });
+  });
+
+  it("accepts structured workflow steps and rejects shell strings and blank or oversized fields", () => {
+    const workflow = definitions.find((definition) => definition.id === "workflow")!;
+    const step = {
+      executable: "npm",
+      arguments: ["run", "dev"],
+      workingDirectory: "C:/Projects/App",
+      display: "terminal",
+      waitForExit: false,
+    };
+    expect(workflow.parseConfiguration({ steps: [step] }).ok).toBe(true);
+    for (const bad of [
+      { ...step, command: "npm run dev" },
+      { ...step, executable: "  " },
+      { ...step, workingDirectory: "" },
+      { ...step, display: "elevated" },
+      { ...step, arguments: Array.from({ length: 65 }, () => "x") },
+      { ...step, arguments: ["a\u0000b"] },
+      { ...step, executable: "é".repeat(2049) },
+    ])
+      expect(workflow.parseConfiguration({ steps: [bad] }).ok).toBe(false);
+    expect(workflow.parseConfiguration({ steps: Array.from({ length: 33 }, () => step) }).ok).toBe(
+      false,
+    );
   });
 
   it("preserves search text and bounds its size without trimming", () => {

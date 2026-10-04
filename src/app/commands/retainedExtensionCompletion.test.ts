@@ -38,7 +38,19 @@ it.each(getArchitectureExtensionDefinitions())(
         ? { checked: true }
         : definition.id === "search"
           ? { query: "  exact Query\n " }
-          : { enabled: false };
+          : definition.id === "workflow"
+            ? {
+                steps: [
+                  {
+                    executable: "npm",
+                    arguments: ["run", "dev"],
+                    workingDirectory: null,
+                    display: "background",
+                    waitForExit: true,
+                  },
+                ],
+              }
+            : { enabled: false };
     expect(
       setup.actions
         .captureExtensionConfiguration(definition.id, elementId)!

@@ -181,12 +181,17 @@ extension registry. All support element targets only; no canvas/document scope i
 | `counter`              | `{ enabled: boolean }` | container                                              |
 | `inherit-card-color`   | `{ enabled: boolean }` | container                                              |
 | `copy-paste-json`      | `{ enabled: boolean }` | container                                              |
+| `workflow`             | `{ steps: Step[] }`    | text-card                                              |
 
 Fields are required, unknown keys rejected, and values are not coerced or defaulted during parsing.
-New-install defaults are true for flags, false for checkbox, and empty query. Search preserves all
-whitespace/Unicode and uses the existing generic JSON string limit. These nine declare no mutual
-conflicts; one installation per ID/target is allowed, even when disabled. Removed extensions and raw
-Command Runner are unsupported; this does not implement or authorize the later structured Workflow Runner.
+New-install defaults are true for flags, false for checkbox, empty query and no workflow steps.
+Search preserves all whitespace/Unicode and uses the existing generic JSON string limit. A workflow
+`Step` is `{ executable: string, arguments: string[], workingDirectory: string | null, display:
+"terminal" | "background", waitForExit: boolean }` (ADR 009): at most 32 steps of at most 64
+arguments, each string at most 4096 UTF-8 bytes without NUL, executable and working directory not
+blank. There is no shell-string field; whether a workflow may run is per-device trust outside the
+document. These ten declare no mutual conflicts; one installation per ID/target is allowed, even when
+disabled. Removed extensions and the raw Command Runner are unsupported.
 
 Installation `enabled` is the activation gate, distinct from configuration `enabled`. A disabled
 installation contributes no effective element props but retains its validated configuration in the

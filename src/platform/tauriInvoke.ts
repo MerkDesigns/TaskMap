@@ -18,6 +18,8 @@ const ERROR_CODES: ReadonlySet<PlatformErrorCode> = new Set([
   "revision_conflict",
   "save_failure",
   "backup_failure",
+  "workflow_untrusted",
+  "workflow_launch_failure",
   "cancelled",
   "unexpected",
 ]);

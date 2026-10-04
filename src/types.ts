@@ -26,6 +26,15 @@ export type ElementExtensions = {
   search?: {
     query: string;
   };
+  workflow?: {
+    steps: {
+      executable: string;
+      arguments: string[];
+      workingDirectory: string | null;
+      display: "terminal" | "background";
+      waitForExit: boolean;
+    }[];
+  };
 };
 
 export type ContainerElement = {

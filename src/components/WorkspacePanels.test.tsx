@@ -1,3 +1,4 @@
+import { EXTENSIONS } from "../extensions/extensionCatalog";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -34,7 +35,10 @@ describe("Workspace panels", () => {
       ).not.toBeNull();
       expect(panel.querySelector(".taskmap-material-native-glass__backdrop")).not.toBeNull();
     }
-    expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(12);
+    // Both panels and the canvas list, plus one card per registered extension.
+    expect(document.querySelectorAll('[data-material-strategy="native-glass"]')).toHaveLength(
+      3 + EXTENSIONS.length,
+    );
     expect(document.querySelectorAll(".taskmap-scroll-area.taskmap-scrollbar-hidden")).toHaveLength(
       1,
     );

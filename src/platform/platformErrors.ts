@@ -15,6 +15,8 @@ export type PlatformErrorCode =
   | "revision_conflict"
   | "save_failure"
   | "backup_failure"
+  | "workflow_untrusted"
+  | "workflow_launch_failure"
   | "cancelled"
   | "unexpected";
 

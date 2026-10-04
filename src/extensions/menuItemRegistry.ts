@@ -18,6 +18,7 @@ const removalOrder: readonly RetainedExtensionKey[] = Object.freeze([
   "counter",
   "inheritCardColor",
   "copyPasteJson",
+  "workflow",
 ]);
 
 /** The items an element's menu shows: offered for its type, installed on any menu target. */

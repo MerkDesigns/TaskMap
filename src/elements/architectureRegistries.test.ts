@@ -21,6 +21,7 @@ describe("architecture registries", () => {
       "counter",
       "inherit-card-color",
       "copy-paste-json",
+      "workflow",
     ]);
     expect(extensions.every((definition) => definition.Control === undefined)).toBe(true);
     expect(Object.isFrozen(elements)).toBe(true);

@@ -13,6 +13,7 @@ import {
   createApplicationMediaClient,
   type ApplicationMediaClient,
 } from "../media/applicationMediaClient";
+import { createWorkflowClient } from "../workflow/workflowClient";
 
 const settingsClient: SettingsClient = {
   chooseDatabasePath: (mode) =>
@@ -48,6 +49,7 @@ export async function createTauriApplicationDatabase(acceptDocument: DocumentAcc
     mediaClient: createApplicationMediaClient(
       databaseClient.getSessionAuthority,
     ) as ApplicationMediaClient,
+    workflowClient: createWorkflowClient(databaseClient.getSessionAuthority),
     settingsClient,
   };
   return { ok: true, value } as PlatformResult<typeof value>;

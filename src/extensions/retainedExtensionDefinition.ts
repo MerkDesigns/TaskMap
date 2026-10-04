@@ -12,7 +12,8 @@ export type RetainedExtensionKey =
   | "autoCheckbox"
   | "counter"
   | "inheritCardColor"
-  | "copyPasteJson";
+  | "copyPasteJson"
+  | "workflow";
 export type RetainedExtensionView = {
   readonly [Key in RetainedExtensionKey]?: Readonly<NonNullable<ElementExtensions[Key]>>;
 };

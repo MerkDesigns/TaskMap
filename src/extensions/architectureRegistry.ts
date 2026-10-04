@@ -8,6 +8,7 @@ import { autoCheckboxDefinition } from "./auto-checkbox/autoCheckboxDefinition";
 import { counterDefinition } from "./counter/counterDefinition";
 import { inheritCardColorDefinition } from "./inherit-card-color/inheritCardColorDefinition";
 import { copyPasteJsonDefinition } from "./copy-paste-json/copyPasteJsonDefinition";
+import { workflowDefinition } from "./workflow/workflowDefinition";
 
 // Registration order is the order the Extensions panel lists them in.
 const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = Object.freeze([
@@ -20,6 +21,7 @@ const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = O
   counterDefinition,
   inheritCardColorDefinition,
   copyPasteJsonDefinition,
+  workflowDefinition,
 ]);
 
 export function getArchitectureExtensionDefinitions(): readonly RetainedExtensionDefinition[] {

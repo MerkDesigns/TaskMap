@@ -1,3 +1,4 @@
+import { createWorkflowClient } from "../../../platform/workflow/workflowClient";
 import { createApplicationDatabaseRuntime } from "../../../app/database/createApplicationDatabaseRuntime";
 import { createPreviewPreferencesClient } from "./createPreviewPreferencesClient";
 import { createPreviewMediaClient } from "./createPreviewMediaClient";
@@ -128,6 +129,8 @@ export function createDatabaseEntryPreview(windowPrivacyClient?: WindowPrivacyCl
       },
       preferencesClient: createPreviewPreferencesClient(),
       mediaClient: media.client,
+      // The storage-free preview never launches processes or records trust.
+      workflowClient: createWorkflowClient(() => null),
       settingsClient: {
         async chooseDatabasePath() {
           return ok({
