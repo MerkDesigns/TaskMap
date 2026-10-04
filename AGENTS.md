@@ -42,8 +42,11 @@ The structured Workflow Runner remains the replacement for the old raw runner.
 
 The normalized database/workspace/command/history/persistence system is the production data owner.
 
-Retained presentation may still pass through legacy `App.tsx` while Phase 5 migrates feature
-renderers. Do not use UI/glass work as an excuse for a broad `App.tsx` rewrite.
+Element renderers live in `src/elements/` and extensions contribute their UI through the typed
+contribution points in `src/extensions/` (ADR 008). Legacy `App.tsx` still composes the canvas and
+holds remaining presentation state (selection, editing, menus) over the retained canvas runtime;
+move that state out in focused steps as features migrate. Do not use UI/glass work as an excuse for
+a broad `App.tsx` rewrite.
 
 ## Code organisation
 
