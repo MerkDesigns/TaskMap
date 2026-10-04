@@ -18,10 +18,13 @@ A card with the extension shows run/stop controls; its menu opens the workflow e
 extension contribution points of ADR 008.
 
 **Definition.** The workflow is the extension's configuration, stored in the encrypted document:
-an ordered list of steps, each `{ executable, arguments[], workingDirectory | null, display }` where
-`display` is `terminal` (a visible console window) or `background` (no window, tracked). There is no
-shell string field. The first version runs steps in order, each after the previous one exits;
-explicit parallel groups are a later, additive schema change.
+an ordered list of steps, each `{ executable, arguments[], workingDirectory | null, display,
+waitForExit }`. `display` is `terminal` (a visible console window) or `background` (no window,
+tracked). Steps start in order; a step with `waitForExit` holds the next step until it exits, and
+one without it lets the next step start at once. With every flag off all steps start together, as
+the Command Runner's commands did (a frontend and a backend server both keep running); a run of
+waiting steps is a sequence. There is no shell string field. Explicit named sequence and parallel
+groups can be added later as an additive schema change.
 
 **Launch.** Rust owns process launching and tracking (`ARCHITECTURE.md`: Rust services own native
 operations). A step starts its executable directly with its argument list, never through a shell;
@@ -49,5 +52,5 @@ run ids, step indexes, exit codes and timing.
   its workflows run again. Trusting is cheap and explicit.
 - Changing any field of a step changes the hash, so an edit from outside the editor cannot keep a
   previous trust.
-- Parallel groups, keeping a terminal open after exit, and output capture are later additions; the
+- Named groups, keeping a terminal open after exit, and output capture are later additions; the
   schema is versioned through the extension configuration.

@@ -55,8 +55,8 @@
    done: a real `npm run installer:build` validated on a clean machine (never run a real install
    over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
 2. Phase 7, Workflow Runner (ADR 009: a text-card extension, structured steps, per-device trust).
-   First slice: ordered steps with executable, arguments, working directory and terminal/background
-   display; Rust launch and job-owned tracking; run/stop; trust review. Parallel groups follow.
+   First slice: ordered steps (executable, arguments, working directory, terminal/background display,
+   wait-for-exit); Rust launch and job-owned tracking; run/stop; trust review.
 3. Phase 6 extensions, for reference: contribution points in `src/extensions/` (header controls,
    header rows, card adornments, menu items, content states; ADR 008), rules in
    `lock/lockRule.ts` and `search/searchRule.ts`, Copy/Paste JSON's flow in
