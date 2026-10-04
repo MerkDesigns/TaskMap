@@ -1,0 +1,48 @@
+/* Workflow editor: a scrolling list of steps inside the standard modal dialog. */
+
+.taskmap-workflow-editor {
+  display: grid;
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+  gap: var(--taskmap-space-3);
+  overscroll-behavior: contain;
+  padding-right: var(--taskmap-space-1);
+}
+
+.taskmap-workflow-editor__steps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: var(--taskmap-space-3);
+  list-style: none;
+}
+
+.taskmap-workflow-editor__step {
+  display: grid;
+  padding: var(--taskmap-space-3);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: var(--taskmap-radius-medium);
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-workflow-editor__step-header {
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-workflow-editor__step-title {
+  flex: 1 1 auto;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-label-size);
+  font-weight: 600;
+  line-height: var(--taskmap-text-label-line);
+}
+
+.taskmap-workflow-editor__step-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-3);
+}

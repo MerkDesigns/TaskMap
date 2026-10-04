@@ -87,6 +87,7 @@ export function ContextMenuPlayground() {
     copyJsonForAi: async () => undefined,
     pasteJsonFromAi: async () => undefined,
     openJsonEditor: () => undefined,
+    openWorkflowEditor: () => undefined,
   };
 
   const menuActions: ContainerMenuActions = {

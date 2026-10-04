@@ -21,4 +21,5 @@ export interface ExtensionCommands {
   readonly copyJsonForAi: (elementId: string) => Promise<void>;
   readonly pasteJsonFromAi: (elementId: string) => Promise<void>;
   readonly openJsonEditor: (elementId: string) => void;
+  readonly openWorkflowEditor: (cardId: string) => void;
 }

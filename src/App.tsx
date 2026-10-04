@@ -97,6 +97,7 @@ import {
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
+import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
@@ -3412,6 +3413,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     () => retained.runtime.callbacks.subscribeInvalidation(copyPasteJson.closeEditor),
     [retained, copyPasteJson.closeEditor],
   );
+  const workflowEditor = useWorkflowEditorFlow({
+    getSteps: (id) => textCardsById.get(id)?.extensions?.workflow?.steps ?? null,
+    saveSteps: (id, steps) =>
+      retained.runtime.callbacks
+        .captureExtensionConfiguration("workflow", id as ElementId)
+        ?.complete({ steps }).ok ?? false,
+    trust: async (steps) => (await retained.runtime.workflows.trust(steps)).ok,
+  });
+  useEffect(
+    () => retained.runtime.callbacks.subscribeInvalidation(workflowEditor.closeEditor),
+    [retained, workflowEditor.closeEditor],
+  );
 
   const togglePrivacyExtension = (id: string) => {
     retained.runtime.callbacks.captureExtensionToggle("privacy", id as ElementId)?.complete();
@@ -3577,7 +3590,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     clientY: number,
   ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    if (extensionId === "lock") {
+    if (isExtensionCompatible(extensionId, "image")) {
       const targetImage = [...looseImages]
         .reverse()
         .find(
@@ -3604,7 +3617,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       }
     }
 
-    if (extensionId === "lock" || extensionId === "colorPicker" || extensionId === "checkbox") {
+    if (
+      isExtensionCompatible(extensionId, "text-card") ||
+      isExtensionCompatible(extensionId, "mindmap")
+    ) {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const targetType = card.kind === "mindmap" ? "mindmap" : "text-card";
         if (!isExtensionCompatible(extensionId, targetType)) {
@@ -3684,7 +3700,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       }
     }
 
-    if (extensionId === "privacy" || extensionId === "colorPicker" || extensionId === "lock") {
+    if (isExtensionCompatible(extensionId, "text-block")) {
       const targetTextBlock = [...textBlocks]
         .reverse()
         .find(
@@ -4152,6 +4168,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     copyJsonForAi: copyPasteJson.copyJsonForAi,
     pasteJsonFromAi: copyPasteJson.pasteJsonFromAi,
     openJsonEditor: copyPasteJson.openJsonEditor,
+    openWorkflowEditor: (cardId: string) => {
+      closeContextMenus();
+      workflowEditor.openWorkflowEditor(cardId);
+    },
   });
   const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withTextBlock(id, startRename),
@@ -5298,6 +5318,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           </ModalPresence>
 
           {copyPasteJson.editorWindow}
+          {workflowEditor.editorDialog}
 
           <ModalPresence
             open={settingsOpen}

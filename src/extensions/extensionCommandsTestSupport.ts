@@ -13,5 +13,6 @@ export function mockExtensionCommands() {
     copyJsonForAi: vi.fn(async () => undefined),
     pasteJsonFromAi: vi.fn(async () => undefined),
     openJsonEditor: vi.fn(),
+    openWorkflowEditor: vi.fn(),
   } satisfies ExtensionCommands;
 }
