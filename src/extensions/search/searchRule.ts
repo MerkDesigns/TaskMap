@@ -3,7 +3,7 @@ export interface Searchable {
   readonly extensions?: { readonly search?: { readonly query: string } };
 }
 
-/** The search row Search adds below a container's header; matches `.taskmap-container__search-row`. */
+/** The search row Search adds below a container's header; matches `.taskmap-extension-search`. */
 export const SEARCH_ROW_HEIGHT = 42;
 
 /** The height Search adds to a container's header: its search row, while installed. */

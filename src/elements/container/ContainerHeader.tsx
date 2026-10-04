@@ -1,7 +1,9 @@
-import { IconBox, IconDotsVertical, IconSearch, IconX } from "@tabler/icons-react";
+import { IconBox, IconDotsVertical } from "@tabler/icons-react";
 import { useRef } from "react";
 import type { SyntheticEvent } from "react";
 import type { ExtensionCommands } from "../../extensions/extensionCommands";
+import type { HeaderControlContext } from "../../extensions/headerControl";
+import { headerRowsFor } from "../../extensions/headerRowRegistry";
 import type { HeaderLayoutMetrics } from "../useHeaderExtensionLayout";
 import { useElementHeaderExtensions } from "../useElementHeaderExtensions";
 import type { ContainerDocumentElement } from "./containerModel";
@@ -34,19 +36,18 @@ export function ContainerHeader({
 }: ContainerHeaderProps) {
   const { id, data } = element;
   const { extensions, renaming, renameDraft } = view;
-  const searchInstalled = Boolean(extensions?.search);
-  const searchQuery = extensions?.search?.query ?? "";
   const rowRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLDivElement | null>(null);
+  const context: HeaderControlContext = {
+    elementId: id,
+    host: "container",
+    extensions: extensions ?? {},
+    accent: data.accent,
+    cardCount: view.cardCount,
+    recentColors: view.recentColors,
+  };
   const headerExtensions = useElementHeaderExtensions({
-    context: {
-      elementId: id,
-      host: "container",
-      extensions: extensions ?? {},
-      accent: data.accent,
-      cardCount: view.cardCount,
-      recentColors: view.recentColors,
-    },
+    context,
     commands: extensionCommands,
     buttonsVisible: data.headerButtonsVisible,
     onButtonsVisibleChange: (visible) => actions.onHeaderButtonsVisibleChange(id, visible),
@@ -108,33 +109,9 @@ export function ContainerHeader({
           </div>
         </div>
 
-        {searchInstalled && (
-          <div
-            className="taskmap-container__search-row"
-            onPointerDown={stopPropagation}
-            onClick={stopPropagation}
-          >
-            <div className="taskmap-container__search">
-              <IconSearch size={16} stroke={2} />
-              <input
-                className="taskmap-container__search-input"
-                value={searchQuery}
-                spellCheck={false}
-                placeholder="Search"
-                onChange={(event) => actions.onSearchChange(id, event.target.value)}
-              />
-              {searchQuery && (
-                <button
-                  className="taskmap-container__search-clear"
-                  onClick={() => actions.onSearchChange(id, "")}
-                  title="Clear search"
-                >
-                  <IconX size={15} stroke={2} />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        {headerRowsFor("container", context.extensions).map(({ extension, Row }) => (
+          <Row key={extension} context={context} commands={extensionCommands} />
+        ))}
       </div>
       {/* Siblings of the header, so their presses never reach its start-move handler. */}
       {headerExtensions.popovers}

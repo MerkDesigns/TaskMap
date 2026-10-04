@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { ContainerDocumentElement } from "./containerModel";
 import { ContainerRenderer } from "./ContainerRenderer";
-import type { ExtensionCommands } from "../../extensions/extensionCommands";
+import { mockExtensionCommands } from "../../extensions/extensionCommandsTestSupport";
 import type { ContainerActions, ContainerViewState } from "./containerView";
 
 vi.stubGlobal(
@@ -50,21 +50,11 @@ function renderContainer(
     onStartResize: vi.fn(),
     onToggleMenu: vi.fn(),
     onHeaderButtonsVisibleChange: vi.fn(),
-    onSearchChange: vi.fn(),
     onOpenContentMenu: vi.fn(),
     onWheelContent: vi.fn(),
     onStartContentSelection: vi.fn(),
   } satisfies ContainerActions;
-  const extensionCommands = {
-    toggle: vi.fn(),
-    remove: vi.fn(),
-    updateAccent: vi.fn(),
-    updateSelectionAccent: vi.fn(),
-    rememberRecentColor: vi.fn(),
-    copyJsonForAi: vi.fn(async () => undefined),
-    pasteJsonFromAi: vi.fn(async () => undefined),
-    openJsonEditor: vi.fn(),
-  } satisfies ExtensionCommands;
+  const extensionCommands = mockExtensionCommands();
   const { container: root } = render(
     <ContainerRenderer
       element={element}
@@ -141,16 +131,23 @@ describe("ContainerRenderer", () => {
   });
 
   it("filters through an installed search field and clears it", () => {
-    const { article, onSearchChange } = renderContainer(container(), {
+    const { article, extensionCommands } = renderContainer(container(), {
       extensions: { search: { query: "milk" } },
     });
 
-    expect(article).toHaveAttribute("data-search", "true");
+    expect(article.style.getPropertyValue("--taskmap-header-rows-height")).toBe("42px");
     fireEvent.change(screen.getByPlaceholderText("Search"), { target: { value: "eggs" } });
     fireEvent.click(screen.getByTitle("Clear search"));
 
-    expect(onSearchChange).toHaveBeenNthCalledWith(1, CONTAINER_ID, "eggs");
-    expect(onSearchChange).toHaveBeenNthCalledWith(2, CONTAINER_ID, "");
+    expect(extensionCommands.setSearchQuery).toHaveBeenNthCalledWith(1, CONTAINER_ID, "eggs");
+    expect(extensionCommands.setSearchQuery).toHaveBeenNthCalledWith(2, CONTAINER_ID, "");
+  });
+
+  it("reserves no header rows without a row extension", () => {
+    const { article } = renderContainer(container());
+
+    expect(article.style.getPropertyValue("--taskmap-header-rows-height")).toBe("");
+    expect(screen.queryByPlaceholderText("Search")).not.toBeInTheDocument();
   });
 
   // jsdom has no layout, so every extension button sits in the overflow popover.

@@ -118,6 +118,7 @@ export function DraggableTextBlockFixture() {
     remove: ignore,
     updateAccent: ignore,
     updateSelectionAccent: ignore,
+    setSearchQuery: ignore,
     rememberRecentColor: ignore,
     copyJsonForAi: async () => undefined,
     pasteJsonFromAi: async () => undefined,

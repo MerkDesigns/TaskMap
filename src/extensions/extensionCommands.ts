@@ -17,6 +17,7 @@ export interface ExtensionCommands {
   /** Recolours the element, or the selection it is in, as its menu does. */
   readonly updateSelectionAccent: (elementId: string, accent: string) => void;
   readonly rememberRecentColor: (color?: string) => void;
+  readonly setSearchQuery: (elementId: string, query: string) => void;
   readonly copyJsonForAi: (elementId: string) => Promise<void>;
   readonly pasteJsonFromAi: (elementId: string) => Promise<void>;
   readonly openJsonEditor: (elementId: string) => void;

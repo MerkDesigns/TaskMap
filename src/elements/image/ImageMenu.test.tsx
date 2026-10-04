@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
-import type { ExtensionCommands } from "../../extensions/extensionCommands";
+import { mockExtensionCommands } from "../../extensions/extensionCommandsTestSupport";
 import { ImageMenu, type ImageMenuActions, type ImageMenuProps } from "./ImageMenu";
 import type { ImageDocumentElement } from "./imageModel";
 
@@ -28,16 +28,7 @@ function renderMenu(props: Partial<ImageMenuProps> = {}) {
     onCopy: vi.fn(),
     onDelete: vi.fn(),
   } satisfies ImageMenuActions;
-  const extensionCommands = {
-    toggle: vi.fn(),
-    remove: vi.fn(),
-    updateAccent: vi.fn(),
-    updateSelectionAccent: vi.fn(),
-    rememberRecentColor: vi.fn(),
-    copyJsonForAi: vi.fn(async () => undefined),
-    pasteJsonFromAi: vi.fn(async () => undefined),
-    openJsonEditor: vi.fn(),
-  } satisfies ExtensionCommands;
+  const extensionCommands = mockExtensionCommands();
   render(
     <ImageMenu
       element={image()}

@@ -1,7 +1,8 @@
 import { IconArrowDownRight } from "@tabler/icons-react";
 import { memo, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { ExtensionCommands } from "../../extensions/extensionCommands";
+import { headerRowsFor, headerRowsHeight } from "../../extensions/headerRowRegistry";
 import { placementStyle, shallowEqual } from "../elementPlacement";
 import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";
@@ -30,6 +31,7 @@ function ContainerRendererComponent({
   const { id, data } = element;
   const { geometry } = view;
   const [article, setArticle] = useState<HTMLElement | null>(null);
+  const rowsHeight = headerRowsHeight(headerRowsFor("container", view.extensions ?? {}));
   const shadowClass = view.shadowsUnderElements
     ? ""
     : ` canvas-attached-shadow-shell${view.moving ? " canvas-attached-drag-shadow" : ""}`;
@@ -38,7 +40,6 @@ function ContainerRendererComponent({
     <article
       ref={setArticle}
       className={`taskmap-container taskmap-placed-element${shadowClass}`}
-      data-search={Boolean(view.extensions?.search) || undefined}
       data-moving={view.moving || undefined}
       data-multi-selected={view.multiSelected || undefined}
       data-entering={view.entering || undefined}
@@ -50,6 +51,8 @@ function ContainerRendererComponent({
         borderColor: view.selected
           ? `color-mix(in srgb, ${data.accent} 72%, white 28%)`
           : data.accent,
+        ...(rowsHeight > 0 &&
+          ({ "--taskmap-header-rows-height": `${rowsHeight}px` } as CSSProperties)),
       }}
       onPointerDown={(event) => {
         if (event.button !== 1) event.stopPropagation();

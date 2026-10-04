@@ -6449,6 +6449,7 @@ function App({
         ? updateContainerAccent(elementId, accent)
         : updateTextBlockAccent(elementId, accent),
     updateSelectionAccent: updateContextAccent,
+    setSearchQuery: updateContainerSearchQuery,
     rememberRecentColor,
     copyJsonForAi: copyContainerJsonForAi,
     pasteJsonFromAi: pasteContainerJsonFromAi,
@@ -6515,7 +6516,6 @@ function App({
     onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
       withContainer(id, (container) => toggleMenu(event, container)),
     onHeaderButtonsVisibleChange: updateContainerHeaderButtonsVisible,
-    onSearchChange: updateContainerSearchQuery,
     onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, id: string) =>
       withContainer(id, (container) => openContainerContentMenu(event, container)),
     onWheelContent: (event: WheelEvent<HTMLElement>, id: string) =>

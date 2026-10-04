@@ -41,6 +41,9 @@ An extension owns its UI and reaches the application through a command port. Ele
   toggle) renders only when the element has the extension. The menus host the items and the
   "Remove Extensions" section, labelled by the extension definitions; removal and the menu's
   selection-wide recolour are port commands.
+- The fourth point is the **header row** (`headerRow.ts`, `headerRowRegistry.ts`): a full-width
+  row below an element's header with a fixed height, such as Search's query field. The container
+  hosts the rows and sizes its header and content from their total height.
 - Further contribution points (behavioral effects such as lock, search filtering and privacy)
   follow the same pattern as their extensions migrate.
 

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { asEntityId } from "../../domain/ids/entityIds";
 import type { MindMapNodeDocumentElement } from "../mind-map/mindMapModel";
 import type { TextCardDocumentElement } from "./textCardModel";
-import type { ExtensionCommands } from "../../extensions/extensionCommands";
+import { mockExtensionCommands } from "../../extensions/extensionCommandsTestSupport";
 import {
   TextCardRenderer,
   type TextCardActions,
@@ -58,16 +58,7 @@ function createActions(): { [Key in keyof TextCardActions]: ReturnType<typeof vi
   };
 }
 
-const extensionCommands = {
-  toggle: vi.fn(),
-  remove: vi.fn(),
-  updateAccent: vi.fn(),
-  updateSelectionAccent: vi.fn(),
-  rememberRecentColor: vi.fn(),
-  copyJsonForAi: vi.fn(async () => undefined),
-  pasteJsonFromAi: vi.fn(async () => undefined),
-  openJsonEditor: vi.fn(),
-} satisfies ExtensionCommands;
+const extensionCommands = mockExtensionCommands();
 
 function renderCard(element: TextCardRendererElement, view: Partial<TextCardViewState> = {}) {
   const actions = createActions();

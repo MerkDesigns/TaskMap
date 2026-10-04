@@ -38,7 +38,6 @@ export interface ContainerActions {
   readonly onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) => void;
   readonly onToggleMenu: (event: MouseEvent<HTMLButtonElement>, id: string) => void;
   readonly onHeaderButtonsVisibleChange: (id: string, visible: boolean) => void;
-  readonly onSearchChange: (id: string, query: string) => void;
   readonly onOpenContentMenu: (event: MouseEvent<HTMLElement>, id: string) => void;
   readonly onWheelContent: (event: WheelEvent<HTMLElement>, id: string) => void;
   readonly onStartContentSelection: (event: PointerEvent<HTMLElement>, id: string) => void;
