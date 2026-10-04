@@ -6,6 +6,10 @@
   box-shadow: var(--taskmap-canvas-shadow);
 }
 
+.taskmap-canvas-frame[data-text-selecting] {
+  pointer-events: none;
+}
+
 .taskmap-canvas-frame[data-grid-style="dots"] {
   background-image: radial-gradient(
     circle,

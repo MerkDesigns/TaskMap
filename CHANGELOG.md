@@ -43,6 +43,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Selecting text in a field outside the canvas (such as the JSON editor) no longer jumps to the wrong
+  lines when the pointer is dragged out over the canvas.
 - TaskMap checks for updates again when a database opens; the automatic check at startup had
   stopped running.
 - A settings file written by a newer TaskMap, or a damaged one, no longer stops a database from
