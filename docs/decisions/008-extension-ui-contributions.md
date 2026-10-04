@@ -47,6 +47,10 @@ An extension owns its UI and reaches the application through a command port. Ele
 - The fifth point is the **content state** (`contentState.ts`): a named state an element styles its
   content in, like the card text state. Privacy contributes `hidden`; containers, text blocks and
   the cards a hidden container holds blur their content without naming Privacy.
+- An extension whose behavior is a flow with its own window keeps the flow in its module behind a
+  small port: Copy/Paste JSON's `useCopyPasteJsonFlow` owns copying, pasting and the editor window,
+  and the application supplies only document access (read the JSON, capture a replacement) and the
+  presentation reset after a replacement.
 - Further contribution points (behavioral effects such as lock, search filtering and privacy)
   follow the same pattern as their extensions migrate.
 

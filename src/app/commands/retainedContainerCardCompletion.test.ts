@@ -10,7 +10,7 @@ import {
   aiPayload,
   aiIdentities,
 } from "./retainedContainerCardTestSupport";
-import { parseCopyPasteJson } from "../../extensions/copyPasteJson";
+import { parseCopyPasteJson } from "../../extensions/copy-paste-json/copyPasteJsonFormat";
 
 it.each([0, 1, 2])(
   "inserts a fresh card at shared slot %s with companion defaults and one history entry",

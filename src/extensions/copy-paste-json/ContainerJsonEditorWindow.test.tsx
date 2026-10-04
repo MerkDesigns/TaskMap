@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
+import { ReducedMotionProvider } from "../../ui/motion/reducedMotionPreference";
 import { ContainerJsonEditorWindow } from "./ContainerJsonEditorWindow";
 
 afterEach(cleanup);

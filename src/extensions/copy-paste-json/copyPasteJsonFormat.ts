@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ContainerElement, TaskCanvas, TextCardElement } from "../types";
+import type { ContainerElement, TextCardElement } from "../../types";
 
 export const COPY_PASTE_JSON_INSTRUCTION =
   "You may edit the container and cards. Set each hyperlink to an HTTP(S) URL or null. Return only JSON in this same structure.";
@@ -98,60 +98,3 @@ export const serializeContainerForAi = (
     null,
     2,
   );
-
-type ReplaceContainerOptions = {
-  createCardId: () => string;
-  headerHeight: number;
-  searchHeight: number;
-  cardPadding: number;
-  cardRowHeight: number;
-  cardGap: number;
-};
-
-export const replaceContainerFromAiJson = (
-  canvas: TaskCanvas,
-  containerId: string,
-  payload: CopyPasteJsonPayload,
-  options: ReplaceContainerOptions,
-): TaskCanvas | null => {
-  const container = canvas.containers.find((current) => current.id === containerId);
-  if (!container?.extensions?.copyPasteJson) {
-    return null;
-  }
-
-  const stackTop =
-    container.y +
-    options.headerHeight +
-    (container.extensions.search ? options.searchHeight : 0) +
-    options.cardPadding;
-  const newCards = payload.cards.map<TextCardElement>((card, index) => ({
-    id: options.createCardId(),
-    text: card.text,
-    accent: card.color,
-    ...(card.hyperlink ? { link: card.hyperlink } : {}),
-    x: container.x + options.cardPadding,
-    y: stackTop + index * (options.cardRowHeight + options.cardGap),
-    containerId,
-    order: index,
-    ...(container.extensions?.autoCheckbox ? { extensions: { checkbox: { checked: false } } } : {}),
-  }));
-  const extensions = structuredClone(container.extensions);
-
-  return {
-    ...canvas,
-    containers: canvas.containers.map((current) =>
-      current.id === containerId
-        ? {
-            ...current,
-            name: payload.name,
-            accent: payload.color,
-            extensions,
-          }
-        : current,
-    ),
-    textCards: [
-      ...canvas.textCards.filter((card) => card.containerId !== containerId),
-      ...newCards,
-    ],
-  };
-};

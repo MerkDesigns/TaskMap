@@ -6,7 +6,7 @@ import {
   extensionInstallationSchema,
 } from "../../domain/document/documentSchema";
 import { textCardElementSchema, textCardDataSchema } from "../../elements/text-card/textCardModel";
-import { copyPasteJsonPayloadSchema } from "../../extensions/copyPasteJson";
+import { copyPasteJsonPayloadSchema } from "../../extensions/copy-paste-json/copyPasteJsonFormat";
 import { retainedContainerSnapshotSchema } from "./retainedContainerSnapshot";
 
 export const checkboxInstallationIdSchema = entityIdSchema("extension-instance").nullable();

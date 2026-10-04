@@ -2,7 +2,7 @@ import { asEntityId } from "../../domain/ids/entityIds";
 import { geometryInput, geometryIds as ids } from "./retainedGeometryTestSupport";
 import { copiedElementId } from "./retainedCopyTestSupport";
 import { extensionTestId } from "./retainedExtensionTestSupport";
-import { COPY_PASTE_JSON_INSTRUCTION } from "../../extensions/copyPasteJson";
+import { COPY_PASTE_JSON_INSTRUCTION } from "../../extensions/copy-paste-json/copyPasteJsonFormat";
 import type { AiCardIdentity, NewContainerCard } from "./retainedContainerCardContract";
 
 export function containerCardInput() {

@@ -9,11 +9,11 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { MaterialSurface } from "../ui/materials/MaterialSurface";
-import { MENU_PRESENCE_TIMING, PRESENCE_PRESETS } from "../ui/motion/presencePresets";
-import { usePresenceMotion } from "../ui/motion/usePresenceMotion";
-import { Button, IconButton } from "../ui/primitives/Button";
-import { TextArea } from "../ui/primitives/FormControls";
+import { MaterialSurface } from "../../ui/materials/MaterialSurface";
+import { MENU_PRESENCE_TIMING, PRESENCE_PRESETS } from "../../ui/motion/presencePresets";
+import { usePresenceMotion } from "../../ui/motion/usePresenceMotion";
+import { Button, IconButton } from "../../ui/primitives/Button";
+import { TextArea } from "../../ui/primitives/FormControls";
 import "./ContainerJsonEditorWindow.css";
 
 type ContainerJsonEditorWindowProps = {

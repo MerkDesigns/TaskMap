@@ -6,7 +6,7 @@ import {
 } from "../app/commands/retainedContainerSnapshot";
 import type { TaskMapDocument } from "../domain/document/documentTypes";
 import { createEntityId, type ElementId, type UuidSource } from "../domain/ids/entityIds";
-import { parseCopyPasteJson } from "../extensions/copyPasteJson";
+import { parseCopyPasteJson } from "../extensions/copy-paste-json/copyPasteJsonFormat";
 
 /** Capture before opening the editor/reading the clipboard; no document content lives in this handle. */
 export function captureRetainedViewJsonEdit(

@@ -20,7 +20,6 @@ import type { ExtensionCommands } from "./extensions/extensionCommands";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
-import { ContainerJsonEditorWindow } from "./components/ContainerJsonEditorWindow";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import {
   captureRetainedViewCopy,
@@ -105,7 +104,7 @@ import {
   type ExtensionId,
   type ExtensionTargetType,
 } from "./extensions/registry";
-import { parseCopyPasteJson } from "./extensions/copyPasteJson";
+import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
@@ -494,7 +493,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const retainedTextEdit = useRef<CapturedCompletion<string> | null>(null);
   const retainedBlockEdit = useRef<CapturedCompletion<string> | null>(null);
   const retainedRename = useRef<CapturedCompletion<string> | null>(null);
-  const retainedJsonEdit = useRef<CapturedCompletion<string> | null>(null);
   const retainedCopy = useRef<RetainedViewCopy | null>(null);
   const [hasRetainedCopy, setHasRetainedCopy] = useState(false);
   const retainedConnection = useRef<CapturedCompletion<
@@ -515,9 +513,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         retainedCopy.current = null;
         setHasRetainedCopy(false);
       }
-      retainedJsonEdit.current?.cancel();
-      retainedJsonEdit.current = null;
-      setContainerJsonEditor(null);
       setTextCardDraft("");
       setTextBlockDraft("");
       setRenameDraft("");
@@ -568,10 +563,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     Record<string, MeasuredTextCardSize>
   >({});
   const [copiedItem, setCopiedItem] = useState<CopiedCanvasItem | null>(null);
-  const [containerJsonEditor, setContainerJsonEditor] = useState<{
-    containerId: string;
-    initialJson: string;
-  } | null>(null);
   const {
     canvasGridStyle,
     setCanvasGridStyle,
@@ -3248,12 +3239,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         ...current,
         ...Object.fromEntries([...actionSet].map((id) => [id, 0])),
       }));
-    if (
-      key === "copyPasteJson" &&
-      containerJsonEditor &&
-      actionSet.has(containerJsonEditor.containerId)
-    )
-      setContainerJsonEditor(null);
+    if (key === "copyPasteJson") copyPasteJson.closeEditorFor(actionSet);
     closeContextMenus();
   };
 
@@ -3408,113 +3394,32 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return installed;
   };
 
-  const getContainerJsonForAi = (id: string) => {
-    return retained.runtime.callbacks.getContainerJsonForAi(id as ElementId);
-  };
-
-  const openContainerJsonEditor = (id: string) => {
-    const json = getContainerJsonForAi(id);
-    if (!json) {
-      return;
-    }
-
-    retainedJsonEdit.current?.cancel();
-    retainedJsonEdit.current = captureRetainedViewJsonEdit(
-      retained.runtime.callbacks,
-      retained.runtime.controller.store.getState().documentWorkspace.document,
-      id as ElementId,
-      { nextUuid: () => crypto.randomUUID() },
-    );
-    if (!retainedJsonEdit.current) return;
-    setContainerJsonEditor({ containerId: id, initialJson: json });
-  };
-
-  const copyContainerJsonForAi = async (id: string) => {
-    const json = getContainerJsonForAi(id);
-    if (!json) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(json);
-      showToast({
-        tone: "success",
-        title: "Container JSON copied",
-        message: "Paste it into an AI, then copy only the returned JSON.",
-      });
-    } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Could not copy JSON",
-        message: commandErrorMessage(error),
-      });
-    }
-  };
-
-  const applyContainerJsonFromAi = (
-    id: string,
-    json: string,
-    captured = retainedJsonEdit.current,
-  ) => {
-    const container = containersById.get(id);
-    if (!container?.extensions?.copyPasteJson) {
-      return false;
-    }
-
-    const parsed = parseCopyPasteJson(json);
-    if (!parsed.success) {
-      showToast({
-        tone: "error",
-        title: "Invalid AI JSON",
-        message: parsed.error,
-        duration: 7000,
-      });
-      return false;
-    }
-
-    const result = captured?.complete(json);
-    if (!result?.ok) {
-      showToast({
-        tone: "error",
-        title: "JSON was not applied",
-        message: "The container changed or the action expired. Reopen the editor and retry.",
-      });
-      return false;
-    }
-    setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
-    setSelectedIds([id]);
-    setEditingTextCardId(null);
-    setTextCardDraft("");
-    setRenamingId(null);
-    setContainerJsonEditor(null);
-    retainedJsonEdit.current = null;
-    return true;
-  };
-
-  const pasteContainerJsonFromAi = async (id: string) => {
-    const captured = captureRetainedViewJsonEdit(
-      retained.runtime.callbacks,
-      retained.runtime.controller.store.getState().documentWorkspace.document,
-      id as ElementId,
-      { nextUuid: () => crypto.randomUUID() },
-    );
-    if (!captured) return;
-    let clipboardText: string;
-    try {
-      clipboardText = await navigator.clipboard.readText();
-    } catch (error) {
-      captured?.cancel();
-      showToast({
-        tone: "error",
-        title: "Could not read clipboard",
-        message: commandErrorMessage(error),
-      });
-      return;
-    }
-
-    applyContainerJsonFromAi(id, clipboardText, captured);
-    captured?.cancel();
-  };
+  const copyPasteJson = useCopyPasteJsonFlow({
+    getJson: (id) => retained.runtime.callbacks.getContainerJsonForAi(id as ElementId),
+    captureReplace: (id) =>
+      captureRetainedViewJsonEdit(
+        retained.runtime.callbacks,
+        retained.runtime.controller.store.getState().documentWorkspace.document,
+        id as ElementId,
+        { nextUuid: () => crypto.randomUUID() },
+      ),
+    containerName: (id) => {
+      const container = containersById.get(id);
+      return container?.extensions?.copyPasteJson ? container.name : null;
+    },
+    onReplaced: (id) => {
+      setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
+      setSelectedIds([id]);
+      setEditingTextCardId(null);
+      setTextCardDraft("");
+      setRenamingId(null);
+    },
+    showToast,
+  });
+  useEffect(
+    () => retained.runtime.callbacks.subscribeInvalidation(copyPasteJson.closeEditor),
+    [retained, copyPasteJson.closeEditor],
+  );
 
   const togglePrivacyExtension = (id: string) => {
     retained.runtime.callbacks.captureExtensionToggle("privacy", id as ElementId)?.complete();
@@ -4199,9 +4104,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     updateContainerSearchQuery,
     updateTextBlockAccent,
     updateTextBlockHeaderButtonsVisible,
-    copyContainerJsonForAi,
-    openContainerJsonEditor,
-    pasteContainerJsonFromAi,
   });
   const textCardActions = useMemo<TextCardActions>(
     () => ({
@@ -4251,9 +4153,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     updateSelectionAccent: updateContextAccent,
     setSearchQuery: updateContainerSearchQuery,
     rememberRecentColor,
-    copyJsonForAi: copyContainerJsonForAi,
-    pasteJsonFromAi: pasteContainerJsonFromAi,
-    openJsonEditor: openContainerJsonEditor,
+    copyJsonForAi: copyPasteJson.copyJsonForAi,
+    pasteJsonFromAi: copyPasteJson.pasteJsonFromAi,
+    openJsonEditor: copyPasteJson.openJsonEditor,
   });
   const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withTextBlock(id, startRename),
@@ -5401,24 +5303,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             </Suspense>
           </ModalPresence>
 
-          {containerJsonEditor &&
-            containersById.get(containerJsonEditor.containerId)?.extensions?.copyPasteJson && (
-              <ContainerJsonEditorWindow
-                key={containerJsonEditor.containerId}
-                containerName={
-                  containersById.get(containerJsonEditor.containerId)?.name ?? "Container"
-                }
-                initialJson={containerJsonEditor.initialJson}
-                onApply={(json) => {
-                  applyContainerJsonFromAi(containerJsonEditor.containerId, json);
-                }}
-                onClose={() => {
-                  retainedJsonEdit.current?.cancel();
-                  retainedJsonEdit.current = null;
-                  setContainerJsonEditor(null);
-                }}
-              />
-            )}
+          {copyPasteJson.editorWindow}
 
           <ModalPresence
             open={settingsOpen}

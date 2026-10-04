@@ -1,6 +1,9 @@
 import type { ElementId } from "../../domain/ids/entityIds";
 import { inspectJsonSafety } from "../../domain/document/jsonSafety";
-import { parseCopyPasteJson, serializeContainerForAi } from "../../extensions/copyPasteJson";
+import {
+  parseCopyPasteJson,
+  serializeContainerForAi,
+} from "../../extensions/copy-paste-json/copyPasteJsonFormat";
 import type { createRetainedCompletionOwner } from "./retainedCompletionOwner";
 import { captureRetainedContainer, containerHasExtension } from "./retainedContainerSnapshot";
 import {
