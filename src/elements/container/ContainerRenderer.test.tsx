@@ -163,7 +163,7 @@ describe("ContainerRenderer", () => {
     expect(extensionCommands.toggle).toHaveBeenCalledWith("lock", CONTAINER_ID);
     expect(extensionCommands.toggle).toHaveBeenCalledWith("privacy", CONTAINER_ID);
     expect(article.querySelector(".taskmap-container__content")).toHaveAttribute(
-      "data-privacy-hidden",
+      "data-content-hidden",
       "true",
     );
   });

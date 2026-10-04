@@ -100,7 +100,7 @@
   pointer-events: auto;
 }
 
-.taskmap-text-card[data-privacy-hidden="true"] {
+.taskmap-text-card[data-content-hidden] {
   filter: blur(5px);
 }
 

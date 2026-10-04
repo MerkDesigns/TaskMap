@@ -178,6 +178,7 @@ import {
   SEARCH_ROW_HEIGHT,
   searchRowHeight,
 } from "./extensions/search/searchRule";
+import { hasContentState } from "./extensions/contentState";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
 // throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
@@ -7152,7 +7153,7 @@ function App({
                                     selected: outlinedIds.includes(card.id),
                                     interaction: containerMultiSelected ? "disabled" : undefined,
                                     linksDisabled: selectedIds.length > 1,
-                                    privacyHidden: Boolean(element.extensions?.privacy?.enabled),
+                                    contentHidden: hasContentState(element.extensions, "hidden"),
                                     // The shared under-element shadow layer sits below containers,
                                     // so contained cards keep their own shadow; only dragged cards
                                     // are drawn on that layer.

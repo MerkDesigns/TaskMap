@@ -60,9 +60,10 @@
    them and the "Remove Extensions" section through `useElementMenuExtensions`. Extension rules
    have one owner each: Lock (`lock/lockRule.ts`: locked elements, and containers holding one,
    cannot move, resize or be deleted) and Search (`search/searchRule.ts`: which cards a query shows,
-   and the search row's height) serve the commands, `App.tsx` and the interaction adapters. Next:
-   behavior (privacy, auto checkboxes, inherit card color, JSON copy/paste) out of `App.tsx`. Search
-   contributes its query field as a header row (`headerRowRegistry.ts`).
+   and the search row's height) serve the commands, `App.tsx` and the interaction adapters. Search
+   contributes its query field as a header row (`headerRowRegistry.ts`), and Privacy hides content
+   through a content state (`contentState.ts`). Next: auto checkboxes, inherit card color and JSON
+   copy/paste out of `App.tsx`.
    Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
    `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
    through the registry; loose text cards and mind-map nodes still position with left/top rather

@@ -48,7 +48,8 @@ export interface TextCardViewState {
   /** "forced" keeps the card interactive inside the pointer-transparent release layer. */
   readonly interaction?: "forced" | "disabled";
   readonly linksDisabled?: boolean;
-  readonly privacyHidden?: boolean;
+  /** The card's container hides its content (Privacy); the card is blurred with it. */
+  readonly contentHidden?: boolean;
   readonly shadowsUnderElements: boolean;
 }
 
@@ -194,7 +195,7 @@ function TextCardRendererComponent({
       data-deleting={view.deleting || undefined}
       data-pulsing={view.pulsing || undefined}
       data-interaction={view.interaction}
-      data-privacy-hidden={view.privacyHidden || undefined}
+      data-content-hidden={view.contentHidden || undefined}
       data-selected={selected || undefined}
       style={
         {

@@ -6,6 +6,7 @@ import { placementStyle, shallowEqual } from "../elementPlacement";
 import { TextBlockHeader } from "./TextBlockHeader";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 import type { TextBlockActions, TextBlockViewState } from "./textBlockView";
+import { hasContentState } from "../../extensions/contentState";
 import "../elementHeader.css";
 import "../elementPlacement.css";
 import "./textBlock.css";
@@ -97,7 +98,7 @@ function TextBlockRendererComponent({
         />
         <div
           className="taskmap-text-block__content"
-          data-privacy-hidden={Boolean(view.extensions?.privacy?.enabled) || undefined}
+          data-content-hidden={hasContentState(view.extensions, "hidden") || undefined}
           onWheel={keepScrollableWheel}
           onPointerDown={(event) => {
             if (event.button !== 0) return;

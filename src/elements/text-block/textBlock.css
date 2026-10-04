@@ -82,7 +82,7 @@
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.taskmap-text-block__content[data-privacy-hidden] {
+.taskmap-text-block__content[data-content-hidden] {
   filter: blur(5px);
   user-select: none;
 }

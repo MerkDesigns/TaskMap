@@ -7,6 +7,7 @@ import { placementStyle, shallowEqual } from "../elementPlacement";
 import { ContainerHeader } from "./ContainerHeader";
 import type { ContainerDocumentElement } from "./containerModel";
 import type { ContainerActions, ContainerViewState } from "./containerView";
+import { hasContentState } from "../../extensions/contentState";
 import "../elementHeader.css";
 import "../elementPlacement.css";
 import "./container.css";
@@ -74,7 +75,7 @@ function ContainerRendererComponent({
         />
         <div
           className="taskmap-container__content"
-          data-privacy-hidden={Boolean(view.extensions?.privacy?.enabled) || undefined}
+          data-content-hidden={hasContentState(view.extensions, "hidden") || undefined}
           onContextMenu={(event) => {
             if (view.multiSelected) {
               event.preventDefault();

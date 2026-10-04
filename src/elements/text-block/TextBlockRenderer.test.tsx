@@ -150,7 +150,7 @@ describe("TextBlockRenderer", () => {
     expect(extensionCommands.toggle).toHaveBeenCalledWith("lock", BLOCK_ID);
     expect(extensionCommands.toggle).toHaveBeenCalledWith("privacy", BLOCK_ID);
     expect(article.querySelector(".taskmap-text-block__content")).toHaveAttribute(
-      "data-privacy-hidden",
+      "data-content-hidden",
       "true",
     );
   });

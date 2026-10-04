@@ -44,6 +44,9 @@ An extension owns its UI and reaches the application through a command port. Ele
 - The fourth point is the **header row** (`headerRow.ts`, `headerRowRegistry.ts`): a full-width
   row below an element's header with a fixed height, such as Search's query field. The container
   hosts the rows and sizes its header and content from their total height.
+- The fifth point is the **content state** (`contentState.ts`): a named state an element styles its
+  content in, like the card text state. Privacy contributes `hidden`; containers, text blocks and
+  the cards a hidden container holds blur their content without naming Privacy.
 - Further contribution points (behavioral effects such as lock, search filtering and privacy)
   follow the same pattern as their extensions migrate.
 
