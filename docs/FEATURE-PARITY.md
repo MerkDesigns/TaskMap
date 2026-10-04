@@ -72,13 +72,13 @@ Before porting a feature, use existing evidence or capture the relevant interact
 
 | Feature                 | Decision               | Required behavior                      | Status              |
 | ----------------------- | ---------------------- | -------------------------------------- | ------------------- |
-| Start development tools | Preserve purpose       | Structured executable + arguments      | Not documented      |
-| Working directory       | Keep                   | Per-step working directory             | Not documented      |
-| Sequential execution    | Keep                   | Explicit sequence groups               | Not documented      |
-| Parallel execution      | Keep                   | Explicit parallel groups               | Not documented      |
-| Visible terminal        | Keep                   | Launch visibly when configured         | Not documented      |
-| Background process      | Keep with restrictions | No hidden elevation; tracked ownership | Not documented      |
-| Stop launched process   | Keep and redesign      | Stop only TaskMap-owned processes      | Not documented      |
+| Start development tools | Preserve purpose       | Structured executable + arguments      | Implemented         |
+| Working directory       | Keep                   | Per-step working directory             | Implemented         |
+| Sequential execution    | Keep                   | Explicit sequence groups               | Wait-for-exit steps |
+| Parallel execution      | Keep                   | Explicit parallel groups               | Steps run together  |
+| Visible terminal        | Keep                   | Launch visibly when configured         | Implemented         |
+| Background process      | Keep with restrictions | No hidden elevation; tracked ownership | Job-tracked         |
+| Stop launched process   | Keep and redesign      | Stop only TaskMap-owned processes      | Job-owned trees     |
 | Raw shell string        | Remove                 | Not supported in first version         | Removed by decision |
 | Administrator elevation | Remove                 | Not supported                          | Removed by decision |
 

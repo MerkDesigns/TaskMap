@@ -124,6 +124,10 @@ export function DraggableTextBlockFixture() {
     pasteJsonFromAi: async () => undefined,
     openJsonEditor: ignore,
     openWorkflowEditor: ignore,
+    runWorkflow: async () => undefined,
+    stopWorkflow: async () => undefined,
+    subscribeWorkflowRuns: () => () => undefined,
+    getWorkflowRun: () => null,
   };
   const actions: TextBlockActions = {
     onDraftChange: ignore,

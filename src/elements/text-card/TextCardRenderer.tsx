@@ -220,9 +220,11 @@ function TextCardRendererComponent({
       onPointerDown={(event) => actions.onStartMove(event, id)}
       onContextMenu={(event) => actions.onOpenMenu(event, id)}
     >
-      {adornments.map(({ extension, Leading }) => (
-        <Leading key={extension} context={adornmentContext} commands={extensionCommands} />
-      ))}
+      {adornments.map(({ extension, Leading }) =>
+        Leading ? (
+          <Leading key={extension} context={adornmentContext} commands={extensionCommands} />
+        ) : null,
+      )}
       {editing ? (
         <span className="taskmap-text-card__editor" data-multiline={isMindMapNode || undefined}>
           <span className="taskmap-text-card__editor-sizer" aria-hidden>
@@ -282,6 +284,11 @@ function TextCardRendererComponent({
         >
           {data.text}
         </span>
+      )}
+      {adornments.map(({ extension, Trailing }) =>
+        Trailing ? (
+          <Trailing key={extension} context={adornmentContext} commands={extensionCommands} />
+        ) : null,
       )}
       <div
         className={`selection-overlay taskmap-text-card__selection${selected ? " selection-overlay-active" : ""}`}

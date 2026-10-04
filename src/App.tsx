@@ -98,6 +98,8 @@ import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner"
 import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
+import { useWorkflowRuns } from "./extensions/workflow/useWorkflowRuns";
+import { addsCardAdornment } from "./extensions/cardAdornmentRegistry";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
@@ -3425,6 +3427,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     () => retained.runtime.callbacks.subscribeInvalidation(workflowEditor.closeEditor),
     [retained, workflowEditor.closeEditor],
   );
+  const workflowRuns = useWorkflowRuns({
+    getSteps: (id) => textCardsById.get(id)?.extensions?.workflow?.steps ?? null,
+    client: retained.runtime.workflows,
+  });
+  useEffect(
+    () => retained.runtime.callbacks.subscribeInvalidation(workflowRuns.reset),
+    [retained, workflowRuns.reset],
+  );
 
   const togglePrivacyExtension = (id: string) => {
     retained.runtime.callbacks.captureExtensionToggle("privacy", id as ElementId)?.complete();
@@ -3577,7 +3587,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       });
     };
 
-    if (extensionId === "checkbox") {
+    // An adornment resizes the card, so its ripple waits for the next layout.
+    if (addsCardAdornment(extensionId)) {
       window.requestAnimationFrame(showDropRipples);
     } else {
       showDropRipples();
@@ -4172,6 +4183,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       closeContextMenus();
       workflowEditor.openWorkflowEditor(cardId);
     },
+    runWorkflow: workflowRuns.runWorkflow,
+    stopWorkflow: workflowRuns.stopWorkflow,
+    subscribeWorkflowRuns: workflowRuns.subscribeWorkflowRuns,
+    getWorkflowRun: workflowRuns.getWorkflowRun,
   });
   const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withTextBlock(id, startRename),
@@ -5319,6 +5334,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
           {copyPasteJson.editorWindow}
           {workflowEditor.editorDialog}
+          {workflowRuns.reviewDialog}
 
           <ModalPresence
             open={settingsOpen}

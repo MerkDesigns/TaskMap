@@ -15,12 +15,16 @@ export interface CardAdornmentContext {
 /** A state the card styles on its text; adornments name it, the card owns its look. */
 export type CardTextState = "done";
 
+type AdornmentComponent = ComponentType<{
+  readonly context: CardAdornmentContext;
+  readonly commands: ExtensionCommands;
+}>;
+
 export interface CardAdornment {
   readonly extension: RetainedExtensionKey;
   /** Drawn before the card's text; presses must not start a move. */
-  readonly Leading: ComponentType<{
-    readonly context: CardAdornmentContext;
-    readonly commands: ExtensionCommands;
-  }>;
+  readonly Leading?: AdornmentComponent;
+  /** Drawn after the card's text; presses must not start a move. */
+  readonly Trailing?: AdornmentComponent;
   readonly textState?: (context: CardAdornmentContext) => CardTextState | undefined;
 }

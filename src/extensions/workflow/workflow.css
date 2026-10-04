@@ -46,3 +46,75 @@
   justify-content: space-between;
   gap: var(--taskmap-space-3);
 }
+
+/* Trust review: every step's facts, arguments shown one per chip so spaces stay visible. */
+
+.taskmap-workflow-review__intro {
+  margin: 0;
+}
+
+.taskmap-workflow-review__facts {
+  display: grid;
+  margin: 0;
+  gap: var(--taskmap-space-1) var(--taskmap-space-3);
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.taskmap-workflow-review__facts dt {
+  color: var(--taskmap-muted);
+}
+
+.taskmap-workflow-review__facts dd {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--taskmap-text);
+  gap: var(--taskmap-space-1);
+  overflow-wrap: anywhere;
+}
+
+.taskmap-workflow-review__facts code {
+  font-family: var(--taskmap-font-monospace);
+  white-space: pre-wrap;
+}
+
+.taskmap-workflow-review__argument {
+  padding: 0 var(--taskmap-space-1);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: var(--taskmap-radius-small);
+}
+
+/* The run button after a workflow card's text. Negative margins pull it into the card's padding,
+   like the Checkbox's tick box, so it barely widens the card. */
+
+.taskmap-extension-workflow {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  margin: -6px -8px -6px 6px;
+  border-radius: 0.25rem;
+  color: rgb(255 255 255 / 0.62);
+  place-items: center;
+  transition:
+    color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskmap-extension-workflow:hover:not(:disabled) {
+  background-color: rgb(255 255 255 / 0.1);
+  color: #fff;
+}
+
+.taskmap-extension-workflow:disabled {
+  color: rgb(255 255 255 / 0.28);
+}
+
+.taskmap-extension-workflow[data-state="running"] {
+  color: rgb(52 211 153);
+}
+
+.taskmap-extension-workflow[data-state="failed"] {
+  color: rgb(251 191 36);
+}

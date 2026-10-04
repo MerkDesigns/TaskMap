@@ -1,4 +1,5 @@
 import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
+import type { CardWorkflowRun } from "./workflow/workflowRunStore";
 
 /**
  * The application commands extension UI contributions use, supplied once by the application and forwarded
@@ -22,4 +23,9 @@ export interface ExtensionCommands {
   readonly pasteJsonFromAi: (elementId: string) => Promise<void>;
   readonly openJsonEditor: (elementId: string) => void;
   readonly openWorkflowEditor: (cardId: string) => void;
+  readonly runWorkflow: (cardId: string) => Promise<void>;
+  readonly stopWorkflow: (cardId: string) => Promise<void>;
+  /** The cards' workflow runs as an external store, for the run buttons. */
+  readonly subscribeWorkflowRuns: (listener: () => void) => () => void;
+  readonly getWorkflowRun: (cardId: string) => CardWorkflowRun | null;
 }

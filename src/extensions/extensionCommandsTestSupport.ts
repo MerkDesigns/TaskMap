@@ -14,5 +14,9 @@ export function mockExtensionCommands() {
     pasteJsonFromAi: vi.fn(async () => undefined),
     openJsonEditor: vi.fn(),
     openWorkflowEditor: vi.fn(),
+    runWorkflow: vi.fn(async () => undefined),
+    stopWorkflow: vi.fn(async () => undefined),
+    subscribeWorkflowRuns: vi.fn(() => () => undefined),
+    getWorkflowRun: vi.fn(() => null),
   } satisfies ExtensionCommands;
 }
