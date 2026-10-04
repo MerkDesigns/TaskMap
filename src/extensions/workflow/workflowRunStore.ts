@@ -1,24 +1,24 @@
 import type { PlatformResult } from "../../platform/platformErrors";
 import type { WorkflowRunStatus } from "../../platform/workflow/workflowClient";
-import type { WorkflowStep } from "./workflowDefinition";
+import type { WorkflowLine } from "./workflowDefinition";
 
 /** A card's latest run, as its run button shows it. */
 export interface CardWorkflowRun {
   readonly phase: "starting" | WorkflowRunStatus["phase"];
   readonly runId: string | null;
-  /** Zero-based index of the step that could not start or failed while the next waited for it. */
-  readonly failedStep: number | null;
+  /** Zero-based index of the first line that failed. */
+  readonly failedLine: number | null;
   /** A native refusal other than trust, already safe to show. */
   readonly message: string | null;
 }
 
 export interface WorkflowRunPort {
-  readonly getSteps: (cardId: string) => readonly WorkflowStep[] | null;
-  readonly run: (steps: readonly WorkflowStep[]) => Promise<PlatformResult<WorkflowRunStatus>>;
+  readonly getLines: (cardId: string) => readonly WorkflowLine[] | null;
+  readonly run: (lines: readonly WorkflowLine[]) => Promise<PlatformResult<WorkflowRunStatus>>;
   readonly status: (runId: string) => Promise<PlatformResult<WorkflowRunStatus>>;
   readonly stop: (runId: string) => Promise<PlatformResult<WorkflowRunStatus>>;
   /** The native runner refused the definition as untrusted; show it for review. */
-  readonly needsReview: (cardId: string, steps: readonly WorkflowStep[]) => void;
+  readonly needsReview: (cardId: string, lines: readonly WorkflowLine[]) => void;
 }
 
 const POLL_MS = 1000;
@@ -26,7 +26,7 @@ const POLL_MS = 1000;
 const fromStatus = (status: WorkflowRunStatus): CardWorkflowRun => ({
   phase: status.phase,
   runId: status.runId,
-  failedStep: status.failedStep,
+  failedLine: status.failedLine,
   message: null,
 });
 
@@ -79,23 +79,23 @@ export function createWorkflowRunStore(port: WorkflowRunPort) {
     get: (cardId: string): CardWorkflowRun | null => runs.get(cardId) ?? null,
 
     async run(cardId: string) {
-      const steps = port.getSteps(cardId);
+      const lines = port.getLines(cardId);
       const current = runs.get(cardId);
-      if (!steps?.length || current?.phase === "starting" || current?.phase === "running") return;
+      if (!lines?.length || current?.phase === "starting" || current?.phase === "running") return;
       const started = generation;
-      set(cardId, { phase: "starting", runId: null, failedStep: null, message: null });
-      const result = await port.run(steps);
+      set(cardId, { phase: "starting", runId: null, failedLine: null, message: null });
+      const result = await port.run(lines);
       if (started !== generation) return;
       if (result.ok) {
         set(cardId, fromStatus(result.value));
       } else if (result.error.code === "workflow_untrusted") {
         set(cardId, null);
-        port.needsReview(cardId, steps);
+        port.needsReview(cardId, lines);
       } else {
         set(cardId, {
           phase: "failed",
           runId: null,
-          failedStep: null,
+          failedLine: null,
           message: result.error.message,
         });
       }

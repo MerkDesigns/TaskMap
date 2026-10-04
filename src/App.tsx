@@ -3416,19 +3416,25 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     [retained, copyPasteJson.closeEditor],
   );
   const workflowEditor = useWorkflowEditorFlow({
-    getSteps: (id) => textCardsById.get(id)?.extensions?.workflow?.steps ?? null,
-    saveSteps: (id, steps) =>
+    getLines: (id) => textCardsById.get(id)?.extensions?.workflow?.lines ?? null,
+    getCardName: (id) => textCardsById.get(id)?.text ?? "",
+    saveLines: (id, lines) =>
       retained.runtime.callbacks
         .captureExtensionConfiguration("workflow", id as ElementId)
-        ?.complete({ steps }).ok ?? false,
-    trust: async (steps) => (await retained.runtime.workflows.trust(steps)).ok,
+        ?.complete({ lines }).ok ?? false,
+    saveCardName: (id, name) => Boolean(completeRetainedContent(id, { text: name })?.ok),
+    trust: async (lines) => (await retained.runtime.workflows.trust(lines)).ok,
+    chooseFolder: async () => {
+      const chosen = await retained.runtime.workflows.chooseFolder();
+      return chosen.ok ? chosen.value : null;
+    },
   });
   useEffect(
     () => retained.runtime.callbacks.subscribeInvalidation(workflowEditor.closeEditor),
     [retained, workflowEditor.closeEditor],
   );
   const workflowRuns = useWorkflowRuns({
-    getSteps: (id) => textCardsById.get(id)?.extensions?.workflow?.steps ?? null,
+    getLines: (id) => textCardsById.get(id)?.extensions?.workflow?.lines ?? null,
     client: retained.runtime.workflows,
   });
   useEffect(
@@ -5333,7 +5339,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           </ModalPresence>
 
           {copyPasteJson.editorWindow}
-          {workflowEditor.editorDialog}
+          {workflowEditor.editorWindow}
           {workflowRuns.reviewDialog}
 
           <ModalPresence

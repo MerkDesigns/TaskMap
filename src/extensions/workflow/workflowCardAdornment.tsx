@@ -11,17 +11,17 @@ export const workflowCardAdornment: CardAdornment = {
     const run = useSyncExternalStore(commands.subscribeWorkflowRuns, () =>
       commands.getWorkflowRun(cardId),
     );
-    const stepCount = context.extensions.workflow?.steps.length ?? 0;
+    const lineCount = context.extensions.workflow?.lines.length ?? 0;
     const active = run?.phase === "starting" || run?.phase === "running";
     const failed = run?.phase === "failed";
     const title =
-      stepCount === 0
-        ? "Add steps with Edit workflow"
+      lineCount === 0
+        ? "Add commands with Edit workflow"
         : active
           ? "Stop workflow"
           : failed
-            ? run.failedStep !== null
-              ? `Step ${run.failedStep + 1} failed. Run again`
+            ? run.failedLine !== null
+              ? `Command ${run.failedLine + 1} failed. Run again`
               : `${run.message ?? "The workflow failed."} Run again`
             : "Run workflow";
     return (
@@ -29,7 +29,7 @@ export const workflowCardAdornment: CardAdornment = {
         type="button"
         className="taskmap-extension-workflow"
         data-state={active ? "running" : failed ? "failed" : undefined}
-        disabled={stepCount === 0 || run?.phase === "starting"}
+        disabled={lineCount === 0 || run?.phase === "starting"}
         aria-label={title}
         title={title}
         onPointerDown={(event) => event.stopPropagation()}

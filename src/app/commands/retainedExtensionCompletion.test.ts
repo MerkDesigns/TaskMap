@@ -40,13 +40,11 @@ it.each(getArchitectureExtensionDefinitions())(
           ? { query: "  exact Query\n " }
           : definition.id === "workflow"
             ? {
-                steps: [
+                lines: [
                   {
-                    executable: "npm",
-                    arguments: ["run", "dev"],
+                    invocations: [{ kind: "run", executable: "npm", arguments: ["run", "dev"] }],
                     workingDirectory: null,
                     display: "background",
-                    waitForExit: true,
                   },
                 ],
               }

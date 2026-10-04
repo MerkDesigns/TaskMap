@@ -2,15 +2,14 @@ import { z } from "zod";
 import type { PlatformResult } from "../platformErrors";
 import type { SessionAuthority } from "../settings/preferenceContracts";
 import { invokePlatformRaw } from "../tauriInvoke";
-import type { WorkflowStep } from "../../extensions/workflow/workflowDefinition";
+import type { WorkflowLine } from "../../extensions/workflow/workflowDefinition";
 
 const runStatusSchema = z
   .object({
     runId: z.string().min(1).max(64),
     phase: z.enum(["running", "finished", "failed", "stopped"]),
-    stepCount: z.number().int().nonnegative(),
-    startedSteps: z.number().int().nonnegative(),
-    failedStep: z.number().int().nonnegative().nullable(),
+    lineCount: z.number().int().nonnegative(),
+    failedLine: z.number().int().nonnegative().nullable(),
   })
   .strict();
 
@@ -46,17 +45,18 @@ export function createWorkflowClient(authority: () => SessionAuthority | null) {
     return parsed(await invokePlatformRaw<unknown>(command, { ...session, ...input }), schema);
   };
   return {
-    isTrusted: (steps: readonly WorkflowStep[]) =>
-      call("app_workflow_trust_state", { steps }, z.boolean()),
-    trust: (steps: readonly WorkflowStep[]) =>
+    isTrusted: (lines: readonly WorkflowLine[]) =>
+      call("app_workflow_trust_state", { lines }, z.boolean()),
+    trust: (lines: readonly WorkflowLine[]) =>
       call(
         "app_workflow_trust",
-        { steps },
+        { lines },
         z.null().transform(() => undefined),
       ),
-    run: (steps: readonly WorkflowStep[]) => call("app_workflow_run", { steps }, runStatusSchema),
+    run: (lines: readonly WorkflowLine[]) => call("app_workflow_run", { lines }, runStatusSchema),
     status: (runId: string) => call("app_workflow_status", { runId }, runStatusSchema),
     stop: (runId: string) => call("app_workflow_stop", { runId }, runStatusSchema),
+    chooseFolder: () => call("app_workflow_choose_folder", {}, z.string().max(4096).nullable()),
   };
 }
 

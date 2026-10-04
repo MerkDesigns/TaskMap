@@ -27,12 +27,12 @@ export type ElementExtensions = {
     query: string;
   };
   workflow?: {
-    steps: {
-      executable: string;
-      arguments: string[];
+    lines: {
+      invocations: (
+        { kind: "run"; executable: string; arguments: string[] } | { kind: "open"; target: string }
+      )[];
       workingDirectory: string | null;
       display: "terminal" | "background";
-      waitForExit: boolean;
     }[];
   };
 };

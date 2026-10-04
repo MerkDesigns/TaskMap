@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkflowClient } from "../../platform/workflow/workflowClient";
 import { ModalPresence } from "../../ui/patterns/overlays";
-import type { WorkflowStep } from "./workflowDefinition";
+import type { WorkflowLine } from "./workflowDefinition";
 import { createWorkflowRunStore, type WorkflowRunStore } from "./workflowRunStore";
 import { WorkflowTrustReviewDialog } from "./WorkflowTrustReviewDialog";
 
 export interface WorkflowRunsPort {
-  /** The card's saved steps while the Workflow extension is installed on it, otherwise null. */
-  readonly getSteps: (cardId: string) => readonly WorkflowStep[] | null;
+  /** The card's saved lines while the Workflow extension is installed on it, otherwise null. */
+  readonly getLines: (cardId: string) => readonly WorkflowLine[] | null;
   readonly client: Pick<WorkflowClient, "run" | "status" | "stop" | "trust">;
 }
 
@@ -20,17 +20,17 @@ export function useWorkflowRuns(port: WorkflowRunsPort) {
   portRef.current = port;
   const [review, setReview] = useState<{
     readonly cardId: string;
-    readonly steps: readonly WorkflowStep[];
+    readonly lines: readonly WorkflowLine[];
     readonly open: boolean;
   } | null>(null);
   const storeRef = useRef<WorkflowRunStore | null>(null);
   if (!storeRef.current) {
     storeRef.current = createWorkflowRunStore({
-      getSteps: (cardId) => portRef.current.getSteps(cardId),
-      run: (steps) => portRef.current.client.run(steps),
+      getLines: (cardId) => portRef.current.getLines(cardId),
+      run: (lines) => portRef.current.client.run(lines),
       status: (runId) => portRef.current.client.status(runId),
       stop: (runId) => portRef.current.client.stop(runId),
-      needsReview: (cardId, steps) => setReview({ cardId, steps, open: true }),
+      needsReview: (cardId, lines) => setReview({ cardId, lines, open: true }),
     });
   }
   const store = storeRef.current;
@@ -45,9 +45,9 @@ export function useWorkflowRuns(port: WorkflowRunsPort) {
     closeReview();
   }, [store, closeReview]);
 
-  const trustAndRun = async (cardId: string, steps: readonly WorkflowStep[]) => {
-    // Trusts exactly the reviewed steps; if the card changed meanwhile, the run is refused again.
-    const trusted = await portRef.current.client.trust(steps);
+  const trustAndRun = async (cardId: string, lines: readonly WorkflowLine[]) => {
+    // Trusts exactly the reviewed lines; if the card changed meanwhile, the run is refused again.
+    const trusted = await portRef.current.client.trust(lines);
     if (!trusted.ok) return false;
     closeReview();
     await store.run(cardId);
@@ -62,8 +62,8 @@ export function useWorkflowRuns(port: WorkflowRunsPort) {
       {review ? (
         <WorkflowTrustReviewDialog
           key={review.cardId}
-          steps={review.steps}
-          onTrust={() => trustAndRun(review.cardId, review.steps)}
+          lines={review.lines}
+          onTrust={() => trustAndRun(review.cardId, review.lines)}
           onClose={closeReview}
         />
       ) : null}

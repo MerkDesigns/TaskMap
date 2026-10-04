@@ -30,6 +30,7 @@
     "allow-app-workflow-trust",
     "allow-app-workflow-run",
     "allow-app-workflow-status",
-    "allow-app-workflow-stop"
+    "allow-app-workflow-stop",
+    "allow-app-workflow-choose-folder"
   ]
 }

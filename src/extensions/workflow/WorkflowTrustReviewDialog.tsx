@@ -8,22 +8,54 @@ import {
   useDialogFocus,
 } from "../../ui/patterns/overlays";
 import { Button } from "../../ui/primitives";
-import type { WorkflowStep } from "./workflowDefinition";
+import type { WorkflowInvocation, WorkflowLine } from "./workflowDefinition";
 import "./workflow.css";
 
 export interface WorkflowTrustReviewDialogProps {
-  readonly steps: readonly WorkflowStep[];
-  /** Records the exact steps shown as trusted and runs them; resolves false if that failed. */
+  readonly lines: readonly WorkflowLine[];
+  /** Records the exact lines shown as trusted and runs them; resolves false if that failed. */
   readonly onTrust: () => Promise<boolean>;
   readonly onClose: () => void;
 }
 
+function InvocationFacts({ invocation }: { readonly invocation: WorkflowInvocation }) {
+  if (invocation.kind === "open")
+    return (
+      <>
+        <dt>Opens</dt>
+        <dd>
+          <code>{invocation.target}</code> with its default app
+        </dd>
+      </>
+    );
+  return (
+    <>
+      <dt>Program</dt>
+      <dd>
+        <code>{invocation.executable}</code>
+      </dd>
+      <dt>Arguments</dt>
+      <dd>
+        {invocation.arguments.length > 0 ? (
+          invocation.arguments.map((argument, position) => (
+            <code key={position} className="taskmap-workflow-review__argument">
+              {argument}
+            </code>
+          ))
+        ) : (
+          <span>None</span>
+        )}
+      </dd>
+    </>
+  );
+}
+
 /**
- * Shows every step of a workflow this device has not trusted (pasted, written by AI JSON, or from
+ * Shows every line of a workflow this device has not trusted (pasted, written by AI JSON, or from
  * a database used elsewhere) exactly as it would run, before the user trusts it.
  */
 export function WorkflowTrustReviewDialog({
-  steps,
+  lines,
   onTrust,
   onClose,
 }: WorkflowTrustReviewDialogProps) {
@@ -68,36 +100,22 @@ export function WorkflowTrustReviewDialog({
       />
       <ModalDialogBody className="taskmap-workflow-editor">
         <p className="taskmap-workflow-review__intro">
-          This workflow was not written on this device. Run it only if you trust every program
-          below.
+          This workflow was not written on this device. Run it only if you trust everything below.
         </p>
         <ol className="taskmap-workflow-editor__steps">
-          {steps.map((step, index) => (
+          {lines.map((line, index) => (
             <li key={index} className="taskmap-workflow-editor__step">
-              <span className="taskmap-workflow-editor__step-title">Step {index + 1}</span>
+              <span className="taskmap-workflow-editor__step-title">Command {index + 1}</span>
               <dl className="taskmap-workflow-review__facts">
-                <dt>Program</dt>
-                <dd>
-                  <code>{step.executable}</code>
-                </dd>
-                <dt>Arguments</dt>
-                <dd>
-                  {step.arguments.length > 0 ? (
-                    step.arguments.map((argument, position) => (
-                      <code key={position} className="taskmap-workflow-review__argument">
-                        {argument}
-                      </code>
-                    ))
-                  ) : (
-                    <span>None</span>
-                  )}
-                </dd>
+                {line.invocations.map((invocation, position) => (
+                  <InvocationFacts key={position} invocation={invocation} />
+                ))}
                 <dt>Working directory</dt>
-                <dd>{step.workingDirectory ? <code>{step.workingDirectory}</code> : "Default"}</dd>
+                <dd>{line.workingDirectory ? <code>{line.workingDirectory}</code> : "Default"}</dd>
                 <dt>Runs</dt>
                 <dd>
-                  {step.display === "terminal" ? "In a terminal window" : "In the background"}
-                  {step.waitForExit ? ", the next step waits for it" : ""}
+                  {line.display === "terminal" ? "In a terminal window" : "In the background"}
+                  {line.invocations.length > 1 ? ", each after the previous one succeeds" : ""}
                 </dd>
               </dl>
             </li>

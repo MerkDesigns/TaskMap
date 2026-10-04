@@ -27,6 +27,7 @@ fn main() {
         "app_workflow_run",
         "app_workflow_status",
         "app_workflow_stop",
+        "app_workflow_choose_folder",
         "load_app_data",
     ];
 

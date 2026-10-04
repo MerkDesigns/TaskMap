@@ -6,24 +6,25 @@ import { ReducedMotionProvider } from "../../ui/motion/reducedMotionPreference";
 import { useWorkflowRuns } from "./useWorkflowRuns";
 import { workflowCardAdornment } from "./workflowCardAdornment";
 import type { CardWorkflowRun } from "./workflowRunStore";
-import type { WorkflowStep } from "./workflowDefinition";
+import type { WorkflowLine } from "./workflowDefinition";
 
 afterEach(cleanup);
 
-const step: WorkflowStep = {
-  executable: "cmd.exe",
-  arguments: ["/C", "echo hello world"],
+const line: WorkflowLine = {
+  invocations: [
+    { kind: "run", executable: "cmd.exe", arguments: ["/C", "echo hello world"] },
+    { kind: "open", target: "http://localhost:8081" },
+  ],
   workingDirectory: null,
   display: "background",
-  waitForExit: true,
 };
 
-function renderButton(run: CardWorkflowRun | null, steps: WorkflowStep[] = [step]) {
+function renderButton(run: CardWorkflowRun | null, lines: WorkflowLine[] = [line]) {
   const commands = { ...mockExtensionCommands(), getWorkflowRun: vi.fn(() => run) };
   const Trailing = workflowCardAdornment.Trailing!;
   render(
     <Trailing
-      context={{ elementId: "card", accent: "#fff", extensions: { workflow: { steps } } }}
+      context={{ elementId: "card", accent: "#fff", extensions: { workflow: { lines } } }}
       commands={commands}
     />,
   );
@@ -43,7 +44,7 @@ describe("workflow run button", () => {
     const commands = renderButton({
       phase: "running",
       runId: "run-1",
-      failedStep: null,
+      failedLine: null,
       message: null,
     });
 
@@ -52,16 +53,16 @@ describe("workflow run button", () => {
     expect(commands.stopWorkflow).toHaveBeenCalledWith("card");
   });
 
-  it("names the failed step and offers to run again", () => {
-    renderButton({ phase: "failed", runId: "run-1", failedStep: 1, message: null });
+  it("names the failed line and offers to run again", () => {
+    renderButton({ phase: "failed", runId: "run-1", failedLine: 1, message: null });
 
-    expect(screen.getByRole("button", { name: "Step 2 failed. Run again" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Command 2 failed. Run again" })).toBeEnabled();
   });
 
-  it("is disabled until the workflow has steps", () => {
+  it("is disabled until the workflow has lines", () => {
     renderButton(null, []);
 
-    expect(screen.getByRole("button", { name: "Add steps with Edit workflow" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add commands with Edit workflow" })).toBeDisabled();
   });
 });
 
@@ -78,7 +79,7 @@ describe("workflow trust review", () => {
     };
     const runs: { current: ReturnType<typeof useWorkflowRuns> | null } = { current: null };
     function Host() {
-      runs.current = useWorkflowRuns({ getSteps: () => [step], client });
+      runs.current = useWorkflowRuns({ getLines: () => [line], client });
       return runs.current.reviewDialog;
     }
     render(
@@ -89,7 +90,7 @@ describe("workflow trust review", () => {
     return { client, runs: () => runs.current! };
   }
 
-  it("shows every step exactly as it would run before anything starts", async () => {
+  it("shows every line exactly as it would run before anything starts", async () => {
     const { client, runs } = setup();
 
     await act(() => runs().runWorkflow("card"));
@@ -97,21 +98,22 @@ describe("workflow trust review", () => {
     const dialog = screen.getByRole("dialog", { name: "Review workflow" });
     expect(dialog).toHaveTextContent("cmd.exe");
     expect(screen.getByText("echo hello world").tagName).toBe("CODE");
-    expect(dialog).toHaveTextContent("In the background, the next step waits for it");
+    expect(dialog).toHaveTextContent("http://localhost:8081 with its default app");
+    expect(dialog).toHaveTextContent("In the background, each after the previous one succeeds");
     expect(client.trust).not.toHaveBeenCalled();
   });
 
-  it("trusts the reviewed steps and runs them again", async () => {
+  it("trusts the reviewed lines and runs them again", async () => {
     const { client, runs } = setup();
     await act(() => runs().runWorkflow("card"));
     client.run.mockResolvedValueOnce({
       ok: true,
-      value: { runId: "run-1", phase: "running", stepCount: 1, startedSteps: 0, failedStep: null },
+      value: { runId: "run-1", phase: "running", lineCount: 1, failedLine: null },
     } as never);
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Trust and run" }));
 
-    expect(client.trust).toHaveBeenCalledWith([step]);
+    expect(client.trust).toHaveBeenCalledWith([line]);
     expect(client.run).toHaveBeenCalledTimes(2);
     expect(runs().getWorkflowRun("card")?.phase).toBe("running");
   });

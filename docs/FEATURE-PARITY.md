@@ -74,8 +74,8 @@ Before porting a feature, use existing evidence or capture the relevant interact
 | ----------------------- | ---------------------- | -------------------------------------- | ------------------- |
 | Start development tools | Preserve purpose       | Structured executable + arguments      | Implemented         |
 | Working directory       | Keep                   | Per-step working directory             | Implemented         |
-| Sequential execution    | Keep                   | Explicit sequence groups               | Wait-for-exit steps |
-| Parallel execution      | Keep                   | Explicit parallel groups               | Steps run together  |
+| Sequential execution    | Keep                   | Explicit sequence groups               | a && b in a line    |
+| Parallel execution      | Keep                   | Explicit parallel groups               | Lines run together  |
 | Visible terminal        | Keep                   | Launch visibly when configured         | Implemented         |
 | Background process      | Keep with restrictions | No hidden elevation; tracked ownership | Job-tracked         |
 | Stop launched process   | Keep and redesign      | Stop only TaskMap-owned processes      | Job-owned trees     |

@@ -18,18 +18,29 @@ A card with the extension shows run/stop controls; its menu opens the workflow e
 extension contribution points of ADR 008.
 
 **Definition.** The workflow is the extension's configuration, stored in the encrypted document:
-an ordered list of steps, each `{ executable, arguments[], workingDirectory | null, display,
-waitForExit }`. `display` is `terminal` (a visible console window) or `background` (no window,
-tracked). Steps start in order; a step with `waitForExit` holds the next step until it exits, and
-one without it lets the next step start at once. With every flag off all steps start together, as
-the Command Runner's commands did (a frontend and a backend server both keep running); a run of
-waiting steps is a sequence. There is no shell string field. Explicit named sequence and parallel
-groups can be added later as an additive schema change.
+an ordered list of lines, each `{ invocations[], workingDirectory | null, display }`. All lines start
+together, as the Command Runner's commands did (a frontend and a backend server both keep running).
+A line's invocations run in order, each after the previous one exited successfully, so a line is a
+sequence group and the lines are parallel groups. An invocation is either `{ kind: "run",
+executable, arguments[] }` or `{ kind: "open", target }`: open hands a website, file or folder to
+Windows to open with its default app, never elevated, and TaskMap does not own what it opens.
+`display` is `terminal` (a visible console window per run invocation) or `background` (no window,
+tracked). There is no shell-string field.
+
+**Typing a line.** The editor accepts a command line as in the Command Runner and parses it itself;
+nothing is ever handed to a shell. Words split by Windows argument rules (double quotes group,
+backslashes escape quotes); `a && b` becomes two invocations of one line; `start <target>` becomes an
+open invocation. Shell features that cannot be expressed structurally are rejected with an
+explanation: pipes, redirection, single `&`, `||`, `^`, `%VARIABLES%` and other `cmd.exe` built-ins
+(running `cmd.exe /c …` explicitly stays possible, as a visible program with arguments). The editor
+shows the stored structure as a command line again.
 
 **Launch.** Rust owns process launching and tracking (`ARCHITECTURE.md`: Rust services own native
-operations). A step starts its executable directly with its argument list, never through a shell;
-batch files run through the platform's argument-escaping launcher, which rejects arguments it cannot
-quote safely. Nothing requests elevation. Every launched process is assigned to a TaskMap-owned job,
+operations). A run invocation starts its executable directly with its argument list, never through
+a shell. A bare program name is looked up on PATH with the platform's executable extensions (so
+`npm` finds `npm.cmd`), never in the working directory; a relative path is taken from the working
+directory. Batch files run through the platform's argument-escaping launcher, which rejects arguments
+it cannot quote safely. Nothing requests elevation. Every launched process is assigned to a TaskMap-owned job,
 so stopping a run ends that process tree and nothing else. As with the Command Runner, quitting
 TaskMap leaves running processes running (a development server outlives the window) and only drops
 TaskMap's tracking of them. Locking the database stops no process, but starting, stopping or querying
@@ -52,5 +63,5 @@ run ids, step indexes, exit codes and timing.
   its workflows run again. Trusting is cheap and explicit.
 - Changing any field of a step changes the hash, so an edit from outside the editor cannot keep a
   previous trust.
-- Named groups, keeping a terminal open after exit, and output capture are later additions; the
-  schema is versioned through the extension configuration.
+- Keeping a terminal open after its program exits, waiting between lines, and output capture are
+  later additions; the schema is versioned through the extension configuration.

@@ -7,7 +7,7 @@ pub(crate) mod workflow_trust;
 
 use crate::error::{ServiceFailure, ServiceResult};
 use std::path::Path;
-use workflow_definition::WorkflowStep;
+use workflow_definition::WorkflowLine;
 use workflow_runs::{RunStatus, WorkflowRuns};
 use workflow_trust::WorkflowTrust;
 
@@ -18,28 +18,29 @@ pub(crate) fn run_trusted(
     runs: &WorkflowRuns,
     trust_directory: &Path,
     database_id: &str,
-    steps: Vec<WorkflowStep>,
+    lines: Vec<WorkflowLine>,
 ) -> ServiceResult<RunStatus> {
-    workflow_definition::validate(&steps)?;
-    let hash = workflow_definition::definition_hash(&steps)?;
+    workflow_definition::validate(&lines)?;
+    let hash = workflow_definition::definition_hash(&lines)?;
     if !trust.is_trusted(trust_directory, database_id, &hash)? {
         return Err(ServiceFailure::WorkflowUntrusted);
     }
-    runs.start(database_id, steps)
+    runs.start(database_id, lines)
 }
 
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
-    use workflow_definition::StepDisplay;
+    use workflow_definition::{Invocation, LineDisplay};
 
-    fn definition() -> Vec<WorkflowStep> {
-        vec![WorkflowStep {
-            executable: "cmd.exe".into(),
-            arguments: vec!["/C".into(), "exit 0".into()],
+    fn definition() -> Vec<WorkflowLine> {
+        vec![WorkflowLine {
+            invocations: vec![Invocation::Run {
+                executable: "cmd.exe".into(),
+                arguments: vec!["/C".into(), "exit 0".into()],
+            }],
             working_directory: None,
-            display: StepDisplay::Background,
-            wait_for_exit: false,
+            display: LineDisplay::Background,
         }]
     }
 

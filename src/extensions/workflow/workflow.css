@@ -1,4 +1,121 @@
-/* Workflow editor: a scrolling list of steps inside the standard modal dialog. */
+/* Workflow editor window: like the Command Runner's, a scrolling list of command rows. */
+
+.taskmap-workflow-editor__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-workflow-editor__name {
+  min-width: 0;
+  max-width: 320px;
+  height: 2rem;
+  flex: 1 1 auto;
+  padding: 0 var(--taskmap-space-2);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: var(--taskmap-radius-small);
+  background-color: rgb(0 0 0 / 0.2);
+  color: var(--taskmap-text);
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+}
+
+.taskmap-workflow-editor__name:focus {
+  border-color: rgb(255 255 255 / 0.35);
+}
+
+.taskmap-workflow-window__body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 0 var(--taskmap-space-3) var(--taskmap-space-3);
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-workflow-window__lines {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  align-content: start;
+  margin: 0;
+  padding: 0 var(--taskmap-space-1) 0 0;
+  gap: var(--taskmap-space-2);
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.taskmap-workflow-window__line {
+  display: grid;
+  padding: var(--taskmap-space-3);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--taskmap-radius-medium);
+  background-color: rgb(0 0 0 / 0.14);
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-workflow-window__row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+/* Text fields take the free width of their row. */
+.taskmap-workflow-window__row > :has(input),
+.taskmap-workflow-window__row > input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.taskmap-workflow-window__index {
+  width: 1.5rem;
+  flex: none;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  font-weight: 600;
+  text-align: center;
+}
+
+.taskmap-workflow-window__order {
+  display: flex;
+  width: 1.5rem;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+}
+
+.taskmap-workflow-window__order > * {
+  height: 1rem;
+}
+
+.taskmap-workflow-window__hint {
+  margin: 0;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  line-height: var(--taskmap-text-caption-line);
+}
+
+.taskmap-workflow-window__error {
+  color: var(--taskmap-danger);
+  font-size: var(--taskmap-text-caption-size);
+}
+
+.taskmap-workflow-window__footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-workflow-window__spacer {
+  flex: 1 1 auto;
+}
+
+/* Trust review dialog: every line's commands as they would run. */
 
 .taskmap-workflow-editor {
   display: grid;
@@ -25,29 +142,12 @@
   gap: var(--taskmap-space-2);
 }
 
-.taskmap-workflow-editor__step-header {
-  display: flex;
-  align-items: center;
-  gap: var(--taskmap-space-1);
-}
-
 .taskmap-workflow-editor__step-title {
-  flex: 1 1 auto;
   color: var(--taskmap-text);
   font-size: var(--taskmap-text-label-size);
   font-weight: 600;
   line-height: var(--taskmap-text-label-line);
 }
-
-.taskmap-workflow-editor__step-options {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--taskmap-space-3);
-}
-
-/* Trust review: every step's facts, arguments shown one per chip so spaces stay visible. */
 
 .taskmap-workflow-review__intro {
   margin: 0;
