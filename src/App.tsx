@@ -14,8 +14,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconRotateClockwise } from "@tabler/icons-react";
 import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
@@ -32,7 +30,6 @@ import {
   type RetainedViewCopy,
 } from "./legacy/retainedViewClipboard";
 import { FloatingToolbar } from "./components/FloatingToolbar";
-import { WindowChrome } from "./components/WindowChrome";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageRenderer, type ImageActions } from "./elements/image/ImageRenderer";
 import { ImageMenu, type ImageMenuActions } from "./elements/image/ImageMenu";
@@ -73,7 +70,6 @@ import {
   CopiedCanvasItem,
   ElementExtensions,
   ImageElement,
-  ImageMeta,
   MindmapPort,
   TaskCanvas,
   TextBlockElement,
@@ -83,9 +79,8 @@ import {
 import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
 import { cloneExtensions, normalizeAppData } from "./app/appData";
 import { commandErrorMessage, isRecoverableStorageError } from "./app/commandError";
-import { planCanvasDeletion, updateCanvasDetails } from "./app/canvasDocument";
-import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY, DEFAULT_PAN } from "./app/defaultData";
-import { useAutosave } from "./hooks/useAutosave";
+import { planCanvasDeletion } from "./app/canvasDocument";
+import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY } from "./app/defaultData";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
@@ -109,39 +104,24 @@ import {
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import {
   EXTENSION_COMPATIBLE_TARGETS,
-  EXTENSION_REGISTRY,
-  addAutomaticCheckbox,
   type ExtensionId,
   type ExtensionTargetType,
 } from "./extensions/registry";
-import {
-  parseCopyPasteJson,
-  replaceContainerFromAiJson,
-  serializeContainerForAi,
-} from "./extensions/copyPasteJson";
-import {
-  cloneCanvas,
-  createInitialCanvasHistory,
-  getCanvasHistoryState,
-  omitCameraFromHistory,
-  pushCanvasHistorySnapshot,
-} from "./app/history";
-import { createCanvasInteractionController } from "./app/interactions/canvasInteractionController";
+import { parseCopyPasteJson } from "./extensions/copyPasteJson";
+import { createInitialCanvasHistory } from "./app/history";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
-import { createViewport, viewportWorldRectangle } from "./canvas/geometry/viewportMath";
+import { viewportWorldRectangle } from "./canvas/geometry/viewportMath";
 import { rectanglesIntersect, type ElementGeometry } from "./canvas/geometry/canvasGeometry";
 import { LegacyCanvasVisibility } from "./legacy/interactions/LegacyCanvasVisibility";
 import { useLegacyInteractionSnapshot } from "./legacy/interactions/useLegacyInteractionSnapshot";
 import { useLegacyCameraPresentation } from "./legacy/interactions/useLegacyCameraPresentation";
-import { createLegacyCanvasInteractionCommitAdapter } from "./legacy/interactions/legacyCanvasInteractionCommitAdapter";
 import {
   filterLegacyResizeSnapTargets,
   getLegacyInteractionElements,
 } from "./legacy/interactions/legacyCanvasGeometry";
 import { projectLegacyGeometry } from "./legacy/interactions/legacyCanvasGeometry";
-import { createLegacyCameraSynchronization } from "./legacy/interactions/legacyCameraSynchronization";
 import { applyLegacySelectionAction } from "./legacy/interactions/legacySelectionCompatibility";
 import {
   createLegacyTextCardInteractionService,
@@ -173,11 +153,7 @@ import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
 import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
-import {
-  cardsMatchingSearch,
-  SEARCH_ROW_HEIGHT,
-  searchRowHeight,
-} from "./extensions/search/searchRule";
+import { cardsMatchingSearch, searchRowHeight } from "./extensions/search/searchRule";
 import { hasContentState } from "./extensions/contentState";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
@@ -264,13 +240,12 @@ const createStorageError = (prefix: string, error: unknown): StorageErrorState =
   canReset: isRecoverableStorageError(error),
 });
 
+// Retained images resolve media through session leases; the legacy hash cache holds nothing.
+const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
 const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
 const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
-const CLEAR_HISTORY_TRANSACTION = "clear-canvas";
-const DELETE_HISTORY_TRANSACTION = "delete-selection";
-const imageHistoryTransaction = (imageId: string) => `image:${imageId}`;
 
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
@@ -387,21 +362,15 @@ const useCanvasLayers = <T extends { id: string; layer?: number }>(
 };
 
 interface AppProps {
-  readonly useSettings?: typeof useLegacyCanvasSettings;
-  readonly useDocument?: typeof useCanvasDocument;
-  readonly retained?: RetainedCanvasContextValue;
-  readonly onBeforeClose?: () => Promise<void>;
+  readonly useSettings: typeof useLegacyCanvasSettings;
+  readonly useDocument: typeof useCanvasDocument;
+  /** The open database's canvas: the document, its commands and its view projection. */
+  readonly retained: RetainedCanvasContextValue;
 }
 
-function App({
-  onBeforeClose,
-  useDocument = useCanvasDocument,
-  useSettings = useLegacyCanvasSettings,
-  retained,
-}: AppProps = {}) {
-  const createViewId = (prefix: string) => createEntityId(retained ? "element" : prefix);
+function App({ useDocument, useSettings, retained }: AppProps) {
   const completeRetainedContent = (id: string, to: Record<string, string | boolean | null>) =>
-    retained?.runtime.callbacks
+    retained.runtime.callbacks
       .captureContent([{ elementId: id as ElementId, fields: Object.keys(to) }])
       ?.complete([{ elementId: id as ElementId, to }]);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -435,7 +404,6 @@ function App({
   const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
   const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
   const latestDataGetterRef = useRef<() => AppData>(() => latestAppDataRef.current);
-  const closeInProgressRef = useRef(false);
   const latestAppDataRef = useRef<AppData>({
     schemaVersion: 2,
     activeCanvasId: DEFAULT_CANVAS.id,
@@ -458,20 +426,14 @@ function App({
     elements,
     images,
     mindmapConnections,
-    pan: legacyPan,
     setActiveCanvas,
     setCanvases,
     setCamera,
-    setElements,
-    setImages,
-    setMindmapConnections,
-    setTextBlocks,
-    setTextCards,
     textBlocks,
     textCards,
     zoom: legacyZoom,
   } = useDocument();
-  if (retained) activeCanvasIdRef.current = activeCanvas.id;
+  activeCanvasIdRef.current = activeCanvas.id;
   const interactionBindingsRef = useRef({ activeCanvas, setActiveCanvas, setCamera });
   interactionBindingsRef.current = { activeCanvas, setActiveCanvas, setCamera };
   const textCardInteractionRef = useRef<ReturnType<
@@ -489,52 +451,9 @@ function App({
   const interactionControllerRef = useRef<CanvasInteractionController | null>(null);
   const interactionStageSizeRef = useRef(stageSize);
   interactionStageSizeRef.current = stageSize;
-  const cameraSynchronizationRef = useRef<ReturnType<
-    typeof createLegacyCameraSynchronization
-  > | null>(null);
-  if (!cameraSynchronizationRef.current) {
-    cameraSynchronizationRef.current = createLegacyCameraSynchronization({
-      initialCanvasId: activeCanvas.id,
-      initialCamera: { pan: legacyPan, zoom: legacyZoom },
-      scheduler: {
-        schedule: (callback) => window.setTimeout(callback, 120),
-        cancel: (handle) => window.clearTimeout(handle),
-      },
-      writeLegacyCamera: (canvasId, camera) => {
-        if (interactionBindingsRef.current.activeCanvas.id === canvasId) {
-          interactionBindingsRef.current.setCamera(camera.pan, camera.zoom);
-        }
-      },
-      adoptLegacyCamera: (canvasId, camera) => {
-        textCardInteractionRef.current?.reset();
-        interactionControllerRef.current?.replaceCanvas(
-          canvasId,
-          createViewport(camera.pan, camera.zoom, interactionStageSizeRef.current),
-        );
-      },
-    });
-  }
-  const cameraSynchronization = cameraSynchronizationRef.current;
-  const interactionController = useStableCanvasInteractionController(() => {
-    if (retained) return retained.binding.interaction;
-    const commitPort = createLegacyCanvasInteractionCommitAdapter({
-      getActiveCanvas: () => interactionBindingsRef.current.activeCanvas,
-      commitActiveCanvas: (canvas) => interactionBindingsRef.current.setActiveCanvas(canvas),
-      getContainerScrollOffset: (containerId) =>
-        containerScrollOffsetsRef.current[containerId] ?? 0,
-      getTextCardPlacementDecision: textCardInteraction.getDecision,
-      onTextCardPlacementCommitted: textCardInteraction.finishCommitted,
-    });
-    return createCanvasInteractionController({
-      canvasKey: activeCanvas.id,
-      viewport: createViewport(legacyPan, legacyZoom, stageSize),
-      commitPort,
-      panFrameScheduler: {
-        schedule: (callback) => window.requestAnimationFrame(callback),
-        cancel: (handle) => window.cancelAnimationFrame(handle),
-      },
-    });
-  });
+  const interactionController = useStableCanvasInteractionController(
+    () => retained.binding.interaction,
+  );
   interactionControllerRef.current = interactionController;
   const interactionSnapshot = useLegacyInteractionSnapshot(interactionController);
   useLegacyCameraPresentation(interactionController, stageRef, selectionRef);
@@ -543,22 +462,6 @@ function App({
     textCardInteraction.getSnapshot,
     textCardInteraction.getSnapshot,
   );
-  useLayoutEffect(() => {
-    if (retained) return;
-    cameraSynchronization.observeLegacyCamera(activeCanvas.id, {
-      pan: activeCanvas.pan,
-      zoom: activeCanvas.zoom,
-    });
-  }, [activeCanvas, cameraSynchronization, retained]);
-  useLayoutEffect(() => {
-    if (retained) return;
-    const synchronize = () => {
-      const snapshot = interactionController.getSnapshot();
-      if (snapshot.activeInteraction) cameraSynchronization.cancelPending();
-      else cameraSynchronization.queueControllerCamera(snapshot.canvasKey, snapshot.viewport);
-    };
-    return interactionController.subscribe(synchronize);
-  }, [cameraSynchronization, interactionController, retained]);
   useEffect(() => {
     interactionController.resizeViewport(stageSize);
   }, [interactionController, stageSize]);
@@ -634,7 +537,6 @@ function App({
     import("./app/commands/retainedConnectionCallbacks").ConnectionCompletion
   > | null>(null);
   useEffect(() => {
-    if (!retained) return;
     const reset = () => {
       if (!retained.runtime.controller.store.getState().documentWorkspace.document) {
         latestAppDataRef.current = {
@@ -668,38 +570,27 @@ function App({
     };
   }, [retained, textCardInteraction]);
   useLayoutEffect(() => {
-    retainedTextEdit.current =
-      retained && editingTextCardId
-        ? captureRetainedTextEdit(
-            retained.runtime.callbacks,
-            editingTextCardId as ElementId,
-            "text",
-          )
-        : null;
+    retainedTextEdit.current = editingTextCardId
+      ? captureRetainedTextEdit(retained.runtime.callbacks, editingTextCardId as ElementId, "text")
+      : null;
     return () => {
       retainedTextEdit.current?.cancel();
       retainedTextEdit.current = null;
     };
   }, [retained, editingTextCardId]);
   useLayoutEffect(() => {
-    retainedBlockEdit.current =
-      retained && editingTextBlockId
-        ? captureRetainedTextEdit(
-            retained.runtime.callbacks,
-            editingTextBlockId as ElementId,
-            "text",
-          )
-        : null;
+    retainedBlockEdit.current = editingTextBlockId
+      ? captureRetainedTextEdit(retained.runtime.callbacks, editingTextBlockId as ElementId, "text")
+      : null;
     return () => {
       retainedBlockEdit.current?.cancel();
       retainedBlockEdit.current = null;
     };
   }, [retained, editingTextBlockId]);
   useLayoutEffect(() => {
-    retainedRename.current =
-      retained && renamingId
-        ? captureRetainedTextEdit(retained.runtime.callbacks, renamingId as ElementId, "name")
-        : null;
+    retainedRename.current = renamingId
+      ? captureRetainedTextEdit(retained.runtime.callbacks, renamingId as ElementId, "name")
+      : null;
     return () => {
       retainedRename.current?.cancel();
       retainedRename.current = null;
@@ -858,13 +749,12 @@ function App({
 
   useEffect(
     () => () => {
-      cameraSynchronization.cancelPending();
       textCardInteraction.cancelScheduledPresentation();
       if (wheelLayerTimeoutRef.current !== null) {
         window.clearTimeout(wheelLayerTimeoutRef.current);
       }
     },
-    [cameraSynchronization, textCardInteraction],
+    [textCardInteraction],
   );
 
   useEffect(() => {
@@ -992,7 +882,6 @@ function App({
   );
 
   const persistAppData = (data: AppData, forceAllCanvases = false): Promise<void> => {
-    if (retained) throw new Error("Legacy persistence is unavailable for this session.");
     const capturedVersions = new Map(dirtyCanvasVersionsRef.current);
     const canvasIdsToSave = forceAllCanvases
       ? new Set(data.canvases.map((canvas) => canvas.id))
@@ -1015,17 +904,8 @@ function App({
     return queuedSave;
   };
 
-  const activeCachedImages = useMemo(
-    () =>
-      retained
-        ? []
-        : images.flatMap((image) =>
-            image.imageId ? [{ hash: image.imageId, format: image.format }] : [],
-          ),
-    [images, retained],
-  );
-  const { imageUrlVersion, storeImageFromBytes } = useImageCache({
-    activeImages: activeCachedImages,
+  const { imageUrlVersion } = useImageCache({
+    activeImages: NO_CACHED_IMAGES,
     onStoreError: (error) => {
       showToast({
         tone: "error",
@@ -1037,24 +917,14 @@ function App({
   // Latest image drop/paste handlers, refreshed each render so the once-mounted
   // OS drag-drop and clipboard listeners never call stale closures.
   const imageDropOpsRef = useRef<{
-    canvasPointFromEvent: (event: { clientX: number; clientY: number }) => { x: number; y: number };
-    looseImages: ImageElement[];
-    fillElementFromPath: (id: string, path: string) => void;
-    importImageFromPath: (path: string, clientX: number, clientY: number, offset?: number) => void;
-    addImageFromBuffer: (buffer: ArrayBuffer, clientX: number, clientY: number) => void;
-    addImageFromBlob?: (source: Blob, clientX: number, clientY: number) => void;
-    importAuthorizedDrop?: (drop: ImageDrop) => void;
+    addImageFromBlob: (source: Blob, clientX: number, clientY: number) => void;
+    importAuthorizedDrop: (drop: ImageDrop) => void;
   } | null>(null);
 
   const clampCanvasSize = (value: number) =>
     clamp(Number.isFinite(value) ? value : CANVAS_WIDTH, 600, 10000);
 
   activeCanvasIdRef.current = activeCanvas.id;
-
-  const markCanvasDirty = (canvasId: string) => {
-    const currentVersion = dirtyCanvasVersionsRef.current.get(canvasId) ?? 0;
-    dirtyCanvasVersionsRef.current.set(canvasId, currentVersion + 1);
-  };
 
   const applyPendingCanvasDeletions = (canvas: TaskCanvas): TaskCanvas => {
     const pending = pendingCanvasDeletionsRef.current.get(canvas.id);
@@ -1128,101 +998,9 @@ function App({
   });
   latestDataGetterRef.current = getCurrentAppData;
 
-  const updateHistoryState = (canvasId = activeCanvas.id) => {
-    if (retained) {
-      const history = retained.runtime.controller.store.getState().documentWorkspace.history;
-      setHistoryState({ canUndo: history.past.length > 0, canRedo: history.future.length > 0 });
-      return;
-    }
-    setHistoryState(getCanvasHistoryState(historyRef.current, historyIndexRef.current, canvasId));
-  };
-
-  const pushHistorySnapshot = (data: AppData, canvasId = data.activeCanvasId) => {
-    if (retained) return;
-    const nextHistory = pushCanvasHistorySnapshot(
-      historyRef.current,
-      historyIndexRef.current,
-      data,
-      canvasId,
-    );
-    if (!nextHistory) {
-      return;
-    }
-
-    historyRef.current = nextHistory.historyByCanvasId;
-    historyIndexRef.current = nextHistory.historyIndexByCanvasId;
-    if (nextHistory.canvasId === activeCanvasIdRef.current) {
-      updateHistoryState(nextHistory.canvasId);
-    }
-  };
-
-  const recordHistorySnapshot = (data: AppData, canvasId = data.activeCanvasId) => {
-    if (retained) return;
-    if (!appDataLoadedRef.current || applyingHistoryRef.current) {
-      return;
-    }
-
-    if ((historyTransactionsRef.current.get(canvasId)?.size ?? 0) > 0) {
-      dirtyHistoryTransactionsRef.current.add(canvasId);
-      if (canvasId === activeCanvasIdRef.current) {
-        setHistoryState((current) =>
-          current.canUndo && !current.canRedo ? current : { canUndo: true, canRedo: false },
-        );
-      }
-      return;
-    }
-
-    dirtyHistoryTransactionsRef.current.delete(canvasId);
-    pushHistorySnapshot(data, canvasId);
-  };
-
-  const beginHistoryTransaction = (canvasId: string, transactionId: string) => {
-    if (retained) return;
-    if (!appDataLoadedRef.current || applyingHistoryRef.current) {
-      return;
-    }
-
-    const transactions = historyTransactionsRef.current.get(canvasId) ?? new Set<string>();
-    if (transactions.has(transactionId)) {
-      return;
-    }
-
-    if (transactions.size === 0) {
-      dirtyHistoryTransactionsRef.current.delete(canvasId);
-      pushHistorySnapshot(latestDataGetterRef.current(), canvasId);
-    }
-    transactions.add(transactionId);
-    historyTransactionsRef.current.set(canvasId, transactions);
-  };
-
-  const finishHistoryTransaction = (
-    canvasId: string,
-    transactionId: string,
-    finalData?: AppData,
-  ) => {
-    const transactions = historyTransactionsRef.current.get(canvasId);
-    if (!transactions?.delete(transactionId)) {
-      return;
-    }
-
-    if (transactions.size > 0) {
-      return;
-    }
-
-    historyTransactionsRef.current.delete(canvasId);
-    const transactionChanged = dirtyHistoryTransactionsRef.current.delete(canvasId);
-    if (finalData && transactionChanged) {
-      recordHistorySnapshot(finalData, canvasId);
-    }
-  };
-
-  const cancelHistoryTransactions = (canvasId: string) => {
-    historyTransactionsRef.current.delete(canvasId);
-    dirtyHistoryTransactionsRef.current.delete(canvasId);
-  };
-
-  const commitHistorySnapshot = (canvasId: string, data = latestDataGetterRef.current()) => {
-    pushHistorySnapshot(data, canvasId);
+  const updateHistoryState = () => {
+    const history = retained.runtime.controller.store.getState().documentWorkspace.history;
+    setHistoryState({ canUndo: history.past.length > 0, canRedo: history.future.length > 0 });
   };
 
   const lifecycleActions = useStableCallbacks({
@@ -1234,133 +1012,8 @@ function App({
         ),
       ),
     getCurrentAppData,
-    recordHistorySnapshot,
     updateHistoryState,
   });
-
-  useEffect(() => {
-    let active = true;
-
-    if (retained) return;
-
-    invoke<unknown | null>("load_app_data")
-      .then((data) => {
-        if (!active) {
-          return;
-        }
-
-        if (data) {
-          const normalized = normalizeAppData(data, getWindowPreviewViewport);
-          const selectedCanvas =
-            normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ??
-            normalized.canvases[0] ??
-            DEFAULT_CANVAS;
-
-          activeCanvasIdRef.current = selectedCanvas.id;
-          latestAppDataRef.current = normalized;
-          setCanvases(normalized.canvases.length ? normalized.canvases : [DEFAULT_CANVAS]);
-          setActiveCanvas(selectedCanvas);
-          setCanvasGridStyle(normalized.canvasGridStyle);
-          setCanvasGridOpacity(normalized.canvasGridOpacity);
-          setDefaultElementColors(normalized.defaultElementColors);
-          setRecentColors(normalized.recentColors);
-          setShadowsUnderElements(normalized.shadowsUnderElements);
-          setAllowLockedElementDeletion(normalized.allowLockedElementDeletion);
-          setMinimapEnabled(normalized.minimapEnabled);
-          setPrivacyModeEnabled(normalized.privacyModeEnabled);
-          setToolbarButtonsVisible(normalized.toolbarButtonsVisible);
-          setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
-          const initialHistory = createInitialCanvasHistory(selectedCanvas);
-          historyRef.current = initialHistory.historyByCanvasId;
-          historyIndexRef.current = initialHistory.historyIndexByCanvasId;
-          lifecycleActions.updateHistoryState(selectedCanvas.id);
-        } else {
-          const initialHistory = createInitialCanvasHistory(DEFAULT_CANVAS);
-          historyRef.current = initialHistory.historyByCanvasId;
-          historyIndexRef.current = initialHistory.historyIndexByCanvasId;
-          lifecycleActions.updateHistoryState(DEFAULT_CANVAS.id);
-          markCanvasDirty(DEFAULT_CANVAS.id);
-        }
-
-        setStorageError(null);
-        setAppDataLoaded(true);
-        appDataLoadedRef.current = true;
-      })
-      .catch((error) => {
-        const storageFailure = createStorageError("Failed to load app data", error);
-        setStorageError(storageFailure);
-        console.error(storageFailure.message);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [
-    retained,
-    lifecycleActions,
-    setActiveCanvas,
-    setAllowLockedElementDeletion,
-    setCanvasGridOpacity,
-    setCanvasGridStyle,
-    setDefaultElementColors,
-    setDismissedUpdateVersion,
-    setMinimapEnabled,
-    setPrivacyModeEnabled,
-    setRecentColors,
-    setShadowsUnderElements,
-    setToolbarButtonsVisible,
-    setCanvases,
-    setElements,
-    setImages,
-    setMindmapConnections,
-    setTextBlocks,
-    setTextCards,
-  ]);
-
-  useEffect(() => {
-    if (retained) return;
-    const data = lifecycleActions.getCurrentAppData();
-    latestAppDataRef.current = data;
-  }, [
-    retained,
-    activeCanvas,
-    canvasGridOpacity,
-    canvasGridStyle,
-    canvases,
-    defaultElementColors,
-    recentColors,
-    shadowsUnderElements,
-    allowLockedElementDeletion,
-    dismissedUpdateVersion,
-    elements,
-    images,
-    mindmapConnections,
-    minimapEnabled,
-    privacyModeEnabled,
-    textBlocks,
-    textCards,
-    toolbarButtonsVisible,
-    lifecycleActions,
-  ]);
-
-  useEffect(() => {
-    if (retained) return;
-    const data = lifecycleActions.getCurrentAppData();
-    latestAppDataRef.current = data;
-    lifecycleActions.recordHistorySnapshot(data, activeCanvas.id);
-  }, [
-    retained,
-    activeCanvas.height,
-    activeCanvas.id,
-    activeCanvas.name,
-    activeCanvas.width,
-    elements,
-    images,
-    mindmapConnections,
-    textBlocks,
-    textCards,
-    lifecycleActions,
-  ]);
 
   useEffect(() => {
     if (!appDataLoadedRef.current) {
@@ -1371,142 +1024,9 @@ function App({
   }, [activeCanvas.id, elements, images, mindmapConnections, textBlocks, textCards]);
 
   useEffect(() => {
-    if (retained) {
-      lifecycleActions.updateHistoryState();
-      return retained.runtime.controller.store.subscribe(() =>
-        lifecycleActions.updateHistoryState(),
-      );
-    }
-    const activeHistory = historyRef.current[activeCanvas.id];
-    if (!activeHistory) {
-      const snapshot = omitCameraFromHistory(
-        cloneCanvas(lifecycleActions.getActiveCanvasSnapshot()),
-      );
-      historyRef.current = {
-        ...historyRef.current,
-        [activeCanvas.id]: [snapshot],
-      };
-      historyIndexRef.current = {
-        ...historyIndexRef.current,
-        [activeCanvas.id]: 0,
-      };
-    }
-
-    lifecycleActions.updateHistoryState(activeCanvas.id);
-  }, [activeCanvas.id, lifecycleActions, retained]);
-
-  const { cancelAutosave, flushAutosave } = useAutosave({
-    enabled: import.meta.env.MODE === "storage-preview" ? false : !retained && appDataLoaded,
-    dataRef: latestAppDataRef,
-    dependencies: [
-      activeCanvas,
-      canvasGridOpacity,
-      canvasGridStyle,
-      canvases,
-      defaultElementColors,
-      recentColors,
-      shadowsUnderElements,
-      allowLockedElementDeletion,
-      dismissedUpdateVersion,
-      elements,
-      images,
-      mindmapConnections,
-      minimapEnabled,
-      privacyModeEnabled,
-      textBlocks,
-      textCards,
-      toolbarButtonsVisible,
-    ],
-    save: () => persistAppData(latestDataGetterRef.current()),
-    onSaved: () => setStorageError(null),
-    onError: (error) => {
-      const storageFailure = createStorageError("Failed to save app data", error);
-      setStorageError(storageFailure);
-      console.error(storageFailure.message);
-    },
-  });
-
-  useEffect(() => {
-    if (retained || !appDataLoaded) {
-      return;
-    }
-
-    const appWindow = getCurrentWindow();
-    let disposed = false;
-    let unlisten: (() => void) | undefined;
-
-    void appWindow
-      .onCloseRequested(async (event) => {
-        event.preventDefault();
-        if (closeInProgressRef.current) {
-          return;
-        }
-
-        closeInProgressRef.current = true;
-        const latestData = latestDataGetterRef.current();
-        latestAppDataRef.current = latestData;
-        markCanvasDirty(latestData.activeCanvasId);
-
-        try {
-          await onBeforeClose?.();
-          await flushAutosave();
-          await appWindow.destroy();
-        } catch (error) {
-          closeInProgressRef.current = false;
-          const storageFailure = createStorageError(
-            "Close cancelled because TaskMap could not save",
-            error,
-          );
-          setStorageError(storageFailure);
-          showToast({
-            tone: "error",
-            title: "Could not close safely",
-            message: commandErrorMessage(error),
-          });
-        }
-      })
-      .then((stopListening) => {
-        if (disposed) {
-          stopListening();
-        } else {
-          unlisten = stopListening;
-        }
-      });
-
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  }, [appDataLoaded, flushAutosave, onBeforeClose, retained, showToast]);
-
-  useEffect(() => {
-    if (retained || !appDataLoaded) {
-      return;
-    }
-
-    let cancelled = false;
-
-    getCurrentWindow()
-      .setContentProtected(privacyModeEnabled)
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-
-        if (privacyModeEnabled) {
-          setPrivacyModeEnabled(false);
-        }
-        showToast({
-          tone: "error",
-          title: "Privacy mode unavailable",
-          message: commandErrorMessage(error),
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [appDataLoaded, privacyModeEnabled, retained, setPrivacyModeEnabled, showToast]);
+    lifecycleActions.updateHistoryState();
+    return retained.runtime.controller.store.subscribe(() => lifecycleActions.updateHistoryState());
+  }, [lifecycleActions, retained]);
 
   const {
     appVersion,
@@ -1519,9 +1039,7 @@ function App({
     appDataLoaded: import.meta.env.MODE === "storage-preview" ? false : appDataLoaded,
     dismissedUpdateVersion,
     onDismissUpdateVersion: setDismissedUpdateVersion,
-    cancelAutosave,
     saveCurrentData: async () => {
-      if (!retained) return persistAppData(getCurrentAppData(), true);
       const result = await retained.runtime.controller.prepareWindowClose();
       if (!result.ok) throw new Error("The database could not be saved before updating.");
     },
@@ -2003,48 +1521,6 @@ function App({
     }, 180);
   };
 
-  const registerPendingDeletion = (
-    canvasId: string,
-    kind: keyof PendingCanvasDeletions,
-    ids: string[],
-  ) => {
-    const pending = pendingCanvasDeletionsRef.current.get(canvasId) ?? {
-      containers: new Set<string>(),
-      textCards: new Set<string>(),
-      textBlocks: new Set<string>(),
-      images: new Set<string>(),
-    };
-    ids.forEach((id) => pending[kind].add(id));
-    pendingCanvasDeletionsRef.current.set(canvasId, pending);
-    markCanvasDirty(canvasId);
-  };
-
-  const recordPendingDeletion = (canvasId: string) => {
-    const latestData = latestDataGetterRef.current();
-    latestAppDataRef.current = latestData;
-    recordHistorySnapshot(latestData, canvasId);
-  };
-
-  const finishPendingDeletion = (
-    canvasId: string,
-    kind: keyof PendingCanvasDeletions,
-    ids: string[],
-  ) => {
-    const pending = pendingCanvasDeletionsRef.current.get(canvasId);
-    if (!pending) {
-      return;
-    }
-    ids.forEach((id) => pending[kind].delete(id));
-    if (
-      pending.containers.size === 0 &&
-      pending.textCards.size === 0 &&
-      pending.textBlocks.size === 0 &&
-      pending.images.size === 0
-    ) {
-      pendingCanvasDeletionsRef.current.delete(canvasId);
-    }
-  };
-
   const scheduleDeletionCommit = (canvasId: string, commit: () => void, delayMs: number) => {
     const timeout = window.setTimeout(() => {
       const canvasTimeouts = pendingDeletionTimeoutsRef.current.get(canvasId);
@@ -2073,52 +1549,6 @@ function App({
     }
   };
 
-  const removeImages = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
-    if (retained) {
-      deleteRetainedSelection(ids);
-      return;
-    }
-    const idsToRemove = ids.filter(
-      (id) => force || canvasId !== activeCanvasIdRef.current || !isElementDeletionLocked(id),
-    );
-    if (idsToRemove.length === 0) {
-      return;
-    }
-
-    const idSet = new Set(idsToRemove);
-    registerPendingDeletion(canvasId, "images", idsToRemove);
-    recordPendingDeletion(canvasId);
-    if (canvasId === activeCanvasIdRef.current) {
-      setDeletingImageIds((current) => Array.from(new Set([...current, ...idsToRemove])));
-      setImageMenu((current) => (current && idSet.has(current.id) ? null : current));
-      setSelectedIds((current) => current.filter((selectedId) => !idSet.has(selectedId)));
-      setLoadingImageIds((current) => current.filter((loadingId) => !idSet.has(loadingId)));
-    }
-    scheduleDeletionCommit(
-      canvasId,
-      () => {
-        setCanvases((current) =>
-          current.map((canvas) =>
-            canvas.id === canvasId
-              ? {
-                  ...canvas,
-                  images: (canvas.images ?? []).filter((image) => !idSet.has(image.id)),
-                  mindmapConnections: canvas.mindmapConnections.filter(
-                    (connection) =>
-                      !idSet.has(connection.sourceId) && !idSet.has(connection.targetId),
-                  ),
-                }
-              : canvas,
-          ),
-        );
-        setDeletingImageIds((current) => current.filter((deletingId) => !idSet.has(deletingId)));
-        setEnteringImageIds((current) => current.filter((enteringId) => !idSet.has(enteringId)));
-        finishPendingDeletion(canvasId, "images", idsToRemove);
-      },
-      160,
-    );
-  };
-
   const pulseTextCard = (id: string) => {
     setPulsingTextCardIds((current) => [...current.filter((pulsingId) => pulsingId !== id), id]);
     window.setTimeout(() => {
@@ -2133,221 +1563,13 @@ function App({
     }, 260);
   };
 
-  const removeContainers = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
-    if (retained) {
-      deleteRetainedSelection(ids);
-      return;
-    }
-    const idsToRemove = ids.filter((id) => {
-      if (force || canvasId !== activeCanvasIdRef.current) {
-        return true;
-      }
-      return !isElementDeletionLocked(id);
-    });
-    if (idsToRemove.length === 0) {
-      return;
-    }
-
-    const idsToRemoveSet = new Set(idsToRemove);
-    const containedTextCardIds = textCards
-      .filter((card) => card.containerId && idsToRemoveSet.has(card.containerId))
-      .map((card) => card.id);
-    const containedImageIds = images
-      .filter((image) => image.containerId && idsToRemoveSet.has(image.containerId))
-      .map((image) => image.id);
-
-    registerPendingDeletion(canvasId, "containers", idsToRemove);
-    registerPendingDeletion(canvasId, "textCards", containedTextCardIds);
-    registerPendingDeletion(canvasId, "images", containedImageIds);
-    recordPendingDeletion(canvasId);
-    setDeletingIds((current) => Array.from(new Set([...current, ...idsToRemove])));
-    setDeletingTextCardIds((current) => Array.from(new Set([...current, ...containedTextCardIds])));
-    setDeletingImageIds((current) => Array.from(new Set([...current, ...containedImageIds])));
-    setSelectedIds((current) =>
-      current.filter(
-        (selectedId) =>
-          !idsToRemoveSet.has(selectedId) &&
-          !containedTextCardIds.includes(selectedId) &&
-          !containedImageIds.includes(selectedId),
-      ),
-    );
-    setEditingTextCardId((current) =>
-      current && containedTextCardIds.includes(current) ? null : current,
-    );
-    setTextCardMenu((current) =>
-      current && containedTextCardIds.includes(current.id) ? null : current,
-    );
-    setImageMenu((current) => (current && containedImageIds.includes(current.id) ? null : current));
-    setLoadingImageIds((current) =>
-      current.filter((loadingId) => !containedImageIds.includes(loadingId)),
-    );
-    scheduleDeletionCommit(
-      canvasId,
-      () => {
-        const containedTextCardIdSet = new Set(containedTextCardIds);
-        const containedImageIdSet = new Set(containedImageIds);
-        const removedConnectionEndpointIds = new Set([
-          ...idsToRemove,
-          ...containedTextCardIds,
-          ...containedImageIds,
-        ]);
-        setCanvases((current) =>
-          current.map((canvas) =>
-            canvas.id === canvasId
-              ? {
-                  ...canvas,
-                  containers: canvas.containers.filter(
-                    (element) => !idsToRemoveSet.has(element.id),
-                  ),
-                  textCards: normalizeTextCardOrders(
-                    canvas.textCards.filter((card) => !containedTextCardIdSet.has(card.id)),
-                  ),
-                  images: (canvas.images ?? []).filter(
-                    (image) => !containedImageIdSet.has(image.id),
-                  ),
-                  mindmapConnections: canvas.mindmapConnections.filter(
-                    (connection) =>
-                      !removedConnectionEndpointIds.has(connection.sourceId) &&
-                      !removedConnectionEndpointIds.has(connection.targetId),
-                  ),
-                }
-              : canvas,
-          ),
-        );
-        setDeletingIds((current) =>
-          current.filter((deletingId) => !idsToRemoveSet.has(deletingId)),
-        );
-        setEnteringIds((current) =>
-          current.filter((enteringId) => !idsToRemoveSet.has(enteringId)),
-        );
-        setDeletingTextCardIds((current) =>
-          current.filter((deletingId) => !containedTextCardIds.includes(deletingId)),
-        );
-        setEnteringTextCardIds((current) =>
-          current.filter((enteringId) => !containedTextCardIds.includes(enteringId)),
-        );
-        setPulsingTextCardIds((current) =>
-          current.filter((pulsingId) => !containedTextCardIds.includes(pulsingId)),
-        );
-        setDeletingImageIds((current) =>
-          current.filter((deletingId) => !containedImageIds.includes(deletingId)),
-        );
-        setEnteringImageIds((current) =>
-          current.filter((enteringId) => !containedImageIds.includes(enteringId)),
-        );
-        finishPendingDeletion(canvasId, "containers", idsToRemove);
-        finishPendingDeletion(canvasId, "textCards", containedTextCardIds);
-        finishPendingDeletion(canvasId, "images", containedImageIds);
-      },
-      160,
-    );
-  };
-
-  const removeTextCards = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
-    if (retained) {
-      deleteRetainedSelection(ids);
-      return;
-    }
-    const idsToRemove = ids.filter(
-      (id) => force || canvasId !== activeCanvasIdRef.current || !isElementDeletionLocked(id),
-    );
-    if (idsToRemove.length === 0) {
-      return;
-    }
-
-    const idSet = new Set(idsToRemove);
-    registerPendingDeletion(canvasId, "textCards", idsToRemove);
-    recordPendingDeletion(canvasId);
-    setDeletingTextCardIds((current) => Array.from(new Set([...current, ...idsToRemove])));
-    setEditingTextCardId((current) => (current && idSet.has(current) ? null : current));
-    setTextCardMenu((current) => (current && idSet.has(current.id) ? null : current));
-    setSelectedIds((current) => current.filter((selectedId) => !idSet.has(selectedId)));
-    scheduleDeletionCommit(
-      canvasId,
-      () => {
-        setCanvases((current) =>
-          current.map((canvas) =>
-            canvas.id === canvasId
-              ? {
-                  ...canvas,
-                  textCards: normalizeTextCardOrders(
-                    canvas.textCards.filter((card) => !idSet.has(card.id)),
-                  ),
-                  mindmapConnections: canvas.mindmapConnections.filter(
-                    (connection) =>
-                      !idSet.has(connection.sourceId) && !idSet.has(connection.targetId),
-                  ),
-                }
-              : canvas,
-          ),
-        );
-        setDeletingTextCardIds((current) => current.filter((deletingId) => !idSet.has(deletingId)));
-        setEnteringTextCardIds((current) => current.filter((enteringId) => !idSet.has(enteringId)));
-        setPulsingTextCardIds((current) => current.filter((pulsingId) => !idSet.has(pulsingId)));
-        finishPendingDeletion(canvasId, "textCards", idsToRemove);
-      },
-      150,
-    );
-  };
-
-  const removeTextBlocks = (ids: string[], force = false, canvasId = activeCanvasIdRef.current) => {
-    if (retained) {
-      deleteRetainedSelection(ids);
-      return;
-    }
-    const idsToRemove = ids.filter(
-      (id) => force || canvasId !== activeCanvasIdRef.current || !isElementDeletionLocked(id),
-    );
-    if (idsToRemove.length === 0) {
-      return;
-    }
-
-    const idSet = new Set(idsToRemove);
-    registerPendingDeletion(canvasId, "textBlocks", idsToRemove);
-    recordPendingDeletion(canvasId);
-    setDeletingTextBlockIds((current) => Array.from(new Set([...current, ...idsToRemove])));
-    setEditingTextBlockId((current) => (current && idSet.has(current) ? null : current));
-    setTextBlockMenu((current) => (current && idSet.has(current.id) ? null : current));
-    setSelectedIds((current) => current.filter((selectedId) => !idSet.has(selectedId)));
-    scheduleDeletionCommit(
-      canvasId,
-      () => {
-        setCanvases((current) =>
-          current.map((canvas) =>
-            canvas.id === canvasId
-              ? {
-                  ...canvas,
-                  textBlocks: (canvas.textBlocks ?? []).filter((element) => !idSet.has(element.id)),
-                  mindmapConnections: canvas.mindmapConnections.filter(
-                    (connection) =>
-                      !idSet.has(connection.sourceId) && !idSet.has(connection.targetId),
-                  ),
-                }
-              : canvas,
-          ),
-        );
-        setDeletingTextBlockIds((current) =>
-          current.filter((deletingId) => !idSet.has(deletingId)),
-        );
-        setEnteringTextBlockIds((current) =>
-          current.filter((enteringId) => !idSet.has(enteringId)),
-        );
-        setPulsingTextBlockIds((current) => current.filter((pulsingId) => !idSet.has(pulsingId)));
-        finishPendingDeletion(canvasId, "textBlocks", idsToRemove);
-      },
-      160,
-    );
-  };
-
   const removeMindmapConnection = (id: string) => {
-    if (retained)
-      retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
-    else setMindmapConnections((current) => current.filter((connection) => connection.id !== id));
+    retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
     setMindmapConnectionMenu(null);
   };
 
   const deleteRetainedSelection = (ids: string[]) => {
-    const capture = retained?.runtime.callbacks.captureDelete(ids as ElementId[]);
+    const capture = retained.runtime.callbacks.captureDelete(ids as ElementId[]);
     if (!capture) return;
     const plan = planCanvasDeletion(activeCanvas, ids, isElementDeletionLocked);
     setDeletingIds(plan.containerIds);
@@ -2370,19 +1592,7 @@ function App({
   };
 
   const deleteCanvasSelection = (actionIds: string[]) => {
-    if (retained) {
-      deleteRetainedSelection(actionIds);
-      return;
-    }
-    const canvasId = activeCanvasIdRef.current;
-    const plan = planCanvasDeletion(activeCanvas, actionIds, isElementDeletionLocked);
-
-    beginHistoryTransaction(canvasId, DELETE_HISTORY_TRANSACTION);
-    removeContainers(plan.containerIds);
-    removeTextCards(plan.textCardIds);
-    removeTextBlocks(plan.textBlockIds);
-    removeImages(plan.imageIds);
-    finishHistoryTransaction(canvasId, DELETE_HISTORY_TRANSACTION, latestDataGetterRef.current());
+    deleteRetainedSelection(actionIds);
   };
 
   const closeCanvasManager = useCallback(() => {
@@ -2459,10 +1669,6 @@ function App({
 
   const deletionActions = useStableCallbacks({
     deleteCanvasSelection,
-    removeContainers,
-    removeImages,
-    removeTextBlocks,
-    removeTextCards,
   });
 
   useEffect(() => {
@@ -2744,7 +1950,7 @@ function App({
     const width = 360;
     const height = 240;
     const nextNumber = elements.length + 1;
-    const id = createViewId("container");
+    const id = createEntityId("element");
     const nextElement: ContainerElement = {
       id,
       name: `Container ${nextNumber}`,
@@ -2755,15 +1961,13 @@ function App({
       accent: defaultElementColors.container,
     };
 
-    if (retained) {
-      if (
-        !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
-          type: "container",
-          value: nextElement,
-        }).ok
-      )
-        return;
-    } else setElements((current) => [...current, nextElement]);
+    if (
+      !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
+        type: "container",
+        value: nextElement,
+      }).ok
+    )
+      return;
     setSelectedIds([id]);
     animateContainerIn(id);
     closeContextMenus();
@@ -2772,24 +1976,11 @@ function App({
     setRenamingId(id);
   };
 
-  // Fit an image's natural size into a sensible initial on-canvas box.
-  const getInitialImageSize = (naturalWidth?: number, naturalHeight?: number) => {
-    const maxEdge = 360;
-    if (!naturalWidth || !naturalHeight) {
-      return { width: 280, height: 200 };
-    }
-    const scale = Math.min(1, maxEdge / Math.max(naturalWidth, naturalHeight));
-    return {
-      width: Math.max(MIN_IMAGE_SIZE, Math.round(naturalWidth * scale)),
-      height: Math.max(MIN_IMAGE_SIZE, Math.round(naturalHeight * scale)),
-    };
-  };
-
   // Create an empty image placeholder at a canvas point; the caller (or the
   // user clicking it) fills it with a picked/dropped/pasted image afterwards.
   const createImageElement = (clientX: number, clientY: number): string => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = createViewId("image");
+    const id = createEntityId("element");
     const width = 280;
     const height = 200;
     const image: ImageElement = {
@@ -2801,14 +1992,12 @@ function App({
       accent: defaultElementColors.image,
     };
 
-    if (retained) {
-      const result = createRetainedViewElement(
-        retained.runtime.callbacks,
-        activeCanvas.id as CanvasId,
-        { type: "image", value: image },
-      );
-      if (!result.ok) throw new Error("The image could not be created.");
-    } else updateImagesForCanvas(activeCanvasIdRef.current, (current) => [...current, image]);
+    const result = createRetainedViewElement(
+      retained.runtime.callbacks,
+      activeCanvas.id as CanvasId,
+      { type: "image", value: image },
+    );
+    if (!result.ok) throw new Error("The image could not be created.");
     animateImageIn(id);
     setSelectedIds([id]);
     closeContextMenus();
@@ -2826,321 +2015,107 @@ function App({
     );
   };
 
-  const updateImagesForCanvas = (
-    canvasId: string,
-    update: (current: ImageElement[]) => ImageElement[],
-  ) => {
-    markCanvasDirty(canvasId);
-    setCanvases((current) =>
-      current.map((canvas) =>
-        canvas.id === canvasId ? { ...canvas, images: update(canvas.images ?? []) } : canvas,
-      ),
-    );
-
-    latestAppDataRef.current = {
-      ...latestAppDataRef.current,
-      canvases: latestAppDataRef.current.canvases.map((canvas) =>
-        canvas.id === canvasId ? { ...canvas, images: update(canvas.images ?? []) } : canvas,
-      ),
-    };
-    recordHistorySnapshot(latestAppDataRef.current, canvasId);
-  };
-
-  // Apply stored image metadata to an element, sizing it to the image's aspect.
-  // Only resizes empty placeholders; an element that already had an image keeps
-  // its current box when the image is replaced.
-  const applyImageMeta = (canvasId: string, id: string, meta: ImageMeta) => {
-    const targetCanvas = latestAppDataRef.current.canvases.find((canvas) => canvas.id === canvasId);
-    const targetCanvasWidth = targetCanvas?.width ?? canvasWidth;
-    const targetCanvasHeight = targetCanvas?.height ?? canvasHeight;
-    updateImagesForCanvas(canvasId, (current) =>
-      current.map((image) => {
-        if (image.id !== id) {
-          return image;
-        }
-        const wasEmpty = !image.imageId;
-        const size = getInitialImageSize(meta.width, meta.height);
-        return {
-          ...image,
-          imageId: meta.hash,
-          format: meta.format,
-          naturalWidth: meta.width || undefined,
-          naturalHeight: meta.height || undefined,
-          ...(wasEmpty
-            ? {
-                x: clamp(image.x, 0, targetCanvasWidth - size.width),
-                y: clamp(image.y, 0, targetCanvasHeight - size.height),
-                ...size,
-              }
-            : {}),
-        };
-      }),
-    );
-    setImageLoading(id, false);
-  };
-
-  // Store an already-read image path into the given element, showing a loading
-  // spinner while the (off-thread) decode/encode runs.
-  const fillElementFromPath = async (
-    id: string,
-    path: string,
-    canvasId = activeCanvasIdRef.current,
-  ) => {
-    const historyTransaction = imageHistoryTransaction(id);
-    beginHistoryTransaction(canvasId, historyTransaction);
-    setImageLoading(id, true);
-    try {
-      const meta = await invoke<ImageMeta>("store_image_path", { path });
-      applyImageMeta(canvasId, id, meta);
-    } catch (error) {
-      console.error("Failed to store image", error);
-      showToast({
-        tone: "error",
-        title: "Could not add image",
-        message: commandErrorMessage(error),
-      });
-      setImageLoading(id, false);
-    } finally {
-      finishHistoryTransaction(canvasId, historyTransaction, latestAppDataRef.current);
-    }
-  };
-
   // Open the native file picker (fast — returns a path) and fill the given
   // element. The heavy processing happens afterward behind a loading spinner so
   // the app never freezes on a large image.
   const pickImageForElement = async (id: string) => {
-    if (retained) {
-      setImageLoading(id, true);
-      try {
-        const result = await importRetainedViewImage(retained.runtime, null, {
-          elementId: id as ElementId,
-        });
-        if (
-          !result.ok &&
-          !("error" in result && result.error.code === "cancelled") &&
-          !("code" in result && result.code === "expired-action")
-        )
-          showToast({
-            tone: "error",
-            title: "Could not add image",
-            message: "The image could not be imported.",
-          });
-      } finally {
-        setImageLoading(id, false);
-      }
-      return;
-    }
-    const canvasId = activeCanvasIdRef.current;
-    try {
-      const path = await invoke<string | null>("pick_image_path");
-      if (path) {
-        await fillElementFromPath(id, path, canvasId);
-      }
-    } catch (error) {
-      console.error("Failed to pick image", error);
-      showToast({
-        tone: "error",
-        title: "Could not add image",
-        message: commandErrorMessage(error),
-      });
-    }
-  };
-
-  // Create an empty placeholder at a canvas point and return its id, without
-  // touching selection focus the way the menu/double-click path does.
-  const spawnImagePlaceholder = (clientX: number, clientY: number, offset = 0): string => {
-    const point = canvasPointFromEvent({ clientX, clientY });
-    const width = 280;
-    const height = 200;
-    const id = createEntityId("image");
-    const canvasId = activeCanvasIdRef.current;
-    const image: ImageElement = {
-      id,
-      x: clamp(point.x - width / 2 + offset, 0, canvasWidth - width),
-      y: clamp(point.y - height / 2 + offset, 0, canvasHeight - height),
-      width,
-      height,
-      accent: defaultElementColors.image,
-    };
-    beginHistoryTransaction(canvasId, imageHistoryTransaction(id));
-    updateImagesForCanvas(canvasId, (current) => [...current, image]);
-    animateImageIn(id);
-    return id;
-  };
-
-  // Drop a loading placeholder at a point, then fill it from a path off-thread.
-  const importImageFromPath = (path: string, clientX: number, clientY: number, offset = 0) => {
-    const canvasId = activeCanvasIdRef.current;
-    const id = spawnImagePlaceholder(clientX, clientY, offset);
-    void fillElementFromPath(id, path, canvasId);
-  };
-
-  // Clipboard paste: placeholder first, then store the bytes behind a spinner.
-  const addImageFromBuffer = async (buffer: ArrayBuffer, clientX: number, clientY: number) => {
-    const canvasId = activeCanvasIdRef.current;
-    const id = spawnImagePlaceholder(clientX, clientY);
-    setSelectedIds([id]);
     setImageLoading(id, true);
     try {
-      // Yield so the placeholder + spinner paint before the base64 encode.
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-      const meta = await storeImageFromBytes(buffer);
-      if (meta) {
-        applyImageMeta(canvasId, id, meta);
-      } else {
-        removeImages([id], true, canvasId);
-      }
+      const result = await importRetainedViewImage(retained.runtime, null, {
+        elementId: id as ElementId,
+      });
+      if (
+        !result.ok &&
+        !("error" in result && result.error.code === "cancelled") &&
+        !("code" in result && result.code === "expired-action")
+      )
+        showToast({
+          tone: "error",
+          title: "Could not add image",
+          message: "The image could not be imported.",
+        });
     } finally {
       setImageLoading(id, false);
-      finishHistoryTransaction(canvasId, imageHistoryTransaction(id), latestAppDataRef.current);
     }
   };
 
   imageDropOpsRef.current = {
-    canvasPointFromEvent,
-    looseImages,
-    fillElementFromPath,
-    importImageFromPath,
-    addImageFromBuffer,
-    importAuthorizedDrop: retained
-      ? async (drop) => {
-          const { runtime } = retained;
-          const readIdentity = () => {
-            const workspace = runtime.controller.store.getState().documentWorkspace;
-            return { epoch: workspace.epoch, canvasId: workspace.document?.activeCanvasId };
-          };
-          const captured = readIdentity();
-          const point = canvasPointFromEvent({ clientX: drop.x, clientY: drop.y });
-          const target = [...looseImages]
-            .reverse()
-            .find(
-              (image) =>
-                !(image as unknown as RetainedImageView).media &&
-                point.x >= image.x &&
-                point.x <= image.x + image.width &&
-                point.y >= image.y &&
-                point.y <= image.y + image.height,
-            );
-          for (const [index, dropToken] of drop.tokens.entries()) {
-            const current = readIdentity();
-            if (current.epoch !== captured.epoch || current.canvasId !== captured.canvasId) break;
-            const result = await importRetainedViewImage(
-              runtime,
-              { dropToken },
-              target && index === 0
-                ? { elementId: target.id as ElementId }
-                : {
-                    x: point.x + index * 24,
-                    y: point.y + index * 24,
-                    accent: defaultElementColors.image,
-                  },
-            );
-            if (!result.ok) {
-              if (!("code" in result && result.code === "expired-action"))
-                showToast({
-                  tone: "error",
-                  title: "Could not add image",
-                  message: "The dropped image could not be imported.",
-                });
-              break;
-            }
-          }
-        }
-      : undefined,
-    addImageFromBlob: retained
-      ? async (source, clientX, clientY) => {
-          const point = canvasPointFromEvent({ clientX, clientY });
-          const result = await importRetainedViewImage(retained.runtime, source, {
-            ...point,
-            accent: defaultElementColors.image,
-          });
-          if (!result.ok && !("code" in result && result.code === "expired-action"))
+    importAuthorizedDrop: async (drop) => {
+      const { runtime } = retained;
+      const readIdentity = () => {
+        const workspace = runtime.controller.store.getState().documentWorkspace;
+        return { epoch: workspace.epoch, canvasId: workspace.document?.activeCanvasId };
+      };
+      const captured = readIdentity();
+      const point = canvasPointFromEvent({ clientX: drop.x, clientY: drop.y });
+      const target = [...looseImages]
+        .reverse()
+        .find(
+          (image) =>
+            !(image as unknown as RetainedImageView).media &&
+            point.x >= image.x &&
+            point.x <= image.x + image.width &&
+            point.y >= image.y &&
+            point.y <= image.y + image.height,
+        );
+      for (const [index, dropToken] of drop.tokens.entries()) {
+        const current = readIdentity();
+        if (current.epoch !== captured.epoch || current.canvasId !== captured.canvasId) break;
+        const result = await importRetainedViewImage(
+          runtime,
+          { dropToken },
+          target && index === 0
+            ? { elementId: target.id as ElementId }
+            : {
+                x: point.x + index * 24,
+                y: point.y + index * 24,
+                accent: defaultElementColors.image,
+              },
+        );
+        if (!result.ok) {
+          if (!("code" in result && result.code === "expired-action"))
             showToast({
               tone: "error",
               title: "Could not add image",
-              message: "The image could not be imported.",
+              message: "The dropped image could not be imported.",
             });
+          break;
         }
-      : undefined,
+      }
+    },
+    addImageFromBlob: async (source, clientX, clientY) => {
+      const point = canvasPointFromEvent({ clientX, clientY });
+      const result = await importRetainedViewImage(retained.runtime, source, {
+        ...point,
+        accent: defaultElementColors.image,
+      });
+      if (!result.ok && !("code" in result && result.code === "expired-action"))
+        showToast({
+          tone: "error",
+          title: "Could not add image",
+          message: "The image could not be imported.",
+        });
+    },
   };
 
-  // OS file drop (Tauri native drag-drop). HTML5 ondrop does not receive files
-  // while native drag-drop is enabled, so we listen on the webview instead and
-  // store dropped image paths in Rust. A drop over an empty image placeholder
-  // fills it; otherwise a new image element is created at the drop point.
+  // OS file drops arrive through the media service, which authorizes the dropped paths in Rust;
+  // a drop over an empty image placeholder fills it, otherwise it creates an image at the point.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
-
-    if (retained) {
-      void retained.runtime.media
-        .subscribeDrops((drop) => imageDropOpsRef.current?.importAuthorizedDrop?.(drop))
-        .then((fn) => {
-          if (cancelled) fn();
-          else unlisten = fn;
-        })
-        .catch(() =>
-          showToast({
-            tone: "error",
-            title: "Image drops unavailable",
-            message: "Could not connect image file drops.",
-          }),
-        );
-      return () => {
-        cancelled = true;
-        unlisten?.();
-      };
-    }
-    getCurrentWebview()
-      .onDragDropEvent((event) => {
-        if (event.payload.type !== "drop") {
-          return;
-        }
-
-        const ops = imageDropOpsRef.current;
-        if (!ops) {
-          return;
-        }
-
-        const { x, y } = event.payload.position;
-        const paths = event.payload.paths.filter((path) =>
-          /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(path),
-        );
-        if (paths.length === 0) {
-          return;
-        }
-
-        const point = ops.canvasPointFromEvent({ clientX: x, clientY: y });
-        const targetEmpty = [...ops.looseImages]
-          .reverse()
-          .find(
-            (image) =>
-              !image.imageId &&
-              point.x >= image.x &&
-              point.x <= image.x + image.width &&
-              point.y >= image.y &&
-              point.y <= image.y + image.height,
-          );
-
-        paths.forEach((path, index) => {
-          if (targetEmpty && index === 0) {
-            ops.fillElementFromPath(targetEmpty.id, path);
-          } else {
-            ops.importImageFromPath(path, x, y, index * 24);
-          }
-        });
-      })
+    void retained.runtime.media
+      .subscribeDrops((drop) => imageDropOpsRef.current?.importAuthorizedDrop(drop))
       .then((fn) => {
-        if (cancelled) {
-          fn();
-        } else {
-          unlisten = fn;
-        }
+        if (cancelled) fn();
+        else unlisten = fn;
       })
-      .catch((error) => {
-        console.error("Failed to register drag-drop listener", error);
-      });
-
+      .catch(() =>
+        showToast({
+          tone: "error",
+          title: "Image drops unavailable",
+          message: "Could not connect image file drops.",
+        }),
+      );
     return () => {
       cancelled = true;
       unlisten?.();
@@ -3176,18 +2151,7 @@ function App({
       }
 
       event.preventDefault();
-      if (ops.addImageFromBlob) {
-        ops.addImageFromBlob(file, window.innerWidth / 2, window.innerHeight / 2);
-        return;
-      }
-      file
-        .arrayBuffer()
-        .then((buffer) => {
-          ops.addImageFromBuffer(buffer, window.innerWidth / 2, window.innerHeight / 2);
-        })
-        .catch((error) => {
-          console.error("Failed to read pasted image", error);
-        });
+      ops.addImageFromBlob(file, window.innerWidth / 2, window.innerHeight / 2);
     };
 
     window.addEventListener("paste", handlePaste);
@@ -3201,16 +2165,7 @@ function App({
   };
 
   const toggleImageBackground = (id: string) => {
-    if (retained) {
-      completeRetainedContent(id, { background: imagesById.get(id)?.background === false });
-      closeContextMenus();
-      return;
-    }
-    setImages((current) =>
-      current.map((image) =>
-        image.id === id ? { ...image, background: image.background === false } : image,
-      ),
-    );
+    completeRetainedContent(id, { background: imagesById.get(id)?.background === false });
     closeContextMenus();
   };
 
@@ -3246,7 +2201,7 @@ function App({
     startEditing = true,
   ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = createViewId(kind ?? "text-card");
+    const id = createEntityId("element");
     const card: TextCardElement = {
       id,
       kind,
@@ -3256,15 +2211,13 @@ function App({
       accent: kind === "mindmap" ? defaultElementColors.mindmap : defaultElementColors.textCard,
     };
 
-    if (retained) {
-      if (
-        !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
-          type: "text-card",
-          value: card,
-        }).ok
-      )
-        return;
-    } else setTextCards((current) => [...current, card]);
+    if (
+      !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
+        type: "text-card",
+        value: card,
+      }).ok
+    )
+      return;
     animateTextCardIn(id);
     if (startEditing) {
       setEditingTextCardId(id);
@@ -3292,7 +2245,7 @@ function App({
     const width = 320;
     const height = 220;
     const nextNumber = textBlocks.length + 1;
-    const id = createViewId("text-block");
+    const id = createEntityId("element");
     const element: TextBlockElement = {
       id,
       name: `Text block ${nextNumber}`,
@@ -3304,15 +2257,13 @@ function App({
       accent: defaultElementColors.textBlock,
     };
 
-    if (retained) {
-      if (
-        !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
-          type: "text-block",
-          value: element,
-        }).ok
-      )
-        return;
-    } else setTextBlocks((current) => [...current, element]);
+    if (
+      !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
+        type: "text-block",
+        value: element,
+      }).ok
+    )
+      return;
     setSelectedIds([id]);
     animateTextBlockIn(id);
     setRenameDraft(element.name);
@@ -3329,7 +2280,7 @@ function App({
     }
 
     const point = canvasPointFromEvent({ clientX, clientY });
-    const id = createViewId("text-card");
+    const id = createEntityId("element");
     const order = getTextCardDropIndex(container, point, textCards, id);
     const card: TextCardElement = {
       id,
@@ -3359,22 +2310,20 @@ function App({
       (currentCard) => currentCard.id === id,
     );
 
-    if (retained) {
-      const result = retained.runtime.callbacks
-        .captureNewContainerCard(containerId as ElementId, order)
-        ?.complete({
-          id: id as ElementId,
-          geometry: { x: card.x, y: card.y, width: 1, height: 1 },
-          data: { text: card.text, accent: defaultElementColors.textCard, link: null },
-          checkboxInstallationId:
-            container.extensions?.autoCheckbox !== undefined
-              ? (createEntityId(
-                  "extension-instance",
-                ) as import("./domain/ids/entityIds").ExtensionInstanceId)
-              : null,
-        });
-      if (!result?.ok) return;
-    } else setTextCards(nextCards);
+    const result = retained.runtime.callbacks
+      .captureNewContainerCard(containerId as ElementId, order)
+      ?.complete({
+        id: id as ElementId,
+        geometry: { x: card.x, y: card.y, width: 1, height: 1 },
+        data: { text: card.text, accent: defaultElementColors.textCard, link: null },
+        checkboxInstallationId:
+          container.extensions?.autoCheckbox !== undefined
+            ? (createEntityId(
+                "extension-instance",
+              ) as import("./domain/ids/entityIds").ExtensionInstanceId)
+            : null,
+      });
+    if (!result?.ok) return;
     if (visibleIndex >= 0) {
       setContainerScrollOffsets((current) => ({
         ...current,
@@ -3465,7 +2414,7 @@ function App({
     }
 
     if (renamingId && !target?.closest("[data-container-rename-input]")) {
-      saveRename(renamingId);
+      saveRename();
     }
 
     if ((event.target as HTMLElement | null)?.closest("[data-context-menu]")) {
@@ -3616,91 +2565,45 @@ function App({
         event.clientY,
         mindmapConnectionDrag.sourceId,
       );
-      if (retained) {
-        const captured = retainedConnection.current;
-        retainedConnection.current = null;
-        const connectionId = createEntityId("connection") as ConnectionId;
-        if (endpoint) {
-          captured?.complete({
-            connectionId,
-            target: { elementId: endpoint.id as ElementId, portId: endpoint.port },
-          });
-        } else if (textCardsById.get(mindmapConnectionDrag.sourceId)?.kind === "mindmap") {
-          const point = canvasPointFromEvent(event);
-          const id = createViewId("mindmap") as ElementId;
-          const result = captured?.complete({
-            connectionId,
-            newNode: {
-              id,
-              geometry: {
-                x: clamp(point.x, 0, canvasWidth),
-                y: clamp(point.y, 0, canvasHeight),
-                width: 1,
-                height: 1,
-              },
-              data: { text: "Mindmap", accent: defaultElementColors.mindmap },
-            },
-          });
-          if (result?.ok) animateTextCardIn(id);
-        } else captured?.cancel();
-        setMindmapConnectionDrag(null);
-        if (event.currentTarget.hasPointerCapture(event.pointerId))
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        return;
-      }
+      const captured = retainedConnection.current;
+      retainedConnection.current = null;
+      const connectionId = createEntityId("connection") as ConnectionId;
       if (endpoint) {
-        setMindmapConnections((current) => [
-          ...current,
-          {
-            id: createEntityId("mindmap-connection"),
-            sourceId: mindmapConnectionDrag.sourceId,
-            sourcePort: mindmapConnectionDrag.sourcePort,
-            targetId: endpoint.id,
-            targetPort: endpoint.port,
-          },
-        ]);
+        captured?.complete({
+          connectionId,
+          target: { elementId: endpoint.id as ElementId, portId: endpoint.port },
+        });
       } else if (textCardsById.get(mindmapConnectionDrag.sourceId)?.kind === "mindmap") {
-        const targetId = createLooseTextCard(
-          event.clientX,
-          event.clientY,
-          "Mindmap",
-          "mindmap",
-          false,
-        );
-        if (!targetId) {
-          setMindmapConnectionDrag(null);
-          return;
-        }
-        const oppositePort: Record<MindmapPort, MindmapPort> = {
-          left: "right",
-          right: "left",
-          top: "bottom",
-          bottom: "top",
-        };
-        setMindmapConnections((current) => [
-          ...current,
-          {
-            id: createEntityId("mindmap-connection"),
-            sourceId: mindmapConnectionDrag.sourceId,
-            sourcePort: mindmapConnectionDrag.sourcePort,
-            targetId,
-            targetPort: oppositePort[mindmapConnectionDrag.sourcePort],
+        const point = canvasPointFromEvent(event);
+        const id = createEntityId("element") as ElementId;
+        const result = captured?.complete({
+          connectionId,
+          newNode: {
+            id,
+            geometry: {
+              x: clamp(point.x, 0, canvasWidth),
+              y: clamp(point.y, 0, canvasHeight),
+              width: 1,
+              height: 1,
+            },
+            data: { text: "Mindmap", accent: defaultElementColors.mindmap },
           },
-        ]);
-      }
+        });
+        if (result?.ok) animateTextCardIn(id);
+      } else captured?.cancel();
       setMindmapConnectionDrag(null);
-      return;
+      if (event.currentTarget.hasPointerCapture(event.pointerId))
+        event.currentTarget.releasePointerCapture(event.pointerId);
     }
     handlePointerMove(event);
     const beforeCompletion =
-      retained?.runtime.controller.store.getState().documentWorkspace.document;
+      retained.runtime.controller.store.getState().documentWorkspace.document;
     interactionController.completePointer({
       pointerId: event.pointerId,
       screen: { x: event.clientX, y: event.clientY },
       snapping: event.shiftKey,
     });
     if (
-      retained &&
       beforeCompletion !== retained.runtime.controller.store.getState().documentWorkspace.document
     ) {
       const snapshot = retained.binding.getSnapshot();
@@ -3836,14 +2739,12 @@ function App({
       commitThresholdScreen,
       completionBehavior,
     };
-    return retained
-      ? retained.binding.interaction.beginMove({
-          ...moveInput,
-          ...(completionBehavior === "place"
-            ? { resolveTextCardDrop: textCardInteraction.getDecision }
-            : {}),
-        })
-      : interactionController.beginMove(moveInput);
+    return retained.binding.interaction.beginMove({
+      ...moveInput,
+      ...(completionBehavior === "place"
+        ? { resolveTextCardDrop: textCardInteraction.getDecision }
+        : {}),
+    });
   };
 
   const startMove = (
@@ -3867,14 +2768,12 @@ function App({
     );
     const bounds = getConnectableElementBounds(ownerId);
     if (!bounds) return;
-    if (retained) {
-      retainedConnection.current?.cancel();
-      retainedConnection.current = retained.runtime.callbacks.captureConnection(
-        ownerId as ElementId,
-        port,
-      );
-      if (!retainedConnection.current) return;
-    }
+    retainedConnection.current?.cancel();
+    retainedConnection.current = retained.runtime.callbacks.captureConnection(
+      ownerId as ElementId,
+      port,
+    );
+    if (!retainedConnection.current) return;
     const source = getMindmapPortPoint(bounds, port);
     setMindmapConnectionDrag({
       pointerId: event.pointerId,
@@ -4072,7 +2971,6 @@ function App({
   };
 
   const updateTextCardLink = (id: string, link: string) => {
-    if (!retained) return;
     captureRetainedLinkEdit(retained.runtime.callbacks, id as ElementId)?.complete(link);
   };
 
@@ -4124,13 +3022,7 @@ function App({
   };
 
   const saveTextBlockEdit = (id: string) => {
-    const nextText = textBlockDraft.trim();
-    if (retained) retainedBlockEdit.current?.complete(textBlockDraft);
-    else if (nextText) {
-      setTextBlocks((current) =>
-        current.map((element) => (element.id === id ? { ...element, text: nextText } : element)),
-      );
-    }
+    retainedBlockEdit.current?.complete(textBlockDraft);
     setEditingTextBlockId(null);
     setTextBlockDraft("");
     pulseTextBlock(id);
@@ -4145,25 +3037,11 @@ function App({
   };
 
   const updateTextBlockAccent = (id: string, accent: string) => {
-    if (retained) {
-      completeRetainedContent(id, { accent });
-      return;
-    }
-    setTextBlocks((current) =>
-      current.map((element) => (element.id === id ? { ...element, accent } : element)),
-    );
+    completeRetainedContent(id, { accent });
   };
 
   const updateTextBlockHeaderButtonsVisible = (id: string, visible: boolean) => {
-    if (retained) {
-      completeRetainedContent(id, { headerButtonsVisible: visible });
-      return;
-    }
-    setTextBlocks((current) =>
-      current.map((element) =>
-        element.id === id ? { ...element, headerButtonsVisible: visible } : element,
-      ),
-    );
+    completeRetainedContent(id, { headerButtonsVisible: visible });
   };
 
   const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => {
@@ -4195,26 +3073,10 @@ function App({
     closeContextMenus();
   };
 
-  const saveRename = (id: string) => {
-    if (retained) {
-      retainedRename.current?.complete(renameDraft);
-      setRenamingId(null);
-      setRenameDraft("");
-      closeContextMenus();
-      return;
-    }
-    const nextName = renameDraft.trim();
-    if (!nextName) {
-      return;
-    }
-
-    setElements((current) =>
-      current.map((element) => (element.id === id ? { ...element, name: nextName } : element)),
-    );
-    setTextBlocks((current) =>
-      current.map((element) => (element.id === id ? { ...element, name: nextName } : element)),
-    );
+  const saveRename = () => {
+    retainedRename.current?.complete(renameDraft);
     setRenamingId(null);
+    setRenameDraft("");
     closeContextMenus();
   };
 
@@ -4229,126 +3091,17 @@ function App({
   };
 
   const copyContextSelection = (id: string, actionIdsOverride?: string[]) => {
-    if (retained) {
-      retainedCopy.current?.captured.cancel();
-      retainedCopy.current = captureRetainedViewCopy(
-        retained.runtime.callbacks,
-        retained.runtime.controller.store.getState().documentWorkspace.document,
-        (actionIdsOverride ?? getContextActionIds(id)) as ElementId[],
-        (elementId) => {
-          const card = textCardsById.get(elementId);
-          return card ? getTextCardCopyPosition(card) : undefined;
-        },
-      );
-      setHasRetainedCopy(Boolean(retainedCopy.current));
-      closeContextMenus();
-      return true;
-    }
-    if (!actionIdsOverride && !isMultiContextAction(id)) {
-      return false;
-    }
-
-    const actionIds = actionIdsOverride ?? getContextActionIds(id);
-    if (actionIds.length === 0) {
-      return false;
-    }
-    const actionSet = new Set(actionIds);
-    const selectedContainerIds = new Set(
-      actionIds.filter((actionId) => containersById.has(actionId)),
-    );
-
-    setCopiedItem({
-      type: "selection",
-      item: {
-        containers: elements
-          .filter((element) => actionSet.has(element.id))
-          .map((element) => ({
-            sourceId: element.id,
-            name: element.name,
-            x: element.x,
-            y: element.y,
-            width: element.width,
-            height: element.height,
-            accent: element.accent,
-            headerButtonsVisible: element.headerButtonsVisible,
-            extensions: cloneExtensions(element.extensions),
-            textCards: getOrderedContainerTextCards(element.id).map((card) => ({
-              kind: card.kind,
-              text: card.text,
-              accent: card.accent,
-              link: card.kind === "mindmap" ? undefined : card.link,
-              order: card.order,
-              extensions: cloneExtensions(card.extensions),
-              sourceId: card.id,
-            })),
-          })),
-        textCards: textCards
-          .filter(
-            (card) =>
-              actionSet.has(card.id) &&
-              (!card.containerId || !selectedContainerIds.has(card.containerId)),
-          )
-          .map((card) => {
-            const position = getTextCardCopyPosition(card);
-            return {
-              kind: card.kind,
-              sourceId: card.id,
-              text: card.text,
-              accent: card.accent,
-              link: card.kind === "mindmap" ? undefined : card.link,
-              x: position.x,
-              y: position.y,
-              order: card.order,
-              extensions: cloneExtensions(card.extensions),
-            };
-          }),
-        textBlocks: textBlocks
-          .filter((element) => actionSet.has(element.id))
-          .map((element) => ({
-            sourceId: element.id,
-            name: element.name,
-            text: element.text,
-            x: element.x,
-            y: element.y,
-            width: element.width,
-            height: element.height,
-            accent: element.accent,
-            headerButtonsVisible: element.headerButtonsVisible,
-            extensions: cloneExtensions(element.extensions),
-          })),
-        images: images
-          .filter(
-            (image) =>
-              actionSet.has(image.id) &&
-              (!image.containerId || !selectedContainerIds.has(image.containerId)),
-          )
-          .map((image) => ({
-            sourceId: image.id,
-            imageId: image.imageId,
-            format: image.format,
-            x: image.x,
-            y: image.y,
-            width: image.width,
-            height: image.height,
-            naturalWidth: image.naturalWidth,
-            naturalHeight: image.naturalHeight,
-            accent: image.accent,
-            background: image.background,
-            extensions: cloneExtensions(image.extensions),
-          })),
-        mindmapConnections: mindmapConnections
-          .filter(
-            (connection) =>
-              actionSet.has(connection.sourceId) && actionSet.has(connection.targetId),
-          )
-          .map(({ sourceId, sourcePort, targetId, targetPort }) => ({
-            sourceId,
-            sourcePort,
-            targetId,
-            targetPort,
-          })),
+    retainedCopy.current?.captured.cancel();
+    retainedCopy.current = captureRetainedViewCopy(
+      retained.runtime.callbacks,
+      retained.runtime.controller.store.getState().documentWorkspace.document,
+      (actionIdsOverride ?? getContextActionIds(id)) as ElementId[],
+      (elementId) => {
+        const card = textCardsById.get(elementId);
+        return card ? getTextCardCopyPosition(card) : undefined;
       },
-    });
+    );
+    setHasRetainedCopy(Boolean(retainedCopy.current));
     closeContextMenus();
     return true;
   };
@@ -4427,336 +3180,41 @@ function App({
   };
 
   const pasteCopiedItem = (clientX: number, clientY: number, targetContainerId?: string) => {
-    if (retained) {
-      const copy = retainedCopy.current;
-      const document = retained.runtime.controller.store.getState().documentWorkspace.document;
-      if (!copy || !document) return;
-      retainedCopy.current = null;
-      setHasRetainedCopy(false);
-      const point = canvasPointFromEvent({ clientX, clientY });
-      const container = targetContainerId ? containersById.get(targetContainerId) : undefined;
-      const { result, inserted } = pasteRetainedViewCopy(
-        copy,
-        document,
-        point,
-        { nextUuid: () => crypto.randomUUID() },
-        container
-          ? {
-              containerId: container.id as ElementId,
-              cardIndex: getTextCardDropIndex(container, point, textCards, ""),
-            }
-          : undefined,
-      );
-      if (result.ok) {
-        setSelectedIds(inserted.filter((entry) => entry.root).map((entry) => entry.id));
-        inserted.forEach((entry) => {
-          if (entry.type === "container") animateContainerIn(entry.id);
-          else if (entry.type === "image") animateImageIn(entry.id);
-          else if (entry.type === "text-block") animateTextBlockIn(entry.id);
-          else animateTextCardIn(entry.id);
-        });
-        closeContextMenus();
-        setRenamingId(null);
-      } else
-        showToast({
-          tone: "error",
-          title: "Could not paste",
-          message: "The copied selection is no longer available. Copy it again and retry.",
-        });
-      return;
-    }
-    if (!copiedItem) {
-      return;
-    }
-
+    const copy = retainedCopy.current;
+    const document = retained.runtime.controller.store.getState().documentWorkspace.document;
+    if (!copy || !document) return;
+    retainedCopy.current = null;
+    setHasRetainedCopy(false);
     const point = canvasPointFromEvent({ clientX, clientY });
-
-    if (copiedItem.type === "container") {
-      const copiedContainer = copiedItem.item;
-      const pasteSeed = crypto.randomUUID();
-      const id = `container-${pasteSeed}`;
-      const textCardIdMap = new Map<string, string>(
-        copiedContainer.textCards
-          .filter((card) => card.sourceId)
-          .map((card, index): [string, string] => [
-            card.sourceId as string,
-            `text-card-${pasteSeed}-${index}`,
-          ]),
-      );
-      const duplicate = {
-        ...copiedContainer,
-        id,
-        name: `${copiedContainer.name} copy`,
-        x: clamp(point.x - copiedContainer.width / 2, 0, canvasWidth - copiedContainer.width),
-        y: clamp(point.y - 28, 0, canvasHeight - copiedContainer.height),
-        extensions: cloneExtensions(copiedContainer.extensions),
-      };
-
-      setElements((current) => [...current, duplicate]);
-      const pastedTextCards = copiedContainer.textCards.map((card, index) => ({
-        id: card.sourceId
-          ? (textCardIdMap.get(card.sourceId) ?? `text-card-${pasteSeed}-${index}`)
-          : `text-card-${pasteSeed}-${index}`,
-        kind: card.kind,
-        text: card.text,
-        x: duplicate.x + CONTAINER_TEXT_CARD_PADDING,
-        y:
-          getContainerCardStackTop(duplicate) +
-          index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
-        accent: card.accent,
-        link: card.kind === "mindmap" ? undefined : card.link,
-        containerId: id,
-        order: card.order ?? index,
-        extensions: cloneExtensions(card.extensions),
-      }));
-
-      setTextCards((current) => [...current, ...pastedTextCards]);
-      pastedTextCards.forEach((card) => animateTextCardIn(card.id));
-      setSelectedIds([id]);
-      animateContainerIn(id);
-    } else if (copiedItem.type === "text-card") {
-      const targetContainer =
-        copiedItem.item.kind === "mindmap" || !targetContainerId
-          ? null
-          : containersById.get(targetContainerId);
-      const id = createEntityId("text-card");
-      const copiedExtensions = cloneExtensions(copiedItem.item.extensions);
-      const duplicate = {
-        ...copiedItem.item,
-        link: copiedItem.item.kind === "mindmap" ? undefined : copiedItem.item.link,
-        id,
-        x: targetContainer ? targetContainer.x + CONTAINER_TEXT_CARD_PADDING : point.x,
-        y: targetContainer ? getContainerCardStackTop(targetContainer) : point.y,
-        containerId: targetContainer?.id,
-        extensions: targetContainer?.extensions?.autoCheckbox
-          ? addAutomaticCheckbox(copiedExtensions)
-          : copiedExtensions,
-      };
-
-      if (targetContainer) {
-        const order = getTextCardDropIndex(targetContainer, point, textCards, id);
-        const cardsOutsideContainer = textCards.filter(
-          (currentCard) => currentCard.containerId !== targetContainer.id,
-        );
-        const containerCards = getOrderedContainerTextCards(targetContainer.id);
-        const cardInContainer = {
-          ...duplicate,
-          y:
-            getContainerCardStackTop(targetContainer) +
-            order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
-          order,
-        };
-        containerCards.splice(order, 0, cardInContainer);
-        const nextCards = normalizeTextCardOrders([
-          ...cardsOutsideContainer,
-          ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
-        ]);
-        const visibleIndex = getContainerVisibleTextCards(targetContainer, nextCards).findIndex(
-          (currentCard) => currentCard.id === id,
-        );
-
-        setTextCards(nextCards);
-        if (visibleIndex >= 0) {
-          setContainerScrollOffsets((current) => ({
-            ...current,
-            [targetContainer.id]: getScrollOffsetForVisibleCardIndex(
-              targetContainer,
-              visibleIndex,
-              nextCards,
-            ),
-          }));
-        }
-      } else {
-        setTextCards((current) => [...current, duplicate]);
-      }
-      animateTextCardIn(id);
-      setSelectedIds([]);
-    } else if (copiedItem.type === "text-block") {
-      const copiedTextBlock = copiedItem.item;
-      const id = createEntityId("text-block");
-      const duplicate = {
-        ...copiedTextBlock,
-        id,
-        name: `${copiedTextBlock.name} copy`,
-        x: clamp(point.x - copiedTextBlock.width / 2, 0, canvasWidth - copiedTextBlock.width),
-        y: clamp(point.y - 28, 0, canvasHeight - copiedTextBlock.height),
-        extensions: cloneExtensions(copiedTextBlock.extensions),
-      };
-
-      setTextBlocks((current) => [...current, duplicate]);
-      animateTextBlockIn(id);
-      setSelectedIds([id]);
-    } else if (copiedItem.type === "image") {
-      const copiedImage = copiedItem.item;
-      const id = createEntityId("image");
-      const duplicate: ImageElement = {
-        ...copiedImage,
-        id,
-        x: clamp(point.x - copiedImage.width / 2, 0, canvasWidth - copiedImage.width),
-        y: clamp(point.y - copiedImage.height / 2, 0, canvasHeight - copiedImage.height),
-        extensions: cloneExtensions(copiedImage.extensions),
-      };
-
-      setImages((current) => [...current, duplicate]);
-      animateImageIn(id);
-      setSelectedIds([id]);
-    } else if (copiedItem.type === "selection") {
-      const copiedSelection = copiedItem.item;
-      const positionedItems = [
-        ...copiedSelection.containers,
-        ...copiedSelection.textCards,
-        ...copiedSelection.textBlocks,
-        ...copiedSelection.images,
-      ].filter((item) => item.x !== undefined && item.y !== undefined);
-      if (positionedItems.length === 0) {
-        return;
-      }
-      const originX = Math.min(...positionedItems.map((item) => item.x ?? 0));
-      const originY = Math.min(...positionedItems.map((item) => item.y ?? 0));
-      const offsetX = point.x - originX;
-      const offsetY = point.y - originY;
-      const nextSelectedIds: string[] = [];
-      const pasteSeed = crypto.randomUUID();
-      const containerTextCardIdMaps = copiedSelection.containers.map(
-        (container, containerIndex) =>
-          new Map<string, string>(
-            container.textCards
-              .filter((card) => card.sourceId)
-              .map((card, cardIndex): [string, string] => [
-                card.sourceId as string,
-                `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`,
-              ]),
-          ),
-      );
-
-      const pastedContainers = copiedSelection.containers.map((container, index) => {
-        const id = `container-${pasteSeed}-${index}`;
-        nextSelectedIds.push(id);
-        return {
-          ...container,
-          id,
-          name: `${container.name} copy`,
-          x: clamp((container.x ?? point.x) + offsetX, 0, canvasWidth - container.width),
-          y: clamp((container.y ?? point.y) + offsetY, 0, canvasHeight - container.height),
-          extensions: cloneExtensions(container.extensions),
-        };
+    const container = targetContainerId ? containersById.get(targetContainerId) : undefined;
+    const { result, inserted } = pasteRetainedViewCopy(
+      copy,
+      document,
+      point,
+      { nextUuid: () => crypto.randomUUID() },
+      container
+        ? {
+            containerId: container.id as ElementId,
+            cardIndex: getTextCardDropIndex(container, point, textCards, ""),
+          }
+        : undefined,
+    );
+    if (result.ok) {
+      setSelectedIds(inserted.filter((entry) => entry.root).map((entry) => entry.id));
+      inserted.forEach((entry) => {
+        if (entry.type === "container") animateContainerIn(entry.id);
+        else if (entry.type === "image") animateImageIn(entry.id);
+        else if (entry.type === "text-block") animateTextBlockIn(entry.id);
+        else animateTextCardIn(entry.id);
       });
-      const pastedContainerCards = pastedContainers.flatMap((container, containerIndex) =>
-        copiedSelection.containers[containerIndex].textCards.map((card, cardIndex) => ({
-          id: card.sourceId
-            ? (containerTextCardIdMaps[containerIndex].get(card.sourceId) ??
-              `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`)
-            : `text-card-${pasteSeed}-${containerIndex}-${cardIndex}`,
-          kind: card.kind,
-          text: card.text,
-          x: container.x + CONTAINER_TEXT_CARD_PADDING,
-          y:
-            getContainerCardStackTop(container) +
-            cardIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
-          accent: card.accent,
-          link: card.kind === "mindmap" ? undefined : card.link,
-          containerId: container.id,
-          order: card.order ?? cardIndex,
-          extensions: cloneExtensions(card.extensions),
-        })),
-      );
-      const pastedTextCards = copiedSelection.textCards.map((card, index) => {
-        const id = `text-card-${pasteSeed}-selection-${index}`;
-        nextSelectedIds.push(id);
-        return {
-          kind: card.kind,
-          text: card.text,
-          accent: card.accent,
-          link: card.kind === "mindmap" ? undefined : card.link,
-          id,
-          x: clamp((card.x ?? point.x) + offsetX, 0, canvasWidth),
-          y: clamp((card.y ?? point.y) + offsetY, 0, canvasHeight),
-          order: card.order,
-          extensions: cloneExtensions(card.extensions),
-        };
+      closeContextMenus();
+      setRenamingId(null);
+    } else
+      showToast({
+        tone: "error",
+        title: "Could not paste",
+        message: "The copied selection is no longer available. Copy it again and retry.",
       });
-      const pastedTextBlocks = copiedSelection.textBlocks.map((block, index) => {
-        const id = `text-block-${pasteSeed}-${index}`;
-        nextSelectedIds.push(id);
-        return {
-          ...block,
-          id,
-          name: `${block.name} copy`,
-          x: clamp((block.x ?? point.x) + offsetX, 0, canvasWidth - block.width),
-          y: clamp((block.y ?? point.y) + offsetY, 0, canvasHeight - block.height),
-          extensions: cloneExtensions(block.extensions),
-        };
-      });
-      const pastedImages = copiedSelection.images.map((image, index) => {
-        const id = `image-${pasteSeed}-${index}`;
-        nextSelectedIds.push(id);
-        return {
-          ...image,
-          id,
-          x: clamp((image.x ?? point.x) + offsetX, 0, canvasWidth - image.width),
-          y: clamp((image.y ?? point.y) + offsetY, 0, canvasHeight - image.height),
-          extensions: cloneExtensions(image.extensions),
-        };
-      });
-      const connectionEndpointIdMap = new Map<string, string>();
-      copiedSelection.containers.forEach((container, index) => {
-        if (container.sourceId) {
-          connectionEndpointIdMap.set(container.sourceId, pastedContainers[index].id);
-        }
-      });
-      copiedSelection.textBlocks.forEach((block, index) => {
-        if (block.sourceId) {
-          connectionEndpointIdMap.set(block.sourceId, pastedTextBlocks[index].id);
-        }
-      });
-      copiedSelection.images.forEach((image, index) => {
-        if (image.sourceId) {
-          connectionEndpointIdMap.set(image.sourceId, pastedImages[index].id);
-        }
-      });
-      const mindmapIdMap = new Map(
-        copiedSelection.textCards.flatMap((card, index) =>
-          card.kind === "mindmap" && card.sourceId
-            ? [[card.sourceId, pastedTextCards[index].id] as const]
-            : [],
-        ),
-      );
-      mindmapIdMap.forEach((targetId, sourceId) => {
-        connectionEndpointIdMap.set(sourceId, targetId);
-      });
-      const pastedMindmapConnections = copiedSelection.mindmapConnections.flatMap(
-        (connection, index) => {
-          const sourceId = connectionEndpointIdMap.get(connection.sourceId);
-          const targetId = connectionEndpointIdMap.get(connection.targetId);
-          return sourceId && targetId
-            ? [
-                {
-                  id: `mindmap-connection-${pasteSeed}-${index}`,
-                  sourceId,
-                  sourcePort: connection.sourcePort,
-                  targetId,
-                  targetPort: connection.targetPort,
-                },
-              ]
-            : [];
-        },
-      );
-
-      setElements((current) => [...current, ...pastedContainers]);
-      setTextCards((current) => [...current, ...pastedContainerCards, ...pastedTextCards]);
-      setTextBlocks((current) => [...current, ...pastedTextBlocks]);
-      setImages((current) => [...current, ...pastedImages]);
-      setMindmapConnections((current) => [...current, ...pastedMindmapConnections]);
-      pastedContainers.forEach((container) => animateContainerIn(container.id));
-      [...pastedContainerCards, ...pastedTextCards].forEach((card) => animateTextCardIn(card.id));
-      pastedTextBlocks.forEach((block) => animateTextBlockIn(block.id));
-      pastedImages.forEach((image) => animateImageIn(image.id));
-      setSelectedIds(nextSelectedIds);
-    }
-
-    setCopiedItem(null);
-    closeContextMenus();
-    setRenamingId(null);
   };
 
   const requestClearCanvas = () => {
@@ -4765,39 +3223,12 @@ function App({
   };
 
   const clearCanvas = () => {
-    if (retained) {
-      const result = retained.runtime.callbacks
-        .captureRemoveCanvas(activeCanvas.id as CanvasId, "clear")
-        ?.complete(true);
-      if (!result?.ok) return;
-      closeContextMenus();
-      setSelectedIds([]);
-      setRenamingId(null);
-      setEditingTextCardId(null);
-      setEditingTextBlockId(null);
-      setClearModalOpen(false);
-      return;
-    }
-    const canvasId = activeCanvasIdRef.current;
-    beginHistoryTransaction(canvasId, CLEAR_HISTORY_TRANSACTION);
-    removeContainers(
-      elements.map((element) => element.id),
-      true,
-    );
-    removeTextCards(
-      textCards.filter((card) => !card.containerId).map((card) => card.id),
-      true,
-    );
-    removeTextBlocks(
-      textBlocks.map((element) => element.id),
-      true,
-    );
-    removeImages(
-      images.filter((image) => !image.containerId).map((image) => image.id),
-      true,
-    );
-    finishHistoryTransaction(canvasId, CLEAR_HISTORY_TRANSACTION, latestDataGetterRef.current());
+    const result = retained.runtime.callbacks
+      .captureRemoveCanvas(activeCanvas.id as CanvasId, "clear")
+      ?.complete(true);
+    if (!result?.ok) return;
     closeContextMenus();
+    setSelectedIds([]);
     setRenamingId(null);
     setEditingTextCardId(null);
     setEditingTextBlockId(null);
@@ -4805,32 +3236,11 @@ function App({
   };
 
   const updateContainerAccent = (id: string, accent: string) => {
-    if (retained) {
-      completeRetainedContent(id, { accent });
-      return;
-    }
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id
-          ? {
-              ...element,
-              accent,
-            }
-          : element,
-      ),
-    );
+    completeRetainedContent(id, { accent });
   };
 
   const updateContainerHeaderButtonsVisible = (id: string, visible: boolean) => {
-    if (retained) {
-      completeRetainedContent(id, { headerButtonsVisible: visible });
-      return;
-    }
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id ? { ...element, headerButtonsVisible: visible } : element,
-      ),
-    );
+    completeRetainedContent(id, { headerButtonsVisible: visible });
   };
 
   const getContextActionIds = (id: string) =>
@@ -4863,113 +3273,47 @@ function App({
 
   const updateContextAccent = (id: string, accent: string) => {
     const actionIds = getContextActionIds(id);
-    if (retained) {
-      retained.runtime.callbacks
-        .captureContent(
-          actionIds.map((elementId) => ({
-            elementId: elementId as ElementId,
-            fields: ["accent"],
-          })),
-        )
-        ?.complete(
-          actionIds.map((elementId) => ({
-            elementId: elementId as ElementId,
-            to: {
-              accent: getElementAccentForKind(
-                accent,
-                textCardsById.has(elementId) ? "text-card" : "other",
-              ),
-            },
-          })),
-        );
-      return;
-    }
-    const actionSet = new Set(actionIds);
-
-    setElements((current) =>
-      current.map((element) =>
-        actionSet.has(element.id)
-          ? { ...element, accent: getElementAccentForKind(accent, "other") }
-          : element,
-      ),
-    );
-    setTextBlocks((current) =>
-      current.map((element) =>
-        actionSet.has(element.id)
-          ? { ...element, accent: getElementAccentForKind(accent, "other") }
-          : element,
-      ),
-    );
-    setTextCards((current) =>
-      current.map((card) =>
-        actionSet.has(card.id)
-          ? { ...card, accent: getElementAccentForKind(accent, "text-card") }
-          : card,
-      ),
-    );
-    setImages((current) =>
-      current.map((image) =>
-        actionSet.has(image.id)
-          ? { ...image, accent: getElementAccentForKind(accent, "other") }
-          : image,
-      ),
-    );
+    retained.runtime.callbacks
+      .captureContent(
+        actionIds.map((elementId) => ({
+          elementId: elementId as ElementId,
+          fields: ["accent"],
+        })),
+      )
+      ?.complete(
+        actionIds.map((elementId) => ({
+          elementId: elementId as ElementId,
+          to: {
+            accent: getElementAccentForKind(
+              accent,
+              textCardsById.has(elementId) ? "text-card" : "other",
+            ),
+          },
+        })),
+      );
   };
 
   const stripContextExtension = (id: string, key: keyof ElementExtensions) => {
     const actionSet = new Set(getContextActionIds(id));
-    if (retained) {
-      const extensionId = retainedExtensionId(key);
-      if (
-        !extensionId ||
-        !retained.runtime.callbacks
-          .captureExtensionRemove(extensionId, [...actionSet] as ElementId[])
-          ?.complete().ok
-      )
-        return;
-      if (key === "search")
-        setContainerScrollOffsets((current) => ({
-          ...current,
-          ...Object.fromEntries([...actionSet].map((id) => [id, 0])),
-        }));
-      if (
-        key === "copyPasteJson" &&
-        containerJsonEditor &&
-        actionSet.has(containerJsonEditor.containerId)
-      )
-        setContainerJsonEditor(null);
-      closeContextMenus();
+    const extensionId = retainedExtensionId(key);
+    if (
+      !extensionId ||
+      !retained.runtime.callbacks
+        .captureExtensionRemove(extensionId, [...actionSet] as ElementId[])
+        ?.complete().ok
+    )
       return;
-    }
-    const strip = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
-      if (!actionSet.has(item.id) || !item.extensions?.[key]) {
-        return item;
-      }
-
-      const { [key]: _removed, ...extensions } = item.extensions;
-      return { ...item, extensions };
-    };
-
-    setElements((current) => current.map(strip));
-    setTextBlocks((current) => current.map(strip));
-    setTextCards((current) => current.map(strip));
-    setImages((current) => current.map(strip));
-    if (key === "search") {
-      setContainerScrollOffsets((current) => {
-        const next = { ...current };
-        actionSet.forEach((actionId) => {
-          next[actionId] = 0;
-        });
-        return next;
-      });
-    }
+    if (key === "search")
+      setContainerScrollOffsets((current) => ({
+        ...current,
+        ...Object.fromEntries([...actionSet].map((id) => [id, 0])),
+      }));
     if (
       key === "copyPasteJson" &&
       containerJsonEditor &&
       actionSet.has(containerJsonEditor.containerId)
-    ) {
+    )
       setContainerJsonEditor(null);
-    }
     closeContextMenus();
   };
 
@@ -5096,7 +3440,7 @@ function App({
           return;
         }
       } else if (key === "v") {
-        if (!(retained ? hasRetainedCopy : copiedItem)) {
+        if (!hasRetainedCopy) {
           return;
         }
         clipboardShortcutActions.pasteKeyboardClipboard();
@@ -5113,66 +3457,19 @@ function App({
   }, [clipboardShortcutActions, copiedItem, retained, hasRetainedCopy]);
 
   const installExtensions = (extensionId: ExtensionId, ids: string[]) => {
-    if (retained) {
-      const installed = installRetainedViewExtension(
-        retained.runtime.callbacks,
-        retained.runtime.controller.store.getState().documentWorkspace.document,
-        extensionId,
-        ids,
-        { nextUuid: () => crypto.randomUUID() },
-      );
-      if (installed) closeContextMenus();
-      return installed;
-    }
-    const targetIds = new Set(
-      ids.filter((id) => {
-        const targetType = getExtensionTargetType(id);
-        return targetType ? EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType) : false;
-      }),
+    const installed = installRetainedViewExtension(
+      retained.runtime.callbacks,
+      retained.runtime.controller.store.getState().documentWorkspace.document,
+      extensionId,
+      ids,
+      { nextUuid: () => crypto.randomUUID() },
     );
-    if (targetIds.size === 0) {
-      return false;
-    }
-
-    const install = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T => {
-      if (!targetIds.has(item.id)) {
-        return item;
-      }
-
-      const extensions: ElementExtensions = { ...item.extensions };
-      let changed = false;
-      if (extensions[extensionId] === undefined) {
-        Object.assign(extensions, {
-          [extensionId]: EXTENSION_REGISTRY[extensionId].createDefault(),
-        });
-        changed = true;
-      }
-      if (!changed) {
-        return item;
-      }
-
-      return {
-        ...item,
-        extensions,
-      } as T;
-    };
-
-    setElements((current) => current.map(install));
-    setTextBlocks((current) => current.map(install));
-    setTextCards((current) => current.map(install));
-    setImages((current) => current.map(install));
-    closeContextMenus();
-    return true;
+    if (installed) closeContextMenus();
+    return installed;
   };
 
   const getContainerJsonForAi = (id: string) => {
-    if (retained) return retained.runtime.callbacks.getContainerJsonForAi(id as ElementId);
-    const container = containersById.get(id);
-    if (!container?.extensions?.copyPasteJson) {
-      return null;
-    }
-
-    return serializeContainerForAi(container, getOrderedContainerTextCards(id));
+    return retained.runtime.callbacks.getContainerJsonForAi(id as ElementId);
   };
 
   const openContainerJsonEditor = (id: string) => {
@@ -5181,16 +3478,14 @@ function App({
       return;
     }
 
-    if (retained) {
-      retainedJsonEdit.current?.cancel();
-      retainedJsonEdit.current = captureRetainedViewJsonEdit(
-        retained.runtime.callbacks,
-        retained.runtime.controller.store.getState().documentWorkspace.document,
-        id as ElementId,
-        { nextUuid: () => crypto.randomUUID() },
-      );
-      if (!retainedJsonEdit.current) return;
-    }
+    retainedJsonEdit.current?.cancel();
+    retainedJsonEdit.current = captureRetainedViewJsonEdit(
+      retained.runtime.callbacks,
+      retained.runtime.controller.store.getState().documentWorkspace.document,
+      id as ElementId,
+      { nextUuid: () => crypto.randomUUID() },
+    );
+    if (!retainedJsonEdit.current) return;
     setContainerJsonEditor({ containerId: id, initialJson: json });
   };
 
@@ -5237,67 +3532,33 @@ function App({
       return false;
     }
 
-    if (retained) {
-      const result = captured?.complete(json);
-      if (!result?.ok) {
-        showToast({
-          tone: "error",
-          title: "JSON was not applied",
-          message: "The container changed or the action expired. Reopen the editor and retry.",
-        });
-        return false;
-      }
-      setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
-      setSelectedIds([id]);
-      setEditingTextCardId(null);
-      setTextCardDraft("");
-      setRenamingId(null);
-      setContainerJsonEditor(null);
-      retainedJsonEdit.current = null;
-      return true;
+    const result = captured?.complete(json);
+    if (!result?.ok) {
+      showToast({
+        tone: "error",
+        title: "JSON was not applied",
+        message: "The container changed or the action expired. Reopen the editor and retry.",
+      });
+      return false;
     }
-
-    const replacedCardIds = new Set(
-      textCards.filter((card) => card.containerId === id).map((card) => card.id),
-    );
-    setActiveCanvas(
-      (current) =>
-        replaceContainerFromAiJson(current, id, parsed.data, {
-          createCardId: () => createEntityId("text-card"),
-          headerHeight: CONTAINER_HEADER_HEIGHT,
-          searchHeight: SEARCH_ROW_HEIGHT,
-          cardPadding: CONTAINER_TEXT_CARD_PADDING,
-          cardRowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
-          cardGap: CONTAINER_TEXT_CARD_GAP,
-        }) ?? current,
-    );
     setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
-    setSelectedIds((current) =>
-      current.some((selectedId) => replacedCardIds.has(selectedId)) ? [id] : current,
-    );
-    if (editingTextCardId && replacedCardIds.has(editingTextCardId)) {
-      setEditingTextCardId(null);
-      setTextCardDraft("");
-    }
+    setSelectedIds([id]);
+    setEditingTextCardId(null);
+    setTextCardDraft("");
     setRenamingId(null);
-    showToast({
-      tone: "success",
-      title: "AI JSON applied",
-      message: `${parsed.data.cards.length} ${parsed.data.cards.length === 1 ? "card" : "cards"} replaced.`,
-    });
+    setContainerJsonEditor(null);
+    retainedJsonEdit.current = null;
     return true;
   };
 
   const pasteContainerJsonFromAi = async (id: string) => {
-    const captured = retained
-      ? captureRetainedViewJsonEdit(
-          retained.runtime.callbacks,
-          retained.runtime.controller.store.getState().documentWorkspace.document,
-          id as ElementId,
-          { nextUuid: () => crypto.randomUUID() },
-        )
-      : null;
-    if (retained && !captured) return;
+    const captured = captureRetainedViewJsonEdit(
+      retained.runtime.callbacks,
+      retained.runtime.controller.store.getState().documentWorkspace.document,
+      id as ElementId,
+      { nextUuid: () => crypto.randomUUID() },
+    );
+    if (!captured) return;
     let clipboardText: string;
     try {
       clipboardText = await navigator.clipboard.readText();
@@ -5316,109 +3577,24 @@ function App({
   };
 
   const togglePrivacyExtension = (id: string) => {
-    if (retained) {
-      retained.runtime.callbacks.captureExtensionToggle("privacy", id as ElementId)?.complete();
-      return;
-    }
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id && element.extensions?.privacy
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                privacy: {
-                  enabled: !element.extensions.privacy.enabled,
-                },
-              },
-            }
-          : element,
-      ),
-    );
-    setTextBlocks((current) =>
-      current.map((element) =>
-        element.id === id && element.extensions?.privacy
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                privacy: {
-                  enabled: !element.extensions.privacy.enabled,
-                },
-              },
-            }
-          : element,
-      ),
-    );
+    retained.runtime.callbacks.captureExtensionToggle("privacy", id as ElementId)?.complete();
   };
 
   const toggleLockExtension = (id: string) => {
-    if (retained) {
-      retained.runtime.callbacks
-        .captureExtensionToggle("lock", id as ElementId, selectedIds as ElementId[])
-        ?.complete();
-      return;
-    }
-    const source =
-      containersById.get(id) ??
-      textBlocksById.get(id) ??
-      textCardsById.get(id) ??
-      imagesById.get(id);
-    if (!source?.extensions?.lock) {
-      return;
-    }
-
-    const targetIds = new Set(
-      selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id],
-    );
-    const nextEnabled = !source.extensions.lock.enabled;
-    const toggle = <T extends { id: string; extensions?: ElementExtensions }>(item: T): T =>
-      targetIds.has(item.id) && item.extensions?.lock
-        ? {
-            ...item,
-            extensions: {
-              ...item.extensions,
-              lock: { enabled: nextEnabled },
-            },
-          }
-        : item;
-    setElements((current) => current.map(toggle));
-    setTextBlocks((current) => current.map(toggle));
-    setTextCards((current) => current.map(toggle));
-    setImages((current) => current.map(toggle));
+    retained.runtime.callbacks
+      .captureExtensionToggle("lock", id as ElementId, selectedIds as ElementId[])
+      ?.complete();
   };
 
   const toggleTextCardCheckbox = (id: string) => {
-    retained?.runtime.callbacks.captureExtensionToggle("checkbox", id as ElementId)?.complete();
+    retained.runtime.callbacks.captureExtensionToggle("checkbox", id as ElementId)?.complete();
   };
 
   const updateContainerSearchQuery = (id: string, query: string) => {
-    if (retained) {
-      retained.runtime.callbacks
-        .captureExtensionConfiguration("search", id as ElementId)
-        ?.complete({ query });
-      setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
-      return;
-    }
-    setElements((current) =>
-      current.map((element) =>
-        element.id === id && element.extensions?.search
-          ? {
-              ...element,
-              extensions: {
-                ...element.extensions,
-                search: {
-                  query,
-                },
-              },
-            }
-          : element,
-      ),
-    );
-    setContainerScrollOffsets((current) => ({
-      ...current,
-      [id]: 0,
-    }));
+    retained.runtime.callbacks
+      .captureExtensionConfiguration("search", id as ElementId)
+      ?.complete({ query });
+    setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
   };
 
   const showExtensionDropRipple = (
@@ -5807,7 +3983,7 @@ function App({
       const initialHistory = createInitialCanvasHistory(selectedCanvas);
       historyRef.current = initialHistory.historyByCanvasId;
       historyIndexRef.current = initialHistory.historyIndexByCanvasId;
-      updateHistoryState(selectedCanvas.id);
+      updateHistoryState();
     } else {
       window.setTimeout(() => {
         applyingHistoryRef.current = false;
@@ -5815,98 +3991,28 @@ function App({
     }
   };
 
-  const applyActiveCanvasHistorySnapshot = (snapshot: TaskCanvas) => {
-    applyingHistoryRef.current = true;
-    cancelPendingDeletionCommits(activeCanvas.id);
-    cancelHistoryTransactions(activeCanvas.id);
-
-    const currentActiveCanvas = latestAppDataRef.current.canvases.find(
-      (canvas) => canvas.id === activeCanvas.id,
-    );
-    const nextCanvas = {
-      ...snapshot,
-      pan: interactionController.getSnapshot().viewport.pan,
-      zoom: interactionController.getSnapshot().viewport.zoom,
-      previewViewport: currentActiveCanvas?.previewViewport,
-    };
-
-    setCanvases((current) =>
-      current.map((canvas) => (canvas.id === activeCanvas.id ? nextCanvas : canvas)),
-    );
-    setSelectedIds([]);
+  const undo = () => {
+    retained.runtime.callbacks.undo();
     setRenamingId(null);
     setEditingTextCardId(null);
     setEditingTextBlockId(null);
+    setRenameDraft("");
+    setTextCardDraft("");
+    setTextBlockDraft("");
     setCopiedItem(null);
     closeContextMenus();
-
-    window.setTimeout(() => {
-      applyingHistoryRef.current = false;
-    }, 0);
-  };
-
-  const undo = () => {
-    if (retained) {
-      retained.runtime.callbacks.undo();
-      setRenamingId(null);
-      setEditingTextCardId(null);
-      setEditingTextBlockId(null);
-      setRenameDraft("");
-      setTextCardDraft("");
-      setTextBlockDraft("");
-      setCopiedItem(null);
-      closeContextMenus();
-      return;
-    }
-    const canvasId = activeCanvas.id;
-    cancelHistoryTransactions(canvasId);
-    commitHistorySnapshot(canvasId);
-    const history = historyRef.current[canvasId] ?? [];
-    const historyIndex = historyIndexRef.current[canvasId] ?? -1;
-
-    if (historyIndex <= 0) {
-      return;
-    }
-
-    const nextHistoryIndex = historyIndex - 1;
-    historyIndexRef.current = {
-      ...historyIndexRef.current,
-      [canvasId]: nextHistoryIndex,
-    };
-    applyActiveCanvasHistorySnapshot(cloneCanvas(history[nextHistoryIndex]));
-    updateHistoryState(canvasId);
   };
 
   const redo = () => {
-    if (retained) {
-      retained.runtime.callbacks.redo();
-      setRenamingId(null);
-      setEditingTextCardId(null);
-      setEditingTextBlockId(null);
-      setRenameDraft("");
-      setTextCardDraft("");
-      setTextBlockDraft("");
-      setCopiedItem(null);
-      closeContextMenus();
-      return;
-    }
-    const canvasId = activeCanvas.id;
-    cancelHistoryTransactions(canvasId);
-    commitHistorySnapshot(canvasId);
-    const history = historyRef.current[canvasId] ?? [];
-    const historyIndex = historyIndexRef.current[canvasId] ?? -1;
-
-    if (historyIndex < 0 || historyIndex >= history.length - 1) {
-      return;
-    }
-
-    const nextHistoryIndex = historyIndex + 1;
-    historyIndexRef.current = {
-      ...historyIndexRef.current,
-      [canvasId]: nextHistoryIndex,
-    };
-    applyActiveCanvasHistorySnapshot(cloneCanvas(history[nextHistoryIndex]));
-    updateHistoryState(canvasId);
+    retained.runtime.callbacks.redo();
+    setRenamingId(null);
+    setEditingTextCardId(null);
+    setEditingTextBlockId(null);
+    setRenameDraft("");
+    setTextCardDraft("");
+    setTextBlockDraft("");
+    setCopiedItem(null);
+    closeContextMenus();
   };
 
   const historyActions = useStableCallbacks({ redo, undo });
@@ -5954,7 +4060,6 @@ function App({
     });
 
   const importData = async (file: File, password: string) => {
-    cancelAutosave();
     await persistenceQueueRef.current.catch(() => undefined);
     const payload = await file.text();
     const data = await invoke<unknown>("import_app_data", { payload, password });
@@ -5964,7 +4069,6 @@ function App({
   };
 
   const resetLocalDatabase = async () => {
-    cancelAutosave();
     await persistenceQueueRef.current.catch(() => undefined);
     await invoke("reset_local_database");
     const data: AppData = {
@@ -6008,46 +4112,13 @@ function App({
   };
 
   const createCanvas = (draft: Pick<TaskCanvas, "name" | "width" | "height">) => {
-    if (retained) {
-      const result = retained.runtime.callbacks.captureCreateCanvas()?.complete({
-        id: createEntityId("canvas") as CanvasId,
-        name: draft.name.trim() || "Untitled canvas",
-        settings: { width: clampCanvasSize(draft.width), height: clampCanvasSize(draft.height) },
-        elementOrder: [],
-      });
-      if (result?.ok) resetCanvasPresentation();
-      return;
-    }
-    recordHistorySnapshot(getCurrentAppData(), activeCanvas.id);
-    const currentCanvases = getPersistedCanvases();
-    cancelPendingDeletionCommits(activeCanvas.id);
-    const width = clampCanvasSize(draft.width);
-    const height = clampCanvasSize(draft.height);
-    const canvas: TaskCanvas = {
-      id: createEntityId("canvas"),
+    const result = retained.runtime.callbacks.captureCreateCanvas()?.complete({
+      id: createEntityId("canvas") as CanvasId,
       name: draft.name.trim() || "Untitled canvas",
-      width,
-      height,
-      containers: [],
-      textCards: [],
-      textBlocks: [],
-      images: [],
-      mindmapConnections: [],
-      pan: DEFAULT_PAN,
-      zoom: 1,
-      previewViewport: {
-        width: stageRef.current?.clientWidth ?? window.innerWidth,
-        height: stageRef.current?.clientHeight ?? window.innerHeight,
-      },
-    };
-
-    const nextCanvases = [...currentCanvases, canvas];
-    activeCanvasIdRef.current = canvas.id;
-    setCanvases(nextCanvases);
-    setActiveCanvas(canvas);
-    setSelectedIds([]);
-    setRenamingId(null);
-    closeContextMenus();
+      settings: { width: clampCanvasSize(draft.width), height: clampCanvasSize(draft.height) },
+      elementOrder: [],
+    });
+    if (result?.ok) resetCanvasPresentation();
   };
 
   const selectCanvas = (id: string) => {
@@ -6055,29 +4126,7 @@ function App({
       return;
     }
 
-    if (retained) {
-      if (retained.runtime.callbacks.switchCanvas(id as CanvasId).ok) resetCanvasPresentation();
-      return;
-    }
-
-    recordHistorySnapshot(getCurrentAppData(), activeCanvas.id);
-    const currentCanvases = getPersistedCanvases();
-    const nextCanvas = currentCanvases.find((canvas) => canvas.id === id);
-    if (!nextCanvas) {
-      return;
-    }
-
-    cancelPendingDeletionCommits(activeCanvas.id);
-    activeCanvasIdRef.current = nextCanvas.id;
-    setCanvases(currentCanvases);
-    setActiveCanvas(nextCanvas);
-    setSelectedIds([]);
-    setDeletingIds([]);
-    setDeletingTextCardIds([]);
-    setDeletingTextBlockIds([]);
-    setDeletingImageIds([]);
-    setRenamingId(null);
-    closeContextMenus();
+    if (retained.runtime.callbacks.switchCanvas(id as CanvasId).ok) resetCanvasPresentation();
   };
 
   const updateCanvas = (id: string, updates: Pick<TaskCanvas, "name" | "width" | "height">) => {
@@ -6086,89 +4135,23 @@ function App({
       width: clampCanvasSize(updates.width),
       height: clampCanvasSize(updates.height),
     };
-    if (retained) {
-      retained.runtime.callbacks.captureCanvasDetails(id as CanvasId)?.complete({
-        name: details.name.trim() || "Untitled canvas",
-        settings: { width: details.width, height: details.height },
-      });
-      return;
-    }
-    const applyUpdate = (canvas: TaskCanvas) =>
-      canvas.id === id ? updateCanvasDetails(canvas, details) : canvas;
-
-    markCanvasDirty(id);
-    setCanvases((current) => current.map(applyUpdate));
-    const latestData = latestDataGetterRef.current();
-    const nextData = {
-      ...latestData,
-      canvases: latestData.canvases.map(applyUpdate),
-    };
-    latestAppDataRef.current = nextData;
-    recordHistorySnapshot(nextData, id);
+    retained.runtime.callbacks.captureCanvasDetails(id as CanvasId)?.complete({
+      name: details.name.trim() || "Untitled canvas",
+      settings: { width: details.width, height: details.height },
+    });
   };
 
   const deleteCanvas = (id: string) => {
-    if (retained) {
-      const result = retained.runtime.callbacks.captureRemoveCanvas(id as CanvasId)?.complete(true);
-      if (result?.ok && id === activeCanvas.id) resetCanvasPresentation();
-      return;
-    }
-    recordHistorySnapshot(getCurrentAppData(), activeCanvas.id);
-    const currentCanvases = getPersistedCanvases();
-    if (currentCanvases.length <= 1) {
-      return;
-    }
-
-    if (id === activeCanvas.id) {
-      cancelPendingDeletionCommits(activeCanvas.id);
-    }
-
-    const nextCanvases = currentCanvases.filter((canvas) => canvas.id !== id);
-    const nextActiveCanvas =
-      id === activeCanvas.id
-        ? nextCanvases[Math.max(currentCanvases.findIndex((canvas) => canvas.id === id) - 1, 0)]
-        : activeCanvas;
-
-    delete historyRef.current[id];
-    delete historyIndexRef.current[id];
-    cancelHistoryTransactions(id);
-    pendingCanvasDeletionsRef.current.delete(id);
-    dirtyCanvasVersionsRef.current.delete(id);
-
-    setCanvases(nextCanvases);
-
-    if (nextActiveCanvas.id !== activeCanvas.id) {
-      activeCanvasIdRef.current = nextActiveCanvas.id;
-      setActiveCanvas(nextActiveCanvas);
-      setSelectedIds([]);
-      setRenamingId(null);
-      closeContextMenus();
-    }
+    const result = retained.runtime.callbacks.captureRemoveCanvas(id as CanvasId)?.complete(true);
+    if (result?.ok && id === activeCanvas.id) resetCanvasPresentation();
   };
 
   const reorderCanvases = (orderedIds: string[]) => {
-    if (retained) {
-      retained.runtime.callbacks.captureCanvasOrder()?.complete(orderedIds as CanvasId[]);
-      return;
-    }
-    const currentCanvases = getPersistedCanvases();
-    const nextCanvases = orderedIds
-      .map((id) => currentCanvases.find((canvas) => canvas.id === id))
-      .filter((canvas): canvas is TaskCanvas => Boolean(canvas));
-    const missingCanvases = currentCanvases.filter((canvas) => !orderedIds.includes(canvas.id));
-
-    if (nextCanvases.length === 0) {
-      return;
-    }
-
-    nextCanvases.push(...missingCanvases);
-    setCanvases(nextCanvases);
+    retained.runtime.callbacks.captureCanvasOrder()?.complete(orderedIds as CanvasId[]);
   };
 
   const getCanvasCycleOrder = () => {
-    if (retained) return canvases.map((canvas) => canvas.id);
-    const currentCanvases = getPersistedCanvases();
-    return currentCanvases.map((canvas) => canvas.id);
+    return canvases.map((canvas) => canvas.id);
   };
 
   const getCurrentLeftPanelState = (): LeftPanelState => {
@@ -6696,9 +4679,7 @@ function App({
     }),
     ...layeredLooseImages.flatMap((image) => {
       const chromeless =
-        (retained
-          ? Boolean((image as unknown as RetainedImageView).media)
-          : Boolean(image.imageId)) &&
+        Boolean((image as unknown as RetainedImageView).media) &&
         !loadingImageIds.includes(image.id) &&
         image.background === false;
       if (chromeless || deletingImageIds.includes(image.id)) {
@@ -6785,7 +4766,7 @@ function App({
                         onReorderCanvases={reorderCanvases}
                       />,
                       <ExtensionsPanel
-                        availableExtensions={retained ? retainedViewExtensions : undefined}
+                        availableExtensions={retainedViewExtensions}
                         key="extensions"
                         active={leftPanelActiveIndex === 1}
                         closing={leftPanelClosing}
@@ -6816,7 +4797,6 @@ function App({
                 onHoldChange={holdMinimap}
               />
             )}
-            {!retained && <WindowChrome radius={radii.chrome} />}
             <FloatingToolbar
               canRedo={historyState.canRedo}
               canUndo={historyState.canUndo}
@@ -6844,7 +4824,7 @@ function App({
           {quickExtensionsMenu && (
             <Suspense fallback={null}>
               <QuickExtensionsMenu
-                availableExtensions={retained ? retainedViewExtensions : undefined}
+                availableExtensions={retainedViewExtensions}
                 left={quickExtensionsMenu.left}
                 top={quickExtensionsMenu.top}
                 majorRadius={radii.quickExtensions}
@@ -7262,7 +5242,7 @@ function App({
                         const imageElement = asImageDocumentElement(
                           documentElements[image.id as ElementId],
                         );
-                        if (!retained || !imageElement) return null;
+                        if (!imageElement) return null;
                         const dragged = draggedShadowIds.has(image.id);
                         return (
                           <ImageRenderer
@@ -7471,7 +5451,7 @@ function App({
             <ContainerContentContextMenu
               key={`${containerContentMenu.containerId}-${containerContentMenu.clientX}-${containerContentMenu.clientY}`}
               menu={containerContentMenu}
-              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              hasCopiedItem={hasRetainedCopy}
               closing={false}
               onPaste={pasteCopiedItem}
               onCreateTextCard={createTextCardInContainer}
@@ -7482,7 +5462,7 @@ function App({
             <ContainerContentContextMenu
               key={`closing-${closingContainerContentMenu.containerId}-${closingContainerContentMenu.clientX}-${closingContainerContentMenu.clientY}`}
               menu={closingContainerContentMenu}
-              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              hasCopiedItem={hasRetainedCopy}
               closing
               onPaste={pasteCopiedItem}
               onCreateTextCard={createTextCardInContainer}
@@ -7571,7 +5551,7 @@ function App({
             <CanvasContextMenu
               key={`${canvasMenu.clientX}-${canvasMenu.clientY}`}
               menu={canvasMenu}
-              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              hasCopiedItem={hasRetainedCopy}
               closing={false}
               onPaste={pasteCopiedItem}
               onCreate={createContainer}
@@ -7587,7 +5567,7 @@ function App({
             <CanvasContextMenu
               key={`closing-${closingCanvasMenu.clientX}-${closingCanvasMenu.clientY}`}
               menu={closingCanvasMenu}
-              hasCopiedItem={retained ? hasRetainedCopy : Boolean(copiedItem)}
+              hasCopiedItem={hasRetainedCopy}
               closing
               onPaste={pasteCopiedItem}
               onCreate={createContainer}
@@ -7633,27 +5613,23 @@ function App({
           >
             <Suspense fallback={null}>
               <SettingsModal
-                databaseActions={
-                  retained
-                    ? {
-                        lock: async () => {
-                          // The animation plays before the lock: locking purges the document,
-                          // so afterwards there would be no canvas left to animate.
-                          setSettingsOpen(false);
-                          await beginWorkspaceOutro();
-                          const locked = (await retained.runtime.controller.lock()).ok;
-                          if (!locked) cancelWorkspaceOutro();
-                          return locked;
-                        },
-                        close: async () => (await retained.runtime.controller.close()).ok,
-                        quit: async () => (await retained.runtime.controller.quit()).ok,
-                        closeToTray,
-                        onCloseToTrayChange: setCloseToTray,
-                        trayLockMinutes,
-                        onTrayLockMinutesChange: setTrayLockMinutes,
-                      }
-                    : undefined
-                }
+                databaseActions={{
+                  lock: async () => {
+                    // The animation plays before the lock: locking purges the document,
+                    // so afterwards there would be no canvas left to animate.
+                    setSettingsOpen(false);
+                    await beginWorkspaceOutro();
+                    const locked = (await retained.runtime.controller.lock()).ok;
+                    if (!locked) cancelWorkspaceOutro();
+                    return locked;
+                  },
+                  close: async () => (await retained.runtime.controller.close()).ok,
+                  quit: async () => (await retained.runtime.controller.quit()).ok,
+                  closeToTray,
+                  onCloseToTrayChange: setCloseToTray,
+                  trayLockMinutes,
+                  onTrayLockMinutesChange: setTrayLockMinutes,
+                }}
                 gridOpacityEdit={gridOpacityEdit}
                 canvasGridStyle={canvasGridStyle}
                 onCanvasGridStyleChange={setCanvasGridStyle}

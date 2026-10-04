@@ -13,7 +13,6 @@ type UseAppUpdatesOptions = {
   appDataLoaded: boolean;
   dismissedUpdateVersion?: string;
   onDismissUpdateVersion: (version: string) => void;
-  cancelAutosave: () => void;
   saveCurrentData: () => Promise<void>;
   showToast: ShowToast;
 };
@@ -22,7 +21,6 @@ export function useAppUpdates({
   appDataLoaded,
   dismissedUpdateVersion,
   onDismissUpdateVersion,
-  cancelAutosave,
   saveCurrentData,
   showToast,
 }: UseAppUpdatesOptions) {
@@ -122,8 +120,6 @@ export function useAppUpdates({
       return;
     }
 
-    cancelAutosave();
-
     try {
       showToast({
         tone: "info",
@@ -150,7 +146,7 @@ export function useAppUpdates({
       });
       throw error;
     }
-  }, [cancelAutosave, saveCurrentData, showToast]);
+  }, [saveCurrentData, showToast]);
 
   useEffect(() => {
     if (!appDataLoaded || autoUpdateCheckRef.current) {
