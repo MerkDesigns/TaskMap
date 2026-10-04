@@ -26,6 +26,11 @@ const operations = [
   "view_state",
   "load_preferences",
   "save_preferences",
+  "workflow_trust_state",
+  "workflow_trust",
+  "workflow_run",
+  "workflow_status",
+  "workflow_stop",
 ];
 const capability = await json("src-tauri/capabilities/application-database.json");
 assert.deepEqual(capability.windows, ["main"]);

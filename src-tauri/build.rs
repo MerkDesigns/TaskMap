@@ -22,6 +22,11 @@ fn main() {
         "app_view_state",
         "app_load_preferences",
         "app_save_preferences",
+        "app_workflow_trust_state",
+        "app_workflow_trust",
+        "app_workflow_run",
+        "app_workflow_status",
+        "app_workflow_stop",
         "load_app_data",
     ];
 

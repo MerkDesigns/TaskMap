@@ -1,6 +1,7 @@
 pub(crate) mod application_image_drop;
 pub(crate) mod application_image_picker;
 pub(crate) mod application_resources;
+pub(crate) mod application_workflow;
 pub(crate) mod database_command_types;
 pub(crate) mod database_commands;
 pub(crate) mod database_edition;

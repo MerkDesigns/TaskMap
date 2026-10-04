@@ -36,6 +36,10 @@ pub(crate) enum ServiceFailure {
     SaveFailure,
     #[error("database backup failed")]
     BackupFailure,
+    #[error("workflow is not trusted on this device")]
+    WorkflowUntrusted,
+    #[error("a workflow step could not be started")]
+    WorkflowLaunchFailure,
     #[error("I/O operation failed: {0}")]
     Io(#[from] io::Error),
     #[error("SQLite operation failed: {0}")]
@@ -77,6 +81,8 @@ pub(crate) enum ErrorCode {
     RevisionConflict,
     SaveFailure,
     BackupFailure,
+    WorkflowUntrusted,
+    WorkflowLaunchFailure,
     Unexpected,
 }
 
@@ -159,6 +165,16 @@ impl From<ServiceFailure> for CommandError {
             ServiceFailure::BackupFailure => (
                 Code::BackupFailure,
                 "A safe database backup could not be created.",
+                true,
+            ),
+            ServiceFailure::WorkflowUntrusted => (
+                Code::WorkflowUntrusted,
+                "This workflow has not been trusted on this device.",
+                false,
+            ),
+            ServiceFailure::WorkflowLaunchFailure => (
+                Code::WorkflowLaunchFailure,
+                "A workflow step could not be started.",
                 true,
             ),
             ServiceFailure::Io(_)

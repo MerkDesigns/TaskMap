@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-workflow-run"
+description = "Enables the app_workflow_run command without any pre-configured scope."
+commands.allow = ["app_workflow_run"]
+
+[[permission]]
+identifier = "deny-app-workflow-run"
+description = "Denies the app_workflow_run command without any pre-configured scope."
+commands.deny = ["app_workflow_run"]

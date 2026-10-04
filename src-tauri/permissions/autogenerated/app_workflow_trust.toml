@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-workflow-trust"
+description = "Enables the app_workflow_trust command without any pre-configured scope."
+commands.allow = ["app_workflow_trust"]
+
+[[permission]]
+identifier = "deny-app-workflow-trust"
+description = "Denies the app_workflow_trust command without any pre-configured scope."
+commands.deny = ["app_workflow_trust"]

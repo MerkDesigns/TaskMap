@@ -1,4 +1,4 @@
-use super::database_session::OpenSession;
+use super::database_session::{DatabaseSessionState, OpenSession};
 use super::session_types::{DatabaseSessionPhase, DatabaseSessionStatus};
 use crate::error::{ServiceFailure, ServiceResult};
 
@@ -48,6 +48,14 @@ pub(super) fn authorized_session<'a>(
         return Err(ServiceFailure::SessionLocked);
     }
     Ok(session)
+}
+
+impl DatabaseSessionState {
+    /// Succeeds only for the unlocked session of `database_id` identified by `session_id`.
+    pub(crate) fn authorize(&self, database_id: &str, session_id: &str) -> ServiceResult<()> {
+        let mut guard = self.guard()?;
+        authorized_session(&mut guard, database_id, session_id).map(|_| ())
+    }
 }
 
 fn closed_status() -> DatabaseSessionStatus {

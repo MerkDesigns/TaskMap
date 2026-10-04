@@ -300,7 +300,7 @@ src/
 ├─ ui-lab/         synthetic UI fixtures shown in the DEV workbench's UI Lab view
 ├─ legacy/         temporary bridges for the retained presentation (deleted after Phase 5)
 ├─ components/     retained feature views still rendered through App.tsx
-└─ App.tsx         retained legacy presentation root, being dismantled in Phase 5
+└─ App.tsx         retained legacy presentation root, being dismantled feature by feature
 
 src-tauri/src/
 ├─ commands/       narrow Tauri commands; application commands use session authority
@@ -308,7 +308,8 @@ src-tauri/src/
 ├─ database/       SQLite envelope, generations, media, backup/recovery
 ├─ crypto/         password derivation (Argon2id) and authenticated encryption
 ├─ files/          writer/file ownership and atomic filesystem operations
-└─ settings/       edition-local device preferences and remembered resources
+├─ settings/       edition-local device preferences and remembered resources
+└─ workflow/       Workflow Runner: structured steps, per-device trust, job-owned process runs
 
 installer/         installer bootstrapper (own Tauri crate): runs the embedded NSIS installer
                    silently, detects existing installs, creates shortcuts (ADR 007)

@@ -12,6 +12,7 @@ mod storage_preview;
 mod tray;
 mod webview_autofill;
 mod window_state;
+mod workflow;
 
 use commands::database_commands;
 use commands::database_window_commands;
@@ -47,6 +48,11 @@ macro_rules! taskmap_invoke_handler {
             commands::application_resources::app_view_state,
             commands::application_resources::app_load_preferences,
             commands::application_resources::app_save_preferences,
+            commands::application_workflow::app_workflow_trust_state,
+            commands::application_workflow::app_workflow_trust,
+            commands::application_workflow::app_workflow_run,
+            commands::application_workflow::app_workflow_status,
+            commands::application_workflow::app_workflow_stop,
         ]
     };
 }
@@ -66,6 +72,8 @@ fn main() {
         .manage(DatabaseSessionState::default())
         .manage(DatabasePathAuthorizationState::default())
         .manage(tray::TrayLock::default())
+        .manage(workflow::workflow_runs::WorkflowRuns::default())
+        .manage(workflow::workflow_trust::WorkflowTrust::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init());
