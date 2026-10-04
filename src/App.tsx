@@ -13,8 +13,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { IconRotateClockwise } from "@tabler/icons-react";
 import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
@@ -77,8 +75,8 @@ import {
   ToastMessage,
 } from "./types";
 import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
-import { cloneExtensions, normalizeAppData } from "./app/appData";
-import { commandErrorMessage, isRecoverableStorageError } from "./app/commandError";
+import { cloneExtensions } from "./app/appData";
+import { commandErrorMessage } from "./app/commandError";
 import { planCanvasDeletion } from "./app/canvasDocument";
 import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY } from "./app/defaultData";
 import { useImageCache } from "./hooks/useImageCache";
@@ -108,7 +106,6 @@ import {
   type ExtensionTargetType,
 } from "./extensions/registry";
 import { parseCopyPasteJson } from "./extensions/copyPasteJson";
-import { createInitialCanvasHistory } from "./app/history";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
@@ -230,16 +227,6 @@ type MeasuredTextCardSize = {
   height: number;
 };
 
-type StorageErrorState = {
-  message: string;
-  canReset: boolean;
-};
-
-const createStorageError = (prefix: string, error: unknown): StorageErrorState => ({
-  message: `${prefix}: ${commandErrorMessage(error)}`,
-  canReset: isRecoverableStorageError(error),
-});
-
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
 const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
@@ -270,23 +257,6 @@ type CanvasElementShadow = Rectangle & {
 
 // Canvas workspace geometry. The matching CSS tokens live on `.taskmap-workspace-root--canvas`.
 const CANVAS_PREVIEW_GAP = 9;
-
-const getWindowPreviewViewport = () => ({
-  width: window.innerWidth,
-  height: window.innerHeight,
-});
-
-const createAppMetadata = (data: AppData): AppData => ({
-  ...data,
-  canvases: data.canvases.map((canvas) => ({
-    ...canvas,
-    containers: [],
-    textCards: [],
-    textBlocks: [],
-    images: [],
-    mindmapConnections: [],
-  })),
-});
 
 type CallbackMap = Record<string, (...args: never[]) => unknown>;
 
@@ -393,13 +363,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   } | null>(null);
   const wheelLayerTimeoutRef = useRef<number | null>(null);
   const containerScrollOffsetsRef = useRef<Record<string, number>>({});
-  const historyRef = useRef<Record<string, TaskCanvas[]>>({});
-  const historyIndexRef = useRef<Record<string, number>>({});
   const historyTransactionsRef = useRef<Map<string, Set<string>>>(new Map());
   const dirtyHistoryTransactionsRef = useRef<Set<string>>(new Set());
-  const applyingHistoryRef = useRef(false);
   const dirtyCanvasVersionsRef = useRef<Map<string, number>>(new Map());
-  const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingCanvasDeletionsRef = useRef<Map<string, PendingCanvasDeletions>>(new Map());
   const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
   const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
@@ -426,7 +392,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     images,
     mindmapConnections,
     setActiveCanvas,
-    setCanvases,
     setCamera,
     textBlocks,
     textCards,
@@ -625,7 +590,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     privacyModeEnabled,
     setPrivacyModeEnabled,
     toolbarButtonsVisible,
-    setToolbarButtonsVisible,
     chromeAutoHideEnabled,
     setChromeAutoHideEnabled,
     chromeAutoHideDelayMs,
@@ -656,7 +620,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     left: number;
     top: number;
   } | null>(null);
-  const [storageError, setStorageError] = useState<StorageErrorState | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const [enteringIds, setEnteringIds] = useState<string[]>([]);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
@@ -879,29 +842,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
     [dismissToast],
   );
-
-  const persistAppData = (data: AppData, forceAllCanvases = false): Promise<void> => {
-    const capturedVersions = new Map(dirtyCanvasVersionsRef.current);
-    const canvasIdsToSave = forceAllCanvases
-      ? new Set(data.canvases.map((canvas) => canvas.id))
-      : new Set(capturedVersions.keys());
-    const canvasesToSave = data.canvases.filter((canvas) => canvasIdsToSave.has(canvas.id));
-    const metadata = createAppMetadata(data);
-    const save = async () => {
-      await invoke("save_app_data_incremental", {
-        metadata,
-        canvases: canvasesToSave,
-      });
-      capturedVersions.forEach((version, canvasId) => {
-        if (dirtyCanvasVersionsRef.current.get(canvasId) === version) {
-          dirtyCanvasVersionsRef.current.delete(canvasId);
-        }
-      });
-    };
-    const queuedSave = persistenceQueueRef.current.then(save, save);
-    persistenceQueueRef.current = queuedSave.catch(() => undefined);
-    return queuedSave;
-  };
 
   const { imageUrlVersion } = useImageCache({
     activeImages: NO_CACHED_IMAGES,
@@ -3909,88 +3849,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
   };
 
-  const applyAppData = (data: unknown, recordHistory = true, preserveCamera = false) => {
-    applyingHistoryRef.current = !recordHistory;
-    pendingDeletionTimeoutsRef.current.forEach((timeouts) =>
-      timeouts.forEach((timeout) => window.clearTimeout(timeout)),
-    );
-    pendingDeletionTimeoutsRef.current.clear();
-    pendingCanvasDeletionsRef.current.clear();
-    historyTransactionsRef.current.clear();
-    dirtyHistoryTransactionsRef.current.clear();
-
-    const normalized = normalizeAppData(data, getWindowPreviewViewport);
-    const selectedCanvas =
-      normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ??
-      normalized.canvases[0] ??
-      DEFAULT_CANVAS;
-
-    const currentCameraByCanvasId = new Map(
-      latestAppDataRef.current.canvases.map((canvas) => [
-        canvas.id,
-        {
-          pan:
-            canvas.id === activeCanvas.id
-              ? interactionController.getSnapshot().viewport.pan
-              : canvas.pan,
-          zoom:
-            canvas.id === activeCanvas.id
-              ? interactionController.getSnapshot().viewport.zoom
-              : canvas.zoom,
-          previewViewport: canvas.previewViewport,
-        },
-      ]),
-    );
-    const nextCanvases = normalized.canvases.length ? normalized.canvases : [DEFAULT_CANVAS];
-    const cameraPreservedCanvases = preserveCamera
-      ? nextCanvases.map((canvas) => {
-          const currentCamera = currentCameraByCanvasId.get(canvas.id);
-
-          return currentCamera
-            ? {
-                ...canvas,
-                pan: currentCamera.pan,
-                zoom: currentCamera.zoom,
-                previewViewport: currentCamera.previewViewport,
-              }
-            : canvas;
-        })
-      : nextCanvases;
-    const cameraPreservedSelectedCanvas =
-      cameraPreservedCanvases.find((canvas) => canvas.id === selectedCanvas.id) ?? selectedCanvas;
-
-    activeCanvasIdRef.current = cameraPreservedSelectedCanvas.id;
-    setCanvases(cameraPreservedCanvases);
-    setActiveCanvas(cameraPreservedSelectedCanvas);
-    setCanvasGridStyle(normalized.canvasGridStyle);
-    setCanvasGridOpacity(normalized.canvasGridOpacity);
-    setDefaultElementColors(normalized.defaultElementColors);
-    setRecentColors(normalized.recentColors);
-    setShadowsUnderElements(normalized.shadowsUnderElements);
-    setAllowLockedElementDeletion(normalized.allowLockedElementDeletion);
-    setMinimapEnabled(normalized.minimapEnabled);
-    setPrivacyModeEnabled(normalized.privacyModeEnabled);
-    setToolbarButtonsVisible(normalized.toolbarButtonsVisible);
-    setDismissedUpdateVersion(normalized.dismissedUpdateVersion);
-    setSelectedIds([]);
-    setRenamingId(null);
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
-    setCopiedItem(null);
-    closeContextMenus();
-
-    if (recordHistory) {
-      const initialHistory = createInitialCanvasHistory(selectedCanvas);
-      historyRef.current = initialHistory.historyByCanvasId;
-      historyIndexRef.current = initialHistory.historyIndexByCanvasId;
-      updateHistoryState();
-    } else {
-      window.setTimeout(() => {
-        applyingHistoryRef.current = false;
-      }, 0);
-    }
-  };
-
   const undo = () => {
     retained.runtime.callbacks.undo();
     setRenamingId(null);
@@ -4052,47 +3910,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     window.addEventListener("keydown", handleHistoryKeyDown);
     return () => window.removeEventListener("keydown", handleHistoryKeyDown);
   }, [clearModalOpen, historyActions, settingsOpen, updateModalOpen]);
-
-  const exportData = (password: string) =>
-    invoke<boolean>("export_app_data", {
-      data: getCurrentAppData(),
-      password,
-    });
-
-  const importData = async (file: File, password: string) => {
-    await persistenceQueueRef.current.catch(() => undefined);
-    const payload = await file.text();
-    const data = await invoke<unknown>("import_app_data", { payload, password });
-    dirtyCanvasVersionsRef.current.clear();
-    applyAppData(data);
-    setStorageError(null);
-  };
-
-  const resetLocalDatabase = async () => {
-    await persistenceQueueRef.current.catch(() => undefined);
-    await invoke("reset_local_database");
-    const data: AppData = {
-      schemaVersion: 2,
-      activeCanvasId: DEFAULT_CANVAS.id,
-      canvases: [DEFAULT_CANVAS],
-      canvasGridStyle: "dots",
-      canvasGridOpacity: DEFAULT_GRID_OPACITY,
-      defaultElementColors: DEFAULT_ELEMENT_COLORS,
-      recentColors: [],
-      shadowsUnderElements: false,
-      allowLockedElementDeletion: true,
-      minimapEnabled: true,
-      privacyModeEnabled: false,
-      toolbarButtonsVisible: false,
-    };
-
-    latestAppDataRef.current = data;
-    dirtyCanvasVersionsRef.current.clear();
-    applyAppData(data);
-    setStorageError(null);
-    appDataLoadedRef.current = true;
-    await persistAppData(data, true);
-  };
 
   const resetCanvasPresentation = () => {
     cancelPendingDeletionCommits(activeCanvas.id);
@@ -5649,8 +5466,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 onShadowsUnderElementsChange={setShadowsUnderElements}
                 allowLockedElementDeletion={allowLockedElementDeletion}
                 onAllowLockedElementDeletionChange={setAllowLockedElementDeletion}
-                onExportData={exportData}
-                onImportData={importData}
                 availableUpdate={availableUpdate}
                 appVersion={appVersion}
                 fpsCounterVisible={fpsCounterVisible}
@@ -5693,30 +5508,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100"
             >
               {settingsError}
-            </div>
-          )}
-          {storageError && (
-            <div className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">
-              <div className="mb-1 font-semibold">Storage error</div>
-              <div className="text-red-100/75">{storageError.message}</div>
-              {storageError.canReset && (
-                <button
-                  className="mt-3 flex h-9 items-center gap-2 rounded-md bg-red-300/14 px-3 text-sm text-red-100 transition-colors hover:bg-red-300/22"
-                  onClick={() => {
-                    resetLocalDatabase().catch((error) => {
-                      const storageFailure = createStorageError(
-                        "Failed to reset local database",
-                        error,
-                      );
-                      setStorageError(storageFailure);
-                      console.error(storageFailure.message);
-                    });
-                  }}
-                >
-                  <IconRotateClockwise size={17} stroke={2} />
-                  <span>Reset local data</span>
-                </button>
-              )}
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,11 +10,7 @@ import {
 } from "../ui/motion/motionFrameScheduler";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { ModalPresence } from "../ui/patterns/overlays";
-import {
-  ClearCanvasModal,
-  SettingsPasswordDialog,
-  UpdateAvailableModal,
-} from "./ProductionDialogs";
+import { ClearCanvasModal, UpdateAvailableModal } from "./ProductionDialogs";
 
 afterEach(cleanup);
 
@@ -114,41 +110,6 @@ describe("Production dialogs", () => {
     expect(opener).toHaveFocus();
     opener.remove();
     scheduler.dispose();
-  });
-
-  it("uses the native password field contract and preserves submit/close behavior", async () => {
-    const user = userEvent.setup();
-    const onPasswordChange = vi.fn();
-    const onSubmit = vi.fn();
-    const onClose = vi.fn();
-    render(
-      <ReducedMotionProvider override>
-        <MaterialPlaneProvider plane="modal">
-          <ModalPresence open placement="nested">
-            <SettingsPasswordDialog
-              busy={false}
-              mode="import"
-              password=""
-              onPasswordChange={onPasswordChange}
-              onSubmit={onSubmit}
-              onClose={onClose}
-            />
-          </ModalPresence>
-        </MaterialPlaneProvider>
-      </ReducedMotionProvider>,
-    );
-    const dialog = screen.getByRole("dialog", { name: "Import data" });
-    expect(dialog.style.width).toBe("340px");
-    const input = screen.getByPlaceholderText("Password");
-    expect(input).toHaveAttribute("type", "password");
-    expect(input).toHaveAttribute("spellcheck", "false");
-    await waitFor(() => expect(input).toHaveFocus());
-    await user.type(input, "secret{Enter}");
-    expect(onPasswordChange).toHaveBeenCalled();
-    expect(onSubmit).toHaveBeenCalledOnce();
-    await user.keyboard("{Escape}");
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(dialog).toHaveClass("taskmap-modal-dialog");
   });
 });
 

@@ -52,6 +52,15 @@ describe("modal keyboard behavior", () => {
       <ReducedMotionProvider override>
         <ModalPresence open>
           <SettingsModal
+            databaseActions={{
+              lock: vi.fn(async () => true),
+              close: vi.fn(async () => true),
+              quit: vi.fn(async () => true),
+              closeToTray: false,
+              onCloseToTrayChange: vi.fn(),
+              trayLockMinutes: 0,
+              onTrayLockMinutesChange: vi.fn(),
+            }}
             canvasGridStyle="dots"
             onCanvasGridStyleChange={vi.fn()}
             canvasGridOpacity={50}
@@ -64,8 +73,6 @@ describe("modal keyboard behavior", () => {
             onShadowsUnderElementsChange={vi.fn()}
             allowLockedElementDeletion
             onAllowLockedElementDeletionChange={onAllowLockedElementDeletionChange}
-            onExportData={vi.fn(async () => true)}
-            onImportData={vi.fn(async () => undefined)}
             availableUpdate={null}
             appVersion="0.2.8"
             fpsCounterVisible={false}

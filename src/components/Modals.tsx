@@ -1,5 +1,4 @@
 import {
-  IconDownload,
   IconEye,
   IconEyeOff,
   IconGrid3x3,
@@ -8,11 +7,10 @@ import {
   IconPalette,
   IconRefresh,
   IconSettings,
-  IconUpload,
 } from "@tabler/icons-react";
 import { SettingsInterfaceIsland } from "./SettingsInterfaceIsland";
 import type { ChromeRadii } from "../platform/settings/preferenceContracts";
-import { ChangeEvent, Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { commandErrorMessage } from "../app/commandError";
 import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
 import { Button, Keycap, LiquidTabs, SegmentedControl, Slider } from "../ui/primitives";
@@ -33,12 +31,12 @@ import {
   DatabaseSettingsActions,
   type DatabaseSettingsActionsProps,
 } from "./DatabaseSettingsActions";
-import { SettingsPasswordDialog, UpdateAvailableModal } from "./ProductionDialogs";
+import { UpdateAvailableModal } from "./ProductionDialogs";
 
 export { ClearCanvasModal, UpdateAvailableModal } from "./ProductionDialogs";
 
 type SettingsModalProps = {
-  databaseActions?: DatabaseSettingsActionsProps;
+  databaseActions: DatabaseSettingsActionsProps;
   gridOpacityEdit?: { begin(): void; commit(): void; cancel(): void };
   canvasGridStyle: CanvasGridStyle;
   onCanvasGridStyleChange: (style: CanvasGridStyle) => void;
@@ -52,8 +50,6 @@ type SettingsModalProps = {
   onShadowsUnderElementsChange: (enabled: boolean) => void;
   allowLockedElementDeletion: boolean;
   onAllowLockedElementDeletionChange: (enabled: boolean) => void;
-  onExportData: (password: string) => Promise<boolean>;
-  onImportData: (file: File, password: string) => Promise<void>;
   availableUpdate: AppUpdateInfo | null;
   appVersion: string;
   fpsCounterVisible: boolean;
@@ -111,9 +107,10 @@ const SETTINGS_TABS = import.meta.env.DEV
   ? (["visual", "data", "misc", "shortcuts", "dev"] as const)
   : (["visual", "data", "misc", "shortcuts"] as const);
 
+// The data tab holds the open database's session actions.
 const SETTINGS_TAB_ITEMS = SETTINGS_TABS.map((tab) => ({
   value: tab,
-  label: tab,
+  label: tab === "data" ? "database" : tab,
 }));
 
 const GRID_SEGMENTS = GRID_OPTIONS.map(({ Icon, label, value }) => ({
@@ -141,8 +138,6 @@ export function SettingsModal({
   onShadowsUnderElementsChange,
   allowLockedElementDeletion,
   onAllowLockedElementDeletionChange,
-  onExportData,
-  onImportData,
   availableUpdate,
   appVersion,
   fpsCounterVisible,
@@ -159,14 +154,8 @@ export function SettingsModal({
   onInstallUpdate,
   onClose,
 }: SettingsModalProps) {
-  const importInputRef = useRef<HTMLInputElement>(null);
   const opacityCancelled = useRef(false);
-  const [passwordModal, setPasswordModal] = useState<"export" | "import" | null>(null);
-  const [passwordDraft, setPasswordDraft] = useState("");
-  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
-  const [dataStatus, setDataStatus] = useState("");
   const [, setUpdateStatus] = useState("");
-  const [busy, setBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"visual" | "data" | "misc" | "shortcuts" | "dev">(
@@ -195,80 +184,6 @@ export function SettingsModal({
       setDefaultColorPicker(null);
     }
   }, [activeTab]);
-
-  const runDataAction = async (
-    password: string,
-    action: (password: string) => Promise<boolean | void>,
-    successMessage: string,
-  ) => {
-    setDataStatus("");
-
-    if (!password) {
-      setDataStatus("Password required.");
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const completed = await action(password);
-      if (completed === false) {
-        return;
-      }
-      setDataStatus(successMessage);
-      setPasswordModal(null);
-      setPasswordDraft("");
-      setPendingImportFile(null);
-    } catch (error) {
-      setDataStatus(commandErrorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleExport = () => {
-    setDataStatus("");
-    setPasswordDraft("");
-    setPasswordModal("export");
-  };
-
-  const handleImportClick = () => {
-    setDataStatus("");
-    importInputRef.current?.click();
-  };
-
-  const handleImportFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    setPendingImportFile(file);
-    setPasswordDraft("");
-    setPasswordModal("import");
-  };
-
-  const submitPassword = () => {
-    if (passwordModal === "export") {
-      runDataAction(passwordDraft, onExportData, "Exported.");
-      return;
-    }
-
-    if (passwordModal === "import" && pendingImportFile) {
-      runDataAction(
-        passwordDraft,
-        (password) => onImportData(pendingImportFile, password),
-        "Imported.",
-      );
-    }
-  };
-
-  const closePasswordModal = () => {
-    setPasswordModal(null);
-    setPasswordDraft("");
-    setPendingImportFile(null);
-  };
 
   const handleCheckForUpdate = async () => {
     setUpdateStatus("");
@@ -310,13 +225,7 @@ export function SettingsModal({
           <LiquidTabs
             className="taskmap-settings-navigation"
             label="Settings categories"
-            items={
-              databaseActions
-                ? SETTINGS_TAB_ITEMS.map((item) =>
-                    item.value === "data" ? { ...item, label: "database" } : item,
-                  )
-                : SETTINGS_TAB_ITEMS
-            }
+            items={SETTINGS_TAB_ITEMS}
             value={activeTab}
             onValueChange={(tab) => {
               gridOpacityEdit?.cancel();
@@ -449,40 +358,7 @@ export function SettingsModal({
                   />
                 </>
               )}
-              {activeTab === "data" && databaseActions && (
-                <DatabaseSettingsActions {...databaseActions} />
-              )}
-              {activeTab === "data" && !databaseActions && (
-                <div className="taskmap-settings-data-grid">
-                  <input
-                    ref={importInputRef}
-                    className="hidden"
-                    type="file"
-                    accept=".tmap,.json,application/json"
-                    spellCheck={false}
-                    onChange={handleImportFile}
-                  />
-                  <SettingsIsland className="taskmap-settings-data-action">
-                    <Button
-                      leadingIcon={<IconDownload size={18} stroke={2} />}
-                      onClick={handleExport}
-                      disabled={busy}
-                    >
-                      Export data
-                    </Button>
-                  </SettingsIsland>
-                  <SettingsIsland className="taskmap-settings-data-action">
-                    <Button
-                      leadingIcon={<IconUpload size={18} stroke={2} />}
-                      onClick={handleImportClick}
-                      disabled={busy}
-                    >
-                      Import data
-                    </Button>
-                  </SettingsIsland>
-                  {dataStatus && <div className="taskmap-settings-data-status">{dataStatus}</div>}
-                </div>
-              )}
+              {activeTab === "data" && <DatabaseSettingsActions {...databaseActions} />}
               {activeTab === "misc" && (
                 <div className="taskmap-settings-misc">
                   <SettingsToggleRow
@@ -563,18 +439,6 @@ export function SettingsModal({
             update={availableUpdate}
             onInstall={onInstallUpdate}
             onDismiss={() => setUpdateModalOpen(false)}
-          />
-        ) : null}
-      </ModalPresence>
-      <ModalPresence open={Boolean(passwordModal)} placement="nested">
-        {passwordModal ? (
-          <SettingsPasswordDialog
-            busy={busy}
-            mode={passwordModal}
-            password={passwordDraft}
-            onPasswordChange={setPasswordDraft}
-            onClose={closePasswordModal}
-            onSubmit={submitPassword}
           />
         ) : null}
       </ModalPresence>

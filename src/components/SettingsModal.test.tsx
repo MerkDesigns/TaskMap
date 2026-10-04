@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CHROME_RADII } from "../platform/settings/preferenceContracts";
@@ -79,7 +79,7 @@ describe("Settings modal", () => {
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "visual",
-      "data",
+      "database",
       "misc",
       "shortcuts",
       "dev",
@@ -87,8 +87,8 @@ describe("Settings modal", () => {
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     tabs[0].focus();
     await user.keyboard("{ArrowRight}");
-    expect(screen.getByRole("tab", { name: "data" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Export data" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "database" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Lock database" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "visual" }));
     await user.click(screen.getByRole("button", { name: "Lines" }));
@@ -129,28 +129,10 @@ describe("Settings modal", () => {
     expect(props.onAllowLockedElementDeletionChange).toHaveBeenLastCalledWith(false);
   });
 
-  it("preserves data flow, update action, shortcut order, and DEV toggles", async () => {
+  it("preserves the update action, shortcut order, and DEV toggles", async () => {
     const user = userEvent.setup();
     const props = settingsProps();
-    const { container } = renderSettings(props);
-
-    await user.click(screen.getByRole("tab", { name: "data" }));
-    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(fileInput).toHaveAttribute("accept", ".tmap,.json,application/json");
-    expect(fileInput).toHaveAttribute("spellcheck", "false");
-    await user.click(screen.getByRole("button", { name: "Export data" }));
-    await user.type(screen.getByPlaceholderText("Password"), "secret");
-    await user.click(screen.getByRole("button", { name: "Export" }));
-    await waitFor(() => expect(props.onExportData).toHaveBeenCalledWith("secret"));
-
-    const importFile = new File(["{}"], "settings.tmap", { type: "application/json" });
-    await user.upload(fileInput, importFile);
-    expect(fileInput.value).toBe("");
-    await user.type(screen.getByPlaceholderText("Password"), "import-secret");
-    await user.click(screen.getByRole("button", { name: "Import" }));
-    await waitFor(() =>
-      expect(props.onImportData).toHaveBeenCalledWith(importFile, "import-secret"),
-    );
+    renderSettings(props);
 
     await user.click(screen.getByRole("tab", { name: "misc" }));
     await user.click(screen.getByRole("button", { name: "Check for updates" }));
@@ -255,14 +237,6 @@ describe("Settings modal", () => {
     });
     renderSettings(props);
 
-    await user.click(screen.getByRole("tab", { name: "data" }));
-    await user.click(screen.getByRole("button", { name: "Export data" }));
-    expect(screen.getByRole("dialog", { name: "Export data" })).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog", { name: "Export data" })).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
-    expect(props.onClose).not.toHaveBeenCalled();
-
     await user.click(screen.getByRole("tab", { name: "misc" }));
     await user.click(screen.getByRole("button", { name: "Check for updates" }));
     expect(await screen.findByRole("dialog", { name: "Update available" })).toBeInTheDocument();
@@ -321,6 +295,15 @@ function settingsProps(
   overrides: Partial<ComponentProps<typeof SettingsModal>> = {},
 ): ComponentProps<typeof SettingsModal> {
   return {
+    databaseActions: {
+      lock: vi.fn(async () => true),
+      close: vi.fn(async () => true),
+      quit: vi.fn(async () => true),
+      closeToTray: false,
+      onCloseToTrayChange: vi.fn(),
+      trayLockMinutes: 0,
+      onTrayLockMinutesChange: vi.fn(),
+    },
     canvasGridStyle: "dots",
     onCanvasGridStyleChange: vi.fn(),
     canvasGridOpacity: 50,
@@ -333,8 +316,6 @@ function settingsProps(
     onShadowsUnderElementsChange: vi.fn(),
     allowLockedElementDeletion: false,
     onAllowLockedElementDeletionChange: vi.fn(),
-    onExportData: vi.fn(async () => true),
-    onImportData: vi.fn(async () => undefined),
     availableUpdate: null,
     appVersion: "0.3.4",
     fpsCounterVisible: false,

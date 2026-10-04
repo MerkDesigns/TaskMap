@@ -1,13 +1,7 @@
-import {
-  IconDownload,
-  IconRotateClockwise,
-  IconTrash,
-  IconUpload,
-  IconX,
-} from "@tabler/icons-react";
-import { useEffect, useRef, useState } from "react";
+import { IconDownload, IconRotateClockwise, IconTrash, IconX } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import type { AppUpdateInfo } from "../types";
-import { Button, TextField } from "../ui/primitives";
+import { Button } from "../ui/primitives";
 import {
   ModalDialog,
   ModalDialogActions,
@@ -141,85 +135,6 @@ export function ClearCanvasModal({ onCancel, onConfirm }: ClearCanvasModalProps)
           onClick={onConfirm}
         >
           Clear
-        </Button>
-      </ModalDialogActions>
-    </ModalDialog>
-  );
-}
-
-export interface SettingsPasswordDialogProps {
-  readonly busy: boolean;
-  readonly mode: "export" | "import";
-  readonly password: string;
-  readonly onClose: () => void;
-  readonly onPasswordChange: (password: string) => void;
-  readonly onSubmit: () => void;
-}
-
-export function SettingsPasswordDialog({
-  busy,
-  mode,
-  onClose,
-  onPasswordChange,
-  onSubmit,
-  password,
-}: SettingsPasswordDialogProps) {
-  const passwordRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useDialogFocus(true, passwordRef);
-  const exporting = mode === "export";
-  const DialogIcon = exporting ? IconDownload : IconUpload;
-
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onClose();
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [onClose]);
-
-  return (
-    <ModalDialog
-      ref={dialogRef}
-      width={340}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="data-password-title"
-      tabIndex={-1}
-      data-production-dialog="password"
-    >
-      <ModalDialogHeader
-        titleId="data-password-title"
-        title={exporting ? "Export data" : "Import data"}
-        icon={<DialogIcon size={19} stroke={2} className="taskmap-modal-dialog__icon" />}
-        onClose={onClose}
-      />
-      <ModalDialogBody>
-        <TextField
-          ref={passwordRef}
-          type="password"
-          value={password}
-          autoFocus
-          spellCheck={false}
-          onChange={(event) => onPasswordChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") onSubmit();
-          }}
-          placeholder="Password"
-        />
-      </ModalDialogBody>
-      <ModalDialogActions>
-        <Button variant="ghost" leadingIcon={<IconX size={17} stroke={2} />} onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          variant="primary"
-          leadingIcon={<DialogIcon size={17} stroke={2} />}
-          onClick={onSubmit}
-          disabled={busy}
-        >
-          {exporting ? "Export" : "Import"}
         </Button>
       </ModalDialogActions>
     </ModalDialog>
