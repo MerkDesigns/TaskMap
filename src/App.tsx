@@ -173,6 +173,11 @@ import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
 import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
+import {
+  cardsMatchingSearch,
+  SEARCH_ROW_HEIGHT,
+  searchRowHeight,
+} from "./extensions/search/searchRule";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
 // throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
@@ -270,7 +275,6 @@ const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
 const CONTAINER_HEADER_HEIGHT = 48;
-const CONTAINER_SEARCH_HEIGHT = 42;
 const CONTAINER_TEXT_CARD_PADDING = 17;
 const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
 const CONTAINER_TEXT_CARD_GAP = 8;
@@ -1659,29 +1663,16 @@ function App({
     }, 2200);
   };
 
-  const getContainerSearchQuery = (container: ContainerElement) =>
-    container.extensions?.search?.query.trim().toLowerCase() ?? "";
-
   const getContainerVisibleTextCards = (container: ContainerElement, cards = textCards) => {
     const orderedCards = getOrderedContainerTextCards(container.id, cards);
-    const query = getContainerSearchQuery(container);
-    const searchedCards = query
-      ? orderedCards.filter((card) => card.text.toLowerCase().includes(query))
-      : orderedCards;
-
     // Match the render pipeline exactly so a card's index in this list is the same slot it
     // visually occupies. Drag math relies on this — using the unfiltered order makes a card snap
     // to the wrong slot the instant it is grabbed (notably with the search extension).
-    return searchedCards;
+    return cardsMatchingSearch(container, orderedCards);
   };
 
   const getContainerViewportHeight = (container: ContainerElement) =>
-    Math.max(
-      0,
-      container.height -
-        CONTAINER_HEADER_HEIGHT -
-        (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0),
-    );
+    Math.max(0, container.height - CONTAINER_HEADER_HEIGHT - searchRowHeight(container));
 
   const getContainerContentHeight = (container: ContainerElement, cards = textCards) => {
     const cardCount = getContainerVisibleTextCards(container, cards).length;
@@ -1735,7 +1726,7 @@ function App({
   const getContainerCardStackTop = (container: ContainerElement) =>
     container.y +
     CONTAINER_HEADER_HEIGHT +
-    (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0) +
+    searchRowHeight(container) +
     CONTAINER_TEXT_CARD_PADDING;
 
   const handleContainerWheel = (event: WheelEvent<HTMLElement>, container: ContainerElement) => {
@@ -2705,10 +2696,7 @@ function App({
       return null;
     }
 
-    const contentTop =
-      container.y +
-      CONTAINER_HEADER_HEIGHT +
-      (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0);
+    const contentTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
     const baseBounds =
       measuredBounds ??
       ({
@@ -5276,7 +5264,7 @@ function App({
         replaceContainerFromAiJson(current, id, parsed.data, {
           createCardId: () => createEntityId("text-card"),
           headerHeight: CONTAINER_HEADER_HEIGHT,
-          searchHeight: CONTAINER_SEARCH_HEIGHT,
+          searchHeight: SEARCH_ROW_HEIGHT,
           cardPadding: CONTAINER_TEXT_CARD_PADDING,
           cardRowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
           cardGap: CONTAINER_TEXT_CARD_GAP,
@@ -5630,10 +5618,7 @@ function App({
       const targetContainerCard = [...elements]
         .reverse()
         .flatMap((container) => {
-          const contentTop =
-            container.y +
-            CONTAINER_HEADER_HEIGHT +
-            (container.extensions?.search ? CONTAINER_SEARCH_HEIGHT : 0);
+          const contentTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
           const contentBottom = container.y + container.height;
           const cardWidth = Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2);
 

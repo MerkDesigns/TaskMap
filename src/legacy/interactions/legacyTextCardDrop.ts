@@ -1,8 +1,8 @@
 import type { ContainerElement, TaskCanvas, TextCardElement } from "../../types";
 import type { LegacyTextCardPlacementDecision } from "./legacyTextCardInteraction";
+import { cardsMatchingSearch, searchRowHeight } from "../../extensions/search/searchRule";
 
 const HEADER_HEIGHT = 48;
-const SEARCH_HEIGHT = 42;
 const CARD_PADDING = 17;
 const CARD_HEIGHT = 43;
 const CARD_GAP = 8;
@@ -106,9 +106,7 @@ function applyPlacementDecision(
 }
 
 function stackTop(container: ContainerElement): number {
-  return (
-    container.y + HEADER_HEIGHT + (container.extensions?.search ? SEARCH_HEIGHT : 0) + CARD_PADDING
-  );
+  return container.y + HEADER_HEIGHT + searchRowHeight(container) + CARD_PADDING;
 }
 
 function insertionIndex(cards: readonly TextCardElement[], pointerY: number, top: number): number {
@@ -121,15 +119,11 @@ function insertionIndex(cards: readonly TextCardElement[], pointerY: number, top
 function visibleCards(
   container: ContainerElement,
   cards: readonly TextCardElement[],
-): TextCardElement[] {
+): readonly TextCardElement[] {
   const ordered = cards
     .filter((card) => card.containerId === container.id)
     .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
-  const query = container.extensions?.search?.query.trim().toLowerCase() ?? "";
-  const searched = query
-    ? ordered.filter((card) => card.text.toLowerCase().includes(query))
-    : ordered;
-  return searched;
+  return cardsMatchingSearch(container, ordered);
 }
 
 function resolveRealIndex(

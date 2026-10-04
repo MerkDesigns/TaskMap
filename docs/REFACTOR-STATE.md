@@ -57,9 +57,12 @@
    Checkbox is a text-card adornment (`cardAdornmentRegistry.ts`): it draws its tick box and marks
    the card's text state; the Text Card only hosts adornments. Menu items are migrated: Lock and
    Extra colors own their element-menu items (`menuItemRegistry.ts`), and the element menus host
-   them and the "Remove Extensions" section through `useElementMenuExtensions`. Lock's rule (`lock/lockRule.ts`: locked elements, and containers holding one, cannot move, resize
-   or be deleted) is shared by the commands, `App.tsx` and the interaction adapters. Next: behavior
-   (search, privacy, auto checkboxes, inherit card color, JSON copy/paste) out of `App.tsx`.
+   them and the "Remove Extensions" section through `useElementMenuExtensions`. Extension rules
+   have one owner each: Lock (`lock/lockRule.ts`: locked elements, and containers holding one,
+   cannot move, resize or be deleted) and Search (`search/searchRule.ts`: which cards a query shows,
+   and the search row's height) serve the commands, `App.tsx` and the interaction adapters. Next:
+   behavior (privacy, auto checkboxes, inherit card color, JSON copy/paste) and the search row's UI
+   out of `App.tsx` and the container header.
    Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
    `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
    through the registry; loose text cards and mind-map nodes still position with left/top rather

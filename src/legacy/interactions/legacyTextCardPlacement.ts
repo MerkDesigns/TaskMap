@@ -1,9 +1,9 @@
 import type { ElementGeometry } from "../../canvas/geometry/canvasGeometry";
 import type { ContainerElement, TextBlockElement, TextCardElement } from "../../types";
 import { isLocked } from "../../extensions/lock/lockRule";
+import { cardsMatchingSearch, searchRowHeight } from "../../extensions/search/searchRule";
 
 const HEADER_HEIGHT = 48;
-const SEARCH_HEIGHT = 42;
 const PADDING = 17;
 export const LEGACY_TEXT_CARD_ROW_HEIGHT = 43;
 const GAP = 8;
@@ -255,13 +255,9 @@ function realInsertionIndex(
 function visibleCards(
   container: ContainerElement,
   cards: readonly TextCardElement[],
-): TextCardElement[] {
+): readonly TextCardElement[] {
   const ordered = cards.filter((card) => card.containerId === container.id).sort(order);
-  const query = container.extensions?.search?.query.trim().toLowerCase() ?? "";
-  const searched = query
-    ? ordered.filter((card) => card.text.toLowerCase().includes(query))
-    : ordered;
-  return searched;
+  return cardsMatchingSearch(container, ordered);
 }
 
 function previewGeometry(
@@ -282,7 +278,7 @@ function previewGeometry(
 }
 
 const stackTop = (container: ContainerElement) =>
-  container.y + HEADER_HEIGHT + (container.extensions?.search ? SEARCH_HEIGHT : 0) + PADDING;
+  container.y + HEADER_HEIGHT + searchRowHeight(container) + PADDING;
 const order = (left: TextCardElement, right: TextCardElement) =>
   (left.order ?? 0) - (right.order ?? 0);
 const cardKind = (cards: readonly TextCardElement[], id: string) =>
