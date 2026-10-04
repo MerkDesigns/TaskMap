@@ -10,7 +10,10 @@
   canvas element renders from `src/elements/`: Text Card (and mind-map nodes), Container, Text
   Block, Image and mind-map connections, each with its own CSS, reading the normalized element plus
   typed view state, with its menu next to it.
-- **Next: Phase 6 — extensions.**
+- **Phase 6 (extensions) is complete**, signed off by the user on 2026-10-04. Extensions contribute
+  their UI through typed contribution points (ADR 008) and own their rules and flows; the extension
+  definitions are the one registry.
+- **Next: Phase 7 — Workflow Runner.**
 - No open pull request; the user merges nothing into `main` yet.
 
 ## Active ownership and accepted behavior
@@ -33,15 +36,17 @@
 - Settings → Visual → Interface: per-device corner radii and the sleep delay.
 - Dedicated release benchmarks remain deferred by user direction (subjective acceptance only).
 
-## Verified status (2026-10-03)
+## Verified status (2026-10-04)
 
-- `npm run check` passes: 230 test files / 1,514 tests, typecheck, lint, formatting, architecture,
+- `npm run check` passes: 232 test files / 1,513 tests, typecheck, lint, formatting, architecture,
   production build, production-exclusion/security checks.
 - Phase 5 elements verified live in the dev app with trusted input (`npm run app:dev:devtools` +
   `scripts/drive-dev-window.mjs`): computed-style parity against the pre-migration components in
   idle/hover/gesture states, mid-drag positions, and screenshot diffs showing no shimmer while
   dragging, no 1px shift on drop, and sharp redraws after zooming.
 - Development hot updates keep the database unlocked (the session owner is renderer-global).
+- Phase 6 extension contributions verified live the same way: computed-style parity of headers,
+  menus and the search row, and lock, search, privacy, Copy/Paste JSON, install and removal flows.
 
 ## Immediate next task / handoff
 
@@ -49,31 +54,23 @@
    `src/installer/` UI; dev run `npm run installer:dev` simulates installing (no payload). Not yet
    done: a real `npm run installer:build` validated on a clean machine (never run a real install
    over the user's installed stable TaskMap), code signing, WebView2 fallback, uninstaller UI.
-2. Phase 6, extensions (ADR 008: extensions contribute UI through typed contribution points):
-   the definitions are registered in `src/extensions/architectureRegistry.ts`. Header controls are
-   migrated: Lock, Privacy, Extra colors, Counter and Copy/Paste JSON own their header control in
-   their module (`headerControlRegistry.ts`), the container and text-block headers host them through
-   `useElementHeaderExtensions`, and commands go through one `ExtensionCommands` port. The
-   Checkbox is a text-card adornment (`cardAdornmentRegistry.ts`): it draws its tick box and marks
-   the card's text state; the Text Card only hosts adornments. Menu items are migrated: Lock and
-   Extra colors own their element-menu items (`menuItemRegistry.ts`), and the element menus host
-   them and the "Remove Extensions" section through `useElementMenuExtensions`. Extension rules
-   have one owner each: Lock (`lock/lockRule.ts`: locked elements, and containers holding one,
-   cannot move, resize or be deleted) and Search (`search/searchRule.ts`: which cards a query shows,
-   and the search row's height) serve the commands, `App.tsx` and the interaction adapters. Search
-   contributes its query field as a header row (`headerRowRegistry.ts`), and Privacy hides content
-   through a content state (`contentState.ts`). `App.tsx` requires the retained canvas runtime and
-   no longer carries local-state fallbacks, so Auto checkboxes and Inherit Card Color live only in
-   the retained commands. The old Settings export/import/reset actions are removed. Copy/Paste JSON
-   owns its format, editor window and flow (`copy-paste-json/useCopyPasteJsonFlow.tsx`). The extension definitions are the one registry: each carries its Extensions-panel
-   presentation, and `extensionCatalog.ts` derives the panel's list and targets from them. Next:
-   the extension fields left in element view states and the `ExtensionCommands` toggles routed
-   through `App.tsx`.
+2. Phase 7, Workflow Runner: complete the structured Workflow Runner UX/runtime (see
+   `docs/REFACTOR-ROADMAP.md`). Start by reading the roadmap section and the existing runner code.
+3. Phase 6 extensions, for reference: contribution points in `src/extensions/` (header controls,
+   header rows, card adornments, menu items, content states; ADR 008), rules in
+   `lock/lockRule.ts` and `search/searchRule.ts`, Copy/Paste JSON's flow in
+   `copy-paste-json/useCopyPasteJsonFlow.tsx`, and the definitions in `architectureRegistry.ts` as
+   the one registry (`extensionCatalog.ts` derives the Extensions panel from them). `App.tsx`
+   requires the retained canvas runtime and has no local-state fallbacks.
+   Phase 6 leftovers, not blocking: elements still receive installed extensions in their view
+   state from the retained projection (what the contribution points need); `App.tsx` still builds
+   the `ExtensionCommands` port over the retained callbacks, because toggles depend on selection
+   state it owns.
    Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
    `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
    through the registry; loose text cards and mind-map nodes still position with left/top rather
    than `placementStyle`.
-3. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
+4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.
 
