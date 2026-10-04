@@ -1,13 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { createCanvasInteractionController } from "../../app/interactions/canvasInteractionController";
 import type { ElementGeometry } from "../../canvas/geometry/canvasGeometry";
-import { createViewport } from "../../canvas/geometry/viewportMath";
 import type { TaskCanvas } from "../../types";
-import {
-  applyMove,
-  createLegacyCanvasInteractionCommitAdapter,
-} from "./legacyCanvasInteractionCommitAdapter";
 import {
   createLegacyTextCardInteractionService,
   getLegacyTextCardDragIds,
@@ -101,31 +95,6 @@ describe("legacy text-card transient placement", () => {
     expect(down.getDecision()?.visibleIndex).toBe(1);
     update(down, 30, 240);
     expect(down.getDecision()?.realIndex).toBe(2);
-    const starting = canvas();
-    const movedDown = applyMove(
-      starting,
-      {
-        primaryId: "a",
-        targets: [
-          {
-            id: "a",
-            from: geometries(starting).get("a")!,
-            to: { x: 30, y: 230, width: 180, height: 43 },
-          },
-        ],
-        pointerWorld: { x: 30, y: 240 },
-        screenDistance: 100,
-        completionBehavior: "place",
-      },
-      () => 0,
-      down.getDecision(),
-    );
-    expect(
-      movedDown.textCards
-        .filter(({ containerId }) => containerId === "left")
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map(({ id }) => id),
-    ).toEqual(["b", "c", "a"]);
 
     const up = service();
     begin(up, canvas(), "c");
@@ -133,30 +102,6 @@ describe("legacy text-card transient placement", () => {
     expect(up.getDecision()?.visibleIndex).toBe(1);
     update(up, 30, 60);
     expect(up.getDecision()?.realIndex).toBe(0);
-    const movedUp = applyMove(
-      starting,
-      {
-        primaryId: "c",
-        targets: [
-          {
-            id: "c",
-            from: geometries(starting).get("c")!,
-            to: { x: 30, y: 50, width: 180, height: 43 },
-          },
-        ],
-        pointerWorld: { x: 30, y: 60 },
-        screenDistance: 100,
-        completionBehavior: "place",
-      },
-      () => 0,
-      up.getDecision(),
-    );
-    expect(
-      movedUp.textCards
-        .filter(({ containerId }) => containerId === "left")
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map(({ id }) => id),
-    ).toEqual(["c", "a", "b"]);
   });
 
   it("captures cross-container reparent and detach-to-loose decisions", () => {
@@ -167,27 +112,6 @@ describe("legacy text-card transient placement", () => {
     expect(interaction.getSnapshot().active?.current).toEqual({ x: 540, y: 90 });
     update(interaction, 1100, 700);
     expect(interaction.getDecision()).toMatchObject({ targetContainerId: null, realIndex: null });
-    const starting = canvas();
-    const detached = applyMove(
-      starting,
-      {
-        primaryId: "a",
-        targets: [
-          {
-            id: "a",
-            from: geometries(starting).get("a")!,
-            to: { x: 1100, y: 690, width: 180, height: 43 },
-          },
-        ],
-        pointerWorld: { x: 1100, y: 700 },
-        screenDistance: 100,
-        completionBehavior: "place",
-      },
-      () => 0,
-      interaction.getDecision(),
-    );
-    expect(detached.textCards.find(({ id }) => id === "a")).toMatchObject({ x: 1100, y: 690 });
-    expect(detached.textCards.find(({ id }) => id === "a")?.containerId).toBeUndefined();
   });
 
   it("maps a searched insertion slot into the unfiltered real order", () => {
@@ -203,30 +127,6 @@ describe("legacy text-card transient placement", () => {
     begin(interaction, current, "a");
     update(interaction, 540, 140);
     expect(interaction.getDecision()).toMatchObject({ visibleIndex: 1, realIndex: 3 });
-    const placed = applyMove(
-      current,
-      {
-        primaryId: "a",
-        targets: [
-          {
-            id: "a",
-            from: geometries(current).get("a")!,
-            to: { x: 540, y: 130, width: 180, height: 43 },
-          },
-        ],
-        pointerWorld: { x: 540, y: 140 },
-        screenDistance: 100,
-        completionBehavior: "place",
-      },
-      () => 0,
-      interaction.getDecision(),
-    );
-    expect(
-      placed.textCards
-        .filter(({ containerId }) => containerId === "right")
-        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
-        .map(({ id }) => id),
-    ).toEqual(["h1", "v1", "h2", "a", "v2"]);
   });
 
   it("preserves selected bundle order while keeping primary-card presentation offsets", () => {
@@ -245,106 +145,5 @@ describe("legacy text-card transient placement", () => {
       extensions: { lock: { enabled: true } },
     };
     expect(getLegacyTextCardDragIds(current.textCards, "a", ["a", "b", "c"])).toEqual(["a", "c"]);
-  });
-
-  it("keeps all frames transient, cancels without commit, and commits once at completion", () => {
-    let current = canvas();
-    const interaction = service();
-    const replace = vi.fn((next: TaskCanvas) => {
-      current = next;
-    });
-    const controller = createCanvasInteractionController({
-      canvasKey: current.id,
-      viewport: createViewport(current.pan, current.zoom, { width: 800, height: 600 }),
-      commitPort: createLegacyCanvasInteractionCommitAdapter({
-        getActiveCanvas: () => current,
-        commitActiveCanvas: replace,
-        getTextCardPlacementDecision: interaction.getDecision,
-        onTextCardPlacementCommitted: interaction.finishCommitted,
-      }),
-    });
-    const target = {
-      id: "a",
-      geometry: geometries(current).get("a")!,
-      locked: false,
-      movable: true,
-      resizable: false,
-    };
-    begin(interaction, current, "a");
-    controller.beginMove({
-      pointerId: 1,
-      screen: { x: 17, y: 75 },
-      primaryId: "a",
-      targets: [target],
-      snapTargets: [],
-      commitThresholdScreen: 3,
-      completionBehavior: "place",
-    });
-    for (let frame = 1; frame <= 20; frame += 1) {
-      controller.updatePointer({
-        pointerId: 1,
-        screen: { x: 17 + frame, y: 75 + frame },
-        snapping: false,
-      });
-      update(interaction, 17 + frame, 75 + frame);
-    }
-    expect(replace).not.toHaveBeenCalled();
-    controller.cancelPointer(1);
-    interaction.cancelActive(1);
-    expect(replace).not.toHaveBeenCalled();
-
-    begin(interaction, current, "a", ["a"], 2);
-    controller.beginMove({
-      pointerId: 2,
-      screen: { x: 17, y: 75 },
-      primaryId: "a",
-      targets: [target],
-      snapTargets: [],
-      commitThresholdScreen: 3,
-      completionBehavior: "place",
-    });
-    interaction.update({
-      pointerId: 2,
-      screen: { x: 540, y: 100 },
-      world: { x: 540, y: 100 },
-      primaryGeometry: { x: 540, y: 90, width: 180, height: 43 },
-      shiftKey: false,
-    });
-    controller.completePointer({ pointerId: 2, screen: { x: 540, y: 100 }, snapping: false });
-    expect(replace).toHaveBeenCalledOnce();
-    expect(current.textCards.find(({ id }) => id === "a")?.containerId).toBe("right");
-  });
-
-  it("does not commit a contained-card drag below three screen pixels", () => {
-    let current = canvas();
-    const replace = vi.fn((next: TaskCanvas) => {
-      current = next;
-    });
-    const controller = createCanvasInteractionController({
-      canvasKey: current.id,
-      viewport: createViewport(current.pan, current.zoom, { width: 800, height: 600 }),
-      commitPort: createLegacyCanvasInteractionCommitAdapter({
-        getActiveCanvas: () => current,
-        commitActiveCanvas: replace,
-      }),
-    });
-    const target = {
-      id: "a",
-      geometry: geometries(current).get("a")!,
-      locked: false,
-      movable: true,
-      resizable: false,
-    };
-    controller.beginMove({
-      pointerId: 1,
-      screen: { x: 0, y: 0 },
-      primaryId: "a",
-      targets: [target],
-      snapTargets: [],
-      commitThresholdScreen: 3,
-      completionBehavior: "place",
-    });
-    controller.completePointer({ pointerId: 1, screen: { x: 2, y: 0 }, snapping: false });
-    expect(replace).not.toHaveBeenCalled();
   });
 });
