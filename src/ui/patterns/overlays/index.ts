@@ -3,3 +3,4 @@ export * from "./ModalDialog";
 export * from "./ModalPresence";
 export * from "./modalMotion";
 export * from "./useDialogFocus";
+export * from "./FloatingToolWindow";
