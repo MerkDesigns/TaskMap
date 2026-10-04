@@ -10,7 +10,8 @@ type UpdateCheckSource = "startup" | "manual";
 type ShowToast = (toast: Omit<ToastMessage, "id"> & { duration?: number }) => void;
 
 type UseAppUpdatesOptions = {
-  appDataLoaded: boolean;
+  /** Check once for an update when the hook mounts, as the app opens its canvas. */
+  checkOnStartup: boolean;
   dismissedUpdateVersion?: string;
   onDismissUpdateVersion: (version: string) => void;
   saveCurrentData: () => Promise<void>;
@@ -18,7 +19,7 @@ type UseAppUpdatesOptions = {
 };
 
 export function useAppUpdates({
-  appDataLoaded,
+  checkOnStartup,
   dismissedUpdateVersion,
   onDismissUpdateVersion,
   saveCurrentData,
@@ -149,7 +150,7 @@ export function useAppUpdates({
   }, [saveCurrentData, showToast]);
 
   useEffect(() => {
-    if (!appDataLoaded || autoUpdateCheckRef.current) {
+    if (!checkOnStartup || autoUpdateCheckRef.current) {
       return;
     }
 
@@ -158,7 +159,7 @@ export function useAppUpdates({
     checkForAppUpdate("startup").catch((error) => {
       console.error("Automatic update check failed", error);
     });
-  }, [appDataLoaded, checkForAppUpdate]);
+  }, [checkOnStartup, checkForAppUpdate]);
 
   const dismissUpdateModal = useCallback(() => {
     setUpdateModalOpen(false);

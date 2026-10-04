@@ -419,7 +419,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     toolbarButtonsVisible: false,
   });
   const appDataLoadedRef = useRef(false);
-  const [appDataLoaded, setAppDataLoaded] = useState(false);
   const {
     activeCanvas,
     canvases,
@@ -1036,7 +1035,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     installAppUpdate,
     dismissUpdateModal,
   } = useAppUpdates({
-    appDataLoaded: import.meta.env.MODE === "storage-preview" ? false : appDataLoaded,
+    // App mounts once the database is open; the storage-free preview never checks.
+    checkOnStartup: import.meta.env.MODE !== "storage-preview",
     dismissedUpdateVersion,
     onDismissUpdateVersion: setDismissedUpdateVersion,
     saveCurrentData: async () => {
@@ -4090,7 +4090,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     dirtyCanvasVersionsRef.current.clear();
     applyAppData(data);
     setStorageError(null);
-    setAppDataLoaded(true);
     appDataLoadedRef.current = true;
     await persistAppData(data, true);
   };

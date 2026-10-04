@@ -43,10 +43,7 @@ assert.equal(
   "tauri dev --features storage-free-preview,mcp-development --config src-tauri/tauri.storage-preview.conf.json",
 );
 const app = await read("src/App.tsx");
-assert.equal(
-  app.split('import.meta.env.MODE === "storage-preview" ? false : appDataLoaded').length - 1,
-  1,
-);
+assert.equal(app.split('checkOnStartup: import.meta.env.MODE !== "storage-preview"').length - 1, 1);
 // The canvas saves only through the database session; no legacy autosave may come back.
 assert.ok(!app.includes("useAutosave("));
 for (const path of ["tauri.conf.json", "tauri.dev.conf.json", "tauri.mcp.dev.conf.json"]) {
