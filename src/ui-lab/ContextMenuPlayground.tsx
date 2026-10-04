@@ -6,7 +6,6 @@ import type { ContainerDocumentElement } from "../elements/container/containerMo
 import { ContainerRenderer } from "../elements/container/ContainerRenderer";
 import type { ContainerActions } from "../elements/container/containerView";
 import type { ExtensionCommands } from "../extensions/extensionCommands";
-import { EXTENSION_REGISTRY } from "../extensions/registry";
 import type { ElementExtensions } from "../types";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
 import "./uiLab.css";
@@ -26,9 +25,9 @@ const PLAYGROUND_CONTAINER: ContainerDocumentElement = {
 };
 
 const PLAYGROUND_EXTENSIONS: ElementExtensions = {
-  search: EXTENSION_REGISTRY.search.createDefault(),
-  lock: EXTENSION_REGISTRY.lock.createDefault(),
-  colorPicker: EXTENSION_REGISTRY.colorPicker.createDefault(),
+  search: { query: "" },
+  lock: { enabled: true },
+  colorPicker: { enabled: true },
 };
 
 export function ContextMenuPlayground() {

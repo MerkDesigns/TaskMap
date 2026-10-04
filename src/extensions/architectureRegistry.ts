@@ -9,12 +9,13 @@ import { counterDefinition } from "./counter/counterDefinition";
 import { inheritCardColorDefinition } from "./inherit-card-color/inheritCardColorDefinition";
 import { copyPasteJsonDefinition } from "./copy-paste-json/copyPasteJsonDefinition";
 
+// Registration order is the order the Extensions panel lists them in.
 const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = Object.freeze([
   privacyDefinition,
   lockDefinition,
   colorPickerDefinition,
-  checkboxDefinition,
   searchDefinition,
+  checkboxDefinition,
   autoCheckboxDefinition,
   counterDefinition,
   inheritCardColorDefinition,

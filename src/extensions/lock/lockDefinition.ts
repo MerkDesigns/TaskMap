@@ -1,3 +1,4 @@
+import { IconLock } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,5 @@ export const lockDefinition = defineRetainedExtension({
   stateSchema: lockConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "lock",
+  catalog: { title: "Lock", description: "Lock move and resize", Icon: IconLock },
 });

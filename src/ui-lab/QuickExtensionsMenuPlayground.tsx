@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { QuickExtensionsMenu, type ExtensionId } from "../components/ExtensionsPanel";
+import { QuickExtensionsMenu } from "../components/ExtensionsPanel";
+import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
 import { Field } from "../ui/primitives/Field";
 import { Slider } from "../ui/primitives/SelectionControls";
 import { CanvasFrame } from "../ui/patterns/workspace/CanvasFrame";
@@ -57,7 +58,7 @@ export function QuickExtensionsMenuPlayground() {
     };
   }, []);
 
-  const recordDrop = (extensionId: ExtensionId, clientX: number, clientY: number) => {
+  const recordDrop = (extensionId: RetainedExtensionKey, clientX: number, clientY: number) => {
     setLastDrop(`${extensionId} dropped at ${Math.round(clientX)}, ${Math.round(clientY)}`);
   };
 

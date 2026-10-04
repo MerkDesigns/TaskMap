@@ -1,3 +1,4 @@
+import { IconColorSwatch } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,9 @@ export const inheritCardColorDefinition = defineRetainedExtension({
   stateSchema: inheritCardColorConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "inheritCardColor",
+  catalog: {
+    title: "Inherit color",
+    description: "New cards inherit color",
+    Icon: IconColorSwatch,
+  },
 });

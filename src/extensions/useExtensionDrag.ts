@@ -6,18 +6,22 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ExtensionId } from "./registry";
+import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 
 export type ExtensionDragState = {
-  extensionId: ExtensionId;
+  extensionId: RetainedExtensionKey;
   clientX: number;
   clientY: number;
 };
 
 type UseExtensionDragOptions = {
   sourceRef: RefObject<HTMLElement | null>;
-  onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
-  onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
+  onDropExtension: (extensionId: RetainedExtensionKey, clientX: number, clientY: number) => void;
+  onDragExtension?: (
+    extensionId: RetainedExtensionKey | null,
+    clientX?: number,
+    clientY?: number,
+  ) => void;
   onDropComplete?: () => void;
 };
 
@@ -97,7 +101,7 @@ export function useExtensionDrag({
   }, [clearDrag, dragActive, onDragExtension, onDropComplete, onDropExtension, sourceRef]);
 
   const startExtensionDrag = useCallback(
-    (event: ReactPointerEvent<HTMLElement>, extensionId: ExtensionId) => {
+    (event: ReactPointerEvent<HTMLElement>, extensionId: RetainedExtensionKey) => {
       if (event.button !== 0) {
         return;
       }

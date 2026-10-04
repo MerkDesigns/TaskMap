@@ -1,3 +1,4 @@
+import { IconCards } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,5 @@ export const counterDefinition = defineRetainedExtension({
   stateSchema: counterConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "counter",
+  catalog: { title: "Counter", description: "Count cards in a container", Icon: IconCards },
 });

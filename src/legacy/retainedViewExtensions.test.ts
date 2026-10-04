@@ -1,9 +1,9 @@
-import type { ExtensionId } from "../extensions/registry";
 // @vitest-environment node
+import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
 import { expect, it } from "vitest";
 import { callbackSetup } from "../app/commands/retainedCallbackTestSupport";
 import { geometryIds as ids } from "../app/commands/retainedGeometryTestSupport";
-import { installRetainedViewExtension, retainedViewExtensions } from "./retainedViewExtensions";
+import { installRetainedViewExtension } from "./retainedViewExtensions";
 
 it("installs aliases with registry compatibility in one transaction and skips existing installations", async () => {
   const setup = await callbackSetup();
@@ -37,22 +37,15 @@ it("installs aliases with registry compatibility in one transaction and skips ex
   }
 });
 
-it("offers only the nine retained extensions and cannot install removed actions", async () => {
-  expect(retainedViewExtensions.map(({ id }) => id)).toEqual([
-    "privacy",
-    "lock",
-    "colorPicker",
-    "search",
-    "checkbox",
-    "autoCheckbox",
-    "counter",
-    "inheritCardColor",
-    "copyPasteJson",
-  ]);
+it("cannot install removed extensions", async () => {
   const setup = await callbackSetup();
   const before = setup.store.getState().documentWorkspace.document!;
   try {
-    for (const key of ["commandRunner", "dailyReset", "pickCard"] as unknown as ExtensionId[])
+    for (const key of [
+      "commandRunner",
+      "dailyReset",
+      "pickCard",
+    ] as unknown as RetainedExtensionKey[])
       expect(
         installRetainedViewExtension(setup.actions, before, key, [ids.card], {
           nextUuid: () => {

@@ -1,3 +1,4 @@
+import { IconChecklist } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,9 @@ export const autoCheckboxDefinition = defineRetainedExtension({
   stateSchema: autoCheckboxConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "autoCheckbox",
+  catalog: {
+    title: "Auto checkboxes",
+    description: "Checkboxes on new cards",
+    Icon: IconChecklist,
+  },
 });

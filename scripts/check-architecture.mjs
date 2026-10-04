@@ -38,8 +38,6 @@ const LEGACY_TARGET_FILES = new Set([
   "src/app/defaultData.ts",
   "src/app/history.test.ts",
   "src/app/history.ts",
-  "src/extensions/registry.test.ts",
-  "src/extensions/registry.ts",
   "src/extensions/useExtensionDrag.ts",
 ]);
 

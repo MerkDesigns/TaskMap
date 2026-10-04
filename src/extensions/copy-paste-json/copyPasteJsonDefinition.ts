@@ -1,3 +1,4 @@
+import { IconBraces } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,5 @@ export const copyPasteJsonDefinition = defineRetainedExtension({
   stateSchema: copyPasteJsonConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "copyPasteJson",
+  catalog: { title: "Copy/Paste JSON", description: "Edit cards with AI", Icon: IconBraces },
 });

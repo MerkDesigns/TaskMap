@@ -1,33 +1,21 @@
 import type { RetainedActionCallbacks } from "../app/commands/createRetainedActionCallbacks";
 import type { TaskMapDocument } from "../domain/document/documentTypes";
 import { createEntityId, type ElementId, type UuidSource } from "../domain/ids/entityIds";
-import { findArchitectureExtensionDefinition } from "../extensions/architectureRegistry";
-import { EXTENSIONS, type ExtensionId } from "../extensions/registry";
+import {
+  findArchitectureExtensionDefinition,
+  getArchitectureExtensionDefinitions,
+} from "../extensions/architectureRegistry";
+import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
 
-/** Presentation aliases only; definitions and compatibility remain in the extension registry. */
-export const retainedViewExtensionIds = {
-  privacy: "privacy",
-  lock: "lock",
-  colorPicker: "color-picker",
-  search: "search",
-  checkbox: "checkbox",
-  autoCheckbox: "auto-checkbox",
-  counter: "counter",
-  inheritCardColor: "inherit-card-color",
-  copyPasteJson: "copy-paste-json",
-} as const satisfies Partial<Record<ExtensionId, string>>;
-export const retainedViewExtensions = EXTENSIONS.filter(({ id }) => id in retainedViewExtensionIds);
-
-export function retainedExtensionId(key: ExtensionId): string | null {
-  return key in retainedViewExtensionIds
-    ? retainedViewExtensionIds[key as keyof typeof retainedViewExtensionIds]
-    : null;
+/** The registered definition id for an extension's view key, or null for an unknown key. */
+export function retainedExtensionId(key: RetainedExtensionKey): string | null {
+  return getArchitectureExtensionDefinitions().find(({ viewKey }) => viewKey === key)?.id ?? null;
 }
 
 export function installRetainedViewExtension(
   actions: RetainedActionCallbacks,
   document: TaskMapDocument | null,
-  key: ExtensionId,
+  key: RetainedExtensionKey,
   ids: readonly string[],
   idSource: UuidSource,
 ): boolean {

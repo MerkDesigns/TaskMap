@@ -65,9 +65,10 @@
    through a content state (`contentState.ts`). `App.tsx` requires the retained canvas runtime and
    no longer carries local-state fallbacks, so Auto checkboxes and Inherit Card Color live only in
    the retained commands. The old Settings export/import/reset actions are removed. Copy/Paste JSON
-   owns its format, editor window and flow (`copy-paste-json/useCopyPasteJsonFlow.tsx`). Next: retire
-   the old extension plumbing (`extensions/registry.ts`, the extension fields in element view states,
-   `ExtensionCommands` toggles routed through `App.tsx`).
+   owns its format, editor window and flow (`copy-paste-json/useCopyPasteJsonFlow.tsx`). The extension definitions are the one registry: each carries its Extensions-panel
+   presentation, and `extensionCatalog.ts` derives the panel's list and targets from them. Next:
+   the extension fields left in element view states and the `ExtensionCommands` toggles routed
+   through `App.tsx`.
    Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
    `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
    through the registry; loose text cards and mind-map nodes still position with left/top rather

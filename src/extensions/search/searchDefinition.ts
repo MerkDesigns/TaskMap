@@ -1,3 +1,4 @@
+import { IconSearch } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { DOCUMENT_LIMITS } from "../../domain/document/documentLimits";
@@ -17,4 +18,5 @@ export const searchDefinition = defineRetainedExtension({
   stateSchema: searchConfigurationSchema,
   createDefaultState: () => ({ query: "" }),
   viewKey: "search",
+  catalog: { title: "Search", description: "Filter container cards", Icon: IconSearch },
 });

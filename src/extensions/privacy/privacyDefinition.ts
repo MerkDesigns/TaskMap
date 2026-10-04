@@ -1,3 +1,4 @@
+import { IconShieldLock } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,5 @@ export const privacyDefinition = defineRetainedExtension({
   stateSchema: privacyConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "privacy",
+  catalog: { title: "Privacy", description: "Blur element content", Icon: IconShieldLock },
 });

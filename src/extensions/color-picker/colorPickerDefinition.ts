@@ -1,3 +1,4 @@
+import { IconPalette } from "@tabler/icons-react";
 import { z } from "zod";
 import { asEntityId } from "../../domain/ids/entityIds";
 import { defineRetainedExtension } from "../retainedExtensionDefinition";
@@ -16,4 +17,9 @@ export const colorPickerDefinition = defineRetainedExtension({
   stateSchema: colorPickerConfigurationSchema,
   createDefaultState: () => ({ enabled: true }),
   viewKey: "colorPicker",
+  catalog: {
+    title: "Extra colors",
+    description: "Fine-tune and reuse accent colors",
+    Icon: IconPalette,
+  },
 });

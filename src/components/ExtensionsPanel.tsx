@@ -23,11 +23,11 @@ import {
 import { createPortal } from "react-dom";
 import {
   EXTENSIONS,
-  EXTENSION_REGISTRY,
-  type ExtensionDefinition,
-  type ExtensionId,
+  extensionCatalogEntry,
+  type ExtensionCatalogEntry,
   type ExtensionTargetType,
-} from "../extensions/registry";
+} from "../extensions/extensionCatalog";
+import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
 import { useExtensionDrag } from "../extensions/useExtensionDrag";
 import {
   ExtensionBrowserCard,
@@ -51,15 +51,17 @@ import { useSettledPanelWork } from "../ui/patterns/workspace/useSettledPanelWor
 import { useSharedSmallGlassList } from "../ui/patterns/workspace/useSharedSmallGlassList";
 import "./QuickExtensionsMenu.css";
 
-export type { ExtensionId } from "../extensions/registry";
-
 type ExtensionsPanelProps = {
   cardRadius?: number;
-  availableExtensions?: readonly ExtensionDefinition[];
+  availableExtensions?: readonly ExtensionCatalogEntry[];
   active?: boolean;
   closing: boolean;
-  onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
-  onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
+  onDropExtension: (extensionId: RetainedExtensionKey, clientX: number, clientY: number) => void;
+  onDragExtension?: (
+    extensionId: RetainedExtensionKey | null,
+    clientX?: number,
+    clientY?: number,
+  ) => void;
   embedded?: boolean;
   panelRef?: RefObject<HTMLDivElement | null>;
   sharedPanel?: boolean;
@@ -107,26 +109,26 @@ function ExtensionInfoButton({ targets }: { targets: readonly ExtensionTargetTyp
 const EXTENSION_FAVORITES_STORAGE_KEY = "taskmap.extensionFavorites";
 const MAX_EXTENSION_FAVORITES = 5;
 
-export function loadExtensionFavorites(): Partial<Record<ExtensionId, boolean>> {
+export function loadExtensionFavorites(): Partial<Record<RetainedExtensionKey, boolean>> {
   try {
     const stored = window.localStorage.getItem(EXTENSION_FAVORITES_STORAGE_KEY);
     if (!stored) {
       return {};
     }
 
-    const parsed = JSON.parse(stored) as Partial<Record<ExtensionId, boolean>>;
+    const parsed = JSON.parse(stored) as Partial<Record<RetainedExtensionKey, boolean>>;
     return Object.fromEntries(
       EXTENSIONS.filter((extension) => parsed[extension.id])
         .slice(0, MAX_EXTENSION_FAVORITES)
         .map((extension) => [extension.id, true]),
-    ) as Partial<Record<ExtensionId, boolean>>;
+    ) as Partial<Record<RetainedExtensionKey, boolean>>;
   } catch {
     return {};
   }
 }
 
 type QuickExtensionsMenuProps = {
-  availableExtensions?: readonly ExtensionDefinition[];
+  availableExtensions?: readonly ExtensionCatalogEntry[];
   left: number;
   top: number;
   majorRadius?: number;
@@ -134,8 +136,12 @@ type QuickExtensionsMenuProps = {
   iconRadius?: number;
   iconBackgroundOpacity?: number;
   onClose: () => void;
-  onDropExtension: (extensionId: ExtensionId, clientX: number, clientY: number) => void;
-  onDragExtension?: (extensionId: ExtensionId | null, clientX?: number, clientY?: number) => void;
+  onDropExtension: (extensionId: RetainedExtensionKey, clientX: number, clientY: number) => void;
+  onDragExtension?: (
+    extensionId: RetainedExtensionKey | null,
+    clientX?: number,
+    clientY?: number,
+  ) => void;
 };
 
 export function QuickExtensionsMenu({
@@ -231,7 +237,7 @@ export function QuickExtensionsMenu({
 
   const renderCategory = (
     label: string,
-    extensions: readonly ExtensionDefinition[],
+    extensions: readonly ExtensionCatalogEntry[],
     scrollable = false,
   ) => (
     <div
@@ -262,7 +268,7 @@ export function QuickExtensionsMenu({
     </div>
   );
 
-  const renderCards = (extensions: readonly ExtensionDefinition[]) =>
+  const renderCards = (extensions: readonly ExtensionCatalogEntry[]) =>
     extensions.map((extension) => {
       const ExtensionIcon = extension.Icon;
       return (
@@ -292,7 +298,7 @@ export function QuickExtensionsMenu({
       );
     });
 
-  const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconPuzzle;
+  const DragIcon = drag ? extensionCatalogEntry(drag.extensionId).Icon : IconPuzzle;
 
   return (
     <>
@@ -373,7 +379,7 @@ export function ExtensionsPanel({
     Object.keys(TARGET_META) as ExtensionTargetType[],
   );
   const [favorites, setFavorites] =
-    useState<Partial<Record<ExtensionId, boolean>>>(loadExtensionFavorites);
+    useState<Partial<Record<RetainedExtensionKey, boolean>>>(loadExtensionFavorites);
   const localPanelRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterMenuRef = useRef<HTMLElement | null>(null);
@@ -404,7 +410,7 @@ export function ExtensionsPanel({
     window.localStorage.setItem(EXTENSION_FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
   }, [favorites]);
 
-  const DragIcon = drag ? EXTENSION_REGISTRY[drag.extensionId].Icon : IconShieldLock;
+  const DragIcon = drag ? extensionCatalogEntry(drag.extensionId).Icon : IconShieldLock;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const allTargetsSelected = selectedTargets.length === Object.keys(TARGET_META).length;
   const filteredExtensions = availableExtensions.filter((extension) => {
@@ -424,7 +430,7 @@ export function ExtensionsPanel({
   const favoriteExtensions = filteredExtensions.filter((extension) => favorites[extension.id]);
   const otherExtensions = filteredExtensions.filter((extension) => !favorites[extension.id]);
   const favoriteCount = availableExtensions.filter((extension) => favorites[extension.id]).length;
-  const renderExtensionCard = (extension: ExtensionDefinition) => {
+  const renderExtensionCard = (extension: ExtensionCatalogEntry) => {
     const ExtensionIcon = extension.Icon;
     const favorited = Boolean(favorites[extension.id]);
     const favoriteLimitReached = !favorited && favoriteCount >= MAX_EXTENSION_FAVORITES;

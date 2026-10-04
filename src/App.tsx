@@ -88,22 +88,14 @@ import {
 } from "./legacy/RetainedCanvasContext";
 import { createRetainedViewElement } from "./legacy/retainedViewCreation";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
-import {
-  installRetainedViewExtension,
-  retainedExtensionId,
-  retainedViewExtensions,
-} from "./legacy/retainedViewExtensions";
+import { installRetainedViewExtension, retainedExtensionId } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
 import {
   captureRetainedTextEdit,
   captureRetainedLinkEdit,
 } from "./app/commands/retainedEditorCallbacks";
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
-import {
-  EXTENSION_COMPATIBLE_TARGETS,
-  type ExtensionId,
-  type ExtensionTargetType,
-} from "./extensions/registry";
+import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
@@ -177,7 +169,7 @@ const DevelopmentFpsCounter = import.meta.env.DEV
   : null;
 type ExtensionDropRipple = {
   id: string;
-  extensionId: ExtensionId;
+  extensionId: RetainedExtensionKey;
   target:
     | { type: "container"; id: string }
     | { type: "text-block"; id: string }
@@ -3382,7 +3374,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return () => window.removeEventListener("keydown", handleClipboardShortcut, true);
   }, [clipboardShortcutActions, copiedItem, retained, hasRetainedCopy]);
 
-  const installExtensions = (extensionId: ExtensionId, ids: string[]) => {
+  const installExtensions = (extensionId: RetainedExtensionKey, ids: string[]) => {
     const installed = installRetainedViewExtension(
       retained.runtime.callbacks,
       retained.runtime.controller.store.getState().documentWorkspace.document,
@@ -3443,7 +3435,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const showExtensionDropRipple = (
-    extensionId: ExtensionId,
+    extensionId: RetainedExtensionKey,
     point: { x: number; y: number },
     target: ExtensionDropRipple["target"],
     bounds: ExtensionRippleBounds,
@@ -3520,7 +3512,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const getExtensionDropTargetIds = (
-    extensionId: ExtensionId,
+    extensionId: RetainedExtensionKey,
     target: ExtensionDropRipple["target"],
   ) => {
     if (!selectedIds.includes(target.id) || selectedIds.length <= 1) {
@@ -3529,12 +3521,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
     return selectedIds.filter((id) => {
       const targetType = getExtensionTargetType(id);
-      return targetType ? EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType) : false;
+      return targetType ? isExtensionCompatible(extensionId, targetType) : false;
     });
   };
 
   const applyDroppedExtension = (
-    extensionId: ExtensionId,
+    extensionId: RetainedExtensionKey,
     point: { x: number; y: number },
     target: ExtensionDropRipple["target"],
     bounds: ExtensionRippleBounds,
@@ -3579,7 +3571,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
   };
 
-  const dropExtensionOnCanvas = (extensionId: ExtensionId, clientX: number, clientY: number) => {
+  const dropExtensionOnCanvas = (
+    extensionId: RetainedExtensionKey,
+    clientX: number,
+    clientY: number,
+  ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
     if (extensionId === "lock") {
       const targetImage = [...looseImages]
@@ -3611,7 +3607,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (extensionId === "lock" || extensionId === "colorPicker" || extensionId === "checkbox") {
       const targetTextCard = [...looseTextCards].reverse().find((card) => {
         const targetType = card.kind === "mindmap" ? "mindmap" : "text-card";
-        if (!EXTENSION_COMPATIBLE_TARGETS[extensionId].has(targetType)) {
+        if (!isExtensionCompatible(extensionId, targetType)) {
           return false;
         }
         const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
@@ -3725,7 +3721,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           point.y <= element.y + element.height,
       );
 
-    if (targetContainer && EXTENSION_COMPATIBLE_TARGETS[extensionId].has("container")) {
+    if (targetContainer && isExtensionCompatible(extensionId, "container")) {
       applyDroppedExtension(
         extensionId,
         point,
@@ -4484,7 +4480,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                         onReorderCanvases={reorderCanvases}
                       />,
                       <ExtensionsPanel
-                        availableExtensions={retainedViewExtensions}
                         key="extensions"
                         active={leftPanelActiveIndex === 1}
                         closing={leftPanelClosing}
@@ -4542,7 +4537,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           {quickExtensionsMenu && (
             <Suspense fallback={null}>
               <QuickExtensionsMenu
-                availableExtensions={retainedViewExtensions}
                 left={quickExtensionsMenu.left}
                 top={quickExtensionsMenu.top}
                 majorRadius={radii.quickExtensions}
