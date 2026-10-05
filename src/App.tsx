@@ -13,11 +13,10 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
-import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
+import type { ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import {
@@ -28,7 +27,7 @@ import {
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import { ImageRenderer, type ImageActions } from "./elements/image/ImageRenderer";
-import { ImageMenu, type ImageMenuActions } from "./elements/image/ImageMenu";
+import type { ImageMenuActions } from "./elements/image/ImageMenu";
 import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
 import type { ImageDrop } from "./platform/media/imageDropClient";
 import {
@@ -38,15 +37,14 @@ import {
 } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { MindMapPorts } from "./elements/mind-map/MindMapPorts";
-import { MindMapConnectionMenu } from "./elements/mind-map/MindMapConnectionMenu";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
-import { TextCardMenu, type TextCardMenuActions } from "./elements/text-card/TextCardMenu";
+import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import { TextBlockRenderer } from "./elements/text-block/TextBlockRenderer";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
-import { TextBlockMenu, type TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
+import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
 import { asTextBlockDocumentElement } from "./elements/text-block/textBlockViewProjection";
 import { ToastStack } from "./components/ToastStack";
 import {
@@ -93,6 +91,7 @@ import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useClosingMenu } from "./legacy/useClosingMenu";
 import { useToastQueue } from "./components/useToastQueue";
 import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
+import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import {
   contextActionIds,
   useRetainedExtensionCommands,
@@ -432,23 +431,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     applyLegacySelectionAction(interactionController, value);
   };
   const containerMenus = useClosingMenu<ContainerMenuState>();
-  const { menu: containerMenu, closing: closingContainerMenu } = containerMenus;
+  const { menu: containerMenu } = containerMenus;
   const containerContentMenus = useClosingMenu<{
     containerId: string;
     clientX: number;
     clientY: number;
   }>();
-  const { menu: containerContentMenu, closing: closingContainerContentMenu } =
-    containerContentMenus;
   const textCardMenus = useClosingMenu<AnchoredMenu>();
-  const { menu: textCardMenu, closing: closingTextCardMenu } = textCardMenus;
   const textBlockMenus = useClosingMenu<AnchoredMenu>();
-  const { menu: textBlockMenu, closing: closingTextBlockMenu } = textBlockMenus;
+  const { menu: textBlockMenu } = textBlockMenus;
   const imageMenus = useClosingMenu<AnchoredMenu>();
-  const { menu: imageMenu, closing: closingImageMenu } = imageMenus;
   const [mindmapConnectionMenu, setMindmapConnectionMenu] = useState<AnchoredMenu | null>(null);
   const canvasMenus = useClosingMenu<{ clientX: number; clientY: number }>();
-  const { menu: canvasMenu, closing: closingCanvasMenu } = canvasMenus;
   const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
   const { editingId: renamingId, draft: renameDraft, end: endRename } = rename;
   const textCardEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
@@ -3929,23 +3923,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     [layeredElements, layeredLooseImages, layeredLooseTextCards, layeredTextBlocks],
   );
   const minimapViewportWorld = viewportWorldRectangle(interactionSnapshot.viewport);
-  const contextMenuElement = containerMenu ? containersById.get(containerMenu.id) : null;
-  const closingContextMenuElement = closingContainerMenu
-    ? containersById.get(closingContainerMenu.id)
-    : null;
-  const textCardContextElement = textCardMenu ? textCardsById.get(textCardMenu.id) : null;
-  const closingTextCardContextElement = closingTextCardMenu
-    ? textCardsById.get(closingTextCardMenu.id)
-    : null;
-  const textBlockContextElement = textBlockMenu ? textBlocksById.get(textBlockMenu.id) : null;
-  const closingTextBlockContextElement = closingTextBlockMenu
-    ? textBlocksById.get(closingTextBlockMenu.id)
-    : null;
-  const imageContextElement = imageMenu ? imagesById.get(imageMenu.id) : null;
-  const closingImageContextElement = closingImageMenu ? imagesById.get(closingImageMenu.id) : null;
-  const mindmapConnectionContextElement = mindmapConnectionMenu
-    ? mindmapConnectionsById.get(mindmapConnectionMenu.id)
-    : null;
   const connectableBoundsById = new Map<string, MindmapBounds>();
   elements.forEach((element) => {
     const preview = interactionGeometryById.get(element.id);
@@ -4780,159 +4757,45 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             )}
           </WorkspaceBackdropLayer>
 
-          {[
-            { menu: containerMenu, container: contextMenuElement, closing: false },
-            { menu: closingContainerMenu, container: closingContextMenuElement, closing: true },
-          ].map(({ menu, container, closing }) => {
-            const element =
-              menu && asContainerDocumentElement(documentElements[menu.id as ElementId]);
-            if (!menu || !container || !element) return null;
-            return (
-              <ContainerMenu
-                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
-                element={element}
-                position={menu}
-                closing={closing}
-                isMultiTarget={isMultiContextAction(container.id)}
-                extensions={container.extensions}
-                installedOnTargets={getContextInstalledExtensions(container.id)}
-                extensionCommands={extensionCommands}
-                actions={containerMenuActions}
-              />
-            );
-          })}
-
-          {containerContentMenu && (
-            <ContainerContentContextMenu
-              key={`${containerContentMenu.containerId}-${containerContentMenu.clientX}-${containerContentMenu.clientY}`}
-              menu={containerContentMenu}
-              hasCopiedItem={hasRetainedCopy}
-              closing={false}
-              onPaste={pasteCopiedItem}
-              onCreateTextCard={createTextCardInContainer}
-            />
-          )}
-
-          {closingContainerContentMenu && (
-            <ContainerContentContextMenu
-              key={`closing-${closingContainerContentMenu.containerId}-${closingContainerContentMenu.clientX}-${closingContainerContentMenu.clientY}`}
-              menu={closingContainerContentMenu}
-              hasCopiedItem={hasRetainedCopy}
-              closing
-              onPaste={pasteCopiedItem}
-              onCreateTextCard={createTextCardInContainer}
-            />
-          )}
-
-          {[
-            { menu: textCardMenu, card: textCardContextElement, closing: false },
-            { menu: closingTextCardMenu, card: closingTextCardContextElement, closing: true },
-          ].map(({ menu, card, closing }) => {
-            const element =
-              menu && asTextCardRendererElement(documentElements[menu.id as ElementId]);
-            if (!menu || !card || !element) return null;
-            return (
-              <TextCardMenu
-                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
-                element={element}
-                position={menu}
-                closing={closing}
-                isMultiTarget={isMultiContextAction(card.id)}
-                extensions={card.extensions}
-                installedOnTargets={getContextInstalledExtensions(card.id)}
-                extensionCommands={extensionCommands}
-                recentColors={recentColors}
-                actions={textCardMenuActions}
-              />
-            );
-          })}
-
-          {[
-            { menu: textBlockMenu, textBlock: textBlockContextElement, closing: false },
-            {
-              menu: closingTextBlockMenu,
-              textBlock: closingTextBlockContextElement,
-              closing: true,
-            },
-          ].map(({ menu, textBlock, closing }) => {
-            const element =
-              menu && asTextBlockDocumentElement(documentElements[menu.id as ElementId]);
-            if (!menu || !textBlock || !element) return null;
-            return (
-              <TextBlockMenu
-                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
-                element={element}
-                position={menu}
-                closing={closing}
-                isMultiTarget={isMultiContextAction(textBlock.id)}
-                extensions={textBlock.extensions}
-                installedOnTargets={getContextInstalledExtensions(textBlock.id)}
-                extensionCommands={extensionCommands}
-                actions={textBlockMenuActions}
-              />
-            );
-          })}
-
-          {[
-            { menu: imageMenu, image: imageContextElement, closing: false },
-            { menu: closingImageMenu, image: closingImageContextElement, closing: true },
-          ].map(({ menu, image, closing }) => {
-            const element = menu && asImageDocumentElement(documentElements[menu.id as ElementId]);
-            if (!menu || !image || !element) return null;
-            return (
-              <ImageMenu
-                key={`${closing ? "closing-" : ""}${menu.id}-${menu.left}-${menu.top}`}
-                element={element}
-                position={menu}
-                closing={closing}
-                isMultiTarget={isMultiContextAction(image.id)}
-                extensions={image.extensions}
-                installedOnTargets={getContextInstalledExtensions(image.id)}
-                extensionCommands={extensionCommands}
-                actions={imageMenuActions}
-              />
-            );
-          })}
-
-          {mindmapConnectionMenu && mindmapConnectionContextElement && (
-            <MindMapConnectionMenu
-              position={mindmapConnectionMenu}
-              connectionId={mindmapConnectionContextElement.id}
-              onDelete={removeMindmapConnection}
-            />
-          )}
-
-          {canvasMenu && (
-            <CanvasContextMenu
-              key={`${canvasMenu.clientX}-${canvasMenu.clientY}`}
-              menu={canvasMenu}
-              hasCopiedItem={hasRetainedCopy}
-              closing={false}
-              onPaste={pasteCopiedItem}
-              onCreate={createContainer}
-              onCreateTextCard={createTextCard}
-              onCreateTextBlock={createTextBlock}
-              onCreateImage={createImageFromMenu}
-              onCreateMindmap={createMindmap}
-              onClear={requestClearCanvas}
-            />
-          )}
-
-          {closingCanvasMenu && (
-            <CanvasContextMenu
-              key={`closing-${closingCanvasMenu.clientX}-${closingCanvasMenu.clientY}`}
-              menu={closingCanvasMenu}
-              hasCopiedItem={hasRetainedCopy}
-              closing
-              onPaste={pasteCopiedItem}
-              onCreate={createContainer}
-              onCreateTextCard={createTextCard}
-              onCreateTextBlock={createTextBlock}
-              onCreateImage={createImageFromMenu}
-              onCreateMindmap={createMindmap}
-              onClear={requestClearCanvas}
-            />
-          )}
+          <RetainedCanvasMenus
+            containerMenus={containerMenus}
+            textCardMenus={textCardMenus}
+            textBlockMenus={textBlockMenus}
+            imageMenus={imageMenus}
+            containerContentMenus={containerContentMenus}
+            canvasMenus={canvasMenus}
+            connectionMenu={
+              mindmapConnectionMenu && mindmapConnectionsById.has(mindmapConnectionMenu.id)
+                ? mindmapConnectionMenu
+                : null
+            }
+            elementOf={(id) =>
+              containersById.get(id) ??
+              textCardsById.get(id) ??
+              textBlocksById.get(id) ??
+              imagesById.get(id)
+            }
+            isMultiTarget={isMultiContextAction}
+            installedOnTargets={getContextInstalledExtensions}
+            extensionCommands={extensionCommands}
+            recentColors={recentColors}
+            containerActions={containerMenuActions}
+            textCardActions={textCardMenuActions}
+            textBlockActions={textBlockMenuActions}
+            imageActions={imageMenuActions}
+            hasCopiedItem={hasRetainedCopy}
+            onPaste={pasteCopiedItem}
+            onCreateTextCardInContainer={createTextCardInContainer}
+            canvasActions={{
+              onCreateContainer: createContainer,
+              onCreateTextCard: createTextCard,
+              onCreateTextBlock: createTextBlock,
+              onCreateImage: createImageFromMenu,
+              onCreateMindmap: createMindmap,
+              onClear: requestClearCanvas,
+            }}
+            onDeleteConnection={removeMindmapConnection}
+          />
 
           <ModalPresence open={clearModalOpen}>
             <Suspense fallback={null}>
