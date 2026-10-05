@@ -92,6 +92,7 @@ import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useClosingMenu } from "./legacy/useClosingMenu";
 import { useToastQueue } from "./components/useToastQueue";
+import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import {
   contextActionIds,
   useRetainedExtensionCommands,
@@ -196,8 +197,6 @@ type ExtensionRippleBounds = {
   borderBottomRightRadius?: number;
   borderBottomLeftRadius?: number;
 };
-
-type LeftPanelState = "closed" | "canvases" | "extensions";
 
 /** A context menu opened for one element, at a screen position. */
 type AnchoredMenu = { id: string; left: number; top: number };
@@ -349,7 +348,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     height: window.innerHeight,
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-  const panelSwitchTimeoutRef = useRef<number | null>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
@@ -535,12 +533,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
   const { toasts, showToast, dismissToast } = useToastQueue();
-  const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
-  const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
+  const leftPanel = useLeftPanel(CANVAS_MANAGER_ANIMATION_MS);
+  const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;
   const [canvasManagerMinimalView, setCanvasManagerMinimalView] = useState(false);
   const [canvasCycleHighlightId, setCanvasCycleHighlightId] = useState<string | null>(null);
-  const [extensionsOpen, setExtensionsOpen] = useState(false);
-  const [extensionsClosing, setExtensionsClosing] = useState(false);
   const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
     left: number;
     top: number;
@@ -1375,62 +1371,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     deleteRetainedSelection(actionIds);
   };
 
-  const closeCanvasManager = useCallback(() => {
-    if (!canvasManagerOpen || canvasManagerClosing) {
-      return;
-    }
-
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-    }
-    setCanvasManagerClosing(true);
-    panelSwitchTimeoutRef.current = window.setTimeout(() => {
-      setCanvasManagerOpen(false);
-      setCanvasManagerClosing(false);
-      panelSwitchTimeoutRef.current = null;
-    }, CANVAS_MANAGER_ANIMATION_MS);
-  }, [canvasManagerClosing, canvasManagerOpen]);
-
-  const closeExtensionsPanel = useCallback(() => {
-    if (!extensionsOpen || extensionsClosing) {
-      return;
-    }
-
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-    }
-    setExtensionsClosing(true);
-    panelSwitchTimeoutRef.current = window.setTimeout(() => {
-      setExtensionsOpen(false);
-      setExtensionsClosing(false);
-      panelSwitchTimeoutRef.current = null;
-    }, CANVAS_MANAGER_ANIMATION_MS);
-  }, [extensionsClosing, extensionsOpen]);
-
-  const switchLeftPanel = useCallback((target: "canvases" | "extensions") => {
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-      panelSwitchTimeoutRef.current = null;
-    }
-
-    if (target === "canvases") {
-      setExtensionsOpen(false);
-      setExtensionsClosing(false);
-      setCanvasManagerOpen(true);
-      setCanvasManagerClosing(false);
-    } else {
-      setCanvasManagerOpen(false);
-      setCanvasManagerClosing(false);
-      setExtensionsOpen(true);
-      setExtensionsClosing(false);
-    }
-  }, []);
+  const { close: closeLeftPanel, show: switchLeftPanel } = leftPanel;
+  const closeCanvasManager = useCallback(() => closeLeftPanel("canvases"), [closeLeftPanel]);
+  const closeExtensionsPanel = useCallback(() => closeLeftPanel("extensions"), [closeLeftPanel]);
 
   useEffect(
     () => () => {
-      if (panelSwitchTimeoutRef.current !== null) {
-        window.clearTimeout(panelSwitchTimeoutRef.current);
-      }
       if (canvasCycleRestoreTimeoutRef.current !== null) {
         window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
       }
@@ -3662,49 +3608,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return canvases.map((canvas) => canvas.id);
   };
 
-  const getCurrentLeftPanelState = (): LeftPanelState => {
-    if (canvasManagerOpen && !canvasManagerClosing) {
-      return "canvases";
-    }
-
-    if (extensionsOpen && !extensionsClosing) {
-      return "extensions";
-    }
-
-    return "closed";
-  };
-
-  const restoreLeftPanelState = (state: LeftPanelState) => {
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-      panelSwitchTimeoutRef.current = null;
-    }
-
-    if (state === "canvases") {
-      setExtensionsOpen(false);
-      setExtensionsClosing(false);
-      setCanvasManagerOpen(true);
-      setCanvasManagerClosing(false);
-      return;
-    }
-
-    if (state === "extensions") {
-      setCanvasManagerOpen(false);
-      setCanvasManagerClosing(false);
-      setExtensionsOpen(true);
-      setExtensionsClosing(false);
-      return;
-    }
-
-    setExtensionsOpen(false);
-    setExtensionsClosing(false);
-    setCanvasManagerClosing(true);
-    window.setTimeout(() => {
-      setCanvasManagerOpen(false);
-      setCanvasManagerClosing(false);
-    }, CANVAS_MANAGER_ANIMATION_MS);
-  };
-
   const finishCanvasCycle = () => {
     const restorePanelState = canvasCycleSessionRef.current?.previousPanelState ?? "closed";
     canvasCycleSessionRef.current = null;
@@ -3715,7 +3618,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
 
     canvasCycleRestoreTimeoutRef.current = window.setTimeout(() => {
-      restoreLeftPanelState(restorePanelState);
+      leftPanel.restore(restorePanelState);
       canvasCycleRestoreTimeoutRef.current = null;
     }, CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS);
   };
@@ -3737,13 +3640,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     canvasCycleSessionRef.current = {
       order,
       index: nextIndex,
-      previousPanelState: session?.previousPanelState ?? getCurrentLeftPanelState(),
+      previousPanelState: session?.previousPanelState ?? leftPanel.current(),
     };
 
-    if (panelSwitchTimeoutRef.current !== null) {
-      window.clearTimeout(panelSwitchTimeoutRef.current);
-      panelSwitchTimeoutRef.current = null;
-    }
     if (canvasCycleRestoreTimeoutRef.current !== null) {
       window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
       canvasCycleRestoreTimeoutRef.current = null;
@@ -3751,10 +3650,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
     setQuickExtensionsMenu(null);
     setCanvasCycleHighlightId(nextCanvasId);
-    setExtensionsOpen(false);
-    setExtensionsClosing(false);
-    setCanvasManagerOpen(true);
-    setCanvasManagerClosing(false);
+    leftPanel.show("canvases");
     selectCanvas(nextCanvasId);
   };
 

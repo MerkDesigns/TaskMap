@@ -73,8 +73,9 @@
    Phase 5 leftovers, not blocking: element registration in `src/elements/registry.ts` waits until
    rendering dispatches through the registry. Presentation state is moving out of `App.tsx` into
    `src/legacy/` hooks: in-place editing (`useRetainedInlineEdit`), enter/delete/pulse marks
-   (`useElementPresenceMarks`), context menus (`useClosingMenu`) and extension commands are done;
-   toasts, panels and the menus' action handlers are still in `App.tsx`. Text cards and mind-map nodes
+   (`useElementPresenceMarks`), context menus (`useClosingMenu`), extension commands, the left
+   side panel (`useLeftPanel`) and toasts (`src/components/useToastQueue.ts`) are done; the menus'
+   action handlers are still in `App.tsx`. Text cards and mind-map nodes
    now place with `translate` like the other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
