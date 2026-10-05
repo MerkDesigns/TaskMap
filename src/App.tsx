@@ -200,13 +200,6 @@ type ExtensionRippleBounds = {
 /** A context menu opened for one element, at a screen position. */
 type AnchoredMenu = { id: string; left: number; top: number };
 
-type PendingCanvasDeletions = {
-  containers: Set<string>;
-  textCards: Set<string>;
-  textBlocks: Set<string>;
-  images: Set<string>;
-};
-
 type MindmapConnectionDrag = {
   pointerId: number;
   sourceId: string;
@@ -357,7 +350,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const historyTransactionsRef = useRef<Map<string, Set<string>>>(new Map());
   const dirtyHistoryTransactionsRef = useRef<Set<string>>(new Set());
   const dirtyCanvasVersionsRef = useRef<Map<string, number>>(new Map());
-  const pendingCanvasDeletionsRef = useRef<Map<string, PendingCanvasDeletions>>(new Map());
   const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
   const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
   const latestDataGetterRef = useRef<() => AppData>(() => latestAppDataRef.current);
@@ -697,39 +689,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   activeCanvasIdRef.current = activeCanvas.id;
 
-  const applyPendingCanvasDeletions = (canvas: TaskCanvas): TaskCanvas => {
-    const pending = pendingCanvasDeletionsRef.current.get(canvas.id);
-    if (!pending) {
-      return canvas;
-    }
-
-    return {
-      ...canvas,
-      containers: canvas.containers.filter((element) => !pending.containers.has(element.id)),
-      textCards: canvas.textCards.filter((card) => !pending.textCards.has(card.id)),
-      textBlocks: (canvas.textBlocks ?? []).filter(
-        (element) => !pending.textBlocks.has(element.id),
-      ),
-      images: (canvas.images ?? []).filter((image) => !pending.images.has(image.id)),
-      mindmapConnections: canvas.mindmapConnections.filter(
-        (connection) =>
-          !pending.containers.has(connection.sourceId) &&
-          !pending.containers.has(connection.targetId) &&
-          !pending.textCards.has(connection.sourceId) &&
-          !pending.textCards.has(connection.targetId) &&
-          !pending.textBlocks.has(connection.sourceId) &&
-          !pending.textBlocks.has(connection.targetId) &&
-          !pending.images.has(connection.sourceId) &&
-          !pending.images.has(connection.targetId),
-      ),
-    };
-  };
-
   const getActiveCanvasSnapshot = (): TaskCanvas => {
     const live = interactionController.getSnapshot();
     const viewport = live.canvasKey === activeCanvas.id ? live.viewport : activeCanvas;
     const geometryPreviews = live.canvasKey === activeCanvas.id ? live.geometryPreviews : [];
-    return applyPendingCanvasDeletions({
+    return {
       ...activeCanvas,
       containers: projectLegacyGeometry(elements, geometryPreviews),
       textCards: projectLegacyGeometry(textCards, geometryPreviews),
@@ -742,14 +706,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         width: stageRef.current?.clientWidth ?? window.innerWidth,
         height: stageRef.current?.clientHeight ?? window.innerHeight,
       },
-    });
+    };
   };
 
   const getPersistedCanvases = () => {
     const snapshot = getActiveCanvasSnapshot();
-    return canvases.map((canvas) =>
-      canvas.id === snapshot.id ? snapshot : applyPendingCanvasDeletions(canvas),
-    );
+    return canvases.map((canvas) => (canvas.id === snapshot.id ? snapshot : canvas));
   };
 
   const getCurrentAppData = (): AppData => ({
@@ -778,9 +740,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     getActiveCanvasSnapshot,
     getCanvasBrowserCanvases: () =>
       canvases.map((canvas) =>
-        applyPendingCanvasDeletions(
-          canvas.id === activeCanvas.id ? { ...activeCanvas, previewViewport: stageSize } : canvas,
-        ),
+        canvas.id === activeCanvas.id ? { ...activeCanvas, previewViewport: stageSize } : canvas,
       ),
     getCurrentAppData,
     updateHistoryState,
@@ -1247,7 +1207,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       .get(canvasId)
       ?.forEach((timeout) => window.clearTimeout(timeout));
     pendingDeletionTimeoutsRef.current.delete(canvasId);
-    pendingCanvasDeletionsRef.current.delete(canvasId);
     if (canvasId === activeCanvasIdRef.current) {
       presenceMarks.clearDeleting();
     }
