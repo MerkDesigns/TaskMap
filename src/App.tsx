@@ -30,11 +30,9 @@ import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
 import type { ImageDrop } from "./platform/media/imageDropClient";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
-import { MindMapPorts } from "./elements/mind-map/MindMapPorts";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
-import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
-import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
+import type { TextCardActions } from "./elements/text-card/TextCardRenderer";
 import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
 import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
@@ -69,7 +67,6 @@ import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
 import {
   useRetainedDocumentConnections,
-  useRetainedDocumentElements,
   type RetainedCanvasContextValue,
 } from "./legacy/RetainedCanvasContext";
 import { createRetainedViewElement } from "./legacy/retainedViewCreation";
@@ -84,6 +81,7 @@ import { useClosingMenu } from "./legacy/useClosingMenu";
 import { useToastQueue } from "./components/useToastQueue";
 import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
+import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import {
   CONTAINER_TEXT_CARD_GAP,
   CONTAINER_TEXT_CARD_PADDING,
@@ -125,7 +123,6 @@ import {
   createLegacyTextCardInteractionService,
   getLegacyTextCardDragIds,
 } from "./legacy/interactions/legacyTextCardInteraction";
-import { getLegacyTextCardDragRenderPosition } from "./legacy/interactions/legacyTextCardDragPresentation";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import {
   CanvasFrame,
@@ -3747,7 +3744,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }),
     [canvasNodeActions, rememberTextCardSize, textCardEdit.setDraft],
   );
-  const documentElements = useRetainedDocumentElements();
   const documentConnections = useRetainedDocumentConnections();
   const activeMindMapConnections = useMemo(
     () => canvasMindMapConnections(documentConnections, activeCanvas.id),
@@ -4352,146 +4348,37 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 )}
               </LegacyCanvasVisibility>
             </CanvasFrame>
-            {activeTextCardPresentation && (
-              <div
-                className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
-                style={{
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
-                  transformOrigin: "0 0",
-                }}
-              >
-                {activeTextCardPresentation.ids.map((id, dragBundleIndex) => {
-                  const card = textCardsById.get(id);
-                  const cardElement = asTextCardRendererElement(documentElements[id as ElementId]);
-                  const offset = activeTextCardPresentation.offsets.find(
-                    (candidate) => candidate.id === id,
-                  );
-                  if (!card || !cardElement) return null;
-                  const position = getLegacyTextCardDragRenderPosition(
-                    activeTextCardPresentation,
-                    id,
-                  );
-                  return (
-                    <TextCardRenderer
-                      key={`drag-overlay-${id}`}
-                      element={cardElement}
-                      actions={textCardActions}
-                      extensionCommands={extensionCommands}
-                      view={{
-                        layer: card.layer ?? 0,
-                        extensions: card.extensions,
-                        editing: false,
-                        draft: "",
-                        position,
-                        drag: {
-                          primary: id === activeTextCardPresentation.primaryId,
-                          atTrueSize: activeTextCardPresentation.trueSize,
-                          bundleIndex: dragBundleIndex,
-                          pickupX: offset?.pickupX ?? 0,
-                          pickupY: offset?.pickupY ?? 0,
-                          swayX: activeTextCardPresentation.sway.x,
-                          swayY: activeTextCardPresentation.sway.y,
-                        },
-                        selected: outlinedIds.includes(id),
-                        linksDisabled: true,
-                        shadowsUnderElements,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-            {textCardInteractionSnapshot.release && (
-              <div
-                className="pointer-events-none absolute left-0 top-0 z-[100] overflow-visible"
-                style={{
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
-                  transformOrigin: "0 0",
-                }}
-              >
-                {textCardInteractionSnapshot.release.cards.map(({ card, from, to }) => {
-                  const cardElement = asTextCardRendererElement(
-                    documentElements[card.id as ElementId],
-                  );
-                  if (!cardElement) return null;
-                  return (
-                    <TextCardRenderer
-                      key={`release-overlay-${card.id}`}
-                      element={cardElement}
-                      actions={textCardActions}
-                      extensionCommands={extensionCommands}
-                      view={{
-                        layer: card.layer ?? 0,
-                        extensions: card.extensions,
-                        editing: false,
-                        draft: "",
-                        position: textCardInteractionSnapshot.release?.active ? to : from,
-                        motion: "settling",
-                        interaction: "forced",
-                        selected: outlinedIds.includes(card.id),
-                        linksDisabled: true,
-                        shadowsUnderElements,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-            {mindmapConnectionMode && (
-              <div
-                className="pointer-events-none absolute left-0 top-0 z-[110] overflow-visible"
-                style={{
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  transform: `var(--taskmap-camera-transform) translate3d(${CANVAS_CONTENT_INSET}px, ${CANVAS_CONTENT_INSET}px, 0)`,
-                  transformOrigin: "0 0",
-                }}
-              >
-                {Array.from(connectableBoundsById.entries()).map(([ownerId, bounds]) => {
-                  const mindmap = textCardsById.get(ownerId);
-                  const accent =
-                    containersById.get(ownerId)?.accent ??
-                    textBlocksById.get(ownerId)?.accent ??
-                    imagesById.get(ownerId)?.accent ??
-                    (mindmap?.kind === "mindmap"
-                      ? getTextCardAccent(mindmap.accent)
-                      : defaultElementColors.mindmap);
-                  return (
-                    <div
-                      key={ownerId}
-                      className="pointer-events-none absolute"
-                      style={{
-                        left: bounds.x,
-                        top: bounds.y,
-                        width: bounds.width,
-                        height: bounds.height,
-                      }}
-                    >
-                      <MindMapPorts
-                        ownerId={ownerId}
-                        accent={accent}
-                        connectionMode
-                        activeSourcePort={
-                          mindmapConnectionDrag?.sourceId === ownerId
-                            ? mindmapConnectionDrag.sourcePort
-                            : undefined
-                        }
-                        activeTargetPort={
-                          mindmapConnectionDrag?.targetId === ownerId
-                            ? mindmapConnectionDrag.targetPort
-                            : undefined
-                        }
-                        onStartConnection={startMindmapConnection}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <RetainedCanvasOverlays
+              canvasSize={{ width: canvasWidth, height: canvasHeight }}
+              contentInset={CANVAS_CONTENT_INSET}
+              heldCards={activeTextCardPresentation}
+              releasedCards={textCardInteractionSnapshot.release}
+              cardById={(id) => textCardsById.get(id)}
+              outlinedIds={outlinedIds}
+              shadowsUnderElements={shadowsUnderElements}
+              cardActions={textCardActions}
+              extensionCommands={extensionCommands}
+              connectionPorts={
+                mindmapConnectionMode
+                  ? {
+                      bounds: connectableBoundsById,
+                      accentOf: (ownerId) => {
+                        const mindmap = textCardsById.get(ownerId);
+                        return (
+                          containersById.get(ownerId)?.accent ??
+                          textBlocksById.get(ownerId)?.accent ??
+                          imagesById.get(ownerId)?.accent ??
+                          (mindmap?.kind === "mindmap"
+                            ? getTextCardAccent(mindmap.accent)
+                            : defaultElementColors.mindmap)
+                        );
+                      },
+                      drag: mindmapConnectionDrag,
+                      onStartConnection: startMindmapConnection,
+                    }
+                  : null
+              }
+            />
             {selectionBounds && (
               <div
                 ref={selectionRef}
