@@ -13,11 +13,9 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import type { ContainerMenuActions } from "./elements/container/ContainerMenu";
-import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import {
   captureRetainedViewCopy,
@@ -26,15 +24,11 @@ import {
 } from "./legacy/retainedViewClipboard";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
-import { ImageRenderer, type ImageActions } from "./elements/image/ImageRenderer";
+import type { ImageActions } from "./elements/image/ImageRenderer";
 import type { ImageMenuActions } from "./elements/image/ImageMenu";
 import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
 import type { ImageDrop } from "./platform/media/imageDropClient";
-import {
-  asImageDocumentElement,
-  retainedImageMedia,
-  type RetainedImageView,
-} from "./elements/image/imageViewProjection";
+import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { MindMapPorts } from "./elements/mind-map/MindMapPorts";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
@@ -42,10 +36,8 @@ import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import { TextCardRenderer, type TextCardActions } from "./elements/text-card/TextCardRenderer";
 import { asTextCardRendererElement } from "./elements/text-card/textCardViewProjection";
 import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
-import { TextBlockRenderer } from "./elements/text-block/TextBlockRenderer";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
 import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
-import { asTextBlockDocumentElement } from "./elements/text-block/textBlockViewProjection";
 import { ToastStack } from "./components/ToastStack";
 import {
   CANVAS_WIDTH,
@@ -55,7 +47,7 @@ import {
   MIN_WIDTH,
   getTextCardAccent,
 } from "./constants";
-import { clamp, getVirtualRowRange, isVirtualRowInRange } from "./canvasMath";
+import { clamp } from "./canvasMath";
 import {
   AppData,
   ContainerElement,
@@ -93,6 +85,20 @@ import { useToastQueue } from "./components/useToastQueue";
 import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import {
+  CONTAINER_TEXT_CARD_GAP,
+  CONTAINER_TEXT_CARD_PADDING,
+  CONTAINER_TEXT_CARD_ROW_HEIGHT,
+  ContainerLayer,
+  type ContainerCardLayout,
+} from "./legacy/RetainedContainerLayer";
+import {
+  ElementShadowLayer,
+  ImageLayer,
+  LooseTextCardLayer,
+  TextBlockLayer,
+} from "./legacy/RetainedElementLayers";
+import type { RetainedElementPresentation } from "./legacy/retainedElementPresentation";
+import {
   contextActionIds,
   useRetainedExtensionCommands,
 } from "./legacy/useRetainedExtensionCommands";
@@ -121,7 +127,6 @@ import {
 } from "./legacy/interactions/legacyTextCardInteraction";
 import { getLegacyTextCardDragRenderPosition } from "./legacy/interactions/legacyTextCardDragPresentation";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
-import { getLegacyTextCardPreviewRowOffset } from "./legacy/interactions/legacyTextCardPlacement";
 import {
   CanvasFrame,
   MINIMAP_VISIBILITY_DURATION_MS,
@@ -146,7 +151,6 @@ import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPan
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 import { cardsMatchingSearch, searchRowHeight } from "./extensions/search/searchRule";
-import { hasContentState } from "./extensions/contentState";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
 // throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
@@ -234,10 +238,6 @@ const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
 const CONTAINER_HEADER_HEIGHT = 48;
-const CONTAINER_TEXT_CARD_PADDING = 17;
-const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
-const CONTAINER_TEXT_CARD_GAP = 8;
-const CONTAINER_TEXT_CARD_OVERSCAN_ROWS = 3;
 const CANVAS_CONTENT_INSET = 1;
 const EMPTY_IDS: string[] = [];
 const LOOSE_TEXT_CARD_RENDER_WIDTH = 540;
@@ -537,19 +537,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   } | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const presenceMarks = useElementPresenceMarks();
-  const {
-    containers: enteringIds,
-    textCards: enteringTextCardIds,
-    textBlocks: enteringTextBlockIds,
-    images: enteringImageIds,
-  } = presenceMarks.entering;
+  const { textCards: enteringTextCardIds } = presenceMarks.entering;
   const {
     containers: deletingIds,
     textCards: deletingTextCardIds,
     textBlocks: deletingTextBlockIds,
     images: deletingImageIds,
   } = presenceMarks.deleting;
-  const { textCards: pulsingTextCardIds, textBlocks: pulsingTextBlockIds } = presenceMarks.pulsing;
+  const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
   const snapGuides = interactionSnapshot.snapGuides;
   const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
@@ -1114,22 +1109,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         getContainerScrollOffset(container),
     };
   };
-
-  const toContainerRelativePosition = (
-    position: {
-      x: number;
-      y: number;
-      width?: number;
-      height?: number;
-      maxWidth?: number;
-      text?: string;
-    },
-    container: ContainerElement,
-  ) => ({
-    ...position,
-    x: position.x - container.x,
-    y: position.y - container.y,
-  });
 
   const interactionGeometryById = new Map(
     interactionSnapshot.geometryPreviews.map((preview) => [preview.id, preview.geometry]),
@@ -4033,10 +4012,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       ];
     }),
   ];
-  const draggedShadowIds = new Set(dragPinnedIds);
-  const draggedCanvasElementShadows = canvasElementShadows.filter((shadow) =>
-    draggedShadowIds.has(shadow.id),
-  );
   const leftPanelOpen = canvasManagerOpen || extensionsOpen;
   const leftPanelClosing = canvasManagerClosing || extensionsClosing;
   const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
@@ -4055,6 +4030,47 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       lifecycleActions,
     ],
   );
+  const elementPresentation: RetainedElementPresentation = {
+    outlinedIds,
+    selectedIds,
+    draggedIds: dragPinnedIds,
+    primaryMoveId:
+      interactionSnapshot.activeInteraction?.kind === "move"
+        ? (interactionSnapshot.activeInteraction.targetIds[0] ?? null)
+        : null,
+    shadowsUnderElements,
+    recentColors,
+    entering: presenceMarks.entering,
+    deleting: presenceMarks.deleting,
+    pulsing: presenceMarks.pulsing,
+    textCardEdit: { id: editingTextCardId, draft: textCardDraft },
+    textBlockEdit: { id: editingTextBlockId, draft: textBlockDraft },
+    rename: { id: renamingId, draft: renameDraft },
+    importingImageIds: loadingImageIds,
+  };
+  const containerCardLayout: ContainerCardLayout = {
+    cardsOf: (container) =>
+      (orderedTextCardsByContainerId.get(container.id) ?? []).filter(
+        (card) => !draggedTextCardIds.includes(card.id),
+      ),
+    visibleCards: (container, cards) => getContainerVisibleTextCards(container, [...cards]),
+    scrollOffset: getContainerScrollOffset,
+    viewportHeight: getContainerViewportHeight,
+    stackTop: getContainerCardStackTop,
+    insertion: {
+      containerId: activeTextCardPresentation?.targetContainerId ?? null,
+      index: activeTextCardPresentation?.insertionIndex ?? null,
+      count: activeTextCardPresentation?.ids.length ?? 0,
+    },
+    releasingIds: releasingTextCardIds,
+    contentRevision: containerContentRevision,
+    contentEditRevision: (containerId) =>
+      editingTextCardContainerId === containerId
+        ? `${editingTextCardId}\u0000${textCardDraft}`
+        : "",
+  };
+  const overlaidTextCardIds = [...(activeTextCardPresentation?.ids ?? []), ...releasingTextCardIds];
+
   return (
     <WorkspaceRoot
       className="taskmap-workspace-root--canvas"
@@ -4294,317 +4310,44 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 {(visibleRenderIds) => (
                   <>
                     {shadowsUnderElements && (
-                      <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
-                        {canvasElementShadows
-                          .filter((shadow) => visibleRenderIds.has(shadow.id))
-                          .map((shadow) => (
-                            <div
-                              key={`canvas-shadow-${shadow.id}`}
-                              className={`canvas-element-shadow canvas-element-shadow-${shadow.strength} absolute`}
-                              style={{
-                                left: shadow.left,
-                                top: shadow.top,
-                                width: shadow.width,
-                                height: shadow.height,
-                                borderRadius: shadow.radius,
-                              }}
-                            />
-                          ))}
-                        {draggedCanvasElementShadows
-                          .filter((shadow) => visibleRenderIds.has(shadow.id))
-                          .map((shadow) => (
-                            <div
-                              key={`canvas-drag-shadow-${shadow.id}`}
-                              className="canvas-drag-shadow absolute"
-                              style={{
-                                left: shadow.left,
-                                top: shadow.top,
-                                width: shadow.width,
-                                height: shadow.height,
-                                borderRadius: shadow.radius,
-                              }}
-                            />
-                          ))}
-                      </div>
+                      <ElementShadowLayer
+                        shadows={canvasElementShadows}
+                        draggedIds={dragPinnedIds}
+                        visibleIds={visibleRenderIds}
+                      />
                     )}
-                    {layeredElements
-                      .filter((element) => visibleRenderIds.has(element.id))
-                      .map((element) => {
-                        // Keep the settling card in the index list so neighbours keep
-                        // their correct visible slots; it is rendered in the loose
-                        // layer (for its free-flying settle animation) and merely
-                        // skipped in the container loop below. Excluding it here
-                        // instead shifts every later card up a row for the settle
-                        // window, which reads as a brief shuffle.
-                        const allContainedCards = (
-                          orderedTextCardsByContainerId.get(element.id) ?? []
-                        ).filter((card) => !draggedTextCardIds.includes(card.id));
-                        const containedCards = getContainerVisibleTextCards(
-                          element,
-                          allContainedCards,
-                        );
-                        const insertionCount =
-                          activeTextCardPresentation?.targetContainerId === element.id
-                            ? activeTextCardPresentation.ids.length
-                            : 0;
-                        const containerScrollOffset = getContainerScrollOffset(element);
-                        const containerCardRenderRange = getVirtualRowRange({
-                          rowCount: containedCards.length + insertionCount,
-                          rowHeight: CONTAINER_TEXT_CARD_ROW_HEIGHT,
-                          rowGap: CONTAINER_TEXT_CARD_GAP,
-                          padding: CONTAINER_TEXT_CARD_PADDING,
-                          scrollOffset: containerScrollOffset,
-                          viewportHeight: getContainerViewportHeight(element),
-                          overscanRows: CONTAINER_TEXT_CARD_OVERSCAN_ROWS,
-                        });
-                        const containerMultiSelected =
-                          selectedIds.length > 1 && selectedIds.includes(element.id);
-                        const containerElement = asContainerDocumentElement(
-                          documentElements[element.id as ElementId],
-                        );
-                        if (!containerElement) return null;
-
-                        return (
-                          <ContainerRenderer
-                            key={element.id}
-                            element={containerElement}
-                            actions={containerActions}
-                            extensionCommands={extensionCommands}
-                            view={{
-                              layer: element.layer ?? 0,
-                              geometry: {
-                                x: element.x,
-                                y: element.y,
-                                width: element.width,
-                                height: element.height,
-                              },
-                              extensions: element.extensions,
-                              cardCount: allContainedCards.length,
-                              selected: outlinedIds.includes(element.id),
-                              multiSelected: containerMultiSelected,
-                              entering: enteringIds.includes(element.id),
-                              deleting: deletingIds.includes(element.id),
-                              moving: draggedShadowIds.has(element.id),
-                              shadowsUnderElements,
-                              recentColors,
-                              renaming: renamingId === element.id,
-                              renameDraft: renamingId === element.id ? renameDraft : "",
-                              contentRevision: containerContentRevision,
-                              contentEditRevision:
-                                editingTextCardContainerId === element.id
-                                  ? `${editingTextCardId}\u0000${textCardDraft}`
-                                  : "",
-                            }}
-                          >
-                            {containedCards.map((card, visibleIndex) => {
-                              if (releasingTextCardIds.includes(card.id)) return null;
-                              const previewRowOffset = getLegacyTextCardPreviewRowOffset({
-                                targetContainerId:
-                                  activeTextCardPresentation?.targetContainerId ?? null,
-                                containerId: element.id,
-                                insertionIndex: activeTextCardPresentation?.insertionIndex ?? null,
-                                visibleIndex,
-                                insertionCount,
-                              });
-                              const previewPixelShift =
-                                previewRowOffset *
-                                (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
-                              const animationPinned =
-                                editingTextCardId === card.id ||
-                                enteringTextCardIds.includes(card.id) ||
-                                deletingTextCardIds.includes(card.id) ||
-                                pulsingTextCardIds.includes(card.id);
-                              if (
-                                !animationPinned &&
-                                !isVirtualRowInRange(
-                                  visibleIndex,
-                                  containerCardRenderRange,
-                                  previewRowOffset,
-                                )
-                              ) {
-                                return null;
-                              }
-
-                              const compactSearchPosition = {
-                                x: element.x + CONTAINER_TEXT_CARD_PADDING,
-                                y:
-                                  getContainerCardStackTop(element) +
-                                  visibleIndex *
-                                    (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-                                  containerScrollOffset +
-                                  previewPixelShift,
-                              };
-                              const position = {
-                                ...toContainerRelativePosition(compactSearchPosition, element),
-                                maxWidth: Math.max(
-                                  120,
-                                  element.width - CONTAINER_TEXT_CARD_PADDING * 2,
-                                ),
-                              };
-
-                              const cardElement = asTextCardRendererElement(
-                                documentElements[card.id as ElementId],
-                              );
-                              if (!cardElement) return null;
-                              return (
-                                <TextCardRenderer
-                                  key={card.id}
-                                  element={cardElement}
-                                  actions={textCardActions}
-                                  extensionCommands={extensionCommands}
-                                  view={{
-                                    layer: card.layer ?? 0,
-                                    extensions: card.extensions,
-                                    editing: editingTextCardId === card.id,
-                                    draft: editingTextCardId === card.id ? textCardDraft : "",
-                                    position,
-                                    entering: enteringTextCardIds.includes(card.id),
-                                    deleting: deletingTextCardIds.includes(card.id),
-                                    pulsing: pulsingTextCardIds.includes(card.id),
-                                    motion: draggedShadowIds.has(card.id) ? "moving" : undefined,
-                                    selected: outlinedIds.includes(card.id),
-                                    interaction: containerMultiSelected ? "disabled" : undefined,
-                                    linksDisabled: selectedIds.length > 1,
-                                    contentHidden: hasContentState(element.extensions, "hidden"),
-                                    // The shared under-element shadow layer sits below containers,
-                                    // so contained cards keep their own shadow; only dragged cards
-                                    // are drawn on that layer.
-                                    shadowsUnderElements:
-                                      shadowsUnderElements && draggedShadowIds.has(card.id),
-                                  }}
-                                />
-                              );
-                            })}
-                          </ContainerRenderer>
-                        );
-                      })}
-                    {layeredTextBlocks
-                      .filter((element) => visibleRenderIds.has(element.id))
-                      .map((element) => {
-                        const textBlockElement = asTextBlockDocumentElement(
-                          documentElements[element.id as ElementId],
-                        );
-                        if (!textBlockElement) return null;
-                        return (
-                          <TextBlockRenderer
-                            key={element.id}
-                            element={textBlockElement}
-                            actions={textBlockActions}
-                            extensionCommands={extensionCommands}
-                            view={{
-                              layer: element.layer ?? 0,
-                              geometry: {
-                                x: element.x,
-                                y: element.y,
-                                width: element.width,
-                                height: element.height,
-                              },
-                              extensions: element.extensions,
-                              selected: outlinedIds.includes(element.id),
-                              multiSelected:
-                                selectedIds.length > 1 && selectedIds.includes(element.id),
-                              entering: enteringTextBlockIds.includes(element.id),
-                              deleting: deletingTextBlockIds.includes(element.id),
-                              pulsing: pulsingTextBlockIds.includes(element.id),
-                              moving: draggedShadowIds.has(element.id),
-                              shadowsUnderElements,
-                              recentColors,
-                              editing: editingTextBlockId === element.id,
-                              draft: editingTextBlockId === element.id ? textBlockDraft : "",
-                              renaming: renamingId === element.id,
-                              renameDraft: renamingId === element.id ? renameDraft : "",
-                            }}
-                          />
-                        );
-                      })}
-                    {layeredLooseTextCards
-                      .filter((card) => visibleRenderIds.has(card.id))
-                      .map((card) => {
-                        if (
-                          activeTextCardPresentation?.ids.includes(card.id) ||
-                          releasingTextCardIds.includes(card.id)
-                        ) {
-                          return null;
-                        }
-                        const cardElement = asTextCardRendererElement(
-                          documentElements[card.id as ElementId],
-                        );
-                        if (!cardElement) return null;
-                        const dragged = draggedShadowIds.has(card.id);
-                        return (
-                          <TextCardRenderer
-                            key={card.id}
-                            element={cardElement}
-                            actions={textCardActions}
-                            extensionCommands={extensionCommands}
-                            view={{
-                              layer: card.layer ?? 0,
-                              extensions: card.extensions,
-                              editing: editingTextCardId === card.id,
-                              draft: editingTextCardId === card.id ? textCardDraft : "",
-                              position: getTextCardRenderPosition(card),
-                              entering: enteringTextCardIds.includes(card.id),
-                              deleting: deletingTextCardIds.includes(card.id),
-                              pulsing: pulsingTextCardIds.includes(card.id),
-                              drag: dragged
-                                ? {
-                                    primary:
-                                      interactionSnapshot.activeInteraction?.kind === "move" &&
-                                      interactionSnapshot.activeInteraction.targetIds[0] ===
-                                        card.id,
-                                    atTrueSize: false,
-                                    bundleIndex: dragPinnedIds.indexOf(card.id),
-                                    pickupX: 0,
-                                    pickupY: 0,
-                                    swayX: 0,
-                                    swayY: 0,
-                                  }
-                                : undefined,
-                              motion: dragged ? "moving" : undefined,
-                              selected: outlinedIds.includes(card.id),
-                              linksDisabled: selectedIds.length > 1,
-                              shadowsUnderElements,
-                            }}
-                          />
-                        );
-                      })}
-                    {layeredLooseImages
-                      .filter((image) => visibleRenderIds.has(image.id))
-                      .map((image) => {
-                        const imageElement = asImageDocumentElement(
-                          documentElements[image.id as ElementId],
-                        );
-                        if (!imageElement) return null;
-                        const dragged = draggedShadowIds.has(image.id);
-                        return (
-                          <ImageRenderer
-                            key={image.id}
-                            element={imageElement}
-                            actions={imageActions}
-                            leases={retained.runtime.media}
-                            view={{
-                              layer: image.layer ?? 0,
-                              geometry: {
-                                x: image.x,
-                                y: image.y,
-                                width: image.width,
-                                height: image.height,
-                              },
-                              media: retainedImageMedia(image),
-                              importing: loadingImageIds.includes(image.id),
-                              selected: outlinedIds.includes(image.id),
-                              entering: enteringImageIds.includes(image.id),
-                              deleting: deletingImageIds.includes(image.id),
-                              dragging: dragged,
-                              gesture:
-                                dragged &&
-                                (interactionSnapshot.activeInteraction?.kind === "move" ||
-                                  interactionSnapshot.activeInteraction?.kind === "resize"),
-                              shadowsUnderElements,
-                            }}
-                          />
-                        );
-                      })}
+                    <ContainerLayer
+                      elements={layeredElements}
+                      visibleIds={visibleRenderIds}
+                      presentation={elementPresentation}
+                      layout={containerCardLayout}
+                      actions={containerActions}
+                      cardActions={textCardActions}
+                      extensionCommands={extensionCommands}
+                    />
+                    <TextBlockLayer
+                      elements={layeredTextBlocks}
+                      visibleIds={visibleRenderIds}
+                      presentation={elementPresentation}
+                      actions={textBlockActions}
+                      extensionCommands={extensionCommands}
+                    />
+                    <LooseTextCardLayer
+                      elements={layeredLooseTextCards}
+                      visibleIds={visibleRenderIds}
+                      presentation={elementPresentation}
+                      hiddenIds={overlaidTextCardIds}
+                      positionOf={getTextCardRenderPosition}
+                      actions={textCardActions}
+                      extensionCommands={extensionCommands}
+                    />
+                    <ImageLayer
+                      elements={layeredLooseImages}
+                      visibleIds={visibleRenderIds}
+                      presentation={elementPresentation}
+                      actions={imageActions}
+                      leases={retained.runtime.media}
+                    />
                   </>
                 )}
               </LegacyCanvasVisibility>
