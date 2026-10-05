@@ -50,6 +50,7 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Pressing a container's or text block's menu button again closes its menu instead of reopening it.
 - The JSON editor and workflow windows fade their glass in and out again; the glass stayed
   transparent for the whole fade and then appeared at once.
 - Selecting text in a field outside the canvas (such as the JSON editor) no longer jumps to the wrong

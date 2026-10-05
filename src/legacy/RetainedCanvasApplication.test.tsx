@@ -98,6 +98,36 @@ it("removes an unsaved editor and its portals before native revocation returns",
   }
 });
 
+it("closes a header menu when its button is pressed again", async () => {
+  const runtime = createDatabaseEntryPreview();
+  await runtime.controller.resume();
+  await runtime.controller.create("preview-token", "test-only");
+  await runtime.initializeResources();
+  const mounted = render(<RetainedCanvasApplication runtime={runtime} />);
+  try {
+    await screen.findByRole("button", { name: "Canvases" });
+    const stage = mounted.container.querySelector("[data-grid-style]")!;
+    fireEvent.contextMenu(stage, { clientX: 500, clientY: 300 });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create container" }));
+    fireEvent.keyDown(screen.getByDisplayValue("Container 1"), { key: "Enter" });
+    const button = screen.getByTitle("Container menu");
+    const press = () => {
+      // jsdom's pointer events carry no button; the outside-press close only handles button 0.
+      fireEvent(button, new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+      fireEvent.click(button);
+    };
+
+    press();
+    expect(await screen.findByRole("menuitem", { name: "Copy" })).toBeInTheDocument();
+    press();
+
+    await waitFor(() => expect(screen.queryByRole("menuitem", { name: "Copy" })).toBeNull());
+  } finally {
+    mounted.unmount();
+    await runtime.controller.dispose();
+  }
+});
+
 it("copies through menus and shortcuts, consumes Paste, and clears availability on history", async () => {
   const runtime = createDatabaseEntryPreview();
   await runtime.controller.resume();

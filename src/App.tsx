@@ -2214,7 +2214,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       saveRename();
     }
 
-    if ((event.target as HTMLElement | null)?.closest("[data-context-menu]")) {
+    // A menu's own trigger toggles it on click; closing it here first would reopen it.
+    if (target?.closest("[data-context-menu], [data-context-menu-trigger]")) {
       return;
     }
 

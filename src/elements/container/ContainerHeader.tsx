@@ -100,6 +100,7 @@ export function ContainerHeader({
             <button
               className="taskmap-element-header__button"
               data-kind="menu"
+              data-context-menu-trigger
               onClick={(event) => actions.onToggleMenu(event, id)}
               onPointerDown={stopPropagation}
               title="Container menu"
