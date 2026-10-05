@@ -11,6 +11,7 @@ import {
   type Ref,
 } from "react";
 import { FloatingPanel } from "./FloatingPanel";
+import { primitiveClassNames } from "./primitiveClassNames";
 import "./tooltip.css";
 
 interface TooltipTriggerProps {
@@ -26,9 +27,11 @@ export interface TooltipProps {
   readonly children: ReactElement<TooltipTriggerProps>;
   readonly label: ReactNode;
   readonly openDelayMs?: number;
+  /** Added beside the tooltip class, e.g. to widen a tooltip that holds a short guide. */
+  readonly className?: string;
 }
 
-export function Tooltip({ children, label, openDelayMs = 0 }: TooltipProps) {
+export function Tooltip({ children, className, label, openDelayMs = 0 }: TooltipProps) {
   const id = useId();
   const anchorRef = useRef<HTMLElement>(null);
   const openTimerRef = useRef<number | null>(null);
@@ -93,7 +96,7 @@ export function Tooltip({ children, label, openDelayMs = 0 }: TooltipProps) {
         <div
           id={id}
           role="tooltip"
-          className="taskmap-tooltip"
+          className={primitiveClassNames("taskmap-tooltip", className)}
           data-motion-state={open ? "open" : "closed"}
         >
           {label}

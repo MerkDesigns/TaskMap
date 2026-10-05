@@ -3,13 +3,14 @@ import {
   IconChevronUp,
   IconDeviceFloppy,
   IconFolder,
+  IconInfoCircle,
   IconPlus,
   IconTerminal2,
   IconTrash,
 } from "@tabler/icons-react";
 import { useRef, useState } from "react";
 import { FloatingToolWindow, type FloatingToolWindowHandle } from "../../ui/patterns/overlays";
-import { Button, IconButton, SegmentedControl, TextField } from "../../ui/primitives";
+import { Button, IconButton, SegmentedControl, TextField, Tooltip } from "../../ui/primitives";
 import { formatCommandLine, parseCommandLine } from "./commandLine";
 import {
   MAX_WORKFLOW_LINES,
@@ -46,6 +47,36 @@ const DISPLAY_ITEMS = [
   { value: "terminal", label: "Terminal" },
   { value: "background", label: "Background" },
 ] as const;
+const OPEN_ONLY_DISPLAY_ITEMS = DISPLAY_ITEMS.map((item) => ({ ...item, disabled: true }));
+
+/** Whether a command only opens targets: start has no window of its own to show or hide. */
+const opensOnly = (command: string) => {
+  const parsed = parseCommandLine(command);
+  return parsed.ok && parsed.invocations.every((invocation) => invocation.kind === "open");
+};
+
+const GUIDE = (
+  <div className="taskmap-workflow-window__guide">
+    <p>Each command line starts at the same time when the workflow runs.</p>
+    <ul>
+      <li>
+        <code>a && b</code> runs b after a succeeds.
+      </li>
+      <li>
+        <code>start</code> opens a website, file or folder with its default app.
+      </li>
+      <li>
+        Terminal shows a program in a console window; Background runs it hidden. A line that only
+        uses start opens in its own app either way.
+      </li>
+      <li>Programs run in the working directory; relative paths are taken from there.</li>
+    </ul>
+    <p>
+      Commands are not run by a shell: pipes, redirects, a single &, %VARIABLES% and cmd commands
+      such as dir are not supported. Use <code>cmd.exe /c ...</code> for those.
+    </p>
+  </div>
+);
 
 export interface WorkflowEditorWindowProps {
   readonly cardName: string;
@@ -150,6 +181,16 @@ export function WorkflowEditorWindow({
           />
         </span>
       }
+      actions={
+        <Tooltip label={GUIDE} className="taskmap-workflow-window__guide-tooltip">
+          <IconButton
+            variant="ghost"
+            size="compact"
+            icon={<IconInfoCircle size={17} stroke={2} />}
+            aria-label="How commands run"
+          />
+        </Tooltip>
+      }
       closeLabel="Close workflow editor"
       onClose={onClose}
       initialSize={{ width: 760, height: 560 }}
@@ -172,7 +213,7 @@ export function WorkflowEditorWindow({
                 />
                 <SegmentedControl
                   label={`Command ${index + 1} display`}
-                  items={DISPLAY_ITEMS}
+                  items={opensOnly(draft.command) ? OPEN_ONLY_DISPLAY_ITEMS : DISPLAY_ITEMS}
                   value={draft.display}
                   onValueChange={(display) => update(draft.key, { display })}
                 />
@@ -233,10 +274,6 @@ export function WorkflowEditorWindow({
             </li>
           ))}
         </ol>
-        <p className="taskmap-workflow-window__hint">
-          Lines start together. Within a line, a && b runs b after a succeeds; start opens a
-          website, file or folder. Pipes, redirects and %VARIABLES% are not supported.
-        </p>
         {error ? (
           <div role="alert" className="taskmap-workflow-window__error">
             {error}
