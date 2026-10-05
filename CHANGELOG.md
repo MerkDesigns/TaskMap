@@ -50,6 +50,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- The JSON editor and workflow windows fade their glass in and out again; the glass stayed
+  transparent for the whole fade and then appeared at once.
 - Selecting text in a field outside the canvas (such as the JSON editor) no longer jumps to the wrong
   lines when the pointer is dragged out over the canvas.
 - TaskMap checks for updates again when a database opens; the automatic check at startup had

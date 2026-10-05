@@ -83,6 +83,18 @@ describe("FloatingToolWindow", () => {
     expect(dialog.style.width).toBe("350px");
   });
 
+  it("fades its content without covering the glass layers", () => {
+    const { dialog } = renderWindow();
+
+    expect(screen.getByText("Body")).toHaveAttribute("data-material-presence-content");
+    expect(screen.getByText("Tool window").closest("header")).toHaveAttribute(
+      "data-material-presence-content",
+    );
+    expect(dialog.querySelector(".taskmap-material-native-glass__clip")).not.toHaveAttribute(
+      "data-material-presence-content",
+    );
+  });
+
   it("closes through its close button", async () => {
     const { onClose } = renderWindow();
 

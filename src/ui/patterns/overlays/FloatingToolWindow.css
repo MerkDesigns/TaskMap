@@ -8,11 +8,11 @@
   color: var(--taskmap-text);
 }
 
-/* Glass-free content follows the material presence. */
+/* Content sits above the glass layers. It fades through the marked glass-free subtrees: opacity
+   here would also cover the glass layers and flatten their blur until the fade ends. */
 .taskmap-floating-window > :not(.taskmap-floating-window__resize) {
   position: relative;
   z-index: 2;
-  opacity: var(--taskmap-material-presence-progress, 1);
 }
 
 .taskmap-floating-window__header {

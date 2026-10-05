@@ -12,6 +12,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { MaterialSurface } from "../../materials/MaterialSurface";
+import { markMaterialPresenceContent } from "../../materials/materialPresence";
 import { MENU_PRESENCE_TIMING, PRESENCE_PRESETS } from "../../motion/presencePresets";
 import { usePresenceMotion } from "../../motion/usePresenceMotion";
 import { IconButton } from "../../primitives/Button";
@@ -102,9 +103,13 @@ export const FloatingToolWindow = forwardRef<FloatingToolWindowHandle, FloatingT
         if (endpoint === "hidden" && closing.current) onCloseRef.current();
       },
     });
-    useLayoutEffect(() => presence.show(), [presence]);
+    useLayoutEffect(() => {
+      if (windowRef.current) markMaterialPresenceContent(windowRef.current);
+      presence.show();
+    }, [presence]);
     const requestClose = useCallback(() => {
       closing.current = true;
+      if (windowRef.current) markMaterialPresenceContent(windowRef.current);
       presence.hide();
     }, [presence]);
     useImperativeHandle(ref, () => ({ requestClose }), [requestClose]);
