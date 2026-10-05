@@ -67,14 +67,14 @@
    the one registry (`extensionCatalog.ts` derives the Extensions panel from them). `App.tsx`
    requires the retained canvas runtime and has no local-state fallbacks.
    Phase 6 leftovers, not blocking: elements still receive installed extensions in their view
-   state from the retained projection (what the contribution points need); `App.tsx` still builds
-   the `ExtensionCommands` port over the retained callbacks, because toggles depend on selection
-   state it owns.
+   state from the retained projection (what the contribution points need). The `ExtensionCommands`
+   port is built by `src/legacy/useRetainedExtensionCommands.ts`, which reads the selection from
+   the interaction controller when a command runs.
    Phase 5 leftovers, not blocking: element registration in `src/elements/registry.ts` waits until
    rendering dispatches through the registry. Presentation state is moving out of `App.tsx` into
    `src/legacy/` hooks: in-place editing (`useRetainedInlineEdit`), enter/delete/pulse marks
-   (`useElementPresenceMarks`) and context menus (`useClosingMenu`) are done; selection, toasts,
-   panels and the remaining menus' handlers are still in `App.tsx`. Text cards and mind-map nodes
+   (`useElementPresenceMarks`), context menus (`useClosingMenu`) and extension commands are done;
+   toasts, panels and the menus' action handlers are still in `App.tsx`. Text cards and mind-map nodes
    now place with `translate` like the other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it

@@ -16,7 +16,6 @@ import {
 import { CanvasContextMenu, ContainerContentContextMenu } from "./components/ContextMenus";
 import { ContainerRenderer } from "./elements/container/ContainerRenderer";
 import type { ContainerActions } from "./elements/container/containerView";
-import type { ExtensionCommands } from "./extensions/extensionCommands";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { ContainerMenu, type ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { asContainerDocumentElement } from "./elements/container/containerViewProjection";
@@ -52,7 +51,6 @@ import { asTextBlockDocumentElement } from "./elements/text-block/textBlockViewP
 import { ToastStack } from "./components/ToastStack";
 import {
   CANVAS_WIDTH,
-  ALL_ACCENT_PRESETS,
   DEFAULT_ELEMENT_COLORS,
   MIN_HEIGHT,
   MIN_IMAGE_SIZE,
@@ -65,7 +63,6 @@ import {
   ContainerElement,
   ContainerMenuState,
   CopiedCanvasItem,
-  ElementExtensions,
   ImageElement,
   MindmapPort,
   TaskCanvas,
@@ -88,13 +85,17 @@ import {
 } from "./legacy/RetainedCanvasContext";
 import { createRetainedViewElement } from "./legacy/retainedViewCreation";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
-import { installRetainedViewExtension, retainedExtensionId } from "./legacy/retainedViewExtensions";
+import { installRetainedViewExtension } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
 import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks";
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useClosingMenu } from "./legacy/useClosingMenu";
+import {
+  contextActionIds,
+  useRetainedExtensionCommands,
+} from "./legacy/useRetainedExtensionCommands";
 import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
@@ -2822,10 +2823,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textBlockEdit.end();
   };
 
-  const updateTextBlockAccent = (id: string, accent: string) => {
-    completeRetainedContent(id, { accent });
-  };
-
   const updateTextBlockHeaderButtonsVisible = (id: string, visible: boolean) => {
     completeRetainedContent(id, { headerButtonsVisible: visible });
   };
@@ -3015,16 +3012,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     setClearModalOpen(false);
   };
 
-  const updateContainerAccent = (id: string, accent: string) => {
-    completeRetainedContent(id, { accent });
-  };
-
   const updateContainerHeaderButtonsVisible = (id: string, visible: boolean) => {
     completeRetainedContent(id, { headerButtonsVisible: visible });
   };
 
-  const getContextActionIds = (id: string) =>
-    selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id];
+  const getContextActionIds = (id: string) => [...contextActionIds(selectedIds, id)];
 
   const isMultiContextAction = (id: string) => selectedIds.length > 1 && selectedIds.includes(id);
 
@@ -3044,53 +3036,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return installed;
   };
 
-  const getElementAccentForKind = (accent: string, kind: "text-card" | "other") => {
-    const preset = ALL_ACCENT_PRESETS.find(
-      (currentPreset) => currentPreset.accent === accent || currentPreset.textCardAccent === accent,
-    );
-    return kind === "text-card" ? (preset?.textCardAccent ?? accent) : (preset?.accent ?? accent);
-  };
-
-  const updateContextAccent = (id: string, accent: string) => {
-    const actionIds = getContextActionIds(id);
-    retained.runtime.callbacks
-      .captureContent(
-        actionIds.map((elementId) => ({
-          elementId: elementId as ElementId,
-          fields: ["accent"],
-        })),
-      )
-      ?.complete(
-        actionIds.map((elementId) => ({
-          elementId: elementId as ElementId,
-          to: {
-            accent: getElementAccentForKind(
-              accent,
-              textCardsById.has(elementId) ? "text-card" : "other",
-            ),
-          },
-        })),
-      );
-  };
-
-  const stripContextExtension = (id: string, key: keyof ElementExtensions) => {
-    const actionSet = new Set(getContextActionIds(id));
-    const extensionId = retainedExtensionId(key);
-    if (
-      !extensionId ||
-      !retained.runtime.callbacks
-        .captureExtensionRemove(extensionId, [...actionSet] as ElementId[])
-        ?.complete().ok
-    )
-      return;
-    if (key === "search")
-      setContainerScrollOffsets((current) => ({
-        ...current,
-        ...Object.fromEntries([...actionSet].map((id) => [id, 0])),
-      }));
-    if (key === "copyPasteJson") copyPasteJson.closeEditorFor(actionSet);
-    closeContextMenus();
-  };
+  const updateContextAccent = (id: string, accent: string) =>
+    extensionCommands.updateSelectionAccent(id, accent);
 
   const deleteContextSelection = (id: string, actionIdsOverride?: string[]) => {
     const actionIds = actionIdsOverride ?? getContextActionIds(id);
@@ -3295,26 +3242,20 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     [retained, workflowRuns.reset],
   );
 
-  const togglePrivacyExtension = (id: string) => {
-    retained.runtime.callbacks.captureExtensionToggle("privacy", id as ElementId)?.complete();
-  };
-
-  const toggleLockExtension = (id: string) => {
-    retained.runtime.callbacks
-      .captureExtensionToggle("lock", id as ElementId, selectedIds as ElementId[])
-      ?.complete();
-  };
-
-  const toggleTextCardCheckbox = (id: string) => {
-    retained.runtime.callbacks.captureExtensionToggle("checkbox", id as ElementId)?.complete();
-  };
-
-  const updateContainerSearchQuery = (id: string, query: string) => {
-    retained.runtime.callbacks
-      .captureExtensionConfiguration("search", id as ElementId)
-      ?.complete({ query });
-    setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
-  };
+  const extensionCommands = useRetainedExtensionCommands({
+    callbacks: retained.runtime.callbacks,
+    selection: () => interactionController.getSnapshot().selectedIds,
+    rememberRecentColor: (color) => rememberRecentColor(color),
+    resetContainerScroll: (ids) =>
+      setContainerScrollOffsets((current) => ({
+        ...current,
+        ...Object.fromEntries(ids.map((id) => [id, 0])),
+      })),
+    closeContextMenus,
+    copyPasteJson,
+    openWorkflowEditor: workflowEditor.openWorkflowEditor,
+    workflowRuns,
+  });
 
   const showExtensionDropRipple = (
     extensionId: RetainedExtensionKey,
@@ -3946,36 +3887,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const canvasNodeActions = useStableCallbacks({
-    cancelRename,
-    cancelTextBlockEdit,
     cancelTextCardEdit,
-    handleContainerWheel,
-    openContainerContentMenu,
-    openImageMenu,
-    openTextBlockMenu,
     openTextCardMenu,
-    pickImageForElement,
     rememberRecentColor,
-    saveRename,
-    saveTextBlockEdit,
     saveTextCardEdit,
-    selectCanvasElement,
-    startContainerContentSelection,
-    startImageMove,
-    startImageResize,
-    startMove,
-    startResize,
-    startTextBlockEdit,
     startTextCardMove,
-    toggleLockExtension,
-    toggleMenu,
-    togglePrivacyExtension,
-    toggleTextCardCheckbox,
-    updateContainerAccent,
-    updateContainerHeaderButtonsVisible,
-    updateContainerSearchQuery,
-    updateTextBlockAccent,
-    updateTextBlockHeaderButtonsVisible,
   });
   const textCardActions = useMemo<TextCardActions>(
     () => ({
@@ -4010,33 +3926,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const textBlock = textBlocksById.get(id);
     if (textBlock) action(textBlock);
   };
-  const extensionCommands: ExtensionCommands = useStableCallbacks({
-    toggle: (extension: "lock" | "privacy" | "checkbox", elementId: string) => {
-      if (extension === "lock") toggleLockExtension(elementId);
-      else if (extension === "privacy") togglePrivacyExtension(elementId);
-      else toggleTextCardCheckbox(elementId);
-    },
-    remove: (extension: RetainedExtensionKey, elementId: string) =>
-      stripContextExtension(elementId, extension),
-    updateAccent: (elementId: string, accent: string) =>
-      containersById.has(elementId)
-        ? updateContainerAccent(elementId, accent)
-        : updateTextBlockAccent(elementId, accent),
-    updateSelectionAccent: updateContextAccent,
-    setSearchQuery: updateContainerSearchQuery,
-    rememberRecentColor,
-    copyJsonForAi: copyPasteJson.copyJsonForAi,
-    pasteJsonFromAi: copyPasteJson.pasteJsonFromAi,
-    openJsonEditor: copyPasteJson.openJsonEditor,
-    openWorkflowEditor: (cardId: string) => {
-      closeContextMenus();
-      workflowEditor.openWorkflowEditor(cardId);
-    },
-    runWorkflow: workflowRuns.runWorkflow,
-    stopWorkflow: workflowRuns.stopWorkflow,
-    subscribeWorkflowRuns: workflowRuns.subscribeWorkflowRuns,
-    getWorkflowRun: workflowRuns.getWorkflowRun,
-  });
   const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withTextBlock(id, startRename),
     onUpdateAccent: updateContextAccent,
