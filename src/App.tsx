@@ -93,6 +93,7 @@ import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
 import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks";
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
+import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
@@ -572,17 +573,21 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     top: number;
   } | null>(null);
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
-  const [enteringIds, setEnteringIds] = useState<string[]>([]);
-  const [deletingIds, setDeletingIds] = useState<string[]>([]);
-  const [enteringTextCardIds, setEnteringTextCardIds] = useState<string[]>([]);
-  const [deletingTextCardIds, setDeletingTextCardIds] = useState<string[]>([]);
-  const [pulsingTextCardIds, setPulsingTextCardIds] = useState<string[]>([]);
-  const [enteringImageIds, setEnteringImageIds] = useState<string[]>([]);
-  const [deletingImageIds, setDeletingImageIds] = useState<string[]>([]);
+  const presenceMarks = useElementPresenceMarks();
+  const {
+    containers: enteringIds,
+    textCards: enteringTextCardIds,
+    textBlocks: enteringTextBlockIds,
+    images: enteringImageIds,
+  } = presenceMarks.entering;
+  const {
+    containers: deletingIds,
+    textCards: deletingTextCardIds,
+    textBlocks: deletingTextBlockIds,
+    images: deletingImageIds,
+  } = presenceMarks.deleting;
+  const { textCards: pulsingTextCardIds, textBlocks: pulsingTextBlockIds } = presenceMarks.pulsing;
   const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
-  const [enteringTextBlockIds, setEnteringTextBlockIds] = useState<string[]>([]);
-  const [deletingTextBlockIds, setDeletingTextBlockIds] = useState<string[]>([]);
-  const [pulsingTextBlockIds, setPulsingTextBlockIds] = useState<string[]>([]);
   const snapGuides = interactionSnapshot.snapGuides;
   const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
 
@@ -1384,33 +1389,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     applySelection([element.id], additive);
   };
 
-  const animateContainerIn = (id: string) => {
-    setEnteringIds((current) => [...current, id]);
-    window.setTimeout(() => {
-      setEnteringIds((current) => current.filter((enteringId) => enteringId !== id));
-    }, 180);
-  };
+  const animateContainerIn = (id: string) => presenceMarks.animateIn("containers", id);
 
-  const animateTextCardIn = (id: string) => {
-    setEnteringTextCardIds((current) => [...current, id]);
-    window.setTimeout(() => {
-      setEnteringTextCardIds((current) => current.filter((enteringId) => enteringId !== id));
-    }, 180);
-  };
+  const animateTextCardIn = (id: string) => presenceMarks.animateIn("textCards", id);
 
-  const animateTextBlockIn = (id: string) => {
-    setEnteringTextBlockIds((current) => [...current, id]);
-    window.setTimeout(() => {
-      setEnteringTextBlockIds((current) => current.filter((enteringId) => enteringId !== id));
-    }, 180);
-  };
+  const animateTextBlockIn = (id: string) => presenceMarks.animateIn("textBlocks", id);
 
-  const animateImageIn = (id: string) => {
-    setEnteringImageIds((current) => [...current, id]);
-    window.setTimeout(() => {
-      setEnteringImageIds((current) => current.filter((enteringId) => enteringId !== id));
-    }, 180);
-  };
+  const animateImageIn = (id: string) => presenceMarks.animateIn("images", id);
 
   const scheduleDeletionCommit = (canvasId: string, commit: () => void, delayMs: number) => {
     const timeout = window.setTimeout(() => {
@@ -1433,26 +1418,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     pendingDeletionTimeoutsRef.current.delete(canvasId);
     pendingCanvasDeletionsRef.current.delete(canvasId);
     if (canvasId === activeCanvasIdRef.current) {
-      setDeletingIds([]);
-      setDeletingTextCardIds([]);
-      setDeletingTextBlockIds([]);
-      setDeletingImageIds([]);
+      presenceMarks.clearDeleting();
     }
   };
 
-  const pulseTextCard = (id: string) => {
-    setPulsingTextCardIds((current) => [...current.filter((pulsingId) => pulsingId !== id), id]);
-    window.setTimeout(() => {
-      setPulsingTextCardIds((current) => current.filter((pulsingId) => pulsingId !== id));
-    }, 260);
-  };
+  const pulseTextCard = (id: string) => presenceMarks.pulse("textCards", id);
 
-  const pulseTextBlock = (id: string) => {
-    setPulsingTextBlockIds((current) => [...current.filter((pulsingId) => pulsingId !== id), id]);
-    window.setTimeout(() => {
-      setPulsingTextBlockIds((current) => current.filter((pulsingId) => pulsingId !== id));
-    }, 260);
-  };
+  const pulseTextBlock = (id: string) => presenceMarks.pulse("textBlocks", id);
 
   const removeMindmapConnection = (id: string) => {
     retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
@@ -1463,19 +1435,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const capture = retained.runtime.callbacks.captureDelete(ids as ElementId[]);
     if (!capture) return;
     const plan = planCanvasDeletion(activeCanvas, ids, isElementDeletionLocked);
-    setDeletingIds(plan.containerIds);
-    setDeletingTextCardIds(plan.textCardIds);
-    setDeletingTextBlockIds(plan.textBlockIds);
-    setDeletingImageIds(plan.imageIds);
+    presenceMarks.markDeleting({
+      containers: plan.containerIds,
+      textCards: plan.textCardIds,
+      textBlocks: plan.textBlockIds,
+      images: plan.imageIds,
+    });
     closeContextMenus();
     scheduleDeletionCommit(
       activeCanvas.id,
       () => {
         capture.complete();
-        setDeletingIds([]);
-        setDeletingTextCardIds([]);
-        setDeletingTextBlockIds([]);
-        setDeletingImageIds([]);
+        presenceMarks.clearDeleting();
         setSelectedIds([]);
       },
       180,
@@ -3786,10 +3757,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     cancelPendingDeletionCommits(activeCanvas.id);
     textCardInteraction.reset();
     setSelectedIds([]);
-    setDeletingIds([]);
-    setDeletingTextCardIds([]);
-    setDeletingTextBlockIds([]);
-    setDeletingImageIds([]);
+    presenceMarks.clearDeleting();
     rename.end();
     textCardEdit.end();
     textBlockEdit.end();
