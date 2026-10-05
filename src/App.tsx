@@ -78,6 +78,12 @@ import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import {
+  newContainer,
+  newImagePlaceholder,
+  newLooseTextCard,
+  newTextBlock,
+} from "./legacy/newCanvasElements";
+import {
   CONTAINER_TEXT_CARD_GAP,
   CONTAINER_TEXT_CARD_PADDING,
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
@@ -1410,21 +1416,16 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       ? selectedIds
       : [];
 
+  const newElementPlacement = (id: string, clientX: number, clientY: number) => ({
+    id,
+    point: canvasPointFromEvent({ clientX, clientY }),
+    canvas: { width: canvasWidth, height: canvasHeight },
+    colors: defaultElementColors,
+  });
+
   const createContainer = (clientX: number, clientY: number) => {
-    const point = canvasPointFromEvent({ clientX, clientY });
-    const width = 360;
-    const height = 240;
-    const nextNumber = elements.length + 1;
     const id = createEntityId("element");
-    const nextElement: ContainerElement = {
-      id,
-      name: `Container ${nextNumber}`,
-      x: clamp(point.x - width / 2, 0, canvasWidth - width),
-      y: clamp(point.y - 28, 0, canvasHeight - height),
-      width,
-      height,
-      accent: defaultElementColors.container,
-    };
+    const nextElement = newContainer(newElementPlacement(id, clientX, clientY), elements.length);
 
     if (
       !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
@@ -1443,18 +1444,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   // Create an empty image placeholder at a canvas point; the caller (or the
   // user clicking it) fills it with a picked/dropped/pasted image afterwards.
   const createImageElement = (clientX: number, clientY: number): string => {
-    const point = canvasPointFromEvent({ clientX, clientY });
     const id = createEntityId("element");
-    const width = 280;
-    const height = 200;
-    const image: ImageElement = {
-      id,
-      x: clamp(point.x - width / 2, 0, canvasWidth - width),
-      y: clamp(point.y - height / 2, 0, canvasHeight - height),
-      width,
-      height,
-      accent: defaultElementColors.image,
-    };
+    const image = newImagePlaceholder(newElementPlacement(id, clientX, clientY));
 
     const result = createRetainedViewElement(
       retained.runtime.callbacks,
@@ -1640,16 +1631,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     kind?: TextCardElement["kind"],
     startEditing = true,
   ) => {
-    const point = canvasPointFromEvent({ clientX, clientY });
     const id = createEntityId("element");
-    const card: TextCardElement = {
-      id,
-      kind,
-      text,
-      x: clamp(point.x, 0, canvasWidth),
-      y: clamp(point.y, 0, canvasHeight),
-      accent: kind === "mindmap" ? defaultElementColors.mindmap : defaultElementColors.textCard,
-    };
+    const card = newLooseTextCard(newElementPlacement(id, clientX, clientY), text, kind);
 
     if (
       !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
@@ -1676,21 +1659,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const createTextBlock = (clientX: number, clientY: number) => {
-    const point = canvasPointFromEvent({ clientX, clientY });
-    const width = 320;
-    const height = 220;
-    const nextNumber = textBlocks.length + 1;
     const id = createEntityId("element");
-    const element: TextBlockElement = {
-      id,
-      name: `Text block ${nextNumber}`,
-      text: "Text block",
-      x: clamp(point.x - width / 2, 0, canvasWidth - width),
-      y: clamp(point.y - 28, 0, canvasHeight - height),
-      width,
-      height,
-      accent: defaultElementColors.textBlock,
-    };
+    const element = newTextBlock(newElementPlacement(id, clientX, clientY), textBlocks.length);
 
     if (
       !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
