@@ -3115,6 +3115,17 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
   };
 
+  // A pan keeps the minimap up for as long as it lasts, like pointing at it; the fade-out timer
+  // starts when the pan ends.
+  const panning = interactionSnapshot.activeInteraction?.kind === "pan";
+  const minimapHold = useStableCallbacks({ holdMinimap });
+  const wasPanning = useRef(false);
+  useEffect(() => {
+    if (panning === wasPanning.current) return;
+    wasPanning.current = panning;
+    minimapHold.holdMinimap(panning);
+  }, [minimapHold, panning]);
+
   const undo = () => {
     retained.runtime.callbacks.undo();
     rename.end();

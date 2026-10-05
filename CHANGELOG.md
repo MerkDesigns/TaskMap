@@ -50,6 +50,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- The minimap stays visible for as long as you pan the canvas, and fades out only after the pan
+  ends; it used to disappear two seconds into a longer pan.
 - Pressing a container's or text block's menu button again closes its menu instead of reopening it.
 - The JSON editor and workflow windows fade their glass in and out again; the glass stayed
   transparent for the whole fade and then appeared at once.
