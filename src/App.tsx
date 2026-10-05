@@ -90,11 +90,9 @@ import { createRetainedViewElement } from "./legacy/retainedViewCreation";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
 import { installRetainedViewExtension, retainedExtensionId } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
-import {
-  captureRetainedTextEdit,
-  captureRetainedLinkEdit,
-} from "./app/commands/retainedEditorCallbacks";
+import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks";
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
+import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
@@ -479,15 +477,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     clientX: number;
     clientY: number;
   } | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameDraft, setRenameDraft] = useState("");
-  const [editingTextCardId, setEditingTextCardId] = useState<string | null>(null);
-  const [textCardDraft, setTextCardDraft] = useState("");
-  const [editingTextBlockId, setEditingTextBlockId] = useState<string | null>(null);
-  const [textBlockDraft, setTextBlockDraft] = useState("");
-  const retainedTextEdit = useRef<CapturedCompletion<string> | null>(null);
-  const retainedBlockEdit = useRef<CapturedCompletion<string> | null>(null);
-  const retainedRename = useRef<CapturedCompletion<string> | null>(null);
+  const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
+  const { editingId: renamingId, draft: renameDraft, end: endRename } = rename;
+  const textCardEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
+  const { editingId: editingTextCardId, draft: textCardDraft } = textCardEdit;
+  const textBlockEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
+  const { editingId: editingTextBlockId, draft: textBlockDraft } = textBlockEdit;
   const retainedCopy = useRef<RetainedViewCopy | null>(null);
   const [hasRetainedCopy, setHasRetainedCopy] = useState(false);
   const retainedConnection = useRef<CapturedCompletion<
@@ -508,9 +503,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         retainedCopy.current = null;
         setHasRetainedCopy(false);
       }
-      setTextCardDraft("");
-      setTextBlockDraft("");
-      setRenameDraft("");
       retainedConnection.current?.cancel();
       retainedConnection.current = null;
       textCardInteraction.reset();
@@ -523,33 +515,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       reset();
     };
   }, [retained, textCardInteraction]);
-  useLayoutEffect(() => {
-    retainedTextEdit.current = editingTextCardId
-      ? captureRetainedTextEdit(retained.runtime.callbacks, editingTextCardId as ElementId, "text")
-      : null;
-    return () => {
-      retainedTextEdit.current?.cancel();
-      retainedTextEdit.current = null;
-    };
-  }, [retained, editingTextCardId]);
-  useLayoutEffect(() => {
-    retainedBlockEdit.current = editingTextBlockId
-      ? captureRetainedTextEdit(retained.runtime.callbacks, editingTextBlockId as ElementId, "text")
-      : null;
-    return () => {
-      retainedBlockEdit.current?.cancel();
-      retainedBlockEdit.current = null;
-    };
-  }, [retained, editingTextBlockId]);
-  useLayoutEffect(() => {
-    retainedRename.current = renamingId
-      ? captureRetainedTextEdit(retained.runtime.callbacks, renamingId as ElementId, "name")
-      : null;
-    return () => {
-      retainedRename.current?.cancel();
-      retainedRename.current = null;
-    };
-  }, [retained, renamingId]);
   const [mindmapConnectionMode, setMindmapConnectionMode] = useState(false);
   const [mindmapConnectionDrag, setMindmapConnectionDrag] = useState<MindmapConnectionDrag | null>(
     null,
@@ -1363,7 +1328,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const topLevelIds = new Set(topLevelItems.map((item) => item.id));
     const actionIds = getLayerActionIds(id, (actionId) => topLevelIds.has(actionId));
     interactionController.reorder(actionIds, direction);
-    setRenamingId(null);
+    rename.end();
   };
 
   const topLevelLayerMap = useMemo(() => {
@@ -1687,7 +1652,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         closeContextMenus();
         closeCanvasManager();
         closeExtensionsPanel();
-        setRenamingId(null);
+        endRename();
         return;
       }
 
@@ -1699,7 +1664,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       event.preventDefault();
       deletionActions.deleteCanvasSelection(selectedIds);
       closeContextMenus();
-      setRenamingId(null);
+      endRename();
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
@@ -1712,6 +1677,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeExtensionsPanel,
     containersById,
     deletionActions,
+    endRename,
     extensionsClosing,
     extensionsOpen,
     imagesById,
@@ -1897,9 +1863,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     setSelectedIds([id]);
     animateContainerIn(id);
     closeContextMenus();
-    setEditingTextCardId(null);
-    setRenameDraft(nextElement.name);
-    setRenamingId(id);
+    textCardEdit.end();
+    rename.begin(id, nextElement.name);
   };
 
   // Create an empty image placeholder at a canvas point; the caller (or the
@@ -1927,7 +1892,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     animateImageIn(id);
     setSelectedIds([id]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     return id;
   };
 
@@ -2145,16 +2110,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     )
       return;
     animateTextCardIn(id);
-    if (startEditing) {
-      setEditingTextCardId(id);
-      setTextCardDraft(card.text);
-    } else {
-      setEditingTextCardId(null);
-      setTextCardDraft("");
-    }
+    if (startEditing) textCardEdit.begin(id, card.text);
+    else textCardEdit.end();
     setSelectedIds([]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     return id;
   };
 
@@ -2192,11 +2152,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       return;
     setSelectedIds([id]);
     animateTextBlockIn(id);
-    setRenameDraft(element.name);
-    setRenamingId(id);
+    rename.begin(id, element.name);
     closeContextMenus();
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
+    textCardEdit.end();
+    textBlockEdit.end();
   };
 
   const createTextCardInContainer = (containerId: string, clientX: number, clientY: number) => {
@@ -2257,11 +2216,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       }));
     }
     animateTextCardIn(id);
-    setEditingTextCardId(id);
-    setTextCardDraft(card.text);
+    textCardEdit.begin(id, card.text);
     setSelectedIds([]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
   };
 
   const handleCanvasContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -2273,7 +2231,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
     setSelectedIds([]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     setClosingCanvasMenu(null);
     setCanvasMenu({ clientX: event.clientX, clientY: event.clientY });
   };
@@ -2286,7 +2244,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     event.stopPropagation();
     setSelectedIds([element.id]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     setClosingContainerContentMenu(null);
     setContainerContentMenu({
       containerId: element.id,
@@ -2317,7 +2275,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     event.stopPropagation();
     stage.setPointerCapture(event.pointerId);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     showMinimap();
     interactionController.beginPan(event.pointerId, { x: event.clientX, y: event.clientY });
   };
@@ -2379,7 +2337,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (editingTextBlockId) {
       saveTextBlockEdit(editingTextBlockId);
     }
-    setRenamingId(null);
+    rename.end();
     (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
       event.pointerId,
     );
@@ -2408,7 +2366,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (editingTextBlockId) {
       saveTextBlockEdit(editingTextBlockId);
     }
-    setRenamingId(null);
+    rename.end();
     (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
       event.pointerId,
     );
@@ -2568,7 +2526,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     showMinimap();
 
     if (worldRef.current) {
@@ -2649,9 +2607,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       interactionController.setSelection([id]);
     }
     closeContextMenus();
-    setRenamingId(null);
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
+    rename.end();
+    textCardEdit.end();
+    textBlockEdit.end();
     const moveInput = {
       pointerId: event.pointerId,
       screen: { x: event.clientX, y: event.clientY },
@@ -2723,7 +2681,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     );
     interactionController.setSelection([element.id]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     const target = getGestureElement(element.id);
     if (!target) return;
     const containerIds = new Set(elements.map(({ id }) => id));
@@ -2812,7 +2770,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     );
     interactionController.setSelection([image.id]);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     const target = getGestureElement(image.id);
     if (!target) return;
     const aspectRatio = image.height > 0 ? image.width / image.height : 1;
@@ -2846,7 +2804,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     event.preventDefault();
     event.stopPropagation();
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
     if (!selectedIds.includes(image.id)) {
       setSelectedIds([image.id]);
     }
@@ -2862,8 +2820,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     event.preventDefault();
     event.stopPropagation();
     closeContextMenus();
-    setRenamingId(null);
-    setEditingTextCardId(null);
+    rename.end();
+    textCardEdit.end();
     if (!selectedIds.includes(id)) {
       setSelectedIds([id]);
     }
@@ -2876,15 +2834,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const startTextCardEdit = (card: TextCardElement) => {
-    setTextCardDraft(card.text);
-    setEditingTextCardId(card.id);
+    textCardEdit.begin(card.id, card.text);
     closeContextMenus();
   };
 
   const saveTextCardEdit = (id: string) => {
-    retainedTextEdit.current?.complete(textCardDraft);
-    setEditingTextCardId(null);
-    setTextCardDraft("");
+    textCardEdit.complete();
     pulseTextCard(id);
   };
 
@@ -2892,8 +2847,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (editingTextCardId) {
       pulseTextCard(editingTextCardId);
     }
-    setEditingTextCardId(null);
-    setTextCardDraft("");
+    textCardEdit.end();
   };
 
   const updateTextCardLink = (id: string, link: string) => {
@@ -2921,9 +2875,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (!selectedIds.includes(element.id)) {
       selectCanvasElement(element);
     }
-    setRenamingId(null);
-    setRenameDraft(element.name);
-    setEditingTextCardId(null);
+    rename.end();
+    textCardEdit.end();
 
     if (textBlockMenu?.id === element.id) {
       closeContextMenus();
@@ -2940,17 +2893,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const startTextBlockEdit = (element: TextBlockElement) => {
-    setTextBlockDraft(element.text);
-    setEditingTextBlockId(element.id);
+    textBlockEdit.begin(element.id, element.text);
     setSelectedIds([element.id]);
-    setRenamingId(null);
+    rename.end();
     closeContextMenus();
   };
 
   const saveTextBlockEdit = (id: string) => {
-    retainedBlockEdit.current?.complete(textBlockDraft);
-    setEditingTextBlockId(null);
-    setTextBlockDraft("");
+    textBlockEdit.complete();
     pulseTextBlock(id);
   };
 
@@ -2958,8 +2908,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (editingTextBlockId) {
       pulseTextBlock(editingTextBlockId);
     }
-    setEditingTextBlockId(null);
-    setTextBlockDraft("");
+    textBlockEdit.end();
   };
 
   const updateTextBlockAccent = (id: string, accent: string) => {
@@ -2976,8 +2925,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (!selectedIds.includes(element.id)) {
       selectCanvasElement(element);
     }
-    setRenamingId(null);
-    setRenameDraft(element.name);
+    rename.end();
 
     if (containerMenu?.id === element.id) {
       closeContextMenus();
@@ -2994,21 +2942,17 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const startRename = (element: ContainerElement | TextBlockElement) => {
-    setRenameDraft(element.name);
-    setRenamingId(element.id);
+    rename.begin(element.id, element.name);
     closeContextMenus();
   };
 
   const saveRename = () => {
-    retainedRename.current?.complete(renameDraft);
-    setRenamingId(null);
-    setRenameDraft("");
+    rename.complete();
     closeContextMenus();
   };
 
   const cancelRename = () => {
-    setRenamingId(null);
-    setRenameDraft("");
+    rename.end();
   };
 
   const getTextCardCopyPosition = (card: TextCardElement) => {
@@ -3134,7 +3078,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         else animateTextCardIn(entry.id);
       });
       closeContextMenus();
-      setRenamingId(null);
+      rename.end();
     } else
       showToast({
         tone: "error",
@@ -3155,9 +3099,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (!result?.ok) return;
     closeContextMenus();
     setSelectedIds([]);
-    setRenamingId(null);
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
+    rename.end();
+    textCardEdit.end();
+    textBlockEdit.end();
     setClearModalOpen(false);
   };
 
@@ -3242,7 +3186,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const actionIds = actionIdsOverride ?? getContextActionIds(id);
     deleteCanvasSelection(actionIds);
     closeContextMenus();
-    setRenamingId(null);
+    rename.end();
   };
 
   const cutUnlockedContextSelection = (id: string) => {
@@ -3405,9 +3349,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     onReplaced: (id) => {
       setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
       setSelectedIds([id]);
-      setEditingTextCardId(null);
-      setTextCardDraft("");
-      setRenamingId(null);
+      textCardEdit.end();
+      rename.end();
     },
     showToast,
   });
@@ -3785,24 +3728,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const undo = () => {
     retained.runtime.callbacks.undo();
-    setRenamingId(null);
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
-    setRenameDraft("");
-    setTextCardDraft("");
-    setTextBlockDraft("");
+    rename.end();
+    textCardEdit.end();
+    textBlockEdit.end();
     setCopiedItem(null);
     closeContextMenus();
   };
 
   const redo = () => {
     retained.runtime.callbacks.redo();
-    setRenamingId(null);
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
-    setRenameDraft("");
-    setTextCardDraft("");
-    setTextBlockDraft("");
+    rename.end();
+    textCardEdit.end();
+    textBlockEdit.end();
     setCopiedItem(null);
     closeContextMenus();
   };
@@ -3853,10 +3790,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     setDeletingTextCardIds([]);
     setDeletingTextBlockIds([]);
     setDeletingImageIds([]);
-    setRenamingId(null);
-    setRenameDraft("");
-    setEditingTextCardId(null);
-    setEditingTextBlockId(null);
+    rename.end();
+    textCardEdit.end();
+    textBlockEdit.end();
     setMindmapConnectionDrag(null);
     closeContextMenus();
   };
@@ -4136,14 +4072,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
   const textCardActions = useMemo<TextCardActions>(
     () => ({
-      onDraftChange: setTextCardDraft,
+      onDraftChange: textCardEdit.setDraft,
       onSave: canvasNodeActions.saveTextCardEdit,
       onCancel: canvasNodeActions.cancelTextCardEdit,
       onStartMove: canvasNodeActions.startTextCardMove,
       onOpenMenu: canvasNodeActions.openTextCardMenu,
       onSizeChange: rememberTextCardSize,
     }),
-    [canvasNodeActions, rememberTextCardSize],
+    [canvasNodeActions, rememberTextCardSize, textCardEdit.setDraft],
   );
   const documentElements = useRetainedDocumentElements();
   const documentConnections = useRetainedDocumentConnections();
@@ -4203,10 +4139,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     onDelete: deleteContextSelection,
   });
   const textBlockActions: TextBlockActions = useStableCallbacks({
-    onDraftChange: setTextBlockDraft,
+    onDraftChange: textBlockEdit.setDraft,
     onSave: saveTextBlockEdit,
     onCancel: cancelTextBlockEdit,
-    onRenameDraftChange: setRenameDraft,
+    onRenameDraftChange: rename.setDraft,
     onSaveRename: saveRename,
     onCancelRename: cancelRename,
     onStartEdit: (id: string) => withTextBlock(id, startTextBlockEdit),
@@ -4243,7 +4179,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     onPick: pickImageForElement,
   });
   const containerActions: ContainerActions = useStableCallbacks({
-    onRenameDraftChange: setRenameDraft,
+    onRenameDraftChange: rename.setDraft,
     onSaveRename: saveRename,
     onCancelRename: cancelRename,
     onSelect: (id: string, additive: boolean) =>

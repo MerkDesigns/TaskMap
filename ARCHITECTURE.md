@@ -330,7 +330,9 @@ Key entry points:
   lifecycle (open/unlock/lock/close), epochs, admission, save flushing and revocation.
 - `src/features/database-entry/` — unlock/create/recent-database screens and the unlock/lock reveal.
 - `src/legacy/RetainedCanvasApplication.tsx` + `src/App.tsx` + `src/components/` — retained
-  presentation; not the persistence owner.
+  presentation; not the persistence owner. Presentation state moves out of `App.tsx` into
+  `src/legacy/` hooks as it migrates, e.g. `useRetainedInlineEdit.ts` (in-place text and name
+  editing: draft, editing id and the captured completion).
 - `src/ui/materials/MaterialSurface.tsx` — the public glass boundary; `WorkspaceMajorGlass.tsx` and
   `SharedSmallGlassPlane.tsx` own the shared Major plane and Minor batches; recipes live in
   `materialDefinitions.ts` and `nativeGlassRecipe.css`.
