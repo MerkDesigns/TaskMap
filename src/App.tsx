@@ -17,11 +17,6 @@ import type { ContainerActions } from "./elements/container/containerView";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import type { ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
-import {
-  captureRetainedViewCopy,
-  pasteRetainedViewCopy,
-  type RetainedViewCopy,
-} from "./legacy/retainedViewClipboard";
 import { FloatingToolbar } from "./components/FloatingToolbar";
 import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
 import type { ImageActions } from "./elements/image/ImageRenderer";
@@ -81,6 +76,7 @@ import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
+import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import {
   CONTAINER_TEXT_CARD_GAP,
   CONTAINER_TEXT_CARD_PADDING,
@@ -437,8 +433,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { editingId: editingTextCardId, draft: textCardDraft } = textCardEdit;
   const textBlockEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
   const { editingId: editingTextBlockId, draft: textBlockDraft } = textBlockEdit;
-  const retainedCopy = useRef<RetainedViewCopy | null>(null);
-  const [hasRetainedCopy, setHasRetainedCopy] = useState(false);
   const retainedConnection = useRef<CapturedCompletion<
     import("./app/commands/retainedConnectionCallbacks").ConnectionCompletion
   > | null>(null);
@@ -453,10 +447,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         latestDataGetterRef.current = () => latestAppDataRef.current;
         imageDropOpsRef.current = null;
       }
-      if (!retainedCopy.current?.captured.isActive()) {
-        retainedCopy.current = null;
-        setHasRetainedCopy(false);
-      }
       retainedConnection.current?.cancel();
       retainedConnection.current = null;
       textCardInteraction.reset();
@@ -465,7 +455,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const unsubscribe = retained.runtime.callbacks.subscribeInvalidation(reset);
     return () => {
       unsubscribe();
-      retainedCopy.current?.captured.cancel();
       reset();
     };
   }, [retained, textCardInteraction]);
@@ -1644,8 +1633,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus();
   };
 
-  const copyImage = (image: ImageElement) => copyContextSelection(image.id);
-
   const createLooseTextCard = (
     clientX: number,
     clientY: number,
@@ -2513,49 +2500,23 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return { x: position.x, y: position.y };
   };
 
-  const copyContextSelection = (id: string, actionIdsOverride?: string[]) => {
-    retainedCopy.current?.captured.cancel();
-    retainedCopy.current = captureRetainedViewCopy(
-      retained.runtime.callbacks,
-      retained.runtime.controller.store.getState().documentWorkspace.document,
-      (actionIdsOverride ?? getContextActionIds(id)) as ElementId[],
-      (elementId) => {
-        const card = textCardsById.get(elementId);
-        return card ? getTextCardCopyPosition(card) : undefined;
-      },
-    );
-    setHasRetainedCopy(Boolean(retainedCopy.current));
-    closeContextMenus();
-    return true;
-  };
-
-  const copyContainer = (element: ContainerElement) => copyContextSelection(element.id);
-
-  const copyTextCard = (card: TextCardElement) => copyContextSelection(card.id);
-
-  const copyTextBlock = (element: TextBlockElement) => copyContextSelection(element.id);
-
-  const pasteCopiedItem = (clientX: number, clientY: number, targetContainerId?: string) => {
-    const copy = retainedCopy.current;
-    const document = retained.runtime.controller.store.getState().documentWorkspace.document;
-    if (!copy || !document) return;
-    retainedCopy.current = null;
-    setHasRetainedCopy(false);
-    const point = canvasPointFromEvent({ clientX, clientY });
-    const container = targetContainerId ? containersById.get(targetContainerId) : undefined;
-    const { result, inserted } = pasteRetainedViewCopy(
-      copy,
-      document,
-      point,
-      { nextUuid: () => crypto.randomUUID() },
-      container
-        ? {
-            containerId: container.id as ElementId,
-            cardIndex: getTextCardDropIndex(container, point, textCards, ""),
-          }
-        : undefined,
-    );
-    if (result.ok) {
+  const clipboard = useRetainedClipboard({
+    callbacks: retained.runtime.callbacks,
+    document: () => retained.runtime.controller.store.getState().documentWorkspace.document,
+    selection: () => interactionController.getSnapshot().selectedIds,
+    isDeletionLocked: isElementDeletionLocked,
+    cardPosition: (id) => {
+      const card = textCardsById.get(id);
+      return card ? getTextCardCopyPosition(card) : undefined;
+    },
+    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    containerCardIndex: (containerId, point) => {
+      const container = containersById.get(containerId);
+      return container ? getTextCardDropIndex(container, point, textCards, "") : undefined;
+    },
+    deleteElements: (ids) => deleteContextSelection(ids[0], [...ids]),
+    closeContextMenus,
+    onPasted: (inserted) => {
       setSelectedIds(inserted.filter((entry) => entry.root).map((entry) => entry.id));
       inserted.forEach((entry) => {
         if (entry.type === "container") animateContainerIn(entry.id);
@@ -2565,13 +2526,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       });
       closeContextMenus();
       rename.end();
-    } else
+    },
+    onPasteFailed: () =>
       showToast({
         tone: "error",
         title: "Could not paste",
         message: "The copied selection is no longer available. Copy it again and retry.",
-      });
-  };
+      }),
+  });
 
   const requestClearCanvas = () => {
     closeContextMenus();
@@ -2623,97 +2585,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     deleteCanvasSelection(actionIds);
     closeContextMenus();
     rename.end();
-  };
-
-  const cutUnlockedContextSelection = (id: string) => {
-    if (!isMultiContextAction(id)) {
-      return false;
-    }
-
-    const actionIds = getContextActionIds(id).filter(
-      (actionId) => !isElementDeletionLocked(actionId),
-    );
-    if (actionIds.length > 0) {
-      copyContextSelection(id, actionIds);
-      deleteContextSelection(id, actionIds);
-    }
-    return true;
-  };
-
-  const cutContainer = (element: ContainerElement) => {
-    if (cutUnlockedContextSelection(element.id)) {
-      return;
-    }
-    if (isElementDeletionLocked(element.id)) {
-      return;
-    }
-    copyContainer(element);
-    deleteContextSelection(element.id);
-  };
-
-  const cutTextCard = (card: TextCardElement) => {
-    if (cutUnlockedContextSelection(card.id)) {
-      return;
-    }
-    if (isElementDeletionLocked(card.id)) {
-      return;
-    }
-    copyTextCard(card);
-    deleteContextSelection(card.id);
-  };
-
-  const cutTextBlock = (element: TextBlockElement) => {
-    if (cutUnlockedContextSelection(element.id)) {
-      return;
-    }
-    if (isElementDeletionLocked(element.id)) {
-      return;
-    }
-    copyTextBlock(element);
-    deleteContextSelection(element.id);
-  };
-
-  const cutImage = (image: ImageElement) => {
-    if (cutUnlockedContextSelection(image.id)) {
-      return;
-    }
-    if (isElementDeletionLocked(image.id)) {
-      return;
-    }
-    copyImage(image);
-    deleteContextSelection(image.id);
-  };
-
-  const copyKeyboardSelection = () => {
-    if (selectedIds.length === 0) {
-      return false;
-    }
-    if (selectedIds.length > 1) {
-      return copyContextSelection(selectedIds[0], selectedIds);
-    }
-
-    const id = selectedIds[0];
-    const container = containersById.get(id);
-    if (container) {
-      copyContainer(container);
-      return true;
-    }
-    const card = textCardsById.get(id);
-    if (card) {
-      copyTextCard(card);
-      return true;
-    }
-    const block = textBlocksById.get(id);
-    if (block) {
-      copyTextBlock(block);
-      return true;
-    }
-    const image = imagesById.get(id);
-    if (image) {
-      copyImage(image);
-      return true;
-    }
-    return false;
   };
 
   const installExtensions = (extensionId: RetainedExtensionKey, ids: string[]) => {
@@ -3261,11 +3132,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus,
     endRename,
     deleteSelection: () => deletionActions.deleteCanvasSelection(selectedIds),
-    copySelection: copyKeyboardSelection,
-    canPaste: () => hasRetainedCopy,
+    copySelection: clipboard.copySelection,
+    canPaste: () => clipboard.hasCopy,
     pasteAtPointer: () => {
       const { x, y } = lastPointerPositionRef.current;
-      pasteCopiedItem(x, y);
+      clipboard.paste(x, y);
     },
     undo,
     redo,
@@ -3370,8 +3241,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const containerMenuActions: ContainerMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withContainer(id, startRename),
     onUpdateAccent: updateContextAccent,
-    onCut: (id: string) => withContainer(id, cutContainer),
-    onCopy: (id: string) => withContainer(id, copyContainer),
+    onCut: clipboard.cut,
+    onCopy: clipboard.copy,
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
@@ -3382,8 +3253,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
     onStartRename: (id: string) => withTextBlock(id, startRename),
     onUpdateAccent: updateContextAccent,
-    onCut: (id: string) => withTextBlock(id, cutTextBlock),
-    onCopy: (id: string) => withTextBlock(id, copyTextBlock),
+    onCut: clipboard.cut,
+    onCopy: clipboard.copy,
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
@@ -3414,8 +3285,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     onUpdateAccent: updateContextAccent,
     onToggleBackground: toggleImageBackground,
     onMoveLayer: moveCanvasLayers,
-    onCut: (id: string) => withImage(id, cutImage),
-    onCopy: (id: string) => withImage(id, copyImage),
+    onCut: clipboard.cut,
+    onCopy: clipboard.copy,
     onDelete: deleteContextSelection,
   });
   const imageActions: ImageActions = useStableCallbacks({
@@ -3455,8 +3326,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     onStartEdit: (id: string) => withTextCard(id, startTextCardEdit),
     onUpdateAccent: updateContextAccent,
     onUpdateLink: updateTextCardLink,
-    onCut: (id: string) => withTextCard(id, cutTextCard),
-    onCopy: (id: string) => withTextCard(id, copyTextCard),
+    onCut: clipboard.cut,
+    onCopy: clipboard.copy,
     onMoveLayer: moveCanvasLayers,
     onDelete: deleteContextSelection,
   });
@@ -4027,8 +3898,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             textCardActions={textCardMenuActions}
             textBlockActions={textBlockMenuActions}
             imageActions={imageMenuActions}
-            hasCopiedItem={hasRetainedCopy}
-            onPaste={pasteCopiedItem}
+            hasCopiedItem={clipboard.hasCopy}
+            onPaste={clipboard.paste}
             onCreateTextCardInContainer={createTextCardInContainer}
             canvasActions={{
               onCreateContainer: createContainer,
