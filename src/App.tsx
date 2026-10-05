@@ -94,6 +94,7 @@ import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks"
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
+import { useClosingMenu } from "./legacy/useClosingMenu";
 import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
@@ -196,6 +197,9 @@ type ExtensionRippleBounds = {
 };
 
 type LeftPanelState = "closed" | "canvases" | "extensions";
+
+/** A context menu opened for one element, at a screen position. */
+type AnchoredMenu = { id: string; left: number; top: number };
 
 type PendingCanvasDeletions = {
   containers: Set<string>;
@@ -428,56 +432,24 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const setSelectedIds = (value: SetStateAction<string[]>) => {
     applyLegacySelectionAction(interactionController, value);
   };
-  const [containerMenu, setContainerMenu] = useState<ContainerMenuState | null>(null);
-  const [closingContainerMenu, setClosingContainerMenu] = useState<ContainerMenuState | null>(null);
-  const [containerContentMenu, setContainerContentMenu] = useState<{
+  const containerMenus = useClosingMenu<ContainerMenuState>();
+  const { menu: containerMenu, closing: closingContainerMenu } = containerMenus;
+  const containerContentMenus = useClosingMenu<{
     containerId: string;
     clientX: number;
     clientY: number;
-  } | null>(null);
-  const [closingContainerContentMenu, setClosingContainerContentMenu] = useState<{
-    containerId: string;
-    clientX: number;
-    clientY: number;
-  } | null>(null);
-  const [textCardMenu, setTextCardMenu] = useState<{
-    id: string;
-    left: number;
-    top: number;
-  } | null>(null);
-  const [closingTextCardMenu, setClosingTextCardMenu] = useState<{
-    id: string;
-    left: number;
-    top: number;
-  } | null>(null);
-  const [textBlockMenu, setTextBlockMenu] = useState<{
-    id: string;
-    left: number;
-    top: number;
-  } | null>(null);
-  const [closingTextBlockMenu, setClosingTextBlockMenu] = useState<{
-    id: string;
-    left: number;
-    top: number;
-  } | null>(null);
-  const [imageMenu, setImageMenu] = useState<{ id: string; left: number; top: number } | null>(
-    null,
-  );
-  const [closingImageMenu, setClosingImageMenu] = useState<{
-    id: string;
-    left: number;
-    top: number;
-  } | null>(null);
-  const [mindmapConnectionMenu, setMindmapConnectionMenu] = useState<{
-    id: string;
-    left: number;
-    top: number;
-  } | null>(null);
-  const [canvasMenu, setCanvasMenu] = useState<{ clientX: number; clientY: number } | null>(null);
-  const [closingCanvasMenu, setClosingCanvasMenu] = useState<{
-    clientX: number;
-    clientY: number;
-  } | null>(null);
+  }>();
+  const { menu: containerContentMenu, closing: closingContainerContentMenu } =
+    containerContentMenus;
+  const textCardMenus = useClosingMenu<AnchoredMenu>();
+  const { menu: textCardMenu, closing: closingTextCardMenu } = textCardMenus;
+  const textBlockMenus = useClosingMenu<AnchoredMenu>();
+  const { menu: textBlockMenu, closing: closingTextBlockMenu } = textBlockMenus;
+  const imageMenus = useClosingMenu<AnchoredMenu>();
+  const { menu: imageMenu, closing: closingImageMenu } = imageMenus;
+  const [mindmapConnectionMenu, setMindmapConnectionMenu] = useState<AnchoredMenu | null>(null);
+  const canvasMenus = useClosingMenu<{ clientX: number; clientY: number }>();
+  const { menu: canvasMenu, closing: closingCanvasMenu } = canvasMenus;
   const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
   const { editingId: renamingId, draft: renameDraft, end: endRename } = rename;
   const textCardEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
@@ -1001,57 +973,28 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     };
   }, []);
 
-  const closeContextMenus = () => {
-    setContainerMenu((current) => {
-      if (current) {
-        setClosingContainerMenu(current);
-        window.setTimeout(() => setClosingContainerMenu(null), 110);
-      }
-
-      return null;
-    });
-    setContainerContentMenu((current) => {
-      if (current) {
-        setClosingContainerContentMenu(current);
-        window.setTimeout(() => setClosingContainerContentMenu(null), 110);
-      }
-
-      return null;
-    });
-    setTextCardMenu((current) => {
-      if (current) {
-        setClosingTextCardMenu(current);
-        window.setTimeout(() => setClosingTextCardMenu(null), 110);
-      }
-
-      return null;
-    });
-    setTextBlockMenu((current) => {
-      if (current) {
-        setClosingTextBlockMenu(current);
-        window.setTimeout(() => setClosingTextBlockMenu(null), 110);
-      }
-
-      return null;
-    });
-    setImageMenu((current) => {
-      if (current) {
-        setClosingImageMenu(current);
-        window.setTimeout(() => setClosingImageMenu(null), 110);
-      }
-
-      return null;
-    });
-    setCanvasMenu((current) => {
-      if (current) {
-        setClosingCanvasMenu(current);
-        window.setTimeout(() => setClosingCanvasMenu(null), 110);
-      }
-
-      return null;
-    });
+  const { close: closeContainerMenu } = containerMenus;
+  const { close: closeContainerContentMenu } = containerContentMenus;
+  const { close: closeTextCardMenu } = textCardMenus;
+  const { close: closeTextBlockMenu } = textBlockMenus;
+  const { close: closeImageMenu } = imageMenus;
+  const { close: closeCanvasMenu } = canvasMenus;
+  const closeContextMenus = useCallback(() => {
+    closeContainerMenu();
+    closeContainerContentMenu();
+    closeTextCardMenu();
+    closeTextBlockMenu();
+    closeImageMenu();
+    closeCanvasMenu();
     setMindmapConnectionMenu(null);
-  };
+  }, [
+    closeCanvasMenu,
+    closeContainerContentMenu,
+    closeContainerMenu,
+    closeImageMenu,
+    closeTextBlockMenu,
+    closeTextCardMenu,
+  ]);
 
   const showMinimap = () => {
     if (!minimapEnabled) {
@@ -1645,6 +1588,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     canvasManagerOpen,
     clearModalOpen,
     closeCanvasManager,
+    closeContextMenus,
     closeExtensionsPanel,
     containersById,
     deletionActions,
@@ -2203,8 +2147,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     setSelectedIds([]);
     closeContextMenus();
     rename.end();
-    setClosingCanvasMenu(null);
-    setCanvasMenu({ clientX: event.clientX, clientY: event.clientY });
+    canvasMenus.open({ clientX: event.clientX, clientY: event.clientY });
   };
 
   const openContainerContentMenu = (
@@ -2216,8 +2159,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     setSelectedIds([element.id]);
     closeContextMenus();
     rename.end();
-    setClosingContainerContentMenu(null);
-    setContainerContentMenu({
+    containerContentMenus.open({
       containerId: element.id,
       clientX: event.clientX,
       clientY: event.clientY,
@@ -2779,8 +2721,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (!selectedIds.includes(image.id)) {
       setSelectedIds([image.id]);
     }
-    setClosingImageMenu(null);
-    setImageMenu({
+    imageMenus.open({
       id: image.id,
       left: event.clientX + 8,
       top: event.clientY + 8,
@@ -2796,8 +2737,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (!selectedIds.includes(id)) {
       setSelectedIds([id]);
     }
-    setClosingTextCardMenu(null);
-    setTextCardMenu({
+    textCardMenus.open({
       id,
       left: event.clientX + 8,
       top: event.clientY + 8,
@@ -2855,8 +2795,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
 
     closeContextMenus();
-    setClosingTextBlockMenu(null);
-    setTextBlockMenu({
+    textBlockMenus.open({
       id: element.id,
       left: rect.right + 8,
       top: rect.top,
@@ -2904,8 +2843,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
 
     closeContextMenus();
-    setClosingContainerMenu(null);
-    setContainerMenu({
+    containerMenus.open({
       id: element.id,
       left: rect.right + 8,
       top: rect.top,
