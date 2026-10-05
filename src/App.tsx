@@ -68,7 +68,6 @@ import {
   TaskCanvas,
   TextBlockElement,
   TextCardElement,
-  ToastMessage,
 } from "./types";
 import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
 import { cloneExtensions } from "./app/appData";
@@ -92,6 +91,7 @@ import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner"
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useClosingMenu } from "./legacy/useClosingMenu";
+import { useToastQueue } from "./components/useToastQueue";
 import {
   contextActionIds,
   useRetainedExtensionCommands,
@@ -534,7 +534,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const { toasts, showToast, dismissToast } = useToastQueue();
   const [canvasManagerOpen, setCanvasManagerOpen] = useState(false);
   const [canvasManagerClosing, setCanvasManagerClosing] = useState(false);
   const [canvasManagerMinimalView, setCanvasManagerMinimalView] = useState(false);
@@ -745,32 +745,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const releasingTextCardIds =
     textCardInteractionSnapshot.release?.cards.map(({ card }) => card.id) ?? EMPTY_IDS;
   const renderedLooseTextCards = looseTextCards;
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((current) =>
-      current.map((toast) => (toast.id === id ? { ...toast, exiting: true } : toast)),
-    );
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, 260);
-  }, []);
-
-  const showToast = useCallback(
-    (toast: Omit<ToastMessage, "id"> & { duration?: number }) => {
-      const id = `toast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const nextToast = {
-        id,
-        tone: toast.tone,
-        title: toast.title,
-        message: toast.message,
-        exiting: false,
-      };
-
-      setToasts((current) => [nextToast, ...current].slice(0, 4));
-      window.setTimeout(() => dismissToast(id), toast.duration ?? 4800);
-    },
-    [dismissToast],
-  );
 
   const { imageUrlVersion } = useImageCache({
     activeImages: NO_CACHED_IMAGES,
