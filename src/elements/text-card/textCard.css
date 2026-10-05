@@ -18,7 +18,7 @@
   font-weight: 400;
   transform: scale(1);
   transition-duration: 150ms;
-  transition-property: top, left, width, transform, box-shadow, opacity, border-color;
+  transition-property: translate, width, transform, box-shadow, opacity, border-color;
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
   user-select: none;
 }
@@ -47,7 +47,7 @@
 
 .taskmap-text-card[data-motion="settling"] {
   transition-duration: 180ms;
-  transition-property: top, left, width, transform, opacity, border-color;
+  transition-property: translate, width, transform, opacity, border-color;
   transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
 }
 

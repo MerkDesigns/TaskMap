@@ -204,8 +204,11 @@ function TextCardRendererComponent({
               ? 10000
               : 9999 - Math.max(0, drag.bundleIndex)
             : 20 + view.layer,
-          left: position?.x ?? geometry.x,
-          top: position?.y ?? geometry.y,
+          // Laid out at the origin and translated, like placementStyle: a drop or settle at a
+          // fractional position then never re-rounds the card's border and text.
+          left: 0,
+          top: 0,
+          translate: `${position?.x ?? geometry.x}px ${position?.y ?? geometry.y}px`,
           width: position?.width,
           height: position?.height,
           maxWidth: position?.maxWidth,

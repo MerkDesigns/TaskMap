@@ -62,7 +62,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 - Mind-map nodes can be dragged again.
 - Containers and text blocks follow the pointer while being moved or resized again, instead of
   jumping into place on release.
-- Containers, text blocks and images look exactly the same while dragged and after being placed:
+- Containers, text blocks, images, text cards and mind-map nodes look exactly the same while dragged
+  and after being placed:
   nested borders no longer shimmer, and the header title, icon and search bar no longer shift by
   a pixel on drop.
 - Containers, text blocks and images are sharp again right after zooming, instead of staying

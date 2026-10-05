@@ -70,10 +70,12 @@
    state from the retained projection (what the contribution points need); `App.tsx` still builds
    the `ExtensionCommands` port over the retained callbacks, because toggles depend on selection
    state it owns.
-   Phase 5 leftovers, not blocking: Text Card editing state (draft, editing id) is still in
-   `App.tsx`; element registration in `src/elements/registry.ts` waits until rendering dispatches
-   through the registry; loose text cards and mind-map nodes still position with left/top rather
-   than `placementStyle`.
+   Phase 5 leftovers, not blocking: element registration in `src/elements/registry.ts` waits until
+   rendering dispatches through the registry. Presentation state is moving out of `App.tsx` into
+   `src/legacy/` hooks: in-place editing (`useRetainedInlineEdit`), enter/delete/pulse marks
+   (`useElementPresenceMarks`) and context menus (`useClosingMenu`) are done; selection, toasts,
+   panels and the remaining menus' handlers are still in `App.tsx`. Text cards and mind-map nodes
+   now place with `translate` like the other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.

@@ -88,8 +88,7 @@ describe("TextCardRenderer", () => {
     const { card } = renderCard(textCard());
 
     expect(card).toHaveTextContent("Build");
-    expect(card.style.left).toBe("10px");
-    expect(card.style.top).toBe("20px");
+    expect(card.style.translate).toBe("10px 20px");
     expect(card).toHaveAttribute("data-accent-bar", "true");
   });
 
@@ -217,9 +216,9 @@ describe("TextCardRenderer", () => {
       );
 
     draw({ ...fullView, position: { x: 30, y: 40 } });
-    expect(card.style.left).toBe("30px");
+    expect(card.style.translate).toBe("30px 40px");
     draw({ ...fullView, position: { x: 30, y: 40 } });
-    expect(card.style.left).toBe("30px");
+    expect(card.style.translate).toBe("30px 40px");
     draw({ ...fullView, position: { x: 30, y: 40 } }, textCard({ text: "Renamed" }));
     expect(screen.getByText("Renamed")).toBeInTheDocument();
   });
