@@ -31,4 +31,41 @@ const required = [
 const missing = required.filter((permission) => !capability.permissions.includes(permission));
 if (missing.length) throw new Error(`default capability is missing ${missing.join(", ")}`);
 
-console.log("Window configuration: frameless, resizable, window-control permissions granted.");
+// Edge's browser features (print, save page, find, reload, DevTools keys, pinch zoom, swipe
+// navigation, new windows, the page context menu) stay off on every window the app shows.
+const browserFeatures = await readFile("src-tauri/src/webview_browser_features.rs", "utf8");
+for (const setting of [
+  "SetAreBrowserAcceleratorKeysEnabled",
+  "SetIsStatusBarEnabled",
+  "SetIsZoomControlEnabled",
+  "SetIsGeneralAutofillEnabled",
+  "SetIsPasswordAutosaveEnabled",
+  "SetIsPinchZoomEnabled",
+  "SetIsSwipeNavigationEnabled",
+]) {
+  if (!browserFeatures.includes(`.${setting}(false)`)) {
+    throw new Error(`webview_browser_features.rs must call ${setting}(false)`);
+  }
+}
+for (const handler of ["add_NewWindowRequested", "add_ContextMenuRequested"]) {
+  if (!browserFeatures.includes(handler)) {
+    throw new Error(`webview_browser_features.rs must handle ${handler}`);
+  }
+}
+for (const path of [
+  "src-tauri/src/main.rs",
+  "src-tauri/src/commands/database_window_commands.rs",
+]) {
+  if (!(await readFile(path, "utf8")).includes("disable_browser_features(&window)")) {
+    throw new Error(`${path} must disable WebView2 browser features on the windows it shows`);
+  }
+}
+for (const [name, config] of Object.entries(configs)) {
+  if (config.app.windows[0].zoomHotkeysEnabled) {
+    throw new Error(`${name} window must not enable zoom hotkeys`);
+  }
+}
+
+console.log(
+  "Window configuration: frameless, resizable, window-control permissions granted, browser features off.",
+);

@@ -76,5 +76,9 @@ Architecture v1 (`architecture-v1`), not yet released.
   production frosted-glass tuner.
 - Keyring-based encryption and legacy data migrations inside the app.
 - WebView2's built-in autofill and password saving in the app window.
+- The browser features the app window inherited from Edge: Ctrl+P printing, Ctrl+S saving the
+  page, the find bar, reload, back/forward, caret browsing, DevTools keys, pinch zoom, swipe
+  navigation, the link status bar and links opening new windows. Edge's right-click menu is gone
+  outside text fields; in text fields it keeps only Cut, Copy, Paste and Select all.
 - The old password-protected data export/import and the "Reset local data" recovery button; they
   relied on the pre-database storage and no longer worked.

@@ -10,7 +10,7 @@ mod session;
 mod settings;
 mod storage_preview;
 mod tray;
-mod webview_autofill;
+mod webview_browser_features;
 mod window_state;
 mod workflow;
 
@@ -99,7 +99,7 @@ fn main() {
             tray::install(app.handle())?;
 
             if let Some(window) = app.get_webview_window("main") {
-                webview_autofill::disable_webview_autofill(&window);
+                webview_browser_features::disable_browser_features(&window);
                 windows_session_notifications::install(&window).map_err(std::io::Error::other)?;
                 if let Err(error) = restore_window_state(&window) {
                     eprintln!("Failed to restore window state: {error}");
