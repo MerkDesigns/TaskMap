@@ -82,6 +82,7 @@ import { useToastQueue } from "./components/useToastQueue";
 import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
+import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import {
   CONTAINER_TEXT_CARD_GAP,
   CONTAINER_TEXT_CARD_PADDING,
@@ -485,7 +486,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const [measuredTextCardSizes, setMeasuredTextCardSizes] = useState<
     Record<string, MeasuredTextCardSize>
   >({});
-  const [copiedItem, setCopiedItem] = useState<CopiedCanvasItem | null>(null);
+  const [, setCopiedItem] = useState<CopiedCanvasItem | null>(null);
   const {
     canvasGridStyle,
     setCanvasGridStyle,
@@ -586,40 +587,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const handleConnectionKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (
-        event.code !== "KeyC" ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        isEditableKeyboardTarget(target) ||
-        settingsOpen ||
-        clearModalOpen ||
-        isModalPresenceBlocking()
-      ) {
-        return;
-      }
-      event.preventDefault();
-      setMindmapConnectionMode(true);
-    };
-    const stopConnectionMode = (event?: KeyboardEvent) => {
-      if (event && event.code !== "KeyC") return;
-      setMindmapConnectionMode(false);
-      setMindmapConnectionDrag(null);
-    };
-    const handleBlur = () => stopConnectionMode();
-    window.addEventListener("keydown", handleConnectionKeyDown, true);
-    window.addEventListener("keyup", stopConnectionMode, true);
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      window.removeEventListener("keydown", handleConnectionKeyDown, true);
-      window.removeEventListener("keyup", stopConnectionMode, true);
-      window.removeEventListener("blur", handleBlur);
-    };
-  }, [clearModalOpen, settingsOpen]);
-
   useEffect(
     () => () => {
       textCardInteraction.cancelScheduledPresentation();
@@ -629,23 +596,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
     [textCardInteraction],
   );
-
-  useEffect(() => {
-    const handleShiftDown = (event: KeyboardEvent) => {
-      if (event.key !== "Shift" || event.repeat) return;
-      applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, true);
-    };
-    const handleShiftUp = (event: KeyboardEvent) => {
-      if (event.key !== "Shift") return;
-      applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, false);
-    };
-    window.addEventListener("keydown", handleShiftDown, true);
-    window.addEventListener("keyup", handleShiftUp, true);
-    return () => {
-      window.removeEventListener("keydown", handleShiftDown, true);
-      window.removeEventListener("keyup", handleShiftUp, true);
-    };
-  }, [interactionController, textCardInteraction]);
 
   const containersById = useMemo(
     () => new Map(elements.map((element) => [element.id, element])),
@@ -1366,134 +1316,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const deletionActions = useStableCallbacks({
     deleteCanvasSelection,
   });
-
-  useEffect(() => {
-    const clearFocusedElement = () => {
-      const focusedElement = document.activeElement;
-      if (focusedElement instanceof HTMLElement) {
-        focusedElement.blur();
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Key events can target the document itself; only elements have closest().
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      const isEditingText = isEditableKeyboardTarget(target);
-      const modalOpen =
-        settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking();
-
-      if (modalOpen || target?.closest("[role='dialog'], [aria-modal='true']")) {
-        return;
-      }
-
-      if (
-        event.shiftKey &&
-        !event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        event.key.toLowerCase() === "e" &&
-        !isEditingText
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        clearFocusedElement();
-        closeContextMenus();
-        setQuickExtensionsMenu({
-          left: lastPointerPositionRef.current.x,
-          top: lastPointerPositionRef.current.y,
-        });
-        return;
-      }
-
-      if (
-        event.key === "Tab" &&
-        !isEditingText &&
-        !event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        clearFocusedElement();
-
-        if (event.shiftKey) {
-          if (canvasManagerOpen && !canvasManagerClosing) {
-            switchLeftPanel("extensions");
-            return;
-          }
-
-          if (extensionsOpen && !extensionsClosing) {
-            switchLeftPanel("canvases");
-            return;
-          }
-
-          switchLeftPanel("canvases");
-          return;
-        }
-
-        if (canvasManagerOpen && !canvasManagerClosing) {
-          closeCanvasManager();
-          return;
-        }
-
-        closeExtensionsPanel();
-        setQuickExtensionsMenu(null);
-        switchLeftPanel("canvases");
-        return;
-      }
-
-      if (
-        !isEditingText &&
-        event.key === "Escape" &&
-        // Shared menus close themselves first; the next Escape closes panels.
-        !target?.closest('[role="menu"][data-context-menu]') &&
-        !settingsOpen &&
-        !clearModalOpen &&
-        !updateModalOpen
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        clearFocusedElement();
-        closeContextMenus();
-        closeCanvasManager();
-        closeExtensionsPanel();
-        endRename();
-        return;
-      }
-
-      // A button keeps focus after a click; shortcuts yield only to text editing.
-      if (event.key !== "Delete" || isEditingText) {
-        return;
-      }
-
-      event.preventDefault();
-      deletionActions.deleteCanvasSelection(selectedIds);
-      closeContextMenus();
-      endRename();
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [
-    canvasManagerClosing,
-    canvasManagerOpen,
-    clearModalOpen,
-    closeCanvasManager,
-    closeContextMenus,
-    closeExtensionsPanel,
-    containersById,
-    deletionActions,
-    endRename,
-    extensionsClosing,
-    extensionsOpen,
-    imagesById,
-    selectedIds,
-    settingsOpen,
-    switchLeftPanel,
-    textBlocksById,
-    textCardsById,
-    updateModalOpen,
-  ]);
 
   const getLooseTextCardSelectionBounds = (card: TextCardElement) => {
     const measuredSize = measuredTextCardSizes[card.id];
@@ -3027,47 +2849,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return false;
   };
 
-  const clipboardShortcutActions = useStableCallbacks({
-    copyKeyboardSelection,
-    pasteKeyboardClipboard: () => {
-      const { x, y } = lastPointerPositionRef.current;
-      pasteCopiedItem(x, y);
-    },
-  });
-
-  useEffect(() => {
-    const handleClipboardShortcut = (event: KeyboardEvent) => {
-      if (
-        (!event.ctrlKey && !event.metaKey) ||
-        event.altKey ||
-        event.shiftKey ||
-        isEditableKeyboardTarget(event.target as HTMLElement | null)
-      ) {
-        return;
-      }
-
-      const key = event.key.toLowerCase();
-      if (key === "c") {
-        if (!clipboardShortcutActions.copyKeyboardSelection()) {
-          return;
-        }
-      } else if (key === "v") {
-        if (!hasRetainedCopy) {
-          return;
-        }
-        clipboardShortcutActions.pasteKeyboardClipboard();
-      } else {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-    };
-
-    window.addEventListener("keydown", handleClipboardShortcut, true);
-    return () => window.removeEventListener("keydown", handleClipboardShortcut, true);
-  }, [clipboardShortcutActions, copiedItem, retained, hasRetainedCopy]);
-
   const installExtensions = (extensionId: RetainedExtensionKey, ids: string[]) => {
     const installed = installRetainedViewExtension(
       retained.runtime.callbacks,
@@ -3485,44 +3266,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus();
   };
 
-  const historyActions = useStableCallbacks({ redo, undo });
-
-  useEffect(() => {
-    const handleHistoryKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const modalOpen =
-        settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking();
-
-      if (
-        isEditableKeyboardTarget(target) ||
-        modalOpen ||
-        target?.closest("[role='dialog'], [aria-modal='true']") ||
-        (!event.ctrlKey && !event.metaKey) ||
-        event.altKey
-      ) {
-        return;
-      }
-
-      if (event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          historyActions.redo();
-        } else {
-          historyActions.undo();
-        }
-        return;
-      }
-
-      if (event.key.toLowerCase() === "y" && !event.shiftKey) {
-        event.preventDefault();
-        historyActions.redo();
-      }
-    };
-
-    window.addEventListener("keydown", handleHistoryKeyDown);
-    return () => window.removeEventListener("keydown", handleHistoryKeyDown);
-  }, [clearModalOpen, historyActions, settingsOpen, updateModalOpen]);
-
   const resetCanvasPresentation = () => {
     cancelPendingDeletionCommits(activeCanvas.id);
     textCardInteraction.reset();
@@ -3624,41 +3367,36 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     selectCanvas(nextCanvasId);
   };
 
-  const canvasCycleActions = useStableCallbacks({ cycleCanvases, finishCanvasCycle });
-
-  useEffect(() => {
-    const handleCtrlTab = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (
-        event.key !== "Tab" ||
-        !event.ctrlKey ||
-        event.altKey ||
-        event.metaKey ||
-        isEditableKeyboardTarget(target)
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      canvasCycleActions.cycleCanvases(event.shiftKey ? -1 : 1);
-    };
-    const handleCtrlRelease = (event: KeyboardEvent) => {
-      if (
-        (event.key === "Control" || event.key === "ControlLeft" || event.key === "ControlRight") &&
-        canvasCycleSessionRef.current
-      ) {
-        canvasCycleActions.finishCanvasCycle();
-      }
-    };
-
-    window.addEventListener("keydown", handleCtrlTab, true);
-    window.addEventListener("keyup", handleCtrlRelease, true);
-    return () => {
-      window.removeEventListener("keydown", handleCtrlTab, true);
-      window.removeEventListener("keyup", handleCtrlRelease, true);
-    };
-  }, [canvasCycleActions]);
+  useCanvasShortcuts({
+    modalOpen: () => settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking(),
+    setConnectionMode: (active) => {
+      setMindmapConnectionMode(active);
+      if (!active) setMindmapConnectionDrag(null);
+    },
+    setShiftHeld: (held) =>
+      applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, held),
+    openQuickExtensionsAtPointer: () =>
+      setQuickExtensionsMenu({
+        left: lastPointerPositionRef.current.x,
+        top: lastPointerPositionRef.current.y,
+      }),
+    closeQuickExtensions: () => setQuickExtensionsMenu(null),
+    leftPanel,
+    closeContextMenus,
+    endRename,
+    deleteSelection: () => deletionActions.deleteCanvasSelection(selectedIds),
+    copySelection: copyKeyboardSelection,
+    canPaste: () => hasRetainedCopy,
+    pasteAtPointer: () => {
+      const { x, y } = lastPointerPositionRef.current;
+      pasteCopiedItem(x, y);
+    },
+    undo,
+    redo,
+    cycleCanvases,
+    cyclingCanvases: () => canvasCycleSessionRef.current !== null,
+    finishCanvasCycle,
+  });
 
   const radii = useWorkspaceRadii();
   // Sleep mode: the side panel closes with the chrome islands and reopens when they wake.
