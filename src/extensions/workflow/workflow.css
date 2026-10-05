@@ -185,36 +185,100 @@
   border-radius: var(--taskmap-radius-small);
 }
 
-/* The run button after a workflow card's text. Negative margins pull it into the card's padding,
+/* The run button before a workflow card's text. Negative margins pull it into the card's padding,
    like the Checkbox's tick box, so it barely widens the card. */
 
 .taskmap-extension-workflow {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
-  margin: -6px -8px -6px 6px;
+  margin: -7px 5px -7px -10px;
   border-radius: 0.25rem;
-  color: rgb(255 255 255 / 0.62);
+  color: #fff;
   place-items: center;
   transition:
-    color 150ms cubic-bezier(0.4, 0, 0.2, 1),
-    background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    transform 150ms ease-out,
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out,
+    color 150ms ease-out;
+}
+
+.taskmap-extension-workflow:disabled {
+  cursor: not-allowed;
 }
 
 .taskmap-extension-workflow:hover:not(:disabled) {
   background-color: rgb(255 255 255 / 0.1);
-  color: #fff;
 }
 
-.taskmap-extension-workflow:disabled {
-  color: rgb(255 255 255 / 0.28);
+.taskmap-extension-workflow[data-state="running"]:hover {
+  background-color: rgb(239 68 68 / 0.2);
+  color: rgb(252 165 165);
 }
 
-.taskmap-extension-workflow[data-state="running"] {
-  color: rgb(52 211 153);
-}
-
+/* The last run failed: the play icon stays, tinted, and the title names the failed command. */
 .taskmap-extension-workflow[data-state="failed"] {
   color: rgb(251 191 36);
+}
+
+.taskmap-extension-workflow__play {
+  transition: transform 150ms ease-out;
+}
+
+.taskmap-extension-workflow:active:not(:disabled) .taskmap-extension-workflow__play {
+  transform: translateX(2px) scale(0.88);
+}
+
+.taskmap-extension-workflow__running {
+  animation: taskmap-extension-workflow-spin 1.3s linear infinite;
+}
+
+.taskmap-extension-workflow__stop,
+.taskmap-extension-workflow:hover .taskmap-extension-workflow__running {
+  display: none;
+}
+
+.taskmap-extension-workflow:hover .taskmap-extension-workflow__stop {
+  display: block;
+}
+
+.taskmap-extension-workflow--pressed {
+  animation: taskmap-extension-workflow-press 380ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+@keyframes taskmap-extension-workflow-press {
+  0% {
+    box-shadow: 0 0 0 rgb(255 255 255 / 0);
+    transform: scale(1) rotate(0deg);
+  }
+
+  28% {
+    background-color: rgb(255 255 255 / 0.2);
+    box-shadow: 0 0 16px rgb(255 255 255 / 0.55);
+    transform: scale(0.7) rotate(-8deg);
+  }
+
+  68% {
+    box-shadow: 0 0 10px rgb(255 255 255 / 0.28);
+    transform: scale(1.12) rotate(3deg);
+  }
+
+  100% {
+    box-shadow: 0 0 0 rgb(255 255 255 / 0);
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes taskmap-extension-workflow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-extension-workflow__running,
+  .taskmap-extension-workflow--pressed {
+    animation: none;
+  }
 }

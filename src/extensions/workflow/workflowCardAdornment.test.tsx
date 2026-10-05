@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mockExtensionCommands } from "../extensionCommandsTestSupport";
@@ -19,14 +19,20 @@ const line: WorkflowLine = {
   display: "background",
 };
 
-function renderButton(run: CardWorkflowRun | null, lines: WorkflowLine[] = [line]) {
+function renderButton(
+  run: CardWorkflowRun | null,
+  lines: WorkflowLine[] = [line],
+  reducedMotion = true,
+) {
   const commands = { ...mockExtensionCommands(), getWorkflowRun: vi.fn(() => run) };
-  const Trailing = workflowCardAdornment.Trailing!;
+  const Leading = workflowCardAdornment.Leading!;
   render(
-    <Trailing
-      context={{ elementId: "card", accent: "#fff", extensions: { workflow: { lines } } }}
-      commands={commands}
-    />,
+    <ReducedMotionProvider override={reducedMotion}>
+      <Leading
+        context={{ elementId: "card", accent: "#fff", extensions: { workflow: { lines } } }}
+        commands={commands}
+      />
+    </ReducedMotionProvider>,
   );
   return commands;
 }
@@ -38,6 +44,15 @@ describe("workflow run button", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Run workflow" }));
 
     expect(commands.runWorkflow).toHaveBeenCalledWith("card");
+  });
+
+  it("plays the press before starting the run", async () => {
+    const commands = renderButton(null, [line], false);
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Run workflow" }));
+
+    expect(commands.runWorkflow).not.toHaveBeenCalled();
+    await waitFor(() => expect(commands.runWorkflow).toHaveBeenCalledWith("card"));
   });
 
   it("stops a running workflow", async () => {

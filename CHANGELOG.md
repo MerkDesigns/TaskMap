@@ -12,11 +12,11 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 - Workflow extension for text cards, replacing the old Command Runner: in a movable, resizable
   window you type one command per line (`npm run dev`, `a && b`, `start http://localhost:3000`),
-  with an optional working directory and a terminal window or the background. A run button starts
-  all lines and stops everything it started. TaskMap reads the commands itself instead of handing
-  them to a shell, so pipes, redirects and `%VARIABLES%` are not supported, and nothing runs as
-  administrator. Workflows you write are trusted on this PC; one that comes from elsewhere is shown
-  for review before it can run.
+  with an optional working directory and a terminal window or the background. The Command Runner's
+  play button before the card's text starts all lines, spins while they run and stops everything
+  they started. TaskMap reads the commands itself instead of handing them to a shell, so pipes,
+  redirects and `%VARIABLES%` are not supported, and nothing runs as administrator. Workflows you
+  write are trusted on this PC; one that comes from elsewhere is shown for review before it can run.
 - Encrypted `.tmapdb` databases: a password protects canvas content (Argon2id + authenticated
   encryption); images and GIFs are stored unencrypted for performance.
 - Unlock screen that opens the most recent database directly, with a recent-database list, Caps

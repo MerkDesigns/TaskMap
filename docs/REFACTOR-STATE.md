@@ -58,7 +58,7 @@
    First slice done: `src-tauri/src/workflow/` launches structured steps without a shell, tracks them
    in jobs and keeps per-device trust; `src/extensions/workflow/` has the definition, editor
    (a floating window: typed command lines parsed by `commandLine.ts`, folder picker), run/stop button
-   (a trailing card adornment), run store and trust review. Next: keeping a terminal open after
+   (a leading card adornment), run store and trust review. Next: keeping a terminal open after
    exit, and output capture, if wanted.
 3. Phase 6 extensions, for reference: contribution points in `src/extensions/` (header controls,
    header rows, card adornments, menu items, content states; ADR 008), rules in
