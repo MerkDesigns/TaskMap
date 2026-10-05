@@ -50,7 +50,6 @@ import {
   AppData,
   ContainerElement,
   ContainerMenuState,
-  CopiedCanvasItem,
   ImageElement,
   MindmapPort,
   TaskCanvas,
@@ -58,7 +57,6 @@ import {
   TextCardElement,
 } from "./types";
 import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
-import { cloneExtensions } from "./app/appData";
 import { commandErrorMessage } from "./app/commandError";
 import { planCanvasDeletion } from "./app/canvasDocument";
 import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY } from "./app/defaultData";
@@ -486,7 +484,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const [measuredTextCardSizes, setMeasuredTextCardSizes] = useState<
     Record<string, MeasuredTextCardSize>
   >({});
-  const [, setCopiedItem] = useState<CopiedCanvasItem | null>(null);
   const {
     canvasGridStyle,
     setCanvasGridStyle,
@@ -1688,29 +1685,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus();
   };
 
-  const copyImage = (image: ImageElement) => {
-    if (copyContextSelection(image.id)) {
-      return;
-    }
-
-    setCopiedItem({
-      type: "image",
-      item: {
-        imageId: image.imageId,
-        format: image.format,
-        x: image.x,
-        y: image.y,
-        width: image.width,
-        height: image.height,
-        naturalWidth: image.naturalWidth,
-        naturalHeight: image.naturalHeight,
-        accent: image.accent,
-        background: image.background,
-        extensions: cloneExtensions(image.extensions),
-      },
-    });
-    closeContextMenus();
-  };
+  const copyImage = (image: ImageElement) => copyContextSelection(image.id);
 
   const createLooseTextCard = (
     clientX: number,
@@ -2595,78 +2570,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return true;
   };
 
-  const copyContainer = (element: ContainerElement) => {
-    if (copyContextSelection(element.id)) {
-      return;
-    }
+  const copyContainer = (element: ContainerElement) => copyContextSelection(element.id);
 
-    setCopiedItem({
-      type: "container",
-      item: {
-        name: element.name,
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-        accent: element.accent,
-        headerButtonsVisible: element.headerButtonsVisible,
-        extensions: cloneExtensions(element.extensions),
-        textCards: getOrderedContainerTextCards(element.id).map((card) => ({
-          kind: card.kind,
-          text: card.text,
-          accent: card.accent,
-          link: card.kind === "mindmap" ? undefined : card.link,
-          order: card.order,
-          extensions: cloneExtensions(card.extensions),
-          sourceId: card.id,
-        })),
-      },
-    });
-    closeContextMenus();
-  };
+  const copyTextCard = (card: TextCardElement) => copyContextSelection(card.id);
 
-  const copyTextCard = (card: TextCardElement) => {
-    if (copyContextSelection(card.id)) {
-      return;
-    }
-
-    const position = getTextCardCopyPosition(card);
-    setCopiedItem({
-      type: "text-card",
-      item: {
-        kind: card.kind,
-        text: card.text,
-        accent: card.accent,
-        link: card.kind === "mindmap" ? undefined : card.link,
-        x: position.x,
-        y: position.y,
-        extensions: cloneExtensions(card.extensions),
-      },
-    });
-    closeContextMenus();
-  };
-
-  const copyTextBlock = (element: TextBlockElement) => {
-    if (copyContextSelection(element.id)) {
-      return;
-    }
-
-    setCopiedItem({
-      type: "text-block",
-      item: {
-        name: element.name,
-        text: element.text,
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-        accent: element.accent,
-        headerButtonsVisible: element.headerButtonsVisible,
-        extensions: cloneExtensions(element.extensions),
-      },
-    });
-    closeContextMenus();
-  };
+  const copyTextBlock = (element: TextBlockElement) => copyContextSelection(element.id);
 
   const pasteCopiedItem = (clientX: number, clientY: number, targetContainerId?: string) => {
     const copy = retainedCopy.current;
@@ -3253,7 +3161,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     rename.end();
     textCardEdit.end();
     textBlockEdit.end();
-    setCopiedItem(null);
     closeContextMenus();
   };
 
@@ -3262,7 +3169,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     rename.end();
     textCardEdit.end();
     textBlockEdit.end();
-    setCopiedItem(null);
     closeContextMenus();
   };
 

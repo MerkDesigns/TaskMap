@@ -16,9 +16,6 @@ type LegacyAppData = Partial<AppData> & {
   zoom?: number;
 };
 
-export const cloneExtensions = (extensions?: ElementExtensions) =>
-  extensions ? structuredClone(extensions) : undefined;
-
 type UnknownRecord = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is UnknownRecord =>
