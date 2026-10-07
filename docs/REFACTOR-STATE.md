@@ -80,9 +80,10 @@
    (`useConnectionDrawing`) and new-element builders (`newCanvasElements.ts`) are done, with the
    extension drop hit test in `extensionDropTarget.ts`. Rendering moved to `RetainedCanvasMenus`,
    `RetainedContainerLayer`/`RetainedElementLayers` (sharing `retainedElementPresentation.ts`) and
-   `RetainedCanvasOverlays`. Still in `App.tsx`: the move/resize/pan/box-selection and text-card
-   drag gestures around the interaction controller, container card layout helpers, canvas
-   management and settings wiring. Text cards and mind-map nodes place with `translate` like the
+   `RetainedCanvasOverlays`. Pointer gestures live in `useCanvasGestures` (routing, pan, box
+   selection, wheel) and `canvasElementGestures.ts` (moves, resizes, card drags). Still in
+   `App.tsx`: container card layout helpers, element measurement and connection bounds, canvas
+   management, settings wiring and the workspace markup. Text cards and mind-map nodes place with `translate` like the
    other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
