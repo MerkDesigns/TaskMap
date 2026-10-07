@@ -44,12 +44,11 @@ import {
   AppData,
   ContainerElement,
   ImageElement,
-  MindmapPort,
   TaskCanvas,
   TextBlockElement,
   TextCardElement,
 } from "./types";
-import { getMindmapPortPoint, type MindmapBounds } from "./mindmapMath";
+import type { MindmapBounds } from "./mindmapMath";
 import { commandErrorMessage } from "./app/commandError";
 import { planCanvasDeletion } from "./app/canvasDocument";
 import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY } from "./app/defaultData";
@@ -65,10 +64,10 @@ import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
 import { installRetainedViewExtension } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
 import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks";
-import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
+import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
 import {
   extensionDropTargetIds,
   findExtensionDropTarget,
@@ -177,15 +176,6 @@ const DevelopmentFpsCounter = import.meta.env.DEV
       import("./components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
     )
   : null;
-type MindmapConnectionDrag = {
-  pointerId: number;
-  sourceId: string;
-  sourcePort: MindmapPort;
-  source: { x: number; y: number };
-  target: { x: number; y: number };
-  targetId?: string;
-  targetPort?: MindmapPort;
-};
 
 type MeasuredTextCardSize = {
   canvasId: string;
@@ -400,7 +390,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     select: (ids) => setSelectedIds(ids),
     endRename: () => rename.end(),
     endTextCardEdit: () => textCardEdit.end(),
-    connectionMode: () => mindmapConnectionMode,
+    connectionMode: () => connectionDrawing.mode,
   });
   const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
   const { editingId: renamingId, draft: renameDraft, end: endRename } = rename;
@@ -408,9 +398,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { editingId: editingTextCardId, draft: textCardDraft } = textCardEdit;
   const textBlockEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
   const { editingId: editingTextBlockId, draft: textBlockDraft } = textBlockEdit;
-  const retainedConnection = useRef<CapturedCompletion<
-    import("./app/commands/retainedConnectionCallbacks").ConnectionCompletion
-  > | null>(null);
   useEffect(() => {
     const reset = () => {
       if (!retained.runtime.controller.store.getState().documentWorkspace.document) {
@@ -421,10 +408,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         };
         latestDataGetterRef.current = () => latestAppDataRef.current;
       }
-      retainedConnection.current?.cancel();
-      retainedConnection.current = null;
       textCardInteraction.reset();
-      setMindmapConnectionDrag(null);
     };
     const unsubscribe = retained.runtime.callbacks.subscribeInvalidation(reset);
     return () => {
@@ -432,10 +416,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       reset();
     };
   }, [retained, textCardInteraction]);
-  const [mindmapConnectionMode, setMindmapConnectionMode] = useState(false);
-  const [mindmapConnectionDrag, setMindmapConnectionDrag] = useState<MindmapConnectionDrag | null>(
-    null,
-  );
   const [measuredTextCardSizes, setMeasuredTextCardSizes] = useState<
     Record<string, MeasuredTextCardSize>
   >({});
@@ -614,12 +594,23 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       ),
     [elements, textBlocks, textCards, images, allowLockedElementDeletion],
   );
-  const isConnectableElement = (id: string) =>
-    containersById.has(id) ||
-    textBlocksById.has(id) ||
-    imagesById.has(id) ||
-    textCardsById.get(id)?.kind === "mindmap";
   const isElementDeletionLocked = (id: string) => deletionProtected.has(id);
+  const connectionDrawing = useConnectionDrawing({
+    callbacks: retained.runtime.callbacks,
+    boundsOf: (id) => getConnectableElementBounds(id),
+    connected: (first, second) =>
+      mindmapConnections.some(
+        (connection) =>
+          (connection.sourceId === first && connection.targetId === second) ||
+          (connection.sourceId === second && connection.targetId === first),
+      ),
+    isMindmapNode: (id) => textCardsById.get(id)?.kind === "mindmap",
+    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
+    mindmapAccent: () => defaultElementColors.mindmap,
+    onNodeCreated: (id) => animateTextCardIn(id),
+    closeContextMenus: () => closeContextMenus(),
+  });
   const draggedTextCardIds =
     interactionSnapshot.activeInteraction?.kind === "move"
       ? interactionSnapshot.activeInteraction.targetIds.filter((id) => textCardsById.has(id))
@@ -1256,29 +1247,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return null;
   };
 
-  const getAvailableMindmapEndpoint = (clientX: number, clientY: number, sourceId: string) => {
-    const targetNode = document
-      .elementFromPoint(clientX, clientY)
-      ?.closest<HTMLElement>("[data-connection-port]");
-    const targetId = targetNode?.dataset.connectionPortOwner;
-    const targetPort = targetNode?.dataset.connectionPort as MindmapPort | undefined;
-    if (
-      !targetId ||
-      !targetPort ||
-      targetId === sourceId ||
-      !isConnectableElement(targetId) ||
-      mindmapConnections.some(
-        (connection) =>
-          (connection.sourceId === sourceId && connection.targetId === targetId) ||
-          (connection.sourceId === targetId && connection.targetId === sourceId),
-      )
-    ) {
-      return null;
-    }
-
-    return { id: targetId, port: targetPort };
-  };
-
   const getMeasuredTextCardBounds = (card: TextCardElement): DropBounds | null => {
     const { zoom } = interactionController.getSnapshot().viewport;
     const node = worldRef.current?.querySelector<HTMLElement>(`[data-text-card-id="${card.id}"]`);
@@ -1698,29 +1666,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (mindmapConnectionDrag?.pointerId === event.pointerId) {
-      const endpoint = getAvailableMindmapEndpoint(
-        event.clientX,
-        event.clientY,
-        mindmapConnectionDrag.sourceId,
-      );
-      const targetBounds = endpoint ? getConnectableElementBounds(endpoint.id) : null;
-      const target =
-        endpoint && targetBounds
-          ? getMindmapPortPoint(targetBounds, endpoint.port)
-          : canvasPointFromEvent(event);
-      setMindmapConnectionDrag((current) =>
-        current
-          ? {
-              ...current,
-              target,
-              targetId: endpoint?.id,
-              targetPort: endpoint?.port,
-            }
-          : current,
-      );
-      return;
-    }
+    if (connectionDrawing.move(event)) return;
     interactionController.updatePointer({
       pointerId: event.pointerId,
       screen: { x: event.clientX, y: event.clientY },
@@ -1743,39 +1689,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
   };
   const stopDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (mindmapConnectionDrag?.pointerId === event.pointerId) {
-      const endpoint = getAvailableMindmapEndpoint(
-        event.clientX,
-        event.clientY,
-        mindmapConnectionDrag.sourceId,
-      );
-      const captured = retainedConnection.current;
-      retainedConnection.current = null;
-      const connectionId = createEntityId("connection") as ConnectionId;
-      if (endpoint) {
-        captured?.complete({
-          connectionId,
-          target: { elementId: endpoint.id as ElementId, portId: endpoint.port },
-        });
-      } else if (textCardsById.get(mindmapConnectionDrag.sourceId)?.kind === "mindmap") {
-        const point = canvasPointFromEvent(event);
-        const id = createEntityId("element") as ElementId;
-        const result = captured?.complete({
-          connectionId,
-          newNode: {
-            id,
-            geometry: {
-              x: clamp(point.x, 0, canvasWidth),
-              y: clamp(point.y, 0, canvasHeight),
-              width: 1,
-              height: 1,
-            },
-            data: { text: "Mindmap", accent: defaultElementColors.mindmap },
-          },
-        });
-        if (result?.ok) animateTextCardIn(id);
-      } else captured?.cancel();
-      setMindmapConnectionDrag(null);
+    if (connectionDrawing.finish(event)) {
       if (event.currentTarget.hasPointerCapture(event.pointerId))
         event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -1811,11 +1725,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
   };
   const cancelDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (mindmapConnectionDrag?.pointerId === event.pointerId) {
-      retainedConnection.current?.cancel();
-      retainedConnection.current = null;
-      setMindmapConnectionDrag(null);
-    }
+    connectionDrawing.cancelPointer(event.pointerId);
     interactionController.cancelPointer(event.pointerId);
     textCardInteraction.cancelActive(event.pointerId);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -1939,35 +1849,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     beginElementMove(event, element.id);
   };
 
-  const startMindmapConnection = (
-    event: PointerEvent<HTMLButtonElement>,
-    ownerId: string,
-    port: MindmapPort,
-  ) => {
-    if (event.button !== 0 || !mindmapConnectionMode) return;
-    event.preventDefault();
-    event.stopPropagation();
-    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
-      event.pointerId,
-    );
-    const bounds = getConnectableElementBounds(ownerId);
-    if (!bounds) return;
-    retainedConnection.current?.cancel();
-    retainedConnection.current = retained.runtime.callbacks.captureConnection(
-      ownerId as ElementId,
-      port,
-    );
-    if (!retainedConnection.current) return;
-    const source = getMindmapPortPoint(bounds, port);
-    setMindmapConnectionDrag({
-      pointerId: event.pointerId,
-      sourceId: ownerId,
-      sourcePort: port,
-      source,
-      target: source,
-    });
-    closeContextMenus();
-  };
+  const startMindmapConnection = connectionDrawing.start;
 
   const startResize = (
     event: PointerEvent<HTMLButtonElement>,
@@ -2535,7 +2417,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     rename.end();
     textCardEdit.end();
     textBlockEdit.end();
-    setMindmapConnectionDrag(null);
+    connectionDrawing.cancel();
     closeContextMenus();
   };
 
@@ -2630,10 +2512,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   useCanvasShortcuts({
     modalOpen: () => settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking(),
-    setConnectionMode: (active) => {
-      setMindmapConnectionMode(active);
-      if (!active) setMindmapConnectionDrag(null);
-    },
+    setConnectionMode: connectionDrawing.setConnectionMode,
     setShiftHeld: (held) =>
       applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, held),
     openQuickExtensionsAtPointer: () =>
@@ -3263,8 +3142,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 connectableBoundsById={connectableBoundsById}
                 canvasWidth={canvasWidth}
                 canvasHeight={canvasHeight}
-                connectionMode={mindmapConnectionMode}
-                preview={mindmapConnectionDrag}
+                connectionMode={connectionDrawing.mode}
+                preview={connectionDrawing.draft}
                 onConnectionClick={openMindmapConnectionMenu}
               />
               <LegacyCanvasVisibility
@@ -3328,7 +3207,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               cardActions={textCardActions}
               extensionCommands={extensionCommands}
               connectionPorts={
-                mindmapConnectionMode
+                connectionDrawing.mode
                   ? {
                       bounds: connectableBoundsById,
                       accentOf: (ownerId) => {
@@ -3342,7 +3221,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                             : defaultElementColors.mindmap)
                         );
                       },
-                      drag: mindmapConnectionDrag,
+                      drag: connectionDrawing.draft,
                       onStartConnection: startMindmapConnection,
                     }
                   : null
