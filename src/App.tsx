@@ -63,6 +63,7 @@ import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
+import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { ContainerLayer, type ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import {
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
@@ -73,6 +74,7 @@ import {
 } from "./legacy/containerCardLayout";
 import {
   ElementShadowLayer,
+  elementShadows,
   ImageLayer,
   LooseTextCardLayer,
   TextBlockLayer,
@@ -94,7 +96,6 @@ import { LegacyCanvasVisibility } from "./legacy/interactions/LegacyCanvasVisibi
 import { useLegacyInteractionSnapshot } from "./legacy/interactions/useLegacyInteractionSnapshot";
 import { useLegacyCameraPresentation } from "./legacy/interactions/useLegacyCameraPresentation";
 import { getLegacyInteractionElements } from "./legacy/interactions/legacyCanvasGeometry";
-import { projectLegacyGeometry } from "./legacy/interactions/legacyCanvasGeometry";
 import { applyLegacySelectionAction } from "./legacy/interactions/legacySelectionCompatibility";
 import { createLegacyTextCardInteractionService } from "./legacy/interactions/legacyTextCardInteraction";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
@@ -124,16 +125,6 @@ const isEditableKeyboardTarget = (target: HTMLElement | null) =>
 
 const CANVAS_CONTENT_INSET = 1;
 const EMPTY_IDS: string[] = [];
-const LOOSE_TEXT_CARD_RENDER_WIDTH = 540;
-const LOOSE_TEXT_CARD_RENDER_HEIGHT = 320;
-
-type Rectangle = { left: number; top: number; width: number; height: number };
-
-type CanvasElementShadow = Rectangle & {
-  id: string;
-  radius: number;
-  strength: "shell" | "card";
-};
 
 type CallbackMap = Record<string, (...args: never[]) => unknown>;
 
@@ -175,37 +166,6 @@ const useRevisionToken = (dependencies: readonly unknown[]) => {
   }
 
   return revisionRef.current!.token;
-};
-
-const useCanvasLayers = <T extends { id: string; layer?: number }>(
-  items: T[],
-  layerMap: Map<string, number>,
-): T[] => {
-  const cacheRef = useRef(new Map<string, { source: T; layer?: number; result: T }>());
-
-  return useMemo(() => {
-    const activeIds = new Set(items.map((item) => item.id));
-    cacheRef.current.forEach((_, id) => {
-      if (!activeIds.has(id)) cacheRef.current.delete(id);
-    });
-
-    return items.map((item) => {
-      const layer = layerMap.get(item.id) ?? item.layer;
-      if (layer === item.layer) {
-        cacheRef.current.delete(item.id);
-        return item;
-      }
-
-      const cached = cacheRef.current.get(item.id);
-      if (cached?.source === item && cached.layer === layer) {
-        return cached.result;
-      }
-
-      const result = { ...item, layer };
-      cacheRef.current.set(item.id, { source: item, layer, result });
-      return result;
-    });
-  }, [items, layerMap]);
 };
 
 interface AppProps {
@@ -590,56 +550,19 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
 
   const moveCanvasLayers = (id: string, direction: "back" | "backward" | "forward" | "front") => {
-    const topLevelItems = [
-      ...elements,
-      ...textBlocks,
-      ...textCards.filter((card) => !card.containerId),
-      ...images.filter((image) => !image.containerId),
-    ].sort(
-      (left, right) =>
-        (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER),
-    );
-    const topLevelIds = new Set(topLevelItems.map((item) => item.id));
-    const actionIds = getLayerActionIds(id, (actionId) => topLevelIds.has(actionId));
-    interactionController.reorder(actionIds, direction);
+    interactionController.reorder(getLayerActionIds(id, layers.isTopLevel), direction);
     rename.end();
   };
 
-  const topLevelLayerMap = useMemo(() => {
-    const ordered = [
-      ...elements,
-      ...textBlocks,
-      ...textCards.filter((card) => !card.containerId),
-      ...images.filter((image) => !image.containerId),
-    ].sort(
-      (left, right) =>
-        (left.layer ?? Number.MAX_SAFE_INTEGER) - (right.layer ?? Number.MAX_SAFE_INTEGER),
-    );
-
-    return new Map(ordered.map((item, index) => [item.id, index]));
-  }, [elements, images, textBlocks, textCards]);
-
-  const previewGeometries = interactionSnapshot.geometryPreviews;
-  const settledLayeredElements = useCanvasLayers(elements, topLevelLayerMap);
-  const settledLayeredTextBlocks = useCanvasLayers(textBlocks, topLevelLayerMap);
-  const settledLayeredLooseTextCards = useCanvasLayers(renderedLooseTextCards, topLevelLayerMap);
-  const settledLayeredLooseImages = useCanvasLayers(looseImages, topLevelLayerMap);
-  const layeredElements = useMemo(
-    () => projectLegacyGeometry(settledLayeredElements, previewGeometries),
-    [previewGeometries, settledLayeredElements],
-  );
-  const layeredTextBlocks = useMemo(
-    () => projectLegacyGeometry(settledLayeredTextBlocks, previewGeometries),
-    [previewGeometries, settledLayeredTextBlocks],
-  );
-  const layeredLooseTextCards = useMemo(
-    () => projectLegacyGeometry(settledLayeredLooseTextCards, previewGeometries),
-    [previewGeometries, settledLayeredLooseTextCards],
-  );
-  const layeredLooseImages = useMemo(
-    () => projectLegacyGeometry(settledLayeredLooseImages, previewGeometries),
-    [previewGeometries, settledLayeredLooseImages],
-  );
+  const layers = useLayeredCanvasElements({
+    containers: elements,
+    textBlocks,
+    textCards,
+    images,
+    looseCards: renderedLooseTextCards,
+    looseImages,
+    previews: interactionSnapshot.geometryPreviews,
+  });
 
   const animateContainerIn = (id: string) => presenceMarks.animateIn("containers", id);
 
@@ -1288,23 +1211,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     dragPinnedIds.forEach((id) => ids.add(id));
     return ids;
   }, [dragPinnedIds, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
-  const cullableElements = useMemo(
-    () => [
-      ...layeredElements.map((element) => ({ id: element.id, geometry: element })),
-      ...layeredTextBlocks.map((element) => ({ id: element.id, geometry: element })),
-      ...layeredLooseTextCards.map((card) => ({
-        id: card.id,
-        geometry: {
-          x: card.x,
-          y: card.y,
-          width: LOOSE_TEXT_CARD_RENDER_WIDTH,
-          height: LOOSE_TEXT_CARD_RENDER_HEIGHT,
-        },
-      })),
-      ...layeredLooseImages.map((image) => ({ id: image.id, geometry: image })),
-    ],
-    [layeredElements, layeredLooseImages, layeredLooseTextCards, layeredTextBlocks],
-  );
   const minimapViewportWorld = viewportWorldRectangle(interactionSnapshot.viewport);
   const connectableBoundsById = connectableBounds(
     {
@@ -1316,76 +1222,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     getLooseTextCardSelectionBounds,
     (id) => interactionGeometryById.get(id),
   );
-  const canvasElementShadows: CanvasElementShadow[] = [
-    ...layeredElements
-      .filter((element) => !deletingIds.includes(element.id))
-      .map((element) => ({
-        id: element.id,
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        radius: 12,
-        strength: "shell" as const,
-      })),
-    ...layeredTextBlocks
-      .filter((element) => !deletingTextBlockIds.includes(element.id))
-      .map((element) => ({
-        id: element.id,
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        radius: 12,
-        strength: "shell" as const,
-      })),
-    ...layeredLooseTextCards.flatMap((card) => {
-      if (
-        activeTextCardPresentation?.ids.includes(card.id) ||
-        releasingTextCardIds.includes(card.id)
-      ) {
-        return [];
-      }
-      const draggingTextCard = draggedTextCardIds.includes(card.id);
-      if ((card.containerId && !draggingTextCard) || deletingTextCardIds.includes(card.id)) {
-        return [];
-      }
-      const bounds = getLooseTextCardSelectionBounds(card);
-      const preview = interactionGeometryById.get(card.id);
-      return [
-        {
-          id: card.id,
-          left: preview?.x ?? card.x,
-          top: preview?.y ?? card.y,
-          width: preview?.width ?? bounds.width,
-          height: preview?.height ?? bounds.height,
-          radius: 8,
-          strength: "card" as const,
-        },
-      ];
-    }),
-    ...layeredLooseImages.flatMap((image) => {
-      const chromeless =
-        Boolean((image as unknown as RetainedImageView).media) &&
-        !loadingImageIds.includes(image.id) &&
-        image.background === false;
-      if (chromeless || deletingImageIds.includes(image.id)) {
-        return [];
-      }
-
-      return [
-        {
-          id: image.id,
-          left: image.x,
-          top: image.y,
-          width: image.width,
-          height: image.height,
-          radius: 12,
-          strength: "card" as const,
-        },
-      ];
-    }),
-  ];
+  const overlaidTextCardIds = [...(activeTextCardPresentation?.ids ?? []), ...releasingTextCardIds];
+  const canvasElementShadows = elementShadows(layers, {
+    deleting: presenceMarks.deleting,
+    overlaidCardIds: overlaidTextCardIds,
+    draggedCardIds: draggedTextCardIds,
+    cardSize: getLooseTextCardSelectionBounds,
+    preview: (id) => interactionGeometryById.get(id),
+    chromeless: (image) =>
+      Boolean((image as unknown as RetainedImageView).media) &&
+      !loadingImageIds.includes(image.id) &&
+      image.background === false,
+  });
   const canvasManagerCanvases = useMemo(
     () => lifecycleActions.getCanvasBrowserCanvases(),
     // The stable callback reads these document revisions. Camera frames are excluded.
@@ -1440,7 +1288,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         ? `${editingTextCardId}\u0000${textCardDraft}`
         : "",
   };
-  const overlaidTextCardIds = [...(activeTextCardPresentation?.ids ?? []), ...releasingTextCardIds];
 
   return (
     <WorkspaceRoot
@@ -1535,7 +1382,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               />
               <LegacyCanvasVisibility
                 controller={interactionController}
-                elements={cullableElements}
+                elements={layers.cullable}
                 pinnedIds={pinnedRenderIds}
               >
                 {(visibleRenderIds) => (
@@ -1548,7 +1395,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                       />
                     )}
                     <ContainerLayer
-                      elements={layeredElements}
+                      elements={layers.containers}
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
                       layout={containerCardLayout}
@@ -1557,14 +1404,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                       extensionCommands={extensionCommands}
                     />
                     <TextBlockLayer
-                      elements={layeredTextBlocks}
+                      elements={layers.textBlocks}
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
                       actions={elementActions.textBlock}
                       extensionCommands={extensionCommands}
                     />
                     <LooseTextCardLayer
-                      elements={layeredLooseTextCards}
+                      elements={layers.looseCards}
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
                       hiddenIds={overlaidTextCardIds}
@@ -1573,7 +1420,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                       extensionCommands={extensionCommands}
                     />
                     <ImageLayer
-                      elements={layeredLooseImages}
+                      elements={layers.images}
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
                       actions={elementActions.image}

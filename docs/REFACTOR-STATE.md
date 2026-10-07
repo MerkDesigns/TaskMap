@@ -90,8 +90,9 @@
    `canvasElementBounds.ts`. The Settings dialog, update prompt and settings error banner render
    through `RetainedSettingsDialog`; the side panel, minimap, toolbar and quick extensions menu
    through `RetainedWorkspaceChrome` (minimap timing in `useMinimapPresence`), and snap guides
-   through `CanvasSnapGuides`. Still in `App.tsx`: the canvas stage markup and the element
-   derivations and action wiring it feeds. Text cards and mind-map nodes place with `translate` like the
+   through `CanvasSnapGuides`. Layer order, gesture previews and culling boxes come from
+   `useLayeredCanvasElements`, and shadow rectangles from `elementShadows`. Still in `App.tsx`: the
+   canvas stage markup and the presentation props it assembles. Text cards and mind-map nodes place with `translate` like the
    other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it

@@ -13,6 +13,7 @@ import { asTextCardRendererElement } from "../elements/text-card/textCardViewPro
 import type { ExtensionCommands } from "../extensions/extensionCommands";
 import type { ImageElement, TextBlockElement, TextCardElement } from "../types";
 import { useRetainedDocumentElements } from "./RetainedCanvasContext";
+import type { ElementIdsByKind } from "./useElementPresenceMarks";
 import { editDraft, isMultiSelected, type LayerProps } from "./retainedElementPresentation";
 
 export interface ElementShadowRectangle {
@@ -23,6 +24,67 @@ export interface ElementShadowRectangle {
   readonly height: number;
   readonly radius: number;
   readonly strength: "shell" | "card";
+}
+
+type ShadowedElement = { id: string; x: number; y: number; width: number; height: number };
+
+export interface ElementShadowState {
+  /** Elements playing their delete animation, which drop their shadow at once. */
+  readonly deleting: ElementIdsByKind;
+  /** Cards drawn by an overlay (held or settling after a drag), which casts its own shadow. */
+  readonly overlaidCardIds: readonly string[];
+  /** Contained cards being dragged out, which shadow like loose cards while they move. */
+  readonly draggedCardIds: readonly string[];
+  readonly cardSize: (card: TextCardElement) => { width: number; height: number };
+  readonly preview: (id: string) => Partial<ShadowedElement> | undefined;
+  /** Images drawn without a frame, which cast no shadow. */
+  readonly chromeless: (image: ImageElement) => boolean;
+}
+
+/** The shadows under the canvas's top-level elements, in paint order. */
+export function elementShadows(
+  layers: {
+    readonly containers: readonly ShadowedElement[];
+    readonly textBlocks: readonly ShadowedElement[];
+    readonly looseCards: readonly TextCardElement[];
+    readonly images: readonly ImageElement[];
+  },
+  state: ElementShadowState,
+): ElementShadowRectangle[] {
+  const shell = (element: ShadowedElement): ElementShadowRectangle => ({
+    id: element.id,
+    left: element.x,
+    top: element.y,
+    width: element.width,
+    height: element.height,
+    radius: 12,
+    strength: "shell",
+  });
+  return [
+    ...layers.containers.filter(({ id }) => !state.deleting.containers.includes(id)).map(shell),
+    ...layers.textBlocks.filter(({ id }) => !state.deleting.textBlocks.includes(id)).map(shell),
+    ...layers.looseCards.flatMap((card): ElementShadowRectangle[] => {
+      if (state.overlaidCardIds.includes(card.id) || state.deleting.textCards.includes(card.id))
+        return [];
+      if (card.containerId && !state.draggedCardIds.includes(card.id)) return [];
+      const size = state.cardSize(card);
+      const preview = state.preview(card.id);
+      return [
+        {
+          id: card.id,
+          left: preview?.x ?? card.x,
+          top: preview?.y ?? card.y,
+          width: preview?.width ?? size.width,
+          height: preview?.height ?? size.height,
+          radius: 8,
+          strength: "card",
+        },
+      ];
+    }),
+    ...layers.images
+      .filter((image) => !state.chromeless(image) && !state.deleting.images.includes(image.id))
+      .map((image) => ({ ...shell(image), strength: "card" as const })),
+  ];
 }
 
 /** The shared shadow layer below elements, used when shadows sit under rather than on them. */
