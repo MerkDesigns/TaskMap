@@ -83,8 +83,8 @@
    `RetainedCanvasOverlays`. Pointer gestures live in `useCanvasGestures` (routing, pan, box
    selection, wheel) and `canvasElementGestures.ts` (moves, resizes, card drags), container card
    rows in `containerCardLayout.ts`, and creating, switching and Ctrl+Tab cycling canvases in
-   `useCanvasManagement`. Still in `App.tsx`: element measurement and connection bounds, settings
-   wiring and the workspace markup. Text cards and mind-map nodes place with `translate` like the
+   `useCanvasManagement`, and measured card sizes, connection bounds and drop-ripple clipping in
+   `canvasElementBounds.ts`. Still in `App.tsx`: settings wiring and the workspace markup. Text cards and mind-map nodes place with `translate` like the
    other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it

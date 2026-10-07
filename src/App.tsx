@@ -41,7 +41,6 @@ import {
   TextBlockElement,
   TextCardElement,
 } from "./types";
-import type { MindmapBounds } from "./mindmapMath";
 import { commandErrorMessage } from "./app/commandError";
 import { planCanvasDeletion } from "./app/canvasDocument";
 import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY } from "./app/defaultData";
@@ -69,6 +68,15 @@ import {
   type ExtensionDropTarget,
 } from "./legacy/extensionDropTarget";
 import { useToastQueue } from "./components/useToastQueue";
+import {
+  clipToContainer,
+  connectableBounds,
+  connectableElementBounds,
+  containerRowSize,
+  looseCardBounds,
+  measureRenderedCard,
+  useMeasuredTextCardSizes,
+} from "./legacy/canvasElementBounds";
 import { useCanvasManagement } from "./legacy/useCanvasManagement";
 import { useLeftPanel } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
@@ -169,12 +177,6 @@ const DevelopmentFpsCounter = import.meta.env.DEV
       import("./components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
     )
   : null;
-
-type MeasuredTextCardSize = {
-  canvasId: string;
-  width: number;
-  height: number;
-};
 
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
@@ -400,9 +402,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       reset();
     };
   }, [retained, textCardInteraction]);
-  const [measuredTextCardSizes, setMeasuredTextCardSizes] = useState<
-    Record<string, MeasuredTextCardSize>
-  >({});
+  const measuredCards = useMeasuredTextCardSizes(activeCanvas.id);
+  const measuredInteractionCardSizes = measuredCards.sizes;
   const {
     canvasGridStyle,
     setCanvasGridStyle,
@@ -461,24 +462,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const snapGuides = interactionSnapshot.snapGuides;
   const dropRipples = useExtensionDropRipples();
 
-  const rememberTextCardSize = useCallback(
-    (id: string, size: { width: number; height: number }) => {
-      const canvasId = activeCanvasIdRef.current;
-      setMeasuredTextCardSizes((current) => {
-        const previous = current[id];
-        if (
-          previous?.canvasId === canvasId &&
-          previous.width === size.width &&
-          previous.height === size.height
-        ) {
-          return current;
-        }
-        return { ...current, [id]: { canvasId, ...size } };
-      });
-    },
-    [],
-  );
-
   const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
   containerScrollOffsetsRef.current = containerScrollOffsets;
 
@@ -528,15 +511,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     [mindmapConnections],
   );
   const looseImages = useMemo(() => images.filter((image) => !image.containerId), [images]);
-  const measuredInteractionCardSizes = useMemo(
-    () =>
-      new Map(
-        Object.entries(measuredTextCardSizes).flatMap(([id, size]) =>
-          size.canvasId === activeCanvas.id ? [[id, size] as const] : [],
-        ),
-      ),
-    [activeCanvas.id, measuredTextCardSizes],
-  );
   const interactionElements = useMemo(
     () => getLegacyInteractionElements(activeCanvas, measuredInteractionCardSizes),
     [activeCanvas, measuredInteractionCardSizes],
@@ -1016,115 +990,39 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     deleteCanvasSelection,
   });
 
-  const getLooseTextCardSelectionBounds = (card: TextCardElement) => {
-    const measuredSize = measuredTextCardSizes[card.id];
-    const stableSize = measuredSize?.canvasId === activeCanvas.id ? measuredSize : undefined;
-    const textLines = card.text.split("\n");
-    const longestLineLength = Math.max(1, ...textLines.map((line) => line.length));
-    const estimatedTextWidth = Math.max(44, Math.min(520, longestLineLength * 9 + 48));
-    const estimatedWrappedLines = textLines.reduce(
-      (count, line) => count + Math.max(1, Math.ceil((line.length * 9) / 472)),
-      0,
+  const getLooseTextCardSelectionBounds = (card: TextCardElement) =>
+    looseCardBounds(card, measuredInteractionCardSizes.get(card.id));
+
+  const getConnectableElementBounds = (id: string) =>
+    connectableElementBounds(
+      id,
+      {
+        element: (elementId) =>
+          containersById.get(elementId) ??
+          textBlocksById.get(elementId) ??
+          imagesById.get(elementId),
+        card: (cardId) => textCardsById.get(cardId),
+      },
+      getLooseTextCardSelectionBounds,
     );
-    const estimatedHeight =
-      card.kind === "mindmap"
-        ? CONTAINER_TEXT_CARD_ROW_HEIGHT + (estimatedWrappedLines - 1) * 24
-        : CONTAINER_TEXT_CARD_ROW_HEIGHT;
-
-    return {
-      left: card.x,
-      top: card.y,
-      width: stableSize?.width || estimatedTextWidth,
-      height: stableSize?.height || estimatedHeight,
-    };
-  };
-
-  const getConnectableElementBounds = (id: string): MindmapBounds | null => {
-    const container = containersById.get(id);
-    if (container) {
-      return { x: container.x, y: container.y, width: container.width, height: container.height };
-    }
-    const textBlock = textBlocksById.get(id);
-    if (textBlock) {
-      return {
-        x: textBlock.x,
-        y: textBlock.y,
-        width: textBlock.width,
-        height: textBlock.height,
-      };
-    }
-    const image = imagesById.get(id);
-    if (image) {
-      return { x: image.x, y: image.y, width: image.width, height: image.height };
-    }
-    const card = textCardsById.get(id);
-    if (card?.kind === "mindmap") {
-      const bounds = getLooseTextCardSelectionBounds(card);
-      return { x: bounds.left, y: bounds.top, width: bounds.width, height: bounds.height };
-    }
-    return null;
-  };
-
-  const getMeasuredTextCardBounds = (card: TextCardElement): DropBounds | null => {
-    const { zoom } = interactionController.getSnapshot().viewport;
-    const node = worldRef.current?.querySelector<HTMLElement>(`[data-text-card-id="${card.id}"]`);
-    const worldRect = worldRef.current?.getBoundingClientRect();
-    if (!node || !worldRect || zoom <= 0) {
-      return null;
-    }
-
-    const rect = node.getBoundingClientRect();
-    return {
-      left: (rect.left - worldRect.left) / zoom,
-      top: (rect.top - worldRect.top) / zoom,
-      width: rect.width / zoom,
-      height: rect.height / zoom,
-      borderRadius: 8,
-    };
-  };
 
   const getTextCardRippleBounds = (card: TextCardElement): DropBounds | null => {
-    const measuredBounds = getMeasuredTextCardBounds(card);
+    const measured = measureRenderedCard(
+      worldRef.current,
+      interactionController.getSnapshot().viewport.zoom,
+      card.id,
+    );
     if (!card.containerId) {
-      return measuredBounds ?? { ...getLooseTextCardSelectionBounds(card), borderRadius: 8 };
+      return measured ?? { ...getLooseTextCardSelectionBounds(card), borderRadius: 8 };
     }
-
     const container = containersById.get(card.containerId);
     const position = getTextCardRenderPosition(card);
-    if (!container || !position) {
-      return null;
-    }
-    const visibleCards = getContainerVisibleTextCards(container);
-    if (!visibleCards.some((currentCard) => currentCard.id === card.id)) {
-      return null;
-    }
-
-    const contentTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
-    const baseBounds =
-      measuredBounds ??
-      ({
-        left: position.x,
-        top: position.y,
-        width: Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2),
-        height: CONTAINER_TEXT_CARD_ROW_HEIGHT,
-      } satisfies DropBounds);
-    const top = Math.max(baseBounds.top, contentTop);
-    const bottom = Math.min(baseBounds.top + baseBounds.height, container.y + container.height);
-    const height = bottom - top;
-    if (height <= 0) {
-      return null;
-    }
-
-    return {
-      left: baseBounds.left,
-      top,
-      width: baseBounds.width,
-      height,
-      borderTopLeftRadius: top === baseBounds.top ? 8 : 0,
-      borderTopRightRadius: top === baseBounds.top ? 8 : 0,
-      borderBottomRightRadius: bottom === baseBounds.top + baseBounds.height ? 8 : 0,
-      borderBottomLeftRadius: bottom === baseBounds.top + baseBounds.height ? 8 : 0,
-    };
+    if (!container || !position) return null;
+    if (!getContainerVisibleTextCards(container).some(({ id }) => id === card.id)) return null;
+    return clipToContainer(
+      container,
+      measured ?? { left: position.x, top: position.y, ...containerRowSize(container) },
+    );
   };
 
   const selectionBounds = interactionSnapshot.selectionRectangle
@@ -1762,19 +1660,16 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       looseCardFallbackBounds: getLooseTextCardSelectionBounds,
       containerCardSlots: (container) => {
         const visibleTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
-        const cardWidth = Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2);
+        const rowSize = containerRowSize(container);
         return getContainerVisibleTextCards(container).map((card, index) => {
           const measured = getTextCardRippleBounds(card);
+          const row = cardLayout.rowPosition(container, index);
           return {
             card,
-            left: measured?.left ?? container.x + CONTAINER_TEXT_CARD_PADDING,
-            top:
-              measured?.top ??
-              getContainerCardStackTop(container) +
-                index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-                getContainerScrollOffset(container),
-            width: measured?.width ?? cardWidth,
-            height: measured?.height ?? CONTAINER_TEXT_CARD_ROW_HEIGHT,
+            left: measured?.left ?? row.x,
+            top: measured?.top ?? row.y,
+            width: measured?.width ?? rowSize.width,
+            height: measured?.height ?? rowSize.height,
             visibleTop,
             visibleBottom: container.y + container.height,
           };
@@ -2018,9 +1913,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       onCancel: canvasNodeActions.cancelTextCardEdit,
       onStartMove: canvasNodeActions.startTextCardMove,
       onOpenMenu: canvasNodeActions.openTextCardMenu,
-      onSizeChange: rememberTextCardSize,
+      onSizeChange: measuredCards.remember,
     }),
-    [canvasNodeActions, rememberTextCardSize, textCardEdit.setDraft],
+    [canvasNodeActions, measuredCards.remember, textCardEdit.setDraft],
   );
   const documentConnections = useRetainedDocumentConnections();
   const activeMindMapConnections = useMemo(
@@ -2176,46 +2071,16 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     [layeredElements, layeredLooseImages, layeredLooseTextCards, layeredTextBlocks],
   );
   const minimapViewportWorld = viewportWorldRectangle(interactionSnapshot.viewport);
-  const connectableBoundsById = new Map<string, MindmapBounds>();
-  elements.forEach((element) => {
-    const preview = interactionGeometryById.get(element.id);
-    connectableBoundsById.set(element.id, {
-      x: preview?.x ?? element.x,
-      y: preview?.y ?? element.y,
-      width: preview?.width ?? element.width,
-      height: preview?.height ?? element.height,
-    });
-  });
-  textBlocks.forEach((element) => {
-    const preview = interactionGeometryById.get(element.id);
-    connectableBoundsById.set(element.id, {
-      x: preview?.x ?? element.x,
-      y: preview?.y ?? element.y,
-      width: preview?.width ?? element.width,
-      height: preview?.height ?? element.height,
-    });
-  });
-  looseImages.forEach((image) => {
-    const preview = interactionGeometryById.get(image.id);
-    connectableBoundsById.set(image.id, {
-      x: preview?.x ?? image.x,
-      y: preview?.y ?? image.y,
-      width: preview?.width ?? image.width,
-      height: preview?.height ?? image.height,
-    });
-  });
-  looseTextCards
-    .filter((card) => card.kind === "mindmap")
-    .forEach((card) => {
-      const bounds = getLooseTextCardSelectionBounds(card);
-      const preview = interactionGeometryById.get(card.id);
-      connectableBoundsById.set(card.id, {
-        x: preview?.x ?? bounds.left,
-        y: preview?.y ?? bounds.top,
-        width: preview?.width ?? bounds.width,
-        height: preview?.height ?? bounds.height,
-      });
-    });
+  const connectableBoundsById = connectableBounds(
+    {
+      containers: elements,
+      textBlocks,
+      images: looseImages,
+      mindmapNodes: looseTextCards.filter((card) => card.kind === "mindmap"),
+    },
+    getLooseTextCardSelectionBounds,
+    (id) => interactionGeometryById.get(id),
+  );
   const canvasElementShadows: CanvasElementShadow[] = [
     ...layeredElements
       .filter((element) => !deletingIds.includes(element.id))
