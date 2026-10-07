@@ -31,19 +31,12 @@ import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
 import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
 import { ToastStack } from "./components/ToastStack";
-import { DEFAULT_ELEMENT_COLORS, getTextCardAccent } from "./constants";
+import { getTextCardAccent } from "./constants";
 import { clamp } from "./canvasMath";
-import {
-  AppData,
-  ContainerElement,
-  ImageElement,
-  TaskCanvas,
-  TextBlockElement,
-  TextCardElement,
-} from "./types";
+import { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "./types";
 import { commandErrorMessage } from "./app/commandError";
 import { planCanvasDeletion } from "./app/canvasDocument";
-import { DEFAULT_CANVAS, DEFAULT_GRID_OPACITY } from "./app/defaultData";
+import { DEFAULT_CANVAS } from "./app/defaultData";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
@@ -300,27 +293,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const minimapTimeoutRef = useRef<number | null>(null);
   const minimapUnmountTimeoutRef = useRef<number | null>(null);
   const containerScrollOffsetsRef = useRef<Record<string, number>>({});
-  const historyTransactionsRef = useRef<Map<string, Set<string>>>(new Map());
-  const dirtyHistoryTransactionsRef = useRef<Set<string>>(new Set());
-  const dirtyCanvasVersionsRef = useRef<Map<string, number>>(new Map());
   const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
   const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
-  const latestDataGetterRef = useRef<() => AppData>(() => latestAppDataRef.current);
-  const latestAppDataRef = useRef<AppData>({
-    schemaVersion: 2,
-    activeCanvasId: DEFAULT_CANVAS.id,
-    canvases: [DEFAULT_CANVAS],
-    canvasGridStyle: "dots",
-    canvasGridOpacity: DEFAULT_GRID_OPACITY,
-    defaultElementColors: DEFAULT_ELEMENT_COLORS,
-    recentColors: [],
-    shadowsUnderElements: false,
-    allowLockedElementDeletion: true,
-    minimapEnabled: true,
-    privacyModeEnabled: false,
-    toolbarButtonsVisible: false,
-  });
-  const appDataLoadedRef = useRef(false);
   const {
     activeCanvas,
     canvases,
@@ -386,14 +360,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { editingId: editingTextBlockId, draft: textBlockDraft } = textBlockEdit;
   useEffect(() => {
     const reset = () => {
-      if (!retained.runtime.controller.store.getState().documentWorkspace.document) {
-        latestAppDataRef.current = {
-          ...latestAppDataRef.current,
-          canvases: [],
-          activeCanvasId: "",
-        };
-        latestDataGetterRef.current = () => latestAppDataRef.current;
-      }
       textCardInteraction.reset();
     };
     const unsubscribe = retained.runtime.callbacks.subscribeInvalidation(reset);
@@ -421,7 +387,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     setMinimapEnabled,
     privacyModeEnabled,
     setPrivacyModeEnabled,
-    toolbarButtonsVisible,
     chromeAutoHideEnabled,
     setChromeAutoHideEnabled,
     chromeAutoHideDelayMs,
@@ -568,70 +533,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
   activeCanvasIdRef.current = activeCanvas.id;
 
-  const getActiveCanvasSnapshot = (): TaskCanvas => {
-    const live = interactionController.getSnapshot();
-    const viewport = live.canvasKey === activeCanvas.id ? live.viewport : activeCanvas;
-    const geometryPreviews = live.canvasKey === activeCanvas.id ? live.geometryPreviews : [];
-    return {
-      ...activeCanvas,
-      containers: projectLegacyGeometry(elements, geometryPreviews),
-      textCards: projectLegacyGeometry(textCards, geometryPreviews),
-      textBlocks: projectLegacyGeometry(textBlocks, geometryPreviews),
-      images: projectLegacyGeometry(images, geometryPreviews),
-      mindmapConnections,
-      pan: viewport.pan,
-      zoom: viewport.zoom,
-      previewViewport: {
-        width: stageRef.current?.clientWidth ?? window.innerWidth,
-        height: stageRef.current?.clientHeight ?? window.innerHeight,
-      },
-    };
-  };
-
-  const getPersistedCanvases = () => {
-    const snapshot = getActiveCanvasSnapshot();
-    return canvases.map((canvas) => (canvas.id === snapshot.id ? snapshot : canvas));
-  };
-
-  const getCurrentAppData = (): AppData => ({
-    schemaVersion: 2,
-    activeCanvasId: activeCanvas.id,
-    canvases: getPersistedCanvases(),
-    canvasGridStyle,
-    canvasGridOpacity,
-    defaultElementColors,
-    recentColors,
-    shadowsUnderElements,
-    allowLockedElementDeletion,
-    minimapEnabled,
-    privacyModeEnabled,
-    toolbarButtonsVisible,
-    dismissedUpdateVersion,
-  });
-  latestDataGetterRef.current = getCurrentAppData;
-
   const updateHistoryState = () => {
     const history = retained.runtime.controller.store.getState().documentWorkspace.history;
     setHistoryState({ canUndo: history.past.length > 0, canRedo: history.future.length > 0 });
   };
 
   const lifecycleActions = useStableCallbacks({
-    getActiveCanvasSnapshot,
     getCanvasBrowserCanvases: () =>
       canvases.map((canvas) =>
         canvas.id === activeCanvas.id ? { ...activeCanvas, previewViewport: stageSize } : canvas,
       ),
-    getCurrentAppData,
     updateHistoryState,
   });
-
-  useEffect(() => {
-    if (!appDataLoadedRef.current) {
-      return;
-    }
-    const currentVersion = dirtyCanvasVersionsRef.current.get(activeCanvas.id) ?? 0;
-    dirtyCanvasVersionsRef.current.set(activeCanvas.id, currentVersion + 1);
-  }, [activeCanvas.id, elements, images, mindmapConnections, textBlocks, textCards]);
 
   useEffect(() => {
     lifecycleActions.updateHistoryState();
@@ -659,8 +572,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   useEffect(() => {
     const pendingDeletionTimeouts = pendingDeletionTimeoutsRef.current;
-    const historyTransactions = historyTransactionsRef.current;
-    const dirtyHistoryTransactions = dirtyHistoryTransactionsRef.current;
     return () => {
       if (minimapTimeoutRef.current) {
         window.clearTimeout(minimapTimeoutRef.current);
@@ -668,8 +579,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       if (minimapUnmountTimeoutRef.current) {
         window.clearTimeout(minimapUnmountTimeoutRef.current);
       }
-      historyTransactions.clear();
-      dirtyHistoryTransactions.clear();
       pendingDeletionTimeouts.forEach((timeouts) =>
         timeouts.forEach((timeout) => window.clearTimeout(timeout)),
       );
