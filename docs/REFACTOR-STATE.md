@@ -75,11 +75,15 @@
    `src/legacy/` hooks: in-place editing (`useRetainedInlineEdit`), enter/delete/pulse marks
    (`useElementPresenceMarks`), context menus (`useClosingMenu`), extension commands, the left
    side panel (`useLeftPanel`), toasts (`src/components/useToastQueue.ts`) and keyboard shortcuts
-   (`useCanvasShortcuts`) are done. Rendering moved to `RetainedCanvasMenus`,
+   (`useCanvasShortcuts`), the clipboard (`useRetainedClipboard`), menus and their openers
+   (`useCanvasMenus`), image picking/drops/paste (`useRetainedImageImport`), connection drawing
+   (`useConnectionDrawing`) and new-element builders (`newCanvasElements.ts`) are done, with the
+   extension drop hit test in `extensionDropTarget.ts`. Rendering moved to `RetainedCanvasMenus`,
    `RetainedContainerLayer`/`RetainedElementLayers` (sharing `retainedElementPresentation.ts`) and
-   `RetainedCanvasOverlays`. Still in `App.tsx`: element creation, clipboard and deletion, the
-   menus' action handlers, and gestures (move, resize, drops). Text cards and mind-map nodes now
-   place with `translate` like the other elements.
+   `RetainedCanvasOverlays`. Still in `App.tsx`: the move/resize/pan/box-selection and text-card
+   drag gestures around the interaction controller, container card layout helpers, canvas
+   management and settings wiring. Text cards and mind-map nodes place with `translate` like the
+   other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it
    when its phase needs it.
