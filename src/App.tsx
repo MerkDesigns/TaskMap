@@ -31,7 +31,7 @@ import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
 import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
 import { ToastStack } from "./components/ToastStack";
-import { CANVAS_WIDTH, DEFAULT_ELEMENT_COLORS, getTextCardAccent } from "./constants";
+import { DEFAULT_ELEMENT_COLORS, getTextCardAccent } from "./constants";
 import { clamp } from "./canvasMath";
 import {
   AppData,
@@ -69,7 +69,8 @@ import {
   type ExtensionDropTarget,
 } from "./legacy/extensionDropTarget";
 import { useToastQueue } from "./components/useToastQueue";
-import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
+import { useCanvasManagement } from "./legacy/useCanvasManagement";
+import { useLeftPanel } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
@@ -180,7 +181,6 @@ const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
 const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
-const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
@@ -295,14 +295,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const leftPanelRef = useRef<HTMLDivElement>(null);
-  const canvasCycleRestoreTimeoutRef = useRef<number | null>(null);
   const minimapTimeoutRef = useRef<number | null>(null);
   const minimapUnmountTimeoutRef = useRef<number | null>(null);
-  const canvasCycleSessionRef = useRef<{
-    order: string[];
-    index: number;
-    previousPanelState: LeftPanelState;
-  } | null>(null);
   const containerScrollOffsetsRef = useRef<Record<string, number>>({});
   const historyTransactionsRef = useRef<Map<string, Set<string>>>(new Map());
   const dirtyHistoryTransactionsRef = useRef<Set<string>>(new Set());
@@ -450,7 +444,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const leftPanel = useLeftPanel(CANVAS_MANAGER_ANIMATION_MS);
   const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;
   const [canvasManagerMinimalView, setCanvasManagerMinimalView] = useState(false);
-  const [canvasCycleHighlightId, setCanvasCycleHighlightId] = useState<string | null>(null);
   const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
     left: number;
     top: number;
@@ -599,9 +592,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       });
     },
   });
-  const clampCanvasSize = (value: number) =>
-    clamp(Number.isFinite(value) ? value : CANVAS_WIDTH, 600, 10000);
-
   activeCanvasIdRef.current = activeCanvas.id;
 
   const getActiveCanvasSnapshot = (): TaskCanvas => {
@@ -1012,15 +1002,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { close: closeLeftPanel, show: switchLeftPanel } = leftPanel;
   const closeCanvasManager = useCallback(() => closeLeftPanel("canvases"), [closeLeftPanel]);
   const closeExtensionsPanel = useCallback(() => closeLeftPanel("extensions"), [closeLeftPanel]);
-
-  useEffect(
-    () => () => {
-      if (canvasCycleRestoreTimeoutRef.current !== null) {
-        window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
-      }
-    },
-    [],
-  );
 
   useEffect(() => {
     const trackPointer = (event: globalThis.PointerEvent) => {
@@ -1856,94 +1837,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus();
   };
 
-  const createCanvas = (draft: Pick<TaskCanvas, "name" | "width" | "height">) => {
-    const result = retained.runtime.callbacks.captureCreateCanvas()?.complete({
-      id: createEntityId("canvas") as CanvasId,
-      name: draft.name.trim() || "Untitled canvas",
-      settings: { width: clampCanvasSize(draft.width), height: clampCanvasSize(draft.height) },
-      elementOrder: [],
-    });
-    if (result?.ok) resetCanvasPresentation();
-  };
-
-  const selectCanvas = (id: string) => {
-    if (id === activeCanvas.id) {
-      return;
-    }
-
-    if (retained.runtime.callbacks.switchCanvas(id as CanvasId).ok) resetCanvasPresentation();
-  };
-
-  const updateCanvas = (id: string, updates: Pick<TaskCanvas, "name" | "width" | "height">) => {
-    const details = {
-      ...updates,
-      width: clampCanvasSize(updates.width),
-      height: clampCanvasSize(updates.height),
-    };
-    retained.runtime.callbacks.captureCanvasDetails(id as CanvasId)?.complete({
-      name: details.name.trim() || "Untitled canvas",
-      settings: { width: details.width, height: details.height },
-    });
-  };
-
-  const deleteCanvas = (id: string) => {
-    const result = retained.runtime.callbacks.captureRemoveCanvas(id as CanvasId)?.complete(true);
-    if (result?.ok && id === activeCanvas.id) resetCanvasPresentation();
-  };
-
-  const reorderCanvases = (orderedIds: string[]) => {
-    retained.runtime.callbacks.captureCanvasOrder()?.complete(orderedIds as CanvasId[]);
-  };
-
-  const getCanvasCycleOrder = () => {
-    return canvases.map((canvas) => canvas.id);
-  };
-
-  const finishCanvasCycle = () => {
-    const restorePanelState = canvasCycleSessionRef.current?.previousPanelState ?? "closed";
-    canvasCycleSessionRef.current = null;
-    setCanvasCycleHighlightId(null);
-
-    if (canvasCycleRestoreTimeoutRef.current !== null) {
-      window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
-    }
-
-    canvasCycleRestoreTimeoutRef.current = window.setTimeout(() => {
-      leftPanel.restore(restorePanelState);
-      canvasCycleRestoreTimeoutRef.current = null;
-    }, CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS);
-  };
-
-  const cycleCanvases = (direction: 1 | -1) => {
-    const session = canvasCycleSessionRef.current;
-    const order = session?.order ?? getCanvasCycleOrder();
-    if (order.length <= 1) {
-      return;
-    }
-
-    const currentIndex = session?.index ?? Math.max(0, order.indexOf(activeCanvas.id));
-    const nextIndex = (currentIndex + direction + order.length) % order.length;
-    const nextCanvasId = order[nextIndex];
-    if (!nextCanvasId) {
-      return;
-    }
-
-    canvasCycleSessionRef.current = {
-      order,
-      index: nextIndex,
-      previousPanelState: session?.previousPanelState ?? leftPanel.current(),
-    };
-
-    if (canvasCycleRestoreTimeoutRef.current !== null) {
-      window.clearTimeout(canvasCycleRestoreTimeoutRef.current);
-      canvasCycleRestoreTimeoutRef.current = null;
-    }
-
-    setQuickExtensionsMenu(null);
-    setCanvasCycleHighlightId(nextCanvasId);
-    leftPanel.show("canvases");
-    selectCanvas(nextCanvasId);
-  };
+  const canvasManagement = useCanvasManagement({
+    callbacks: retained.runtime.callbacks,
+    activeCanvasId: () => activeCanvas.id,
+    canvasIds: () => canvases.map((canvas) => canvas.id),
+    resetPresentation: resetCanvasPresentation,
+    leftPanel,
+    closeQuickExtensions: () => setQuickExtensionsMenu(null),
+  });
 
   useCanvasShortcuts({
     modalOpen: () => settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking(),
@@ -1968,9 +1869,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
     undo,
     redo,
-    cycleCanvases,
-    cyclingCanvases: () => canvasCycleSessionRef.current !== null,
-    finishCanvasCycle,
+    cycleCanvases: canvasManagement.cycle,
+    cyclingCanvases: canvasManagement.cycling,
+    finishCanvasCycle: canvasManagement.finishCycle,
   });
 
   const radii = useWorkspaceRadii();
@@ -2472,7 +2373,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                         active={leftPanelActiveIndex === 0}
                         canvases={canvasManagerCanvases}
                         activeCanvasId={activeCanvas.id}
-                        cycleHighlightCanvasId={canvasCycleHighlightId}
+                        cycleHighlightCanvasId={canvasManagement.cycleHighlightId}
                         closing={leftPanelClosing}
                         cardRadius={radii.canvasCard}
                         previewGap={CANVAS_PREVIEW_GAP}
@@ -2482,11 +2383,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                         viewportHeight={stageHeight}
                         controller={interactionController}
                         onMinimalViewChange={setCanvasManagerMinimalView}
-                        onCreateCanvas={createCanvas}
-                        onSelectCanvas={selectCanvas}
-                        onUpdateCanvas={updateCanvas}
-                        onDeleteCanvas={deleteCanvas}
-                        onReorderCanvases={reorderCanvases}
+                        onCreateCanvas={canvasManagement.create}
+                        onSelectCanvas={canvasManagement.select}
+                        onUpdateCanvas={canvasManagement.update}
+                        onDeleteCanvas={canvasManagement.remove}
+                        onReorderCanvases={canvasManagement.reorder}
                       />,
                       <ExtensionsPanel
                         key="extensions"
