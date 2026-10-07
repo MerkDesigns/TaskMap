@@ -70,6 +70,7 @@ import {
   measureRenderedCard,
   useMeasuredTextCardSizes,
 } from "./legacy/canvasElementBounds";
+import { RetainedSettingsDialog } from "./legacy/RetainedSettingsDialog";
 import { useCanvasManagement } from "./legacy/useCanvasManagement";
 import { useLeftPanel } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
@@ -136,14 +137,12 @@ import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 import { useChromeAutoHide } from "./ui/patterns/workspace/chromeSleep";
 import { setWorkspaceRadii, useWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
 import {
-  beginWorkspaceOutro,
-  cancelWorkspaceOutro,
   useWorkspaceIntroArrival,
   useWorkspaceIntroDeparture,
 } from "./ui/patterns/workspace/workspaceIntro";
 import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
 import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
-import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
+import { ClearCanvasModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 import { searchRowHeight } from "./extensions/search/searchRule";
 
@@ -370,19 +369,15 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   }, [retained, textCardInteraction]);
   const measuredCards = useMeasuredTextCardSizes(activeCanvas.id);
   const measuredInteractionCardSizes = measuredCards.sizes;
+  const settings = useSettings();
   const {
     canvasGridStyle,
-    setCanvasGridStyle,
     canvasGridOpacity,
-    setCanvasGridOpacity,
     defaultElementColors,
-    setDefaultElementColors,
     recentColors,
     setRecentColors,
     shadowsUnderElements,
-    setShadowsUnderElements,
     allowLockedElementDeletion,
-    setAllowLockedElementDeletion,
     minimapEnabled,
     setMinimapEnabled,
     privacyModeEnabled,
@@ -390,22 +385,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     chromeAutoHideEnabled,
     setChromeAutoHideEnabled,
     chromeAutoHideDelayMs,
-    setChromeAutoHideDelayMs,
     chromeRadii,
-    setChromeRadii,
-    closeToTray,
-    setCloseToTray,
-    trayLockMinutes,
-    setTrayLockMinutes,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
-    gridOpacityEdit,
-    settingsError,
-  } = useSettings();
+  } = settings;
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
-  const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
   const { toasts, showToast, dismissToast } = useToastQueue();
   const leftPanel = useLeftPanel(CANVAS_MANAGER_ANIMATION_MS);
   const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;
@@ -551,14 +537,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return retained.runtime.controller.store.subscribe(() => lifecycleActions.updateHistoryState());
   }, [lifecycleActions, retained]);
 
-  const {
-    appVersion,
-    availableUpdate,
-    updateModalOpen,
-    checkForAppUpdate,
-    installAppUpdate,
-    dismissUpdateModal,
-  } = useAppUpdates({
+  const updates = useAppUpdates({
     // App mounts once the database is open; the storage-free preview never checks.
     checkOnStartup: import.meta.env.MODE !== "storage-preview",
     dismissedUpdateVersion,
@@ -1651,7 +1630,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
 
   useCanvasShortcuts({
-    modalOpen: () => settingsOpen || clearModalOpen || updateModalOpen || isModalPresenceBlocking(),
+    modalOpen: () =>
+      settingsOpen || clearModalOpen || updates.updateModalOpen || isModalPresenceBlocking(),
     setConnectionMode: connectionDrawing.setConnectionMode,
     setShiftHeld: (held) =>
       applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, held),
@@ -2459,96 +2439,16 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           {workflowEditor.editorWindow}
           {workflowRuns.reviewDialog}
 
-          <ModalPresence
+          <RetainedSettingsDialog
             open={settingsOpen}
-            onDismiss={() => {
-              gridOpacityEdit?.cancel();
-              setSettingsOpen(false);
-            }}
-          >
-            <Suspense fallback={null}>
-              <SettingsModal
-                databaseActions={{
-                  lock: async () => {
-                    // The animation plays before the lock: locking purges the document,
-                    // so afterwards there would be no canvas left to animate.
-                    setSettingsOpen(false);
-                    await beginWorkspaceOutro();
-                    const locked = (await retained.runtime.controller.lock()).ok;
-                    if (!locked) cancelWorkspaceOutro();
-                    return locked;
-                  },
-                  close: async () => (await retained.runtime.controller.close()).ok,
-                  quit: async () => (await retained.runtime.controller.quit()).ok,
-                  closeToTray,
-                  onCloseToTrayChange: setCloseToTray,
-                  trayLockMinutes,
-                  onTrayLockMinutesChange: setTrayLockMinutes,
-                }}
-                gridOpacityEdit={gridOpacityEdit}
-                canvasGridStyle={canvasGridStyle}
-                onCanvasGridStyleChange={setCanvasGridStyle}
-                canvasGridOpacity={canvasGridOpacity[canvasGridStyle]}
-                onCanvasGridOpacityChange={(opacity) =>
-                  setCanvasGridOpacity((current) => ({
-                    ...current,
-                    [canvasGridStyle]: opacity,
-                  }))
-                }
-                defaultElementColors={defaultElementColors}
-                onDefaultElementColorChange={(elementType, color) =>
-                  setDefaultElementColors((current) => ({ ...current, [elementType]: color }))
-                }
-                recentColors={recentColors}
-                onRememberRecentColor={canvasNodeActions.rememberRecentColor}
-                shadowsUnderElements={shadowsUnderElements}
-                onShadowsUnderElementsChange={setShadowsUnderElements}
-                allowLockedElementDeletion={allowLockedElementDeletion}
-                onAllowLockedElementDeletionChange={setAllowLockedElementDeletion}
-                availableUpdate={availableUpdate}
-                appVersion={appVersion}
-                fpsCounterVisible={fpsCounterVisible}
-                onFpsCounterVisibleChange={setFpsCounterVisible}
-                privacyModeEnabled={privacyModeEnabled}
-                onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-                chromeRadii={chromeRadii}
-                onChromeRadiusChange={(key, radius) =>
-                  setChromeRadii((current) => ({ ...current, [key]: radius }))
-                }
-                sleepDelayMs={chromeAutoHideDelayMs}
-                onSleepDelayChange={setChromeAutoHideDelayMs}
-                temporaryPanelsVisible={temporaryPanelsVisible}
-                onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
-                onCheckForUpdate={checkForAppUpdate}
-                onInstallUpdate={installAppUpdate}
-                onClose={() => {
-                  gridOpacityEdit?.cancel();
-                  setSettingsOpen(false);
-                }}
-              />
-            </Suspense>
-          </ModalPresence>
-
-          <ModalPresence open={updateModalOpen && Boolean(availableUpdate) && !settingsOpen}>
-            <Suspense fallback={null}>
-              {availableUpdate ? (
-                <UpdateAvailableModal
-                  update={availableUpdate}
-                  onInstall={installAppUpdate}
-                  onDismiss={dismissUpdateModal}
-                />
-              ) : null}
-            </Suspense>
-          </ModalPresence>
-
-          {settingsError && (
-            <div
-              role="alert"
-              className="fixed bottom-4 right-4 z-50 max-w-[420px] rounded-lg border border-red-300/25 bg-[#281b1d]/95 p-3 text-sm text-red-100"
-            >
-              {settingsError}
-            </div>
-          )}
+            onClose={() => setSettingsOpen(false)}
+            settings={settings}
+            updates={updates}
+            session={retained.runtime.controller}
+            onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+            fpsCounterVisible={fpsCounterVisible}
+            onFpsCounterVisibleChange={setFpsCounterVisible}
+          />
 
           <ToastStack toasts={toasts} onDismiss={dismissToast} />
         </section>
