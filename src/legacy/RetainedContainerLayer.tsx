@@ -9,13 +9,14 @@ import { hasContentState } from "../extensions/contentState";
 import type { ExtensionCommands } from "../extensions/extensionCommands";
 import type { ContainerElement, TextCardElement } from "../types";
 import { getLegacyTextCardPreviewRowOffset } from "./interactions/legacyTextCardPlacement";
+import {
+  CONTAINER_TEXT_CARD_GAP,
+  CONTAINER_TEXT_CARD_PADDING,
+  CONTAINER_TEXT_CARD_ROW_HEIGHT,
+} from "./containerCardLayout";
 import { useRetainedDocumentElements } from "./RetainedCanvasContext";
 import { editDraft, isMultiSelected, type LayerProps } from "./retainedElementPresentation";
 
-/** Cards inside a container sit in fixed rows below its header (and search row). */
-export const CONTAINER_TEXT_CARD_PADDING = 17;
-export const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
-export const CONTAINER_TEXT_CARD_GAP = 8;
 const CONTAINER_TEXT_CARD_OVERSCAN_ROWS = 3;
 const ROW_PITCH = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
 

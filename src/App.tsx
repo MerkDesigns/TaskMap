@@ -80,13 +80,17 @@ import {
   newLooseTextCard,
   newTextBlock,
 } from "./legacy/newCanvasElements";
+import { ContainerLayer, type ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import {
+  CONTAINER_HEADER_HEIGHT,
   CONTAINER_TEXT_CARD_GAP,
   CONTAINER_TEXT_CARD_PADDING,
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
-  ContainerLayer,
-  type ContainerCardLayout,
-} from "./legacy/RetainedContainerLayer";
+  containerCardStackTop,
+  containerViewportHeight,
+  createContainerCardLayout,
+  groupContainerCards,
+} from "./legacy/containerCardLayout";
 import {
   ElementShadowLayer,
   ImageLayer,
@@ -139,7 +143,7 @@ import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
 import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
 import { ClearCanvasModal, SettingsModal, UpdateAvailableModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
-import { cardsMatchingSearch, searchRowHeight } from "./extensions/search/searchRule";
+import { searchRowHeight } from "./extensions/search/searchRule";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
 // throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
@@ -181,7 +185,6 @@ const CANVAS_CYCLE_PANEL_RESTORE_DELAY_MS = 280;
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
-const CONTAINER_HEADER_HEIGHT = 48;
 const CANVAS_CONTENT_INSET = 1;
 const EMPTY_IDS: string[] = [];
 const LOOSE_TEXT_CARD_RENDER_WIDTH = 540;
@@ -524,25 +527,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     () => new Map(textBlocks.map((element) => [element.id, element])),
     [textBlocks],
   );
-  const orderedTextCardsByContainerId = useMemo(() => {
-    const grouped = new Map<string, TextCardElement[]>();
-
-    textCards.forEach((card) => {
-      if (!card.containerId) {
-        return;
-      }
-
-      const containerCards = grouped.get(card.containerId) ?? [];
-      containerCards.push(card);
-      grouped.set(card.containerId, containerCards);
-    });
-
-    grouped.forEach((containerCards) => {
-      containerCards.sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
-    });
-
-    return grouped;
-  }, [textCards]);
+  const orderedTextCardsByContainerId = useMemo(() => groupContainerCards(textCards), [textCards]);
   const looseTextCards = useMemo(() => textCards.filter((card) => !card.containerId), [textCards]);
   const imagesById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
   const mindmapConnectionsById = useMemo(
@@ -794,71 +779,22 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }, 2200);
   };
 
-  const getContainerVisibleTextCards = (container: ContainerElement, cards = textCards) => {
-    const orderedCards = getOrderedContainerTextCards(container.id, cards);
-    // Match the render pipeline exactly so a card's index in this list is the same slot it
-    // visually occupies. Drag math relies on this — using the unfiltered order makes a card snap
-    // to the wrong slot the instant it is grabbed (notably with the search extension).
-    return cardsMatchingSearch(container, orderedCards);
-  };
+  const cardLayout = createContainerCardLayout(
+    textCards,
+    orderedTextCardsByContainerId,
+    containerScrollOffsets,
+  );
+  const getContainerVisibleTextCards = cardLayout.visible;
 
-  const getContainerViewportHeight = (container: ContainerElement) =>
-    Math.max(0, container.height - CONTAINER_HEADER_HEIGHT - searchRowHeight(container));
+  const getContainerViewportHeight = containerViewportHeight;
 
-  const getContainerContentHeight = (container: ContainerElement, cards = textCards) => {
-    const cardCount = getContainerVisibleTextCards(container, cards).length;
+  const getContainerMaxScroll = cardLayout.maxScroll;
 
-    if (cardCount === 0) {
-      return CONTAINER_TEXT_CARD_PADDING * 2;
-    }
+  const getContainerScrollOffset = cardLayout.scrollOffset;
 
-    return (
-      CONTAINER_TEXT_CARD_PADDING * 2 +
-      cardCount * CONTAINER_TEXT_CARD_ROW_HEIGHT +
-      (cardCount - 1) * CONTAINER_TEXT_CARD_GAP
-    );
-  };
+  const getScrollOffsetForVisibleCardIndex = cardLayout.revealOffset;
 
-  const getContainerMaxScroll = (container: ContainerElement, cards = textCards) =>
-    Math.max(
-      0,
-      getContainerContentHeight(container, cards) - getContainerViewportHeight(container),
-    );
-
-  const getContainerScrollOffset = (container: ContainerElement) =>
-    clamp(containerScrollOffsets[container.id] ?? 0, 0, getContainerMaxScroll(container));
-
-  const getScrollOffsetForVisibleCardIndex = (
-    container: ContainerElement,
-    visibleIndex: number,
-    cards: TextCardElement[],
-  ) => {
-    const currentOffset = getContainerScrollOffset(container);
-    const viewportHeight = getContainerViewportHeight(container);
-    const maxScroll = getContainerMaxScroll(container, cards);
-    const slotTop =
-      CONTAINER_TEXT_CARD_PADDING +
-      visibleIndex * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP);
-    const slotBottom = slotTop + CONTAINER_TEXT_CARD_ROW_HEIGHT;
-    const visibleTop = currentOffset + CONTAINER_TEXT_CARD_PADDING;
-    const visibleBottom = currentOffset + viewportHeight - CONTAINER_TEXT_CARD_PADDING;
-
-    if (slotBottom > visibleBottom) {
-      return clamp(slotBottom - viewportHeight + CONTAINER_TEXT_CARD_PADDING, 0, maxScroll);
-    }
-
-    if (slotTop < visibleTop) {
-      return clamp(slotTop - CONTAINER_TEXT_CARD_PADDING, 0, maxScroll);
-    }
-
-    return currentOffset;
-  };
-
-  const getContainerCardStackTop = (container: ContainerElement) =>
-    container.y +
-    CONTAINER_HEADER_HEIGHT +
-    searchRowHeight(container) +
-    CONTAINER_TEXT_CARD_PADDING;
+  const getContainerCardStackTop = containerCardStackTop;
 
   const handleContainerWheel = (event: WheelEvent<HTMLElement>, container: ContainerElement) => {
     const maxScroll = getContainerMaxScroll(container);
@@ -896,31 +832,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     );
 
   const getOrderedContainerTextCards = (containerId: string, cards = textCards) =>
-    cards === textCards
-      ? (orderedTextCardsByContainerId.get(containerId) ?? [])
-      : cards
-          .filter((card) => card.containerId === containerId)
-          .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+    cardLayout.ordered(containerId, cards);
 
   const getTextCardStackPosition = (card: TextCardElement, cards = textCards) => {
     const container = card.containerId ? containersById.get(card.containerId) : null;
-    if (!container) {
-      return { x: card.x, y: card.y };
-    }
-
-    const visibleCards = getContainerVisibleTextCards(container, cards);
-    const index = Math.max(
-      visibleCards.findIndex((currentCard) => currentCard.id === card.id),
-      0,
-    );
-
-    return {
-      x: container.x + CONTAINER_TEXT_CARD_PADDING,
-      y:
-        getContainerCardStackTop(container) +
-        index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-        getContainerScrollOffset(container),
-    };
+    return container ? cardLayout.cardPosition(container, card, cards) : { x: card.x, y: card.y };
   };
 
   const interactionGeometryById = new Map(
@@ -932,72 +848,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (preview) return { x: preview.x, y: preview.y };
     if (!card.containerId) return undefined;
     const container = containersById.get(card.containerId);
-    if (!container) return { x: card.x, y: card.y };
-    const visibleCards = getContainerVisibleTextCards(container);
-    const index = Math.max(
-      visibleCards.findIndex((currentCard) => currentCard.id === card.id),
-      0,
-    );
-    return {
-      x: container.x + CONTAINER_TEXT_CARD_PADDING,
-      y:
-        getContainerCardStackTop(container) +
-        index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-        getContainerScrollOffset(container),
-    };
+    return container ? cardLayout.cardPosition(container, card) : { x: card.x, y: card.y };
   };
-  const getTextCardDropIndex = (
-    container: ContainerElement,
-    point: { x: number; y: number },
-    cards: TextCardElement[],
-    draggingId: string,
-    currentIndex?: number,
-  ) => {
-    // Index against the visible (filtered) list, minus the dragged
-    // card, so a drop slot matches what the user actually sees. When no search
-    // is active this is just the full ordered list.
-    const visibleCards = getContainerVisibleTextCards(container, cards).filter(
-      (card) => card.id !== draggingId,
-    );
-    const stackTop = getContainerCardStackTop(container) - getContainerScrollOffset(container);
-    const slotHeight = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
-
-    if (currentIndex !== undefined) {
-      const previousCard = visibleCards[currentIndex - 1];
-      const nextCard = visibleCards[currentIndex];
-
-      if (previousCard) {
-        const previousMidpoint =
-          stackTop + (currentIndex - 1) * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
-        if (point.y < previousMidpoint) {
-          return currentIndex - 1;
-        }
-      }
-
-      if (nextCard) {
-        const nextMidpoint =
-          stackTop + (currentIndex + 1) * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
-        if (point.y > nextMidpoint) {
-          return currentIndex + 1;
-        }
-      }
-
-      return currentIndex;
-    }
-
-    let insertionIndex = 0;
-
-    for (let index = 0; index < visibleCards.length; index += 1) {
-      const midpoint = stackTop + index * slotHeight + CONTAINER_TEXT_CARD_ROW_HEIGHT / 2;
-      if (point.y < midpoint) {
-        return insertionIndex;
-      }
-
-      insertionIndex += 1;
-    }
-
-    return insertionIndex;
-  };
+  const getTextCardDropIndex = cardLayout.dropIndex;
 
   const normalizeTextCardOrders = (cards: TextCardElement[]) => {
     const nextCards = cards.map((card) => ({ ...card }));
