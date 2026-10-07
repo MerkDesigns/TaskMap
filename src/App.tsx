@@ -44,7 +44,6 @@ import { clamp } from "./canvasMath";
 import {
   AppData,
   ContainerElement,
-  ContainerMenuState,
   ImageElement,
   MindmapPort,
   TaskCanvas,
@@ -70,7 +69,7 @@ import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks"
 import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
-import { useClosingMenu } from "./legacy/useClosingMenu";
+import { useCanvasMenus } from "./legacy/useCanvasMenus";
 import { useToastQueue } from "./components/useToastQueue";
 import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
@@ -198,9 +197,6 @@ type ExtensionRippleBounds = {
   borderBottomRightRadius?: number;
   borderBottomLeftRadius?: number;
 };
-
-/** A context menu opened for one element, at a screen position. */
-type AnchoredMenu = { id: string; left: number; top: number };
 
 type MindmapConnectionDrag = {
   pointerId: number;
@@ -420,19 +416,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const setSelectedIds = (value: SetStateAction<string[]>) => {
     applyLegacySelectionAction(interactionController, value);
   };
-  const containerMenus = useClosingMenu<ContainerMenuState>();
-  const { menu: containerMenu } = containerMenus;
-  const containerContentMenus = useClosingMenu<{
-    containerId: string;
-    clientX: number;
-    clientY: number;
-  }>();
-  const textCardMenus = useClosingMenu<AnchoredMenu>();
-  const textBlockMenus = useClosingMenu<AnchoredMenu>();
-  const { menu: textBlockMenu } = textBlockMenus;
-  const imageMenus = useClosingMenu<AnchoredMenu>();
-  const [mindmapConnectionMenu, setMindmapConnectionMenu] = useState<AnchoredMenu | null>(null);
-  const canvasMenus = useClosingMenu<{ clientX: number; clientY: number }>();
+  const menus = useCanvasMenus({
+    selection: () => interactionController.getSnapshot().selectedIds,
+    select: (ids) => setSelectedIds(ids),
+    endRename: () => rename.end(),
+    endTextCardEdit: () => textCardEdit.end(),
+    connectionMode: () => mindmapConnectionMode,
+  });
   const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
   const { editingId: renamingId, draft: renameDraft, end: endRename } = rename;
   const textCardEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
@@ -832,28 +822,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     };
   }, []);
 
-  const { close: closeContainerMenu } = containerMenus;
-  const { close: closeContainerContentMenu } = containerContentMenus;
-  const { close: closeTextCardMenu } = textCardMenus;
-  const { close: closeTextBlockMenu } = textBlockMenus;
-  const { close: closeImageMenu } = imageMenus;
-  const { close: closeCanvasMenu } = canvasMenus;
-  const closeContextMenus = useCallback(() => {
-    closeContainerMenu();
-    closeContainerContentMenu();
-    closeTextCardMenu();
-    closeTextBlockMenu();
-    closeImageMenu();
-    closeCanvasMenu();
-    setMindmapConnectionMenu(null);
-  }, [
-    closeCanvasMenu,
-    closeContainerContentMenu,
-    closeContainerMenu,
-    closeImageMenu,
-    closeTextBlockMenu,
-    closeTextCardMenu,
-  ]);
+  const closeContextMenus = menus.closeAll;
 
   const showMinimap = () => {
     if (!minimapEnabled) {
@@ -1213,7 +1182,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const removeMindmapConnection = (id: string) => {
     retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
-    setMindmapConnectionMenu(null);
+    menus.closeConnection();
   };
 
   const deleteRetainedSelection = (ids: string[]) => {
@@ -1748,27 +1717,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       return;
     }
 
-    setSelectedIds([]);
-    closeContextMenus();
-    rename.end();
-    canvasMenus.open({ clientX: event.clientX, clientY: event.clientY });
+    menus.openCanvas(event.clientX, event.clientY);
   };
 
   const openContainerContentMenu = (
     event: React.MouseEvent<HTMLElement>,
     element: ContainerElement,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setSelectedIds([element.id]);
-    closeContextMenus();
-    rename.end();
-    containerContentMenus.open({
-      containerId: element.id,
-      clientX: event.clientX,
-      clientY: event.clientY,
-    });
-  };
+  ) => menus.openContainerContent(event, element.id);
 
   const suppressContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -2318,36 +2273,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       }),
     });
   };
-  const openImageMenu = (event: React.MouseEvent<HTMLElement>, image: ImageElement) => {
-    event.preventDefault();
-    event.stopPropagation();
-    closeContextMenus();
-    rename.end();
-    if (!selectedIds.includes(image.id)) {
-      setSelectedIds([image.id]);
-    }
-    imageMenus.open({
-      id: image.id,
-      left: event.clientX + 8,
-      top: event.clientY + 8,
-    });
-  };
+  const openImageMenu = (event: React.MouseEvent<HTMLElement>, image: ImageElement) =>
+    menus.openAtPointer("image", event, image.id);
 
-  const openTextCardMenu = (event: React.MouseEvent<HTMLElement>, id: string) => {
-    event.preventDefault();
-    event.stopPropagation();
-    closeContextMenus();
-    rename.end();
-    textCardEdit.end();
-    if (!selectedIds.includes(id)) {
-      setSelectedIds([id]);
-    }
-    textCardMenus.open({
-      id,
-      left: event.clientX + 8,
-      top: event.clientY + 8,
-    });
-  };
+  const openTextCardMenu = (event: React.MouseEvent<HTMLElement>, id: string) =>
+    menus.openAtPointer("textCard", event, id);
 
   const startTextCardEdit = (card: TextCardElement) => {
     textCardEdit.begin(card.id, card.text);
@@ -2370,42 +2300,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     captureRetainedLinkEdit(retained.runtime.callbacks, id as ElementId)?.complete(link);
   };
 
-  const openMindmapConnectionMenu = (event: PointerEvent<SVGPathElement>, connectionId: string) => {
-    if (!mindmapConnectionMode) return;
-    event.preventDefault();
-    event.stopPropagation();
-    closeContextMenus();
-    setMindmapConnectionMenu({
-      id: connectionId,
-      left: event.clientX + 8,
-      top: event.clientY + 8,
-    });
-  };
+  const openMindmapConnectionMenu = (event: PointerEvent<SVGPathElement>, connectionId: string) =>
+    menus.openConnection(event, connectionId);
 
   const openTextBlockMenu = (
     event: React.MouseEvent<HTMLButtonElement>,
     element: TextBlockElement,
-  ) => {
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!selectedIds.includes(element.id)) {
-      selectCanvasElement(element);
-    }
-    rename.end();
-    textCardEdit.end();
-
-    if (textBlockMenu?.id === element.id) {
-      closeContextMenus();
-      return;
-    }
-
-    closeContextMenus();
-    textBlockMenus.open({
-      id: element.id,
-      left: rect.right + 8,
-      top: rect.top,
-    });
-  };
+  ) => menus.toggleBeside("textBlock", event, element.id);
 
   const startTextBlockEdit = (element: TextBlockElement) => {
     textBlockEdit.begin(element.id, element.text);
@@ -2430,26 +2331,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     completeRetainedContent(id, { headerButtonsVisible: visible });
   };
 
-  const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) => {
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!selectedIds.includes(element.id)) {
-      selectCanvasElement(element);
-    }
-    rename.end();
-
-    if (containerMenu?.id === element.id) {
-      closeContextMenus();
-      return;
-    }
-
-    closeContextMenus();
-    containerMenus.open({
-      id: element.id,
-      left: rect.right + 8,
-      top: rect.top,
-    });
-  };
+  const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) =>
+    menus.toggleBeside("container", event, element.id);
 
   const startRename = (element: ContainerElement | TextBlockElement) => {
     rename.begin(element.id, element.name);
@@ -3843,15 +3726,15 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           </WorkspaceBackdropLayer>
 
           <RetainedCanvasMenus
-            containerMenus={containerMenus}
-            textCardMenus={textCardMenus}
-            textBlockMenus={textBlockMenus}
-            imageMenus={imageMenus}
-            containerContentMenus={containerContentMenus}
-            canvasMenus={canvasMenus}
+            containerMenus={menus.pairs.container}
+            textCardMenus={menus.pairs.textCard}
+            textBlockMenus={menus.pairs.textBlock}
+            imageMenus={menus.pairs.image}
+            containerContentMenus={menus.pairs.containerContent}
+            canvasMenus={menus.pairs.canvas}
             connectionMenu={
-              mindmapConnectionMenu && mindmapConnectionsById.has(mindmapConnectionMenu.id)
-                ? mindmapConnectionMenu
+              menus.connection && mindmapConnectionsById.has(menus.connection.id)
+                ? menus.connection
                 : null
             }
             elementOf={(id) =>

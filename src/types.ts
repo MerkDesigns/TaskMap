@@ -115,12 +115,6 @@ export type TextBlockElement = {
   extensions?: ElementExtensions;
 };
 
-export type ContainerMenuState = {
-  id: string;
-  left: number;
-  top: number;
-};
-
 export type CanvasGridStyle = "dots" | "lines";
 
 export type DefaultElementColors = {
