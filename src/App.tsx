@@ -13,7 +13,7 @@ import {
 } from "react";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
-import { ExtensionDropRipples, useExtensionDropRipples } from "./components/ExtensionDropRipples";
+import { ExtensionDropRipples } from "./components/ExtensionDropRipples";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
@@ -33,19 +33,13 @@ import {
   type RetainedCanvasContextValue,
 } from "./legacy/RetainedCanvasContext";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
-import { installRetainedViewExtension } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
 import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
 import { useCanvasGestures } from "./legacy/useCanvasGestures";
-import {
-  extensionDropTargetIds,
-  findExtensionDropTarget,
-  type DropBounds,
-  type ExtensionDropTarget,
-} from "./legacy/extensionDropTarget";
+import type { DropBounds } from "./legacy/extensionDropTarget";
 import { useToastQueue } from "./components/useToastQueue";
 import {
   clipToContainer,
@@ -68,9 +62,9 @@ import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
+import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { ContainerLayer, type ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import {
-  CONTAINER_HEADER_HEIGHT,
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
   containerCardStackTop,
   containerViewportHeight,
@@ -88,11 +82,9 @@ import {
   contextActionIds,
   useRetainedExtensionCommands,
 } from "./legacy/useRetainedExtensionCommands";
-import { isExtensionCompatible, type ExtensionTargetType } from "./extensions/extensionCatalog";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
 import { useWorkflowRuns } from "./extensions/workflow/useWorkflowRuns";
-import { addsCardAdornment } from "./extensions/cardAdornmentRegistry";
 import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
@@ -121,7 +113,6 @@ import {
 } from "./ui/patterns/workspace/workspaceIntro";
 import { ClearCanvasModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
-import { searchRowHeight } from "./extensions/search/searchRule";
 
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
@@ -350,7 +341,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   } = presenceMarks.deleting;
   const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const snapGuides = interactionSnapshot.snapGuides;
-  const dropRipples = useExtensionDropRipples();
 
   const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
   containerScrollOffsetsRef.current = containerScrollOffsets;
@@ -971,18 +961,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     rename.end();
   };
 
-  const installExtensions = (extensionId: RetainedExtensionKey, ids: string[]) => {
-    const installed = installRetainedViewExtension(
-      retained.runtime.callbacks,
-      retained.runtime.controller.store.getState().documentWorkspace.document,
-      extensionId,
-      ids,
-      { nextUuid: () => crypto.randomUUID() },
-    );
-    if (installed) closeContextMenus();
-    return installed;
-  };
-
   const copyPasteJson = useCopyPasteJsonFlow({
     getJson: (id) => retained.runtime.callbacks.getContainerJsonForAi(id as ElementId),
     captureReplace: (id) =>
@@ -1050,142 +1028,29 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     workflowRuns,
   });
 
-  const getExtensionTargetType = (id: string): ExtensionTargetType | null => {
-    if (containersById.has(id)) {
-      return "container";
-    }
-    if (textBlocksById.has(id)) {
-      return "text-block";
-    }
-    const textCard = textCardsById.get(id);
-    if (textCard) {
-      return textCard.kind === "mindmap" ? "mindmap" : "text-card";
-    }
-    if (imagesById.has(id)) {
-      return "image";
-    }
-    return null;
-  };
-
-  const getExtensionRippleTarget = (id: string): ExtensionDropTarget | null => {
-    const targetType = getExtensionTargetType(id);
-    if (!targetType) {
-      return null;
-    }
-
-    return { type: targetType, id };
-  };
-
-  const getExtensionTargetBounds = (target: ExtensionDropTarget): DropBounds | null => {
-    if (target.type === "container") {
-      const element = containersById.get(target.id);
-      return element
-        ? { left: element.x, top: element.y, width: element.width, height: element.height }
-        : null;
-    }
-
-    if (target.type === "text-block") {
-      const element = textBlocksById.get(target.id);
-      return element
-        ? { left: element.x, top: element.y, width: element.width, height: element.height }
-        : null;
-    }
-
-    if (target.type === "image") {
-      const image = imagesById.get(target.id);
-      return image
-        ? { left: image.x, top: image.y, width: image.width, height: image.height }
-        : null;
-    }
-
-    const card = textCardsById.get(target.id);
-    return card ? getTextCardRippleBounds(card) : null;
-  };
-
-  const applyDroppedExtension = (
-    extensionId: RetainedExtensionKey,
-    point: { x: number; y: number },
-    target: ExtensionDropTarget,
-    bounds: DropBounds,
-  ) => {
-    const targetIds = extensionDropTargetIds(target, selectedIds, (id) => {
-      const type = getExtensionTargetType(id);
-      return type !== null && isExtensionCompatible(extensionId, type);
-    });
-    if (!installExtensions(extensionId, targetIds)) {
-      return;
-    }
-    if (!selectedIds.includes(target.id)) {
-      setSelectedIds([target.id]);
-    }
-
-    const showDropRipples = () => {
-      targetIds.forEach((targetId) => {
-        const rippleTarget = targetId === target.id ? target : getExtensionRippleTarget(targetId);
-        if (!rippleTarget) {
-          return;
-        }
-
-        const rippleBounds =
-          getExtensionTargetBounds(rippleTarget) ?? (targetId === target.id ? bounds : null);
-        if (!rippleBounds) {
-          return;
-        }
-
-        const ripplePoint =
-          targetId === target.id
-            ? point
-            : {
-                x: rippleBounds.left + rippleBounds.width / 2,
-                y: rippleBounds.top + rippleBounds.height / 2,
-              };
-
-        dropRipples.show(ripplePoint, rippleBounds);
-      });
-    };
-
-    // An adornment resizes the card, so its ripple waits for the next layout.
-    if (addsCardAdornment(extensionId)) {
-      window.requestAnimationFrame(showDropRipples);
-    } else {
-      showDropRipples();
-    }
-  };
-
-  const dropExtensionOnCanvas = (
-    extensionId: RetainedExtensionKey,
-    clientX: number,
-    clientY: number,
-  ) => {
-    const point = canvasPointFromEvent({ clientX, clientY });
-    const hit = findExtensionDropTarget(point, {
-      images: looseImages,
-      looseCards: looseTextCards,
+  const extensionDrop = useExtensionDrop({
+    callbacks: retained.runtime.callbacks,
+    document: () => retained.runtime.controller.store.getState().documentWorkspace.document,
+    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    scene: () => ({
       containers: elements,
       textBlocks,
-      compatible: (type) => isExtensionCompatible(extensionId, type),
-      cardBounds: getTextCardRippleBounds,
-      looseCardFallbackBounds: getLooseTextCardSelectionBounds,
-      containerCardSlots: (container) => {
-        const visibleTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
-        const rowSize = containerRowSize(container);
-        return getContainerVisibleTextCards(container).map((card, index) => {
-          const measured = getTextCardRippleBounds(card);
-          const row = cardLayout.rowPosition(container, index);
-          return {
-            card,
-            left: measured?.left ?? row.x,
-            top: measured?.top ?? row.y,
-            width: measured?.width ?? rowSize.width,
-            height: measured?.height ?? rowSize.height,
-            visibleTop,
-            visibleBottom: container.y + container.height,
-          };
-        });
-      },
-    });
-    if (hit) applyDroppedExtension(extensionId, point, hit.target, hit.bounds);
-  };
+      looseCards: looseTextCards,
+      images: looseImages,
+    }),
+    find: {
+      container: (id) => containersById.get(id),
+      textBlock: (id) => textBlocksById.get(id),
+      image: (id) => imagesById.get(id),
+      card: (id) => textCardsById.get(id),
+    },
+    cardLayout: () => cardLayout,
+    cardBounds: getTextCardRippleBounds,
+    looseCardEstimate: getLooseTextCardSelectionBounds,
+    selection: () => selectedIds,
+    select: setSelectedIds,
+    closeContextMenus,
+  });
 
   const resetZoom = () => {
     interactionController.resetZoom();
@@ -1594,7 +1459,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             activeCanvasId={activeCanvas.id}
             canvasManagement={canvasManagement}
             viewportSize={stageSize}
-            onDropExtension={dropExtensionOnCanvas}
+            onDropExtension={extensionDrop.drop}
             minimap={{
               presence: minimap,
               elements,
@@ -1658,7 +1523,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 canvasWidth={canvasWidth}
                 canvasHeight={canvasHeight}
               />
-              <ExtensionDropRipples ripples={dropRipples.ripples} />
+              <ExtensionDropRipples ripples={extensionDrop.ripples} />
               <MindMapConnections
                 connections={activeMindMapConnections}
                 connectableBoundsById={connectableBoundsById}
