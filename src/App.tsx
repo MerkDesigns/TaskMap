@@ -11,25 +11,17 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { ContainerActions } from "./elements/container/containerView";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
-import type { ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import { ExtensionDropRipples, useExtensionDropRipples } from "./components/ExtensionDropRipples";
-import type { ImageActions } from "./elements/image/ImageRenderer";
-import type { ImageMenuActions } from "./elements/image/ImageMenu";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
-import type { TextCardActions } from "./elements/text-card/TextCardRenderer";
-import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
-import type { TextBlockActions } from "./elements/text-block/textBlockView";
-import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
 import { ToastStack } from "./components/ToastStack";
 import { getTextCardAccent } from "./constants";
 import { clamp } from "./canvasMath";
-import { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "./types";
+import { ContainerElement, TextBlockElement, TextCardElement } from "./types";
 import { commandErrorMessage } from "./app/commandError";
 import { planCanvasDeletion } from "./app/canvasDocument";
 import { DEFAULT_CANVAS } from "./app/defaultData";
@@ -43,7 +35,6 @@ import {
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
 import { installRetainedViewExtension } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
-import { captureRetainedLinkEdit } from "./app/commands/retainedEditorCallbacks";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
@@ -76,6 +67,7 @@ import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
+import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { ContainerLayer, type ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import {
   CONTAINER_HEADER_HEIGHT,
@@ -659,23 +651,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     [previewGeometries, settledLayeredLooseImages],
   );
 
-  const addIdsToSelection = (ids: string[]) => {
-    setSelectedIds((current) => Array.from(new Set([...current, ...ids])));
-  };
-
-  const applySelection = (ids: string[], additive = false) => {
-    if (additive) {
-      addIdsToSelection(ids);
-      return;
-    }
-
-    setSelectedIds(ids);
-  };
-
-  const selectCanvasElement = (element: ContainerElement | TextBlockElement, additive = false) => {
-    applySelection([element.id], additive);
-  };
-
   const animateContainerIn = (id: string) => presenceMarks.animateIn("containers", id);
 
   const animateTextCardIn = (id: string) => presenceMarks.animateIn("textCards", id);
@@ -707,10 +682,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       presenceMarks.clearDeleting();
     }
   };
-
-  const pulseTextCard = (id: string) => presenceMarks.pulse("textCards", id);
-
-  const pulseTextBlock = (id: string) => presenceMarks.pulse("textBlocks", id);
 
   const removeMindmapConnection = (id: string) => {
     retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
@@ -839,11 +810,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const pickImageForElement = imageImport.pick;
   const loadingImageIds = imageImport.importingIds;
 
-  const toggleImageBackground = (id: string) => {
-    completeRetainedContent(id, { background: imagesById.get(id)?.background === false });
-    closeContextMenus();
-  };
-
   const handleCanvasContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
 
@@ -853,11 +819,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
     menus.openCanvas(event.clientX, event.clientY);
   };
-
-  const openContainerContentMenu = (
-    event: React.MouseEvent<HTMLElement>,
-    element: ContainerElement,
-  ) => menus.openContainerContent(event, element.id);
 
   const suppressContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -881,7 +842,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }
 
     if (renamingId && !target?.closest("[data-container-rename-input]")) {
-      saveRename();
+      elementActions.saveRename();
     }
 
     // A menu's own trigger toggles it on click; closing it here first would reopen it.
@@ -919,80 +880,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const startMindmapConnection = connectionDrawing.start;
 
-  const openImageMenu = (event: React.MouseEvent<HTMLElement>, image: ImageElement) =>
-    menus.openAtPointer("image", event, image.id);
-
-  const openTextCardMenu = (event: React.MouseEvent<HTMLElement>, id: string) =>
-    menus.openAtPointer("textCard", event, id);
-
-  const startTextCardEdit = (card: TextCardElement) => {
-    textCardEdit.begin(card.id, card.text);
-    closeContextMenus();
-  };
-
-  const saveTextCardEdit = (id: string) => {
-    textCardEdit.complete();
-    pulseTextCard(id);
-  };
-
-  const cancelTextCardEdit = () => {
-    if (editingTextCardId) {
-      pulseTextCard(editingTextCardId);
-    }
-    textCardEdit.end();
-  };
-
-  const updateTextCardLink = (id: string, link: string) => {
-    captureRetainedLinkEdit(retained.runtime.callbacks, id as ElementId)?.complete(link);
-  };
-
   const openMindmapConnectionMenu = (event: PointerEvent<SVGPathElement>, connectionId: string) =>
     menus.openConnection(event, connectionId);
-
-  const openTextBlockMenu = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    element: TextBlockElement,
-  ) => menus.toggleBeside("textBlock", event, element.id);
-
-  const startTextBlockEdit = (element: TextBlockElement) => {
-    textBlockEdit.begin(element.id, element.text);
-    setSelectedIds([element.id]);
-    rename.end();
-    closeContextMenus();
-  };
-
-  const saveTextBlockEdit = (id: string) => {
-    textBlockEdit.complete();
-    pulseTextBlock(id);
-  };
-
-  const cancelTextBlockEdit = () => {
-    if (editingTextBlockId) {
-      pulseTextBlock(editingTextBlockId);
-    }
-    textBlockEdit.end();
-  };
-
-  const updateTextBlockHeaderButtonsVisible = (id: string, visible: boolean) => {
-    completeRetainedContent(id, { headerButtonsVisible: visible });
-  };
-
-  const toggleMenu = (event: React.MouseEvent<HTMLButtonElement>, element: ContainerElement) =>
-    menus.toggleBeside("container", event, element.id);
-
-  const startRename = (element: ContainerElement | TextBlockElement) => {
-    rename.begin(element.id, element.name);
-    closeContextMenus();
-  };
-
-  const saveRename = () => {
-    rename.complete();
-    closeContextMenus();
-  };
-
-  const cancelRename = () => {
-    rename.end();
-  };
 
   const getTextCardCopyPosition = (card: TextCardElement) => {
     const position = getTextCardRenderPosition(card) ?? getTextCardStackPosition(card);
@@ -1050,10 +939,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textCardEdit.end();
     textBlockEdit.end();
     setClearModalOpen(false);
-  };
-
-  const updateContainerHeaderButtonsVisible = (id: string, visible: boolean) => {
-    completeRetainedContent(id, { headerButtonsVisible: visible });
   };
 
   const getContextActionIds = (id: string) => [...contextActionIds(selectedIds, id)];
@@ -1459,11 +1344,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     camera: () => ({ pan: activeCanvas.pan, zoom: activeCanvas.zoom }),
     editingCardId: () => editingTextCardId,
     saveOpenEdits: () => {
-      if (editingTextCardId) saveTextCardEdit(editingTextCardId);
-      if (editingTextBlockId) saveTextBlockEdit(editingTextBlockId);
+      if (editingTextCardId) elementActions.saveCardEdit(editingTextCardId);
+      if (editingTextBlockId) elementActions.saveBlockEdit(editingTextBlockId);
     },
     saveTextBlockEdit: () => {
-      if (editingTextBlockId) saveTextBlockEdit(editingTextBlockId);
+      if (editingTextBlockId) elementActions.saveBlockEdit(editingTextBlockId);
     },
     endEditing: () => {
       rename.end();
@@ -1474,136 +1359,38 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus,
     showMinimap: () => showMinimap(),
   });
-  const startMove = gestures.moveFrame;
-  const startResize = gestures.resizeFrame;
-  const startImageMove = gestures.moveImage;
-  const startImageResize = gestures.resizeImage;
-  const startContainerContentSelection = gestures.containerContentPointerDown;
-  const startTextCardMove = (event: PointerEvent<HTMLElement>, id: string) => {
-    const card = textCardsById.get(id);
-    if (card) gestures.moveTextCard(event, card);
-  };
-
-  const canvasNodeActions = useStableCallbacks({
-    cancelTextCardEdit,
-    openTextCardMenu,
-    rememberRecentColor,
-    saveTextCardEdit,
-    startTextCardMove,
+  const elementActions = useRetainedElementActions({
+    callbacks: retained.runtime.callbacks,
+    find: {
+      container: (id) => containersById.get(id),
+      textBlock: (id) => textBlocksById.get(id),
+      image: (id) => imagesById.get(id),
+      card: (id) => textCardsById.get(id),
+    },
+    menus,
+    gestures,
+    rename,
+    cardEdit: textCardEdit,
+    blockEdit: textBlockEdit,
+    select: (ids, additive) =>
+      setSelectedIds((current) => (additive ? Array.from(new Set([...current, ...ids])) : ids)),
+    pulse: presenceMarks.pulse,
+    context: {
+      updateAccent: updateContextAccent,
+      cut: clipboard.cut,
+      copy: clipboard.copy,
+      moveLayer: moveCanvasLayers,
+      remove: deleteContextSelection,
+    },
+    pickImage: pickImageForElement,
+    wheelContainer: handleContainerWheel,
+    rememberCardSize: measuredCards.remember,
   });
-  const textCardActions = useMemo<TextCardActions>(
-    () => ({
-      onDraftChange: textCardEdit.setDraft,
-      onSave: canvasNodeActions.saveTextCardEdit,
-      onCancel: canvasNodeActions.cancelTextCardEdit,
-      onStartMove: canvasNodeActions.startTextCardMove,
-      onOpenMenu: canvasNodeActions.openTextCardMenu,
-      onSizeChange: measuredCards.remember,
-    }),
-    [canvasNodeActions, measuredCards.remember, textCardEdit.setDraft],
-  );
   const documentConnections = useRetainedDocumentConnections();
   const activeMindMapConnections = useMemo(
     () => canvasMindMapConnections(documentConnections, activeCanvas.id),
     [documentConnections, activeCanvas.id],
   );
-  const withContainer = (id: string, action: (container: ContainerElement) => void) => {
-    const container = containersById.get(id);
-    if (container) action(container);
-  };
-  const containerMenuActions: ContainerMenuActions = useStableCallbacks({
-    onStartRename: (id: string) => withContainer(id, startRename),
-    onUpdateAccent: updateContextAccent,
-    onCut: clipboard.cut,
-    onCopy: clipboard.copy,
-    onMoveLayer: moveCanvasLayers,
-    onDelete: deleteContextSelection,
-  });
-  const withTextBlock = (id: string, action: (textBlock: TextBlockElement) => void) => {
-    const textBlock = textBlocksById.get(id);
-    if (textBlock) action(textBlock);
-  };
-  const textBlockMenuActions: TextBlockMenuActions = useStableCallbacks({
-    onStartRename: (id: string) => withTextBlock(id, startRename),
-    onUpdateAccent: updateContextAccent,
-    onCut: clipboard.cut,
-    onCopy: clipboard.copy,
-    onMoveLayer: moveCanvasLayers,
-    onDelete: deleteContextSelection,
-  });
-  const textBlockActions: TextBlockActions = useStableCallbacks({
-    onDraftChange: textBlockEdit.setDraft,
-    onSave: saveTextBlockEdit,
-    onCancel: cancelTextBlockEdit,
-    onRenameDraftChange: rename.setDraft,
-    onSaveRename: saveRename,
-    onCancelRename: cancelRename,
-    onStartEdit: (id: string) => withTextBlock(id, startTextBlockEdit),
-    onSelect: (id: string, additive: boolean) =>
-      withTextBlock(id, (textBlock) => selectCanvasElement(textBlock, additive)),
-    onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
-      withTextBlock(id, (textBlock) => startMove(event, textBlock)),
-    onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) =>
-      withTextBlock(id, (textBlock) => startResize(event, textBlock)),
-    onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
-      withTextBlock(id, (textBlock) => openTextBlockMenu(event, textBlock)),
-    onHeaderButtonsVisibleChange: updateTextBlockHeaderButtonsVisible,
-  });
-  const withImage = (id: string, action: (image: ImageElement) => void) => {
-    const image = imagesById.get(id);
-    if (image) action(image);
-  };
-  const imageMenuActions: ImageMenuActions = useStableCallbacks({
-    onReplace: pickImageForElement,
-    onUpdateAccent: updateContextAccent,
-    onToggleBackground: toggleImageBackground,
-    onMoveLayer: moveCanvasLayers,
-    onCut: clipboard.cut,
-    onCopy: clipboard.copy,
-    onDelete: deleteContextSelection,
-  });
-  const imageActions: ImageActions = useStableCallbacks({
-    onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
-      withImage(id, (image) => startImageMove(event, image)),
-    onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) =>
-      withImage(id, (image) => startImageResize(event, image)),
-    onOpenMenu: (event: React.MouseEvent<HTMLElement>, id: string) =>
-      withImage(id, (image) => openImageMenu(event, image)),
-    onPick: pickImageForElement,
-  });
-  const containerActions: ContainerActions = useStableCallbacks({
-    onRenameDraftChange: rename.setDraft,
-    onSaveRename: saveRename,
-    onCancelRename: cancelRename,
-    onSelect: (id: string, additive: boolean) =>
-      withContainer(id, (container) => selectCanvasElement(container, additive)),
-    onStartMove: (event: PointerEvent<HTMLElement>, id: string) =>
-      withContainer(id, (container) => startMove(event, container)),
-    onStartResize: (event: PointerEvent<HTMLButtonElement>, id: string) =>
-      withContainer(id, (container) => startResize(event, container)),
-    onToggleMenu: (event: React.MouseEvent<HTMLButtonElement>, id: string) =>
-      withContainer(id, (container) => toggleMenu(event, container)),
-    onHeaderButtonsVisibleChange: updateContainerHeaderButtonsVisible,
-    onOpenContentMenu: (event: React.MouseEvent<HTMLElement>, id: string) =>
-      withContainer(id, (container) => openContainerContentMenu(event, container)),
-    onWheelContent: (event: WheelEvent<HTMLElement>, id: string) =>
-      withContainer(id, (container) => handleContainerWheel(event, container)),
-    onStartContentSelection: (event: PointerEvent<HTMLElement>, id: string) =>
-      withContainer(id, (container) => startContainerContentSelection(event, container)),
-  });
-  const withTextCard = (id: string, action: (card: TextCardElement) => void) => {
-    const card = textCardsById.get(id);
-    if (card) action(card);
-  };
-  const textCardMenuActions: TextCardMenuActions = useStableCallbacks({
-    onStartEdit: (id: string) => withTextCard(id, startTextCardEdit),
-    onUpdateAccent: updateContextAccent,
-    onUpdateLink: updateTextCardLink,
-    onCut: clipboard.cut,
-    onCopy: clipboard.copy,
-    onMoveLayer: moveCanvasLayers,
-    onDelete: deleteContextSelection,
-  });
   const editingTextCardContainerId = editingTextCardId
     ? textCardsById.get(editingTextCardId)?.containerId
     : undefined;
@@ -1900,15 +1687,15 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
                       layout={containerCardLayout}
-                      actions={containerActions}
-                      cardActions={textCardActions}
+                      actions={elementActions.container}
+                      cardActions={elementActions.textCard}
                       extensionCommands={extensionCommands}
                     />
                     <TextBlockLayer
                       elements={layeredTextBlocks}
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
-                      actions={textBlockActions}
+                      actions={elementActions.textBlock}
                       extensionCommands={extensionCommands}
                     />
                     <LooseTextCardLayer
@@ -1917,14 +1704,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                       presentation={elementPresentation}
                       hiddenIds={overlaidTextCardIds}
                       positionOf={getTextCardRenderPosition}
-                      actions={textCardActions}
+                      actions={elementActions.textCard}
                       extensionCommands={extensionCommands}
                     />
                     <ImageLayer
                       elements={layeredLooseImages}
                       visibleIds={visibleRenderIds}
                       presentation={elementPresentation}
-                      actions={imageActions}
+                      actions={elementActions.image}
                       leases={retained.runtime.media}
                     />
                   </>
@@ -1939,7 +1726,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               cardById={(id) => textCardsById.get(id)}
               outlinedIds={outlinedIds}
               shadowsUnderElements={shadowsUnderElements}
-              cardActions={textCardActions}
+              cardActions={elementActions.textCard}
               extensionCommands={extensionCommands}
               connectionPorts={
                 connectionDrawing.mode
@@ -1992,10 +1779,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             installedOnTargets={getContextInstalledExtensions}
             extensionCommands={extensionCommands}
             recentColors={recentColors}
-            containerActions={containerMenuActions}
-            textCardActions={textCardMenuActions}
-            textBlockActions={textBlockMenuActions}
-            imageActions={imageMenuActions}
+            containerActions={elementActions.containerMenu}
+            textCardActions={elementActions.textCardMenu}
+            textBlockActions={elementActions.textBlockMenu}
+            imageActions={elementActions.imageMenu}
             hasCopiedItem={clipboard.hasCopy}
             onPaste={clipboard.paste}
             onCreateTextCardInContainer={createElement.containerCard}
@@ -2026,7 +1813,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             settings={settings}
             updates={updates}
             session={retained.runtime.controller}
-            onRememberRecentColor={canvasNodeActions.rememberRecentColor}
+            onRememberRecentColor={rememberRecentColor}
             fpsCounterVisible={fpsCounterVisible}
             onFpsCounterVisibleChange={setFpsCounterVisible}
           />
