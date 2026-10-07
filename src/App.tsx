@@ -13,11 +13,9 @@ import {
 } from "react";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
-import { ExtensionDropRipples } from "./components/ExtensionDropRipples";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
-import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import { ToastStack } from "./components/ToastStack";
 import { getTextCardAccent } from "./constants";
 import { clamp } from "./canvasMath";
@@ -50,7 +48,6 @@ import {
   measureRenderedCard,
   useMeasuredTextCardSizes,
 } from "./legacy/canvasElementBounds";
-import { CanvasSnapGuides } from "./legacy/CanvasSnapGuides";
 import { RetainedSettingsDialog } from "./legacy/RetainedSettingsDialog";
 import { RetainedWorkspaceChrome } from "./legacy/RetainedWorkspaceChrome";
 import { useMinimapPresence } from "./legacy/useMinimapPresence";
@@ -58,13 +55,13 @@ import { useCanvasElementCreation } from "./legacy/useCanvasElementCreation";
 import { useCanvasManagement } from "./legacy/useCanvasManagement";
 import { useLeftPanel } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
-import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
-import { ContainerLayer, type ContainerCardLayout } from "./legacy/RetainedContainerLayer";
+import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
+import type { ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import {
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
   containerCardStackTop,
@@ -72,13 +69,7 @@ import {
   createContainerCardLayout,
   groupContainerCards,
 } from "./legacy/containerCardLayout";
-import {
-  ElementShadowLayer,
-  elementShadows,
-  ImageLayer,
-  LooseTextCardLayer,
-  TextBlockLayer,
-} from "./legacy/RetainedElementLayers";
+import { elementShadows } from "./legacy/RetainedElementLayers";
 import type { RetainedElementPresentation } from "./legacy/retainedElementPresentation";
 import {
   contextActionIds,
@@ -92,19 +83,13 @@ import type { InteractionElement } from "./app/interactions/canvasInteractionTyp
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
 import { viewportWorldRectangle } from "./canvas/geometry/viewportMath";
 import { rectanglesIntersect } from "./canvas/geometry/canvasGeometry";
-import { LegacyCanvasVisibility } from "./legacy/interactions/LegacyCanvasVisibility";
 import { useLegacyInteractionSnapshot } from "./legacy/interactions/useLegacyInteractionSnapshot";
 import { useLegacyCameraPresentation } from "./legacy/interactions/useLegacyCameraPresentation";
 import { getLegacyInteractionElements } from "./legacy/interactions/legacyCanvasGeometry";
 import { applyLegacySelectionAction } from "./legacy/interactions/legacySelectionCompatibility";
 import { createLegacyTextCardInteractionService } from "./legacy/interactions/legacyTextCardInteraction";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
-import {
-  CanvasFrame,
-  WorkspaceBackdropLayer,
-  WorkspaceRoot,
-  WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
-} from "./ui/patterns/workspace";
+import { WorkspaceRoot, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 import { useChromeAutoHide } from "./ui/patterns/workspace/chromeSleep";
 import { setWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
@@ -123,7 +108,6 @@ const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
 const isEditableKeyboardTarget = (target: HTMLElement | null) =>
   target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
-const CANVAS_CONTENT_INSET = 1;
 const EMPTY_IDS: string[] = [];
 
 type CallbackMap = Record<string, (...args: never[]) => unknown>;
@@ -1328,146 +1312,73 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             onCloseQuickExtensions={() => setQuickExtensionsMenu(null)}
             fpsCounterVisible={fpsCounterVisible}
           />
-          <WorkspaceBackdropLayer
-            ref={stageRef}
-            data-stage
-            className={
+          <RetainedCanvasStage
+            stageRef={stageRef}
+            worldRef={worldRef}
+            selectionRef={selectionRef}
+            controller={interactionController}
+            gestures={gestures}
+            grabbing={
               interactionSnapshot.activeInteraction?.kind === "pan" ||
               interactionSnapshot.activeInteraction?.kind === "move"
-                ? "cursor-grabbing"
-                : "cursor-default"
             }
-            onPointerDownCapture={gestures.stagePointerDownCapture}
-            onPointerDown={gestures.stagePointerDown}
-            onPointerMove={gestures.pointerMove}
-            onPointerUp={gestures.pointerUp}
-            onPointerCancel={gestures.pointerCancel}
-            onLostPointerCapture={gestures.pointerCancel}
-            onWheel={gestures.wheel}
-            onAuxClick={(event) => event.preventDefault()}
-          >
-            <CanvasFrame
-              ref={worldRef}
-              className="absolute"
-              data-grid-style={canvasGridStyle}
-              data-image-url-version={imageUrlVersion}
-              style={
-                {
-                  "--taskmap-canvas-grid-opacity": canvasGridOpacity[canvasGridStyle] / 100,
-                  "--taskmap-canvas-dot-size":
-                    "calc(1.25px * var(--taskmap-camera-inverse-zoom, 1))",
-                  width: canvasWidth,
-                  height: canvasHeight,
-                  transform: "var(--taskmap-camera-transform)",
-                  transformOrigin: "0 0",
-                } as React.CSSProperties
-              }
-              onContextMenu={handleCanvasContextMenu}
-              onPointerDown={gestures.worldPointerDown}
-            >
-              <CanvasSnapGuides
-                guides={snapGuides}
-                canvasWidth={canvasWidth}
-                canvasHeight={canvasHeight}
-              />
-              <ExtensionDropRipples ripples={extensionDrop.ripples} />
-              <MindMapConnections
-                connections={activeMindMapConnections}
-                connectableBoundsById={connectableBoundsById}
-                canvasWidth={canvasWidth}
-                canvasHeight={canvasHeight}
-                connectionMode={connectionDrawing.mode}
-                preview={connectionDrawing.draft}
-                onConnectionClick={openMindmapConnectionMenu}
-              />
-              <LegacyCanvasVisibility
-                controller={interactionController}
-                elements={layers.cullable}
-                pinnedIds={pinnedRenderIds}
-              >
-                {(visibleRenderIds) => (
-                  <>
-                    {shadowsUnderElements && (
-                      <ElementShadowLayer
-                        shadows={canvasElementShadows}
-                        draggedIds={dragPinnedIds}
-                        visibleIds={visibleRenderIds}
-                      />
-                    )}
-                    <ContainerLayer
-                      elements={layers.containers}
-                      visibleIds={visibleRenderIds}
-                      presentation={elementPresentation}
-                      layout={containerCardLayout}
-                      actions={elementActions.container}
-                      cardActions={elementActions.textCard}
-                      extensionCommands={extensionCommands}
-                    />
-                    <TextBlockLayer
-                      elements={layers.textBlocks}
-                      visibleIds={visibleRenderIds}
-                      presentation={elementPresentation}
-                      actions={elementActions.textBlock}
-                      extensionCommands={extensionCommands}
-                    />
-                    <LooseTextCardLayer
-                      elements={layers.looseCards}
-                      visibleIds={visibleRenderIds}
-                      presentation={elementPresentation}
-                      hiddenIds={overlaidTextCardIds}
-                      positionOf={getTextCardRenderPosition}
-                      actions={elementActions.textCard}
-                      extensionCommands={extensionCommands}
-                    />
-                    <ImageLayer
-                      elements={layers.images}
-                      visibleIds={visibleRenderIds}
-                      presentation={elementPresentation}
-                      actions={elementActions.image}
-                      leases={retained.runtime.media}
-                    />
-                  </>
-                )}
-              </LegacyCanvasVisibility>
-            </CanvasFrame>
-            <RetainedCanvasOverlays
-              canvasSize={{ width: canvasWidth, height: canvasHeight }}
-              contentInset={CANVAS_CONTENT_INSET}
-              heldCards={activeTextCardPresentation}
-              releasedCards={textCardInteractionSnapshot.release}
-              cardById={(id) => textCardsById.get(id)}
-              outlinedIds={outlinedIds}
-              shadowsUnderElements={shadowsUnderElements}
-              cardActions={elementActions.textCard}
-              extensionCommands={extensionCommands}
-              connectionPorts={
-                connectionDrawing.mode
-                  ? {
-                      bounds: connectableBoundsById,
-                      accentOf: (ownerId) => {
-                        const mindmap = textCardsById.get(ownerId);
-                        return (
-                          containersById.get(ownerId)?.accent ??
-                          textBlocksById.get(ownerId)?.accent ??
-                          imagesById.get(ownerId)?.accent ??
-                          (mindmap?.kind === "mindmap"
-                            ? getTextCardAccent(mindmap.accent)
-                            : defaultElementColors.mindmap)
-                        );
-                      },
-                      drag: connectionDrawing.draft,
-                      onStartConnection: startMindmapConnection,
-                    }
-                  : null
-              }
-            />
-            {selectionBounds && (
-              <div
-                ref={selectionRef}
-                className="pointer-events-none absolute z-30 rounded-md border border-dashed border-[#2dd8c8]/80 bg-[#2dd8c8]/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
-              />
-            )}
-          </WorkspaceBackdropLayer>
+            canvas={{
+              width: canvasWidth,
+              height: canvasHeight,
+              gridStyle: canvasGridStyle,
+              gridOpacity: canvasGridOpacity[canvasGridStyle],
+              imageUrlVersion,
+            }}
+            onCanvasContextMenu={handleCanvasContextMenu}
+            snapGuides={snapGuides}
+            ripples={extensionDrop.ripples}
+            connections={{
+              connections: activeMindMapConnections,
+              connectableBoundsById,
+              connectionMode: connectionDrawing.mode,
+              preview: connectionDrawing.draft,
+              onConnectionClick: openMindmapConnectionMenu,
+            }}
+            layers={layers}
+            pinnedIds={pinnedRenderIds}
+            shadows={{
+              underElements: shadowsUnderElements,
+              rectangles: canvasElementShadows,
+              draggedIds: dragPinnedIds,
+            }}
+            presentation={elementPresentation}
+            containerLayout={containerCardLayout}
+            actions={elementActions}
+            extensionCommands={extensionCommands}
+            media={retained.runtime.media}
+            overlaidCardIds={overlaidTextCardIds}
+            cardPosition={getTextCardRenderPosition}
+            overlays={{
+              heldCards: activeTextCardPresentation,
+              releasedCards: textCardInteractionSnapshot.release,
+              cardById: (id) => textCardsById.get(id),
+              outlinedIds,
+              connectionPorts: connectionDrawing.mode
+                ? {
+                    bounds: connectableBoundsById,
+                    accentOf: (ownerId) => {
+                      const mindmap = textCardsById.get(ownerId);
+                      return (
+                        containersById.get(ownerId)?.accent ??
+                        textBlocksById.get(ownerId)?.accent ??
+                        imagesById.get(ownerId)?.accent ??
+                        (mindmap?.kind === "mindmap"
+                          ? getTextCardAccent(mindmap.accent)
+                          : defaultElementColors.mindmap)
+                      );
+                    },
+                    drag: connectionDrawing.draft,
+                    onStartConnection: startMindmapConnection,
+                  }
+                : null,
+            }}
+            selectionVisible={Boolean(selectionBounds)}
+          />
 
           <RetainedCanvasMenus
             containerMenus={menus.pairs.container}
