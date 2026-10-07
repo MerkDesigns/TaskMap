@@ -40,7 +40,6 @@ import {
   useRetainedDocumentConnections,
   type RetainedCanvasContextValue,
 } from "./legacy/RetainedCanvasContext";
-import { createRetainedViewElement } from "./legacy/retainedViewCreation";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
 import { installRetainedViewExtension } from "./legacy/retainedViewExtensions";
 import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
@@ -70,23 +69,16 @@ import { CanvasSnapGuides } from "./legacy/CanvasSnapGuides";
 import { RetainedSettingsDialog } from "./legacy/RetainedSettingsDialog";
 import { RetainedWorkspaceChrome } from "./legacy/RetainedWorkspaceChrome";
 import { useMinimapPresence } from "./legacy/useMinimapPresence";
+import { useCanvasElementCreation } from "./legacy/useCanvasElementCreation";
 import { useCanvasManagement } from "./legacy/useCanvasManagement";
 import { useLeftPanel } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import { RetainedCanvasOverlays } from "./legacy/RetainedCanvasOverlays";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
-import {
-  newContainer,
-  newImagePlaceholder,
-  newLooseTextCard,
-  newTextBlock,
-} from "./legacy/newCanvasElements";
 import { ContainerLayer, type ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import {
   CONTAINER_HEADER_HEIGHT,
-  CONTAINER_TEXT_CARD_GAP,
-  CONTAINER_TEXT_CARD_PADDING,
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
   containerCardStackTop,
   containerViewportHeight,
@@ -141,7 +133,6 @@ import { searchRowHeight } from "./extensions/search/searchRule";
 
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
-const createEntityId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
 
@@ -558,8 +549,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const getContainerScrollOffset = cardLayout.scrollOffset;
 
-  const getScrollOffsetForVisibleCardIndex = cardLayout.revealOffset;
-
   const getContainerCardStackTop = containerCardStackTop;
 
   const handleContainerWheel = (event: WheelEvent<HTMLElement>, container: ContainerElement) => {
@@ -597,9 +586,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       element,
     );
 
-  const getOrderedContainerTextCards = (containerId: string, cards = textCards) =>
-    cardLayout.ordered(containerId, cards);
-
   const getTextCardStackPosition = (card: TextCardElement, cards = textCards) => {
     const container = card.containerId ? containersById.get(card.containerId) : null;
     return container ? cardLayout.cardPosition(container, card, cards) : { x: card.x, y: card.y };
@@ -617,24 +603,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return container ? cardLayout.cardPosition(container, card) : { x: card.x, y: card.y };
   };
   const getTextCardDropIndex = cardLayout.dropIndex;
-
-  const normalizeTextCardOrders = (cards: TextCardElement[]) => {
-    const nextCards = cards.map((card) => ({ ...card }));
-    const containerIds = Array.from(
-      new Set(nextCards.map((card) => card.containerId).filter((id): id is string => Boolean(id))),
-    );
-
-    containerIds.forEach((containerId) => {
-      nextCards
-        .filter((card) => card.containerId === containerId)
-        .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
-        .forEach((card, index) => {
-          card.order = index;
-        });
-    });
-
-    return nextCards;
-  };
 
   const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
     (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
@@ -841,49 +809,25 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       ? selectedIds
       : [];
 
-  const newElementPlacement = (id: string, clientX: number, clientY: number) => ({
-    id,
-    point: canvasPointFromEvent({ clientX, clientY }),
-    canvas: { width: canvasWidth, height: canvasHeight },
-    colors: defaultElementColors,
+  const createElement = useCanvasElementCreation({
+    callbacks: retained.runtime.callbacks,
+    activeCanvasId: () => activeCanvas.id,
+    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
+    colors: () => defaultElementColors,
+    containers: () => elements,
+    textBlocks: () => textBlocks,
+    textCards: () => textCards,
+    cardLayout: () => cardLayout,
+    scrollContainer: (containerId, offset) =>
+      setContainerScrollOffsets((current) => ({ ...current, [containerId]: offset })),
+    select: setSelectedIds,
+    animateIn: presenceMarks.animateIn,
+    closeContextMenus,
+    rename,
+    cardEdit: textCardEdit,
+    blockEdit: textBlockEdit,
   });
-
-  const createContainer = (clientX: number, clientY: number) => {
-    const id = createEntityId("element");
-    const nextElement = newContainer(newElementPlacement(id, clientX, clientY), elements.length);
-
-    if (
-      !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
-        type: "container",
-        value: nextElement,
-      }).ok
-    )
-      return;
-    setSelectedIds([id]);
-    animateContainerIn(id);
-    closeContextMenus();
-    textCardEdit.end();
-    rename.begin(id, nextElement.name);
-  };
-
-  // Create an empty image placeholder at a canvas point; the caller (or the
-  // user clicking it) fills it with a picked/dropped/pasted image afterwards.
-  const createImageElement = (clientX: number, clientY: number): string => {
-    const id = createEntityId("element");
-    const image = newImagePlaceholder(newElementPlacement(id, clientX, clientY));
-
-    const result = createRetainedViewElement(
-      retained.runtime.callbacks,
-      activeCanvas.id as CanvasId,
-      { type: "image", value: image },
-    );
-    if (!result.ok) throw new Error("The image could not be created.");
-    animateImageIn(id);
-    setSelectedIds([id]);
-    closeContextMenus();
-    rename.end();
-    return id;
-  };
 
   const imageImport = useRetainedImageImport({
     runtime: retained.runtime,
@@ -895,132 +839,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const pickImageForElement = imageImport.pick;
   const loadingImageIds = imageImport.importingIds;
 
-  // Canvas menu "Image": drop an empty placeholder. The user fills it by
-  // double-clicking inside (or dropping a file onto it).
-  const createImageFromMenu = (clientX: number, clientY: number) => {
-    createImageElement(clientX, clientY);
-  };
-
   const toggleImageBackground = (id: string) => {
     completeRetainedContent(id, { background: imagesById.get(id)?.background === false });
     closeContextMenus();
-  };
-
-  const createLooseTextCard = (
-    clientX: number,
-    clientY: number,
-    text: string,
-    kind?: TextCardElement["kind"],
-    startEditing = true,
-  ) => {
-    const id = createEntityId("element");
-    const card = newLooseTextCard(newElementPlacement(id, clientX, clientY), text, kind);
-
-    if (
-      !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
-        type: "text-card",
-        value: card,
-      }).ok
-    )
-      return;
-    animateTextCardIn(id);
-    if (startEditing) textCardEdit.begin(id, card.text);
-    else textCardEdit.end();
-    setSelectedIds([]);
-    closeContextMenus();
-    rename.end();
-    return id;
-  };
-
-  const createTextCard = (clientX: number, clientY: number) => {
-    createLooseTextCard(clientX, clientY, "Text card");
-  };
-
-  const createMindmap = (clientX: number, clientY: number) => {
-    createLooseTextCard(clientX, clientY, "Mindmap", "mindmap");
-  };
-
-  const createTextBlock = (clientX: number, clientY: number) => {
-    const id = createEntityId("element");
-    const element = newTextBlock(newElementPlacement(id, clientX, clientY), textBlocks.length);
-
-    if (
-      !createRetainedViewElement(retained.runtime.callbacks, activeCanvas.id as CanvasId, {
-        type: "text-block",
-        value: element,
-      }).ok
-    )
-      return;
-    setSelectedIds([id]);
-    animateTextBlockIn(id);
-    rename.begin(id, element.name);
-    closeContextMenus();
-    textCardEdit.end();
-    textBlockEdit.end();
-  };
-
-  const createTextCardInContainer = (containerId: string, clientX: number, clientY: number) => {
-    const container = containersById.get(containerId);
-    if (!container) {
-      return;
-    }
-
-    const point = canvasPointFromEvent({ clientX, clientY });
-    const id = createEntityId("element");
-    const order = getTextCardDropIndex(container, point, textCards, id);
-    const card: TextCardElement = {
-      id,
-      text: "Text card",
-      x: container.x + CONTAINER_TEXT_CARD_PADDING,
-      y:
-        getContainerCardStackTop(container) +
-        order * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP),
-      accent: defaultElementColors.textCard,
-      ...(container.extensions?.inheritCardColor ? { accent: container.accent } : {}),
-      ...(container.extensions?.autoCheckbox
-        ? { extensions: { checkbox: { checked: false } } }
-        : {}),
-      containerId,
-      order,
-    };
-    const cardsOutsideContainer = textCards.filter(
-      (currentCard) => currentCard.containerId !== containerId,
-    );
-    const containerCards = getOrderedContainerTextCards(containerId);
-    containerCards.splice(order, 0, card);
-    const nextCards = normalizeTextCardOrders([
-      ...cardsOutsideContainer,
-      ...containerCards.map((currentCard, index) => ({ ...currentCard, order: index })),
-    ]);
-    const visibleIndex = getContainerVisibleTextCards(container, nextCards).findIndex(
-      (currentCard) => currentCard.id === id,
-    );
-
-    const result = retained.runtime.callbacks
-      .captureNewContainerCard(containerId as ElementId, order)
-      ?.complete({
-        id: id as ElementId,
-        geometry: { x: card.x, y: card.y, width: 1, height: 1 },
-        data: { text: card.text, accent: defaultElementColors.textCard, link: null },
-        checkboxInstallationId:
-          container.extensions?.autoCheckbox !== undefined
-            ? (createEntityId(
-                "extension-instance",
-              ) as import("./domain/ids/entityIds").ExtensionInstanceId)
-            : null,
-      });
-    if (!result?.ok) return;
-    if (visibleIndex >= 0) {
-      setContainerScrollOffsets((current) => ({
-        ...current,
-        [containerId]: getScrollOffsetForVisibleCardIndex(container, visibleIndex, nextCards),
-      }));
-    }
-    animateTextCardIn(id);
-    textCardEdit.begin(id, card.text);
-    setSelectedIds([]);
-    closeContextMenus();
-    rename.end();
   };
 
   const handleCanvasContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -2177,13 +1998,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             imageActions={imageMenuActions}
             hasCopiedItem={clipboard.hasCopy}
             onPaste={clipboard.paste}
-            onCreateTextCardInContainer={createTextCardInContainer}
+            onCreateTextCardInContainer={createElement.containerCard}
             canvasActions={{
-              onCreateContainer: createContainer,
-              onCreateTextCard: createTextCard,
-              onCreateTextBlock: createTextBlock,
-              onCreateImage: createImageFromMenu,
-              onCreateMindmap: createMindmap,
+              onCreateContainer: createElement.container,
+              onCreateTextCard: createElement.textCard,
+              onCreateTextBlock: createElement.textBlock,
+              onCreateImage: createElement.imagePlaceholder,
+              onCreateMindmap: createElement.mindmapNode,
               onClear: requestClearCanvas,
             }}
             onDeleteConnection={removeMindmapConnection}

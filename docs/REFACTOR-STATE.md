@@ -77,7 +77,8 @@
    side panel (`useLeftPanel`), toasts (`src/components/useToastQueue.ts`) and keyboard shortcuts
    (`useCanvasShortcuts`), the clipboard (`useRetainedClipboard`), menus and their openers
    (`useCanvasMenus`), image picking/drops/paste (`useRetainedImageImport`), connection drawing
-   (`useConnectionDrawing`) and new-element builders (`newCanvasElements.ts`) are done, with the
+   (`useConnectionDrawing`), new-element builders (`newCanvasElements.ts`) and creating elements from
+   the menus (`useCanvasElementCreation`) are done, with the
    extension drop hit test in `extensionDropTarget.ts`. Rendering moved to `RetainedCanvasMenus`,
    `RetainedContainerLayer`/`RetainedElementLayers` (sharing `retainedElementPresentation.ts`) and
    `RetainedCanvasOverlays`. Pointer gestures live in `useCanvasGestures` (routing, pan, box
