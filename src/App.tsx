@@ -18,7 +18,7 @@ import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinit
 import type { ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import { FloatingToolbar } from "./components/FloatingToolbar";
-import { ExtensionDropEffect } from "./components/ExtensionDropEffect";
+import { ExtensionDropRipples, useExtensionDropRipples } from "./components/ExtensionDropRipples";
 import type { ImageActions } from "./elements/image/ImageRenderer";
 import type { ImageMenuActions } from "./elements/image/ImageMenu";
 import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
@@ -70,6 +70,12 @@ import type { CapturedCompletion } from "./app/commands/retainedCompletionOwner"
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
+import {
+  extensionDropTargetIds,
+  findExtensionDropTarget,
+  type DropBounds,
+  type ExtensionDropTarget,
+} from "./legacy/extensionDropTarget";
 import { useToastQueue } from "./components/useToastQueue";
 import { useLeftPanel, type LeftPanelState } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
@@ -172,32 +178,6 @@ const DevelopmentFpsCounter = import.meta.env.DEV
       import("./components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
     )
   : null;
-type ExtensionDropRipple = {
-  id: string;
-  extensionId: RetainedExtensionKey;
-  target:
-    | { type: "container"; id: string }
-    | { type: "text-block"; id: string }
-    | { type: "text-card"; id: string }
-    | { type: "mindmap"; id: string }
-    | { type: "image"; id: string };
-  offsetX: number;
-  offsetY: number;
-  bounds: ExtensionRippleBounds;
-};
-
-type ExtensionRippleBounds = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  borderRadius?: number;
-  borderTopLeftRadius?: number;
-  borderTopRightRadius?: number;
-  borderBottomRightRadius?: number;
-  borderBottomLeftRadius?: number;
-};
-
 type MindmapConnectionDrag = {
   pointerId: number;
   sourceId: string;
@@ -519,7 +499,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
   const snapGuides = interactionSnapshot.snapGuides;
-  const [extensionDropRipples, setExtensionDropRipples] = useState<ExtensionDropRipple[]>([]);
+  const dropRipples = useExtensionDropRipples();
 
   const rememberTextCardSize = useCallback(
     (id: string, size: { width: number; height: number }) => {
@@ -1309,7 +1289,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return { id: targetId, port: targetPort };
   };
 
-  const getMeasuredTextCardBounds = (card: TextCardElement): ExtensionRippleBounds | null => {
+  const getMeasuredTextCardBounds = (card: TextCardElement): DropBounds | null => {
     const { zoom } = interactionController.getSnapshot().viewport;
     const node = worldRef.current?.querySelector<HTMLElement>(`[data-text-card-id="${card.id}"]`);
     const worldRect = worldRef.current?.getBoundingClientRect();
@@ -1327,7 +1307,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     };
   };
 
-  const getTextCardRippleBounds = (card: TextCardElement): ExtensionRippleBounds | null => {
+  const getTextCardRippleBounds = (card: TextCardElement): DropBounds | null => {
     const measuredBounds = getMeasuredTextCardBounds(card);
     if (!card.containerId) {
       return measuredBounds ?? { ...getLooseTextCardSelectionBounds(card), borderRadius: 8 };
@@ -1351,7 +1331,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         top: position.y,
         width: Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2),
         height: CONTAINER_TEXT_CARD_ROW_HEIGHT,
-      } satisfies ExtensionRippleBounds);
+      } satisfies DropBounds);
     const top = Math.max(baseBounds.top, contentTop);
     const bottom = Math.min(baseBounds.top + baseBounds.height, container.y + container.height);
     const height = bottom - top;
@@ -2519,29 +2499,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     workflowRuns,
   });
 
-  const showExtensionDropRipple = (
-    extensionId: RetainedExtensionKey,
-    point: { x: number; y: number },
-    target: ExtensionDropRipple["target"],
-    bounds: ExtensionRippleBounds,
-  ) => {
-    const id = `extension-ripple-${Date.now()}-${Math.round(point.x)}-${Math.round(point.y)}`;
-    setExtensionDropRipples((current) => [
-      ...current,
-      {
-        id,
-        extensionId,
-        target,
-        offsetX: point.x - bounds.left,
-        offsetY: point.y - bounds.top,
-        bounds,
-      },
-    ]);
-    window.setTimeout(() => {
-      setExtensionDropRipples((current) => current.filter((ripple) => ripple.id !== id));
-    }, 620);
-  };
-
   const getExtensionTargetType = (id: string): ExtensionTargetType | null => {
     if (containersById.has(id)) {
       return "container";
@@ -2559,7 +2516,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return null;
   };
 
-  const getExtensionRippleTarget = (id: string): ExtensionDropRipple["target"] | null => {
+  const getExtensionRippleTarget = (id: string): ExtensionDropTarget | null => {
     const targetType = getExtensionTargetType(id);
     if (!targetType) {
       return null;
@@ -2568,9 +2525,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return { type: targetType, id };
   };
 
-  const getExtensionTargetBounds = (
-    target: ExtensionDropRipple["target"],
-  ): ExtensionRippleBounds | null => {
+  const getExtensionTargetBounds = (target: ExtensionDropTarget): DropBounds | null => {
     if (target.type === "container") {
       const element = containersById.get(target.id);
       return element
@@ -2596,27 +2551,16 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return card ? getTextCardRippleBounds(card) : null;
   };
 
-  const getExtensionDropTargetIds = (
-    extensionId: RetainedExtensionKey,
-    target: ExtensionDropRipple["target"],
-  ) => {
-    if (!selectedIds.includes(target.id) || selectedIds.length <= 1) {
-      return [target.id];
-    }
-
-    return selectedIds.filter((id) => {
-      const targetType = getExtensionTargetType(id);
-      return targetType ? isExtensionCompatible(extensionId, targetType) : false;
-    });
-  };
-
   const applyDroppedExtension = (
     extensionId: RetainedExtensionKey,
     point: { x: number; y: number },
-    target: ExtensionDropRipple["target"],
-    bounds: ExtensionRippleBounds,
+    target: ExtensionDropTarget,
+    bounds: DropBounds,
   ) => {
-    const targetIds = getExtensionDropTargetIds(extensionId, target);
+    const targetIds = extensionDropTargetIds(target, selectedIds, (id) => {
+      const type = getExtensionTargetType(id);
+      return type !== null && isExtensionCompatible(extensionId, type);
+    });
     if (!installExtensions(extensionId, targetIds)) {
       return;
     }
@@ -2645,7 +2589,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 y: rippleBounds.top + rippleBounds.height / 2,
               };
 
-        showExtensionDropRipple(extensionId, ripplePoint, rippleTarget, rippleBounds);
+        dropRipples.show(ripplePoint, rippleBounds);
       });
     };
 
@@ -2663,166 +2607,36 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     clientY: number,
   ) => {
     const point = canvasPointFromEvent({ clientX, clientY });
-    if (isExtensionCompatible(extensionId, "image")) {
-      const targetImage = [...looseImages]
-        .reverse()
-        .find(
-          (image) =>
-            point.x >= image.x &&
-            point.x <= image.x + image.width &&
-            point.y >= image.y &&
-            point.y <= image.y + image.height,
-        );
-
-      if (targetImage) {
-        applyDroppedExtension(
-          extensionId,
-          point,
-          { type: "image", id: targetImage.id },
-          {
-            left: targetImage.x,
-            top: targetImage.y,
-            width: targetImage.width,
-            height: targetImage.height,
-          },
-        );
-        return;
-      }
-    }
-
-    if (
-      isExtensionCompatible(extensionId, "text-card") ||
-      isExtensionCompatible(extensionId, "mindmap")
-    ) {
-      const targetTextCard = [...looseTextCards].reverse().find((card) => {
-        const targetType = card.kind === "mindmap" ? "mindmap" : "text-card";
-        if (!isExtensionCompatible(extensionId, targetType)) {
-          return false;
-        }
-        const bounds = getTextCardRippleBounds(card) ?? getLooseTextCardSelectionBounds(card);
-        return (
-          point.x >= bounds.left &&
-          point.x <= bounds.left + bounds.width &&
-          point.y >= bounds.top &&
-          point.y <= bounds.top + bounds.height
-        );
-      });
-
-      if (targetTextCard) {
-        const bounds = getTextCardRippleBounds(targetTextCard);
-        const targetType = getExtensionTargetType(targetTextCard.id);
-        if (bounds && (targetType === "text-card" || targetType === "mindmap")) {
-          applyDroppedExtension(
-            extensionId,
-            point,
-            { type: targetType, id: targetTextCard.id },
-            bounds,
-          );
-        }
-        return;
-      }
-
-      const targetContainerCard = [...elements]
-        .reverse()
-        .flatMap((container) => {
-          const contentTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
-          const contentBottom = container.y + container.height;
-          const cardWidth = Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2);
-
-          return getContainerVisibleTextCards(container)
-            .map((card, index) => {
-              const measuredBounds = getTextCardRippleBounds(card);
-              const fallbackTop =
-                getContainerCardStackTop(container) +
+    const hit = findExtensionDropTarget(point, {
+      images: looseImages,
+      looseCards: looseTextCards,
+      containers: elements,
+      textBlocks,
+      compatible: (type) => isExtensionCompatible(extensionId, type),
+      cardBounds: getTextCardRippleBounds,
+      looseCardFallbackBounds: getLooseTextCardSelectionBounds,
+      containerCardSlots: (container) => {
+        const visibleTop = container.y + CONTAINER_HEADER_HEIGHT + searchRowHeight(container);
+        const cardWidth = Math.max(120, container.width - CONTAINER_TEXT_CARD_PADDING * 2);
+        return getContainerVisibleTextCards(container).map((card, index) => {
+          const measured = getTextCardRippleBounds(card);
+          return {
+            card,
+            left: measured?.left ?? container.x + CONTAINER_TEXT_CARD_PADDING,
+            top:
+              measured?.top ??
+              getContainerCardStackTop(container) +
                 index * (CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP) -
-                getContainerScrollOffset(container);
-
-              return {
-                card,
-                left: measuredBounds?.left ?? container.x + CONTAINER_TEXT_CARD_PADDING,
-                top: measuredBounds?.top ?? fallbackTop,
-                width: measuredBounds?.width ?? cardWidth,
-                height: measuredBounds?.height ?? CONTAINER_TEXT_CARD_ROW_HEIGHT,
-                visibleTop: contentTop,
-                visibleBottom: contentBottom,
-              };
-            })
-            .reverse();
-        })
-        .find(
-          ({ left, top, width, height, visibleTop, visibleBottom }) =>
-            top < visibleBottom &&
-            top + height > visibleTop &&
-            point.x >= left &&
-            point.x <= left + width &&
-            point.y >= Math.max(top, visibleTop) &&
-            point.y <= Math.min(top + height, visibleBottom),
-        )?.card;
-
-      if (targetContainerCard) {
-        const bounds = getTextCardRippleBounds(targetContainerCard);
-        if (bounds) {
-          applyDroppedExtension(
-            extensionId,
-            point,
-            { type: "text-card", id: targetContainerCard.id },
-            bounds,
-          );
-        }
-        return;
-      }
-    }
-
-    if (isExtensionCompatible(extensionId, "text-block")) {
-      const targetTextBlock = [...textBlocks]
-        .reverse()
-        .find(
-          (element) =>
-            point.x >= element.x &&
-            point.x <= element.x + element.width &&
-            point.y >= element.y &&
-            point.y <= element.y + element.height,
-        );
-
-      if (targetTextBlock) {
-        applyDroppedExtension(
-          extensionId,
-          point,
-          { type: "text-block", id: targetTextBlock.id },
-          {
-            left: targetTextBlock.x,
-            top: targetTextBlock.y,
-            width: targetTextBlock.width,
-            height: targetTextBlock.height,
-          },
-        );
-        return;
-      }
-    }
-
-    const targetContainer = [...elements]
-      .reverse()
-      .find(
-        (element) =>
-          point.x >= element.x &&
-          point.x <= element.x + element.width &&
-          point.y >= element.y &&
-          point.y <= element.y + element.height,
-      );
-
-    if (targetContainer && isExtensionCompatible(extensionId, "container")) {
-      applyDroppedExtension(
-        extensionId,
-        point,
-        { type: "container", id: targetContainer.id },
-        {
-          left: targetContainer.x,
-          top: targetContainer.y,
-          width: targetContainer.width,
-          height: targetContainer.height,
-        },
-      );
-    }
+                getContainerScrollOffset(container),
+            width: measured?.width ?? cardWidth,
+            height: measured?.height ?? CONTAINER_TEXT_CARD_ROW_HEIGHT,
+            visibleTop,
+            visibleBottom: container.y + container.height,
+          };
+        });
+      },
+    });
+    if (hit) applyDroppedExtension(extensionId, point, hit.target, hit.bounds);
   };
 
   const resetZoom = () => {
@@ -3596,37 +3410,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                   }
                 />
               ))}
-              {extensionDropRipples.map((ripple) => {
-                const bounds = ripple.bounds;
-
-                const rippleX = clamp(ripple.offsetX, 0, bounds.width);
-                const rippleY = clamp(ripple.offsetY, 0, bounds.height);
-
-                return (
-                  <div
-                    key={ripple.id}
-                    className="extension-drop-ripple-surface"
-                    style={{
-                      left: bounds.left,
-                      top: bounds.top,
-                      width: bounds.width,
-                      height: bounds.height,
-                      borderRadius: bounds.borderRadius,
-                      borderTopLeftRadius: bounds.borderTopLeftRadius,
-                      borderTopRightRadius: bounds.borderTopRightRadius,
-                      borderBottomRightRadius: bounds.borderBottomRightRadius,
-                      borderBottomLeftRadius: bounds.borderBottomLeftRadius,
-                    }}
-                  >
-                    <ExtensionDropEffect
-                      originX={rippleX}
-                      originY={rippleY}
-                      width={bounds.width}
-                      height={bounds.height}
-                    />
-                  </div>
-                );
-              })}
+              <ExtensionDropRipples ripples={dropRipples.ripples} />
               <MindMapConnections
                 connections={activeMindMapConnections}
                 connectableBoundsById={connectableBoundsById}
