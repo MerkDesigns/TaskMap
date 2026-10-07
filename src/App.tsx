@@ -21,8 +21,7 @@ import { FloatingToolbar } from "./components/FloatingToolbar";
 import { ExtensionDropRipples, useExtensionDropRipples } from "./components/ExtensionDropRipples";
 import type { ImageActions } from "./elements/image/ImageRenderer";
 import type { ImageMenuActions } from "./elements/image/ImageMenu";
-import { importRetainedViewImage } from "./legacy/importRetainedViewImage";
-import type { ImageDrop } from "./platform/media/imageDropClient";
+import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { Minimap } from "./components/Minimap";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
@@ -421,7 +420,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           activeCanvasId: "",
         };
         latestDataGetterRef.current = () => latestAppDataRef.current;
-        imageDropOpsRef.current = null;
       }
       retainedConnection.current?.cancel();
       retainedConnection.current = null;
@@ -497,7 +495,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     images: deletingImageIds,
   } = presenceMarks.deleting;
   const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
-  const [loadingImageIds, setLoadingImageIds] = useState<string[]>([]);
   const snapGuides = interactionSnapshot.snapGuides;
   const dropRipples = useExtensionDropRipples();
 
@@ -642,13 +639,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       });
     },
   });
-  // Latest image drop/paste handlers, refreshed each render so the once-mounted
-  // OS drag-drop and clipboard listeners never call stale closures.
-  const imageDropOpsRef = useRef<{
-    addImageFromBlob: (source: Blob, clientX: number, clientY: number) => void;
-    importAuthorizedDrop: (drop: ImageDrop) => void;
-  } | null>(null);
-
   const clampCanvasSize = (value: number) =>
     clamp(Number.isFinite(value) ? value : CANVAS_WIDTH, 600, 10000);
 
@@ -1409,158 +1399,15 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return id;
   };
 
-  const setImageLoading = (id: string, loading: boolean) => {
-    setLoadingImageIds((current) =>
-      loading
-        ? current.includes(id)
-          ? current
-          : [...current, id]
-        : current.filter((loadingId) => loadingId !== id),
-    );
-  };
-
-  // Open the native file picker (fast — returns a path) and fill the given
-  // element. The heavy processing happens afterward behind a loading spinner so
-  // the app never freezes on a large image.
-  const pickImageForElement = async (id: string) => {
-    setImageLoading(id, true);
-    try {
-      const result = await importRetainedViewImage(retained.runtime, null, {
-        elementId: id as ElementId,
-      });
-      if (
-        !result.ok &&
-        !("error" in result && result.error.code === "cancelled") &&
-        !("code" in result && result.code === "expired-action")
-      )
-        showToast({
-          tone: "error",
-          title: "Could not add image",
-          message: "The image could not be imported.",
-        });
-    } finally {
-      setImageLoading(id, false);
-    }
-  };
-
-  imageDropOpsRef.current = {
-    importAuthorizedDrop: async (drop) => {
-      const { runtime } = retained;
-      const readIdentity = () => {
-        const workspace = runtime.controller.store.getState().documentWorkspace;
-        return { epoch: workspace.epoch, canvasId: workspace.document?.activeCanvasId };
-      };
-      const captured = readIdentity();
-      const point = canvasPointFromEvent({ clientX: drop.x, clientY: drop.y });
-      const target = [...looseImages]
-        .reverse()
-        .find(
-          (image) =>
-            !(image as unknown as RetainedImageView).media &&
-            point.x >= image.x &&
-            point.x <= image.x + image.width &&
-            point.y >= image.y &&
-            point.y <= image.y + image.height,
-        );
-      for (const [index, dropToken] of drop.tokens.entries()) {
-        const current = readIdentity();
-        if (current.epoch !== captured.epoch || current.canvasId !== captured.canvasId) break;
-        const result = await importRetainedViewImage(
-          runtime,
-          { dropToken },
-          target && index === 0
-            ? { elementId: target.id as ElementId }
-            : {
-                x: point.x + index * 24,
-                y: point.y + index * 24,
-                accent: defaultElementColors.image,
-              },
-        );
-        if (!result.ok) {
-          if (!("code" in result && result.code === "expired-action"))
-            showToast({
-              tone: "error",
-              title: "Could not add image",
-              message: "The dropped image could not be imported.",
-            });
-          break;
-        }
-      }
-    },
-    addImageFromBlob: async (source, clientX, clientY) => {
-      const point = canvasPointFromEvent({ clientX, clientY });
-      const result = await importRetainedViewImage(retained.runtime, source, {
-        ...point,
-        accent: defaultElementColors.image,
-      });
-      if (!result.ok && !("code" in result && result.code === "expired-action"))
-        showToast({
-          tone: "error",
-          title: "Could not add image",
-          message: "The image could not be imported.",
-        });
-    },
-  };
-
-  // OS file drops arrive through the media service, which authorizes the dropped paths in Rust;
-  // a drop over an empty image placeholder fills it, otherwise it creates an image at the point.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    void retained.runtime.media
-      .subscribeDrops((drop) => imageDropOpsRef.current?.importAuthorizedDrop(drop))
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlisten = fn;
-      })
-      .catch(() =>
-        showToast({
-          tone: "error",
-          title: "Image drops unavailable",
-          message: "Could not connect image file drops.",
-        }),
-      );
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [retained, showToast]);
-
-  // Clipboard paste of an image → new image element at the viewport center.
-  useEffect(() => {
-    const handlePaste = (event: ClipboardEvent) => {
-      const ops = imageDropOpsRef.current;
-      if (!ops || !event.clipboardData) {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
-      ) {
-        return;
-      }
-
-      const item = Array.from(event.clipboardData.items).find((entry) =>
-        entry.type.startsWith("image/"),
-      );
-      if (!item) {
-        return;
-      }
-
-      const file = item.getAsFile();
-      if (!file) {
-        return;
-      }
-
-      event.preventDefault();
-      ops.addImageFromBlob(file, window.innerWidth / 2, window.innerHeight / 2);
-    };
-
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
-  }, []);
+  const imageImport = useRetainedImageImport({
+    runtime: retained.runtime,
+    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    images: () => looseImages,
+    accent: () => defaultElementColors.image,
+    showToast,
+  });
+  const pickImageForElement = imageImport.pick;
+  const loadingImageIds = imageImport.importingIds;
 
   // Canvas menu "Image": drop an empty placeholder. The user fills it by
   // double-clicking inside (or dropping a file onto it).
