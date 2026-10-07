@@ -66,7 +66,12 @@ export function useLeftPanel(exitMs: number) {
         set(CLOSED);
       }
     };
-    return { show, close, current, restore };
+    /** Closes the panel when it is showing, otherwise shows it in place of the other one. */
+    const toggle = (panel: LeftPanel) => {
+      if (current() === panel) close(panel);
+      else show(panel);
+    };
+    return { show, close, current, restore, toggle };
   }, []);
 
   return useMemo(

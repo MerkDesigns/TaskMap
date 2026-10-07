@@ -54,6 +54,18 @@ describe("useLeftPanel", () => {
     expect(result.current.canvasManagerClosing).toBe(false);
   });
 
+  it("toggles a panel closed when shown and open in place of the other one", () => {
+    const { result } = renderHook(() => useLeftPanel(EXIT_MS));
+    act(() => result.current.show("extensions"));
+
+    act(() => result.current.toggle("canvases"));
+    expect(result.current.current()).toBe("canvases");
+    act(() => result.current.toggle("canvases"));
+    expect(result.current.canvasManagerClosing).toBe(true);
+    act(() => result.current.toggle("canvases"));
+    expect(result.current.current()).toBe("canvases");
+  });
+
   it("restores a remembered state", () => {
     const { result } = renderHook(() => useLeftPanel(EXIT_MS));
     act(() => result.current.show("canvases"));

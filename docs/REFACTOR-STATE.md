@@ -85,7 +85,10 @@
    rows in `containerCardLayout.ts`, and creating, switching and Ctrl+Tab cycling canvases in
    `useCanvasManagement`, and measured card sizes, connection bounds and drop-ripple clipping in
    `canvasElementBounds.ts`. The Settings dialog, update prompt and settings error banner render
-   through `RetainedSettingsDialog`. Still in `App.tsx`: the workspace markup. Text cards and mind-map nodes place with `translate` like the
+   through `RetainedSettingsDialog`; the side panel, minimap, toolbar and quick extensions menu
+   through `RetainedWorkspaceChrome` (minimap timing in `useMinimapPresence`), and snap guides
+   through `CanvasSnapGuides`. Still in `App.tsx`: the canvas stage markup and the element
+   derivations and action wiring it feeds. Text cards and mind-map nodes place with `translate` like the
    other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it

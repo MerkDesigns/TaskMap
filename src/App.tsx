@@ -3,8 +3,6 @@ import {
   SetStateAction,
   Suspense,
   WheelEvent,
-  lazy,
-  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -17,13 +15,11 @@ import type { ContainerActions } from "./elements/container/containerView";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import type { ContainerMenuActions } from "./elements/container/ContainerMenu";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
-import { FloatingToolbar } from "./components/FloatingToolbar";
 import { ExtensionDropRipples, useExtensionDropRipples } from "./components/ExtensionDropRipples";
 import type { ImageActions } from "./elements/image/ImageRenderer";
 import type { ImageMenuActions } from "./elements/image/ImageMenu";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
-import { Minimap } from "./components/Minimap";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { MindMapConnections } from "./elements/mind-map/MindMapConnections";
 import type { TextCardActions } from "./elements/text-card/TextCardRenderer";
@@ -70,7 +66,10 @@ import {
   measureRenderedCard,
   useMeasuredTextCardSizes,
 } from "./legacy/canvasElementBounds";
+import { CanvasSnapGuides } from "./legacy/CanvasSnapGuides";
 import { RetainedSettingsDialog } from "./legacy/RetainedSettingsDialog";
+import { RetainedWorkspaceChrome } from "./legacy/RetainedWorkspaceChrome";
+import { useMinimapPresence } from "./legacy/useMinimapPresence";
 import { useCanvasManagement } from "./legacy/useCanvasManagement";
 import { useLeftPanel } from "./legacy/useLeftPanel";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
@@ -125,50 +124,20 @@ import { createLegacyTextCardInteractionService } from "./legacy/interactions/le
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import {
   CanvasFrame,
-  MINIMAP_VISIBILITY_DURATION_MS,
   WorkspaceBackdropLayer,
-  WorkspaceChromeLayer,
   WorkspaceRoot,
-  WorkspaceSidePanel,
-  WorkspaceSidePanelContentSwitcher,
   WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS,
 } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
 import { useChromeAutoHide } from "./ui/patterns/workspace/chromeSleep";
-import { setWorkspaceRadii, useWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
+import { setWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
 import {
   useWorkspaceIntroArrival,
   useWorkspaceIntroDeparture,
 } from "./ui/patterns/workspace/workspaceIntro";
-import { CanvasManager as CanvasManagerView } from "./components/CanvasManager";
-import { ExtensionsPanel, QuickExtensionsMenu } from "./components/ExtensionsPanel";
 import { ClearCanvasModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 import { searchRowHeight } from "./extensions/search/searchRule";
-
-// Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
-// throttle (the first Tab took ~306 ms versus ~35 ms afterwards), and the app loads from local disk.
-const CanvasManager = memo(
-  CanvasManagerView,
-  (previous, next) =>
-    previous.active === next.active &&
-    previous.canvases === next.canvases &&
-    previous.activeCanvasId === next.activeCanvasId &&
-    previous.cycleHighlightCanvasId === next.cycleHighlightCanvasId &&
-    previous.cardRadius === next.cardRadius &&
-    previous.closing === next.closing &&
-    previous.embedded === next.embedded &&
-    previous.sharedPanel === next.sharedPanel &&
-    previous.minimalView === next.minimalView &&
-    previous.panelRadius === next.panelRadius &&
-    previous.viewportWidth === next.viewportWidth &&
-    previous.viewportHeight === next.viewportHeight,
-);
-const DevelopmentFpsCounter = import.meta.env.DEV
-  ? lazy(() =>
-      import("./components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
-    )
-  : null;
 
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
@@ -191,9 +160,6 @@ type CanvasElementShadow = Rectangle & {
   radius: number;
   strength: "shell" | "card";
 };
-
-// Canvas workspace geometry. The matching CSS tokens live on `.taskmap-workspace-root--canvas`.
-const CANVAS_PREVIEW_GAP = 9;
 
 type CallbackMap = Record<string, (...args: never[]) => unknown>;
 
@@ -288,9 +254,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     height: window.innerHeight,
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-  const minimapTimeoutRef = useRef<number | null>(null);
-  const minimapUnmountTimeoutRef = useRef<number | null>(null);
   const containerScrollOffsetsRef = useRef<Record<string, number>>({});
   const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
   const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
@@ -338,8 +301,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   useEffect(() => {
     interactionController.resizeViewport(stageSize);
   }, [interactionController, stageSize]);
-  const [minimapVisible, setMinimapVisible] = useState(false);
-  const [minimapMounted, setMinimapMounted] = useState(false);
   const selectedIds = interactionSnapshot.selectedIds as string[];
   const setSelectedIds = (value: SetStateAction<string[]>) => {
     applyLegacySelectionAction(interactionController, value);
@@ -379,11 +340,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     shadowsUnderElements,
     allowLockedElementDeletion,
     minimapEnabled,
-    setMinimapEnabled,
-    privacyModeEnabled,
-    setPrivacyModeEnabled,
     chromeAutoHideEnabled,
-    setChromeAutoHideEnabled,
     chromeAutoHideDelayMs,
     chromeRadii,
     dismissedUpdateVersion,
@@ -395,7 +352,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { toasts, showToast, dismissToast } = useToastQueue();
   const leftPanel = useLeftPanel(CANVAS_MANAGER_ANIMATION_MS);
   const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;
-  const [canvasManagerMinimalView, setCanvasManagerMinimalView] = useState(false);
   const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
     left: number;
     top: number;
@@ -552,35 +508,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   useEffect(() => {
     const pendingDeletionTimeouts = pendingDeletionTimeoutsRef.current;
     return () => {
-      if (minimapTimeoutRef.current) {
-        window.clearTimeout(minimapTimeoutRef.current);
-      }
-      if (minimapUnmountTimeoutRef.current) {
-        window.clearTimeout(minimapUnmountTimeoutRef.current);
-      }
       pendingDeletionTimeouts.forEach((timeouts) =>
         timeouts.forEach((timeout) => window.clearTimeout(timeout)),
       );
       pendingDeletionTimeouts.clear();
     };
   }, []);
-
-  useEffect(() => {
-    if (minimapEnabled) {
-      return;
-    }
-
-    if (minimapTimeoutRef.current) {
-      window.clearTimeout(minimapTimeoutRef.current);
-      minimapTimeoutRef.current = null;
-    }
-    if (minimapUnmountTimeoutRef.current) {
-      window.clearTimeout(minimapUnmountTimeoutRef.current);
-      minimapUnmountTimeoutRef.current = null;
-    }
-    setMinimapVisible(false);
-    setMinimapMounted(false);
-  }, [minimapEnabled]);
 
   useEffect(() => {
     const htmlSpellCheck = document.documentElement.getAttribute("spellcheck");
@@ -606,30 +539,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const closeContextMenus = menus.closeAll;
 
-  const showMinimap = () => {
-    if (!minimapEnabled) {
-      return;
-    }
-
-    setMinimapMounted(true);
-    setMinimapVisible(true);
-
-    if (minimapTimeoutRef.current) {
-      window.clearTimeout(minimapTimeoutRef.current);
-    }
-    if (minimapUnmountTimeoutRef.current) {
-      window.clearTimeout(minimapUnmountTimeoutRef.current);
-      minimapUnmountTimeoutRef.current = null;
-    }
-
-    minimapTimeoutRef.current = window.setTimeout(() => {
-      setMinimapVisible(false);
-      minimapUnmountTimeoutRef.current = window.setTimeout(() => {
-        setMinimapMounted(false);
-        minimapUnmountTimeoutRef.current = null;
-      }, MINIMAP_VISIBILITY_DURATION_MS);
-    }, 2200);
-  };
+  const minimap = useMinimapPresence(
+    minimapEnabled,
+    interactionSnapshot.activeInteraction?.kind === "pan",
+  );
+  const showMinimap = minimap.show;
 
   const cardLayout = createContainerCardLayout(
     textCards,
@@ -1572,26 +1486,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     showMinimap();
   };
 
-  // While the pointer is on the minimap it stays up; leaving restarts its fade-out timer.
-  const holdMinimap = (held: boolean) => {
-    showMinimap();
-    if (held && minimapTimeoutRef.current) {
-      window.clearTimeout(minimapTimeoutRef.current);
-      minimapTimeoutRef.current = null;
-    }
-  };
-
-  // A pan keeps the minimap up for as long as it lasts, like pointing at it; the fade-out timer
-  // starts when the pan ends.
-  const panning = interactionSnapshot.activeInteraction?.kind === "pan";
-  const minimapHold = useStableCallbacks({ holdMinimap });
-  const wasPanning = useRef(false);
-  useEffect(() => {
-    if (panning === wasPanning.current) return;
-    wasPanning.current = panning;
-    minimapHold.holdMinimap(panning);
-  }, [minimapHold, panning]);
-
   const undo = () => {
     retained.runtime.callbacks.undo();
     rename.end();
@@ -1658,7 +1552,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     finishCanvasCycle: canvasManagement.finishCycle,
   });
 
-  const radii = useWorkspaceRadii();
   // Sleep mode: the side panel closes with the chrome islands and reopens when they wake.
   const sleptSidePanel = useRef<"canvases" | "extensions" | null>(null);
   useChromeAutoHide(
@@ -1691,24 +1584,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   useLayoutEffect(() => {
     setWorkspaceRadii(chromeRadii);
   }, [chromeRadii]);
-
-  const toggleCanvasManager = () => {
-    if (canvasManagerOpen && !canvasManagerClosing) {
-      closeCanvasManager();
-      return;
-    }
-
-    switchLeftPanel("canvases");
-  };
-
-  const toggleExtensionsPanel = () => {
-    if (extensionsOpen && !extensionsClosing) {
-      closeExtensionsPanel();
-      return;
-    }
-
-    switchLeftPanel("extensions");
-  };
 
   const rememberRecentColor = (color?: string) => {
     if (!color) {
@@ -1925,8 +1800,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textCards,
   ]);
 
-  const stageWidth = stageSize.width;
-  const stageHeight = stageSize.height;
   const canvasWidth = activeCanvas.width;
   const canvasHeight = activeCanvas.height;
   const dragPinnedIds =
@@ -2040,9 +1913,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       ];
     }),
   ];
-  const leftPanelOpen = canvasManagerOpen || extensionsOpen;
-  const leftPanelClosing = canvasManagerClosing || extensionsClosing;
-  const leftPanelActiveIndex = extensionsOpen ? 1 : 0;
   const canvasManagerCanvases = useMemo(
     () => lifecycleActions.getCanvasBrowserCanvases(),
     // The stable callback reads these document revisions. Camera frames are excluded.
@@ -2108,108 +1978,36 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     >
       <div className="h-full">
         <section className="relative h-full overflow-hidden">
-          <WorkspaceChromeLayer>
-            {leftPanelOpen && (
-              <Suspense fallback={null}>
-                <WorkspaceSidePanel
-                  ref={leftPanelRef}
-                  backdropRevision={activeCanvas.id}
-                  closing={leftPanelClosing}
-                  label={leftPanelActiveIndex === 0 ? "Canvases panel" : "Extensions panel"}
-                  radius={radii.sidePanel}
-                  className="taskmap-workspace-side-panel--switching"
-                >
-                  <WorkspaceSidePanelContentSwitcher
-                    activeIndex={leftPanelActiveIndex}
-                    views={[
-                      <CanvasManager
-                        key="canvases"
-                        active={leftPanelActiveIndex === 0}
-                        canvases={canvasManagerCanvases}
-                        activeCanvasId={activeCanvas.id}
-                        cycleHighlightCanvasId={canvasManagement.cycleHighlightId}
-                        closing={leftPanelClosing}
-                        cardRadius={radii.canvasCard}
-                        previewGap={CANVAS_PREVIEW_GAP}
-                        minimalView={canvasManagerMinimalView}
-                        sharedPanel
-                        viewportWidth={stageWidth}
-                        viewportHeight={stageHeight}
-                        controller={interactionController}
-                        onMinimalViewChange={setCanvasManagerMinimalView}
-                        onCreateCanvas={canvasManagement.create}
-                        onSelectCanvas={canvasManagement.select}
-                        onUpdateCanvas={canvasManagement.update}
-                        onDeleteCanvas={canvasManagement.remove}
-                        onReorderCanvases={canvasManagement.reorder}
-                      />,
-                      <ExtensionsPanel
-                        key="extensions"
-                        active={leftPanelActiveIndex === 1}
-                        closing={leftPanelClosing}
-                        panelRef={leftPanelRef}
-                        cardRadius={radii.extensionCard}
-                        sharedPanel
-                        onDropExtension={dropExtensionOnCanvas}
-                      />,
-                    ]}
-                  />
-                </WorkspaceSidePanel>
-              </Suspense>
-            )}
-            {minimapEnabled && minimapMounted && (
-              <Minimap
-                controller={interactionController}
-                elements={elements}
-                textBlocks={textBlocks}
-                textCards={looseTextCards}
-                images={looseImages}
-                mindmapConnections={mindmapConnections}
-                canvasWidth={canvasWidth}
-                canvasHeight={canvasHeight}
-                visible={minimapVisible}
-                zoom={legacyZoom}
-                viewportWorld={minimapViewportWorld}
-                onResetZoom={resetZoom}
-                onHoldChange={holdMinimap}
-              />
-            )}
-            <FloatingToolbar
-              canRedo={historyState.canRedo}
-              canUndo={historyState.canUndo}
-              canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
-              extensionsOpen={extensionsOpen && !extensionsClosing}
-              minimapEnabled={minimapEnabled}
-              privacyModeEnabled={privacyModeEnabled}
-              sleepModeEnabled={chromeAutoHideEnabled}
-              onSleepModeEnabledChange={setChromeAutoHideEnabled}
-              toolbarRadius={radii.chrome}
-              onMinimapEnabledChange={setMinimapEnabled}
-              onPrivacyModeEnabledChange={setPrivacyModeEnabled}
-              onRedo={redo}
-              onToggleExtensions={toggleExtensionsPanel}
-              onToggleCanvases={toggleCanvasManager}
-              onUndo={undo}
-              onOpenSettings={() => setSettingsOpen(true)}
-            />
-          </WorkspaceChromeLayer>
-          {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
-            <Suspense fallback={null}>
-              <DevelopmentFpsCounter />
-            </Suspense>
-          )}
-          {quickExtensionsMenu && (
-            <Suspense fallback={null}>
-              <QuickExtensionsMenu
-                left={quickExtensionsMenu.left}
-                top={quickExtensionsMenu.top}
-                majorRadius={radii.quickExtensions}
-                minorRadius={radii.quickExtensionsCard}
-                onClose={() => setQuickExtensionsMenu(null)}
-                onDropExtension={dropExtensionOnCanvas}
-              />
-            </Suspense>
-          )}
+          <RetainedWorkspaceChrome
+            controller={interactionController}
+            settings={settings}
+            leftPanel={leftPanel}
+            canvases={canvasManagerCanvases}
+            activeCanvasId={activeCanvas.id}
+            canvasManagement={canvasManagement}
+            viewportSize={stageSize}
+            onDropExtension={dropExtensionOnCanvas}
+            minimap={{
+              presence: minimap,
+              elements,
+              textBlocks,
+              textCards: looseTextCards,
+              images: looseImages,
+              mindmapConnections,
+              canvasWidth,
+              canvasHeight,
+              zoom: legacyZoom,
+              viewportWorld: minimapViewportWorld,
+              onResetZoom: resetZoom,
+            }}
+            history={historyState}
+            onUndo={undo}
+            onRedo={redo}
+            onOpenSettings={() => setSettingsOpen(true)}
+            quickExtensions={quickExtensionsMenu}
+            onCloseQuickExtensions={() => setQuickExtensionsMenu(null)}
+            fpsCounterVisible={fpsCounterVisible}
+          />
           <WorkspaceBackdropLayer
             ref={stageRef}
             data-stage
@@ -2247,49 +2045,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               onContextMenu={handleCanvasContextMenu}
               onPointerDown={gestures.worldPointerDown}
             >
-              {snapGuides.map((guide) => (
-                <div
-                  key={`${guide.axis}-${guide.position}`}
-                  className="pointer-events-none absolute z-0"
-                  style={
-                    guide.axis === "x"
-                      ? {
-                          left: guide.position,
-                          top: 0,
-                          width: "calc(2px * var(--taskmap-camera-inverse-zoom, 1))",
-                          height: canvasHeight,
-                          transform: "translateX(-50%)",
-                          backgroundImage:
-                            "repeating-linear-gradient(to bottom, rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px)",
-                          maskImage: `linear-gradient(to bottom, transparent 0, black ${Math.max(
-                            guide.pointerPosition - 260,
-                            0,
-                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasHeight)}px, transparent 100%)`,
-                          WebkitMaskImage: `linear-gradient(to bottom, transparent 0, black ${Math.max(
-                            guide.pointerPosition - 260,
-                            0,
-                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasHeight)}px, transparent 100%)`,
-                        }
-                      : {
-                          left: 0,
-                          top: guide.position,
-                          width: canvasWidth,
-                          height: "calc(2px * var(--taskmap-camera-inverse-zoom, 1))",
-                          transform: "translateY(-50%)",
-                          backgroundImage:
-                            "repeating-linear-gradient(to right, rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px)",
-                          maskImage: `linear-gradient(to right, transparent 0, black ${Math.max(
-                            guide.pointerPosition - 260,
-                            0,
-                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasWidth)}px, transparent 100%)`,
-                          WebkitMaskImage: `linear-gradient(to right, transparent 0, black ${Math.max(
-                            guide.pointerPosition - 260,
-                            0,
-                          )}px, black ${Math.min(guide.pointerPosition + 260, canvasWidth)}px, transparent 100%)`,
-                        }
-                  }
-                />
-              ))}
+              <CanvasSnapGuides
+                guides={snapGuides}
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+              />
               <ExtensionDropRipples ripples={dropRipples.ripples} />
               <MindMapConnections
                 connections={activeMindMapConnections}
