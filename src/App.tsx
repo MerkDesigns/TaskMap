@@ -31,14 +31,7 @@ import type { TextCardMenuActions } from "./elements/text-card/TextCardMenu";
 import type { TextBlockActions } from "./elements/text-block/textBlockView";
 import type { TextBlockMenuActions } from "./elements/text-block/TextBlockMenu";
 import { ToastStack } from "./components/ToastStack";
-import {
-  CANVAS_WIDTH,
-  DEFAULT_ELEMENT_COLORS,
-  MIN_HEIGHT,
-  MIN_IMAGE_SIZE,
-  MIN_WIDTH,
-  getTextCardAccent,
-} from "./constants";
+import { CANVAS_WIDTH, DEFAULT_ELEMENT_COLORS, getTextCardAccent } from "./constants";
 import { clamp } from "./canvasMath";
 import {
   AppData,
@@ -68,6 +61,7 @@ import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
 import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
+import { useCanvasGestures } from "./legacy/useCanvasGestures";
 import {
   extensionDropTargetIds,
   findExtensionDropTarget,
@@ -113,20 +107,14 @@ import type { CanvasInteractionController } from "./app/interactions/canvasInter
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
 import { viewportWorldRectangle } from "./canvas/geometry/viewportMath";
-import { rectanglesIntersect, type ElementGeometry } from "./canvas/geometry/canvasGeometry";
+import { rectanglesIntersect } from "./canvas/geometry/canvasGeometry";
 import { LegacyCanvasVisibility } from "./legacy/interactions/LegacyCanvasVisibility";
 import { useLegacyInteractionSnapshot } from "./legacy/interactions/useLegacyInteractionSnapshot";
 import { useLegacyCameraPresentation } from "./legacy/interactions/useLegacyCameraPresentation";
-import {
-  filterLegacyResizeSnapTargets,
-  getLegacyInteractionElements,
-} from "./legacy/interactions/legacyCanvasGeometry";
+import { getLegacyInteractionElements } from "./legacy/interactions/legacyCanvasGeometry";
 import { projectLegacyGeometry } from "./legacy/interactions/legacyCanvasGeometry";
 import { applyLegacySelectionAction } from "./legacy/interactions/legacySelectionCompatibility";
-import {
-  createLegacyTextCardInteractionService,
-  getLegacyTextCardDragIds,
-} from "./legacy/interactions/legacyTextCardInteraction";
+import { createLegacyTextCardInteractionService } from "./legacy/interactions/legacyTextCardInteraction";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import {
   CanvasFrame,
@@ -312,7 +300,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     index: number;
     previousPanelState: LeftPanelState;
   } | null>(null);
-  const wheelLayerTimeoutRef = useRef<number | null>(null);
   const containerScrollOffsetsRef = useRef<Record<string, number>>({});
   const historyTransactionsRef = useRef<Map<string, Set<string>>>(new Map());
   const dirtyHistoryTransactionsRef = useRef<Set<string>>(new Set());
@@ -521,9 +508,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   useEffect(
     () => () => {
       textCardInteraction.cancelScheduledPresentation();
-      if (wheelLayerTimeoutRef.current !== null) {
-        window.clearTimeout(wheelLayerTimeoutRef.current);
-      }
     },
     [textCardInteraction],
   );
@@ -1524,29 +1508,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     event.preventDefault();
   };
 
-  const shouldStartPan = (event: PointerEvent<HTMLElement>) => {
-    if (event.button === 1) {
-      return true;
-    }
-
-    if (event.button !== 0 || !event.ctrlKey) {
-      return false;
-    }
-
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    return !isEditableKeyboardTarget(target);
-  };
-
-  const startPan = (event: PointerEvent<HTMLElement>, stage: HTMLElement) => {
-    event.preventDefault();
-    event.stopPropagation();
-    stage.setPointerCapture(event.pointerId);
-    closeContextMenus();
-    rename.end();
-    showMinimap();
-    interactionController.beginPan(event.pointerId, { x: event.clientX, y: event.clientY });
-  };
-
   const handleMainPointerDownCapture = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) {
       return;
@@ -1576,185 +1537,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus();
   };
 
-  const handleStagePointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !event.ctrlKey || !shouldStartPan(event)) {
-      return;
-    }
-
-    startPan(event, event.currentTarget);
-  };
-
-  const handleStagePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (!shouldStartPan(event)) {
-      return;
-    }
-
-    startPan(event, event.currentTarget);
-  };
-
-  const handleWorldPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.target !== worldRef.current) {
-      return;
-    }
-
-    event.preventDefault();
-    closeContextMenus();
-    if (editingTextCardId) {
-      saveTextCardEdit(editingTextCardId);
-    }
-    if (editingTextBlockId) {
-      saveTextBlockEdit(editingTextBlockId);
-    }
-    rename.end();
-    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
-      event.pointerId,
-    );
-    interactionController.beginSelection({
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      candidates: interactionElements,
-      additive: event.shiftKey,
-    });
-  };
-
-  const startContainerContentSelection = (
-    event: PointerEvent<HTMLElement>,
-    container: ContainerElement,
-  ) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    closeContextMenus();
-    if (editingTextCardId) {
-      saveTextCardEdit(editingTextCardId);
-    }
-    if (editingTextBlockId) {
-      saveTextBlockEdit(editingTextBlockId);
-    }
-    rename.end();
-    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
-      event.pointerId,
-    );
-    const candidates = getContainerVisibleTextCards(container).flatMap((card) => {
-      const bounds = getTextCardRippleBounds(card);
-      return bounds
-        ? [
-            {
-              id: card.id,
-              geometry: {
-                x: bounds.left,
-                y: bounds.top,
-                width: bounds.width,
-                height: bounds.height,
-              },
-              locked: isElementLocked(card.id),
-              movable: true,
-              resizable: false,
-            },
-          ]
-        : [];
-    });
-    interactionController.beginSelection({
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      candidates,
-      additive: event.shiftKey,
-    });
-  };
-
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (connectionDrawing.move(event)) return;
-    interactionController.updatePointer({
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      snapping: event.shiftKey,
-    });
-    const textCardPresentation = textCardInteraction.getSnapshot().active;
-    if (textCardPresentation?.pointerId === event.pointerId) {
-      const primaryPreview = interactionController
-        .getSnapshot()
-        .geometryPreviews.find(({ id }) => id === textCardPresentation.primaryId);
-      if (primaryPreview) {
-        textCardInteraction.update({
-          pointerId: event.pointerId,
-          screen: { x: event.clientX, y: event.clientY },
-          world: canvasPointFromEvent(event),
-          primaryGeometry: primaryPreview.geometry,
-          shiftKey: event.shiftKey,
-        });
-      }
-    }
-  };
-  const stopDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (connectionDrawing.finish(event)) {
-      if (event.currentTarget.hasPointerCapture(event.pointerId))
-        event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    handlePointerMove(event);
-    const beforeCompletion =
-      retained.runtime.controller.store.getState().documentWorkspace.document;
-    interactionController.completePointer({
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      snapping: event.shiftKey,
-    });
-    if (
-      beforeCompletion !== retained.runtime.controller.store.getState().documentWorkspace.document
-    ) {
-      const snapshot = retained.binding.getSnapshot();
-      if (snapshot.phase === "ready" && snapshot.activeCanvas) {
-        const canvas = snapshot.activeCanvas;
-        textCardInteraction.finishCommitted({
-          ...canvas,
-          containers: [...canvas.containers],
-          textCards: [...canvas.textCards],
-          textBlocks: [...canvas.textBlocks],
-          images: [...canvas.images],
-          mindmapConnections: [...canvas.mindmapConnections],
-          pan: activeCanvas.pan,
-          zoom: activeCanvas.zoom,
-        });
-      }
-    }
-    textCardInteraction.cancelActive(event.pointerId);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-  const cancelDrag = (event: PointerEvent<HTMLDivElement>) => {
-    connectionDrawing.cancelPointer(event.pointerId);
-    interactionController.cancelPointer(event.pointerId);
-    textCardInteraction.cancelActive(event.pointerId);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    closeContextMenus();
-    rename.end();
-    showMinimap();
-
-    if (worldRef.current) {
-      worldRef.current.style.willChange = "transform";
-    }
-    if (wheelLayerTimeoutRef.current !== null) {
-      window.clearTimeout(wheelLayerTimeoutRef.current);
-    }
-    wheelLayerTimeoutRef.current = window.setTimeout(() => {
-      wheelLayerTimeoutRef.current = null;
-      if (worldRef.current) {
-        worldRef.current.style.willChange = "";
-      }
-    }, 120);
-
-    interactionController.wheelZoom({ x: event.clientX, y: event.clientY }, event.deltaY);
-  };
-
   const getGestureElement = (
     id: string,
     includeContainedCard = false,
@@ -1780,208 +1562,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     };
   };
 
-  const beginElementMove = (
-    event: PointerEvent<HTMLElement>,
-    id: string,
-    commitThresholdScreen = 0,
-    explicitTargetIds?: readonly string[],
-    selectionAfterStart?: readonly string[],
-    completionBehavior: "translate" | "place" = "translate",
-    includeContainedCards = false,
-    primaryGeometry?: ElementGeometry,
-  ) => {
-    if (event.button !== 0) return false;
-    event.stopPropagation();
-    if (event.shiftKey) {
-      interactionController.select(id, true);
-      closeContextMenus();
-      return false;
-    }
-    if (isElementLocked(id)) {
-      interactionController.setSelection([id]);
-      closeContextMenus();
-      return false;
-    }
-    const movingIds = explicitTargetIds ?? (selectedIds.includes(id) ? selectedIds : [id]);
-    const targets = movingIds.flatMap((targetId) => {
-      const target = getGestureElement(targetId, includeContainedCards);
-      return target
-        ? [targetId === id && primaryGeometry ? { ...target, geometry: primaryGeometry } : target]
-        : [];
-    });
-    const stage = event.currentTarget.closest("[data-stage]") as HTMLElement | null;
-    stage?.setPointerCapture(event.pointerId);
-    if (selectionAfterStart) {
-      interactionController.setSelection(selectionAfterStart);
-    } else if (!selectedIds.includes(id)) {
-      interactionController.setSelection([id]);
-    }
-    closeContextMenus();
-    rename.end();
-    textCardEdit.end();
-    textBlockEdit.end();
-    const moveInput = {
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      primaryId: id,
-      targets,
-      snapTargets: interactionElements.filter((candidate) => {
-        const visibilityTarget =
-          containersById.get(candidate.id) ?? textBlocksById.get(candidate.id);
-        return !visibilityTarget || isElementVisible(visibilityTarget);
-      }),
-      commitThresholdScreen,
-      completionBehavior,
-    };
-    return retained.binding.interaction.beginMove({
-      ...moveInput,
-      ...(completionBehavior === "place"
-        ? { resolveTextCardDrop: textCardInteraction.getDecision }
-        : {}),
-    });
-  };
-
-  const startMove = (
-    event: PointerEvent<HTMLElement>,
-    element: ContainerElement | TextBlockElement,
-  ) => {
-    if (editingTextBlockId) saveTextBlockEdit(editingTextBlockId);
-    beginElementMove(event, element.id);
-  };
-
   const startMindmapConnection = connectionDrawing.start;
 
-  const startResize = (
-    event: PointerEvent<HTMLButtonElement>,
-    element: ContainerElement | TextBlockElement,
-  ) => {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (isElementLocked(element.id)) return;
-    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
-      event.pointerId,
-    );
-    interactionController.setSelection([element.id]);
-    closeContextMenus();
-    rename.end();
-    const target = getGestureElement(element.id);
-    if (!target) return;
-    const containerIds = new Set(elements.map(({ id }) => id));
-    const textBlockIds = new Set(textBlocks.map(({ id }) => id));
-    const visibleIds = new Set(
-      [...elements, ...textBlocks].filter(isElementVisible).map(({ id }) => id),
-    );
-    interactionController.beginResize({
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      target,
-      constraints: {
-        minimum: { width: MIN_WIDTH, height: MIN_HEIGHT },
-        maximum: {
-          width: canvasWidth - element.x,
-          height: canvasHeight - element.y,
-        },
-      },
-      snapTargets: filterLegacyResizeSnapTargets(interactionElements, {
-        activeId: element.id,
-        activeKind: containersById.has(element.id) ? "container" : "text-block",
-        containerIds,
-        textBlockIds,
-        visibleIds,
-      }),
-    });
-  };
-
-  const startTextCardMove = (event: PointerEvent<HTMLElement>, id: string) => {
-    const card = textCardsById.get(id);
-    if (!card || editingTextCardId === card.id) return;
-    // Mind-map nodes never drop into containers, and text-card placement rejects other element
-    // types (which cancelled every mind-map drag); they move like any other loose element.
-    const usesGenericLooseGroup =
-      card.kind === "mindmap" ||
-      (!card.containerId && selectedIds.length > 1 && selectedIds.includes(card.id));
-    if (usesGenericLooseGroup) {
-      beginElementMove(event, card.id);
-      return;
-    }
-    const movableIds = getLegacyTextCardDragIds(textCards, card.id, selectedIds);
-    const startPosition = getTextCardStackPosition(card);
-    const rect = event.currentTarget.getBoundingClientRect();
-    const { zoom } = interactionController.getSnapshot().viewport;
-    const width = event.currentTarget.offsetWidth || rect.width / zoom;
-    const height = event.currentTarget.offsetHeight || rect.height / zoom;
-    const primaryGeometry = { x: startPosition.x, y: startPosition.y, width, height };
-    const started = beginElementMove(
-      event,
-      card.id,
-      3,
-      movableIds.length > 0 ? movableIds : [card.id],
-      movableIds.length > 1 ? movableIds : [],
-      "place",
-      true,
-      primaryGeometry,
-    );
-    if (!started) return;
-    const geometries = new Map<string, ElementGeometry>();
-    movableIds.forEach((id) => {
-      const target = getGestureElement(id, true);
-      if (target) geometries.set(id, id === card.id ? primaryGeometry : target.geometry);
-    });
-    textCardInteraction.begin({
-      pointerId: event.pointerId,
-      primaryId: card.id,
-      draggedIds: movableIds,
-      cards: textCards,
-      containers: elements.filter(isElementVisible),
-      textBlocks: textBlocks.filter(isElementVisible),
-      geometries,
-      startScreen: { x: event.clientX, y: event.clientY },
-      startWorld: canvasPointFromEvent(event),
-      scrollOffsets: containerScrollOffsetsRef.current,
-    });
-  };
-  const startImageMove = (event: PointerEvent<HTMLElement>, image: ImageElement) => {
-    beginElementMove(event, image.id);
-  };
-  const startImageResize = (event: PointerEvent<HTMLButtonElement>, image: ImageElement) => {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (isElementLocked(image.id)) return;
-    (event.currentTarget.closest("[data-stage]") as HTMLElement | null)?.setPointerCapture(
-      event.pointerId,
-    );
-    interactionController.setSelection([image.id]);
-    closeContextMenus();
-    rename.end();
-    const target = getGestureElement(image.id);
-    if (!target) return;
-    const aspectRatio = image.height > 0 ? image.width / image.height : 1;
-    const containerIds = new Set(elements.map(({ id }) => id));
-    const textBlockIds = new Set(textBlocks.map(({ id }) => id));
-    const visibleIds = new Set(
-      [...elements, ...textBlocks].filter(isElementVisible).map(({ id }) => id),
-    );
-    interactionController.beginResize({
-      pointerId: event.pointerId,
-      screen: { x: event.clientX, y: event.clientY },
-      target,
-      constraints: {
-        minimum: { width: MIN_IMAGE_SIZE, height: MIN_IMAGE_SIZE / aspectRatio },
-        maximum: {
-          width: Math.min(canvasWidth - image.x, (canvasHeight - image.y) * aspectRatio),
-          height: canvasHeight - image.y,
-        },
-        aspectRatio,
-      },
-      snapTargets: filterLegacyResizeSnapTargets(interactionElements, {
-        activeId: image.id,
-        activeKind: "image",
-        containerIds,
-        textBlockIds,
-        visibleIds,
-      }),
-    });
-  };
   const openImageMenu = (event: React.MouseEvent<HTMLElement>, image: ImageElement) =>
     menus.openAtPointer("image", event, image.id);
 
@@ -2604,6 +2186,70 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     );
   };
 
+  const gestures = useCanvasGestures({
+    retained,
+    controller: interactionController,
+    cardDrags: textCardInteraction,
+    connections: connectionDrawing,
+    world: () => worldRef.current,
+    selection: () => interactionController.getSnapshot().selectedIds,
+    interactionElements: () => interactionElements,
+    gestureElement: getGestureElement,
+    scene: () => ({ containers: elements, textBlocks, textCards }),
+    isLocked: isElementLocked,
+    isFrameVisible: isElementVisible,
+    canvasPoint: canvasPointFromEvent,
+    canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
+    cardPosition: (card) => getTextCardStackPosition(card),
+    containerCardCandidates: (container) =>
+      getContainerVisibleTextCards(container).flatMap((card) => {
+        const bounds = getTextCardRippleBounds(card);
+        return bounds
+          ? [
+              {
+                id: card.id,
+                geometry: {
+                  x: bounds.left,
+                  y: bounds.top,
+                  width: bounds.width,
+                  height: bounds.height,
+                },
+                locked: isElementLocked(card.id),
+                movable: true,
+                resizable: false,
+              },
+            ]
+          : [];
+      }),
+    containerScrollOffsets: () => containerScrollOffsetsRef.current,
+    camera: () => ({ pan: activeCanvas.pan, zoom: activeCanvas.zoom }),
+    editingCardId: () => editingTextCardId,
+    saveOpenEdits: () => {
+      if (editingTextCardId) saveTextCardEdit(editingTextCardId);
+      if (editingTextBlockId) saveTextBlockEdit(editingTextBlockId);
+    },
+    saveTextBlockEdit: () => {
+      if (editingTextBlockId) saveTextBlockEdit(editingTextBlockId);
+    },
+    endEditing: () => {
+      rename.end();
+      textCardEdit.end();
+      textBlockEdit.end();
+    },
+    endRename: () => rename.end(),
+    closeContextMenus,
+    showMinimap: () => showMinimap(),
+  });
+  const startMove = gestures.moveFrame;
+  const startResize = gestures.resizeFrame;
+  const startImageMove = gestures.moveImage;
+  const startImageResize = gestures.resizeImage;
+  const startContainerContentSelection = gestures.containerContentPointerDown;
+  const startTextCardMove = (event: PointerEvent<HTMLElement>, id: string) => {
+    const card = textCardsById.get(id);
+    if (card) gestures.moveTextCard(event, card);
+  };
+
   const canvasNodeActions = useStableCallbacks({
     cancelTextCardEdit,
     openTextCardMenu,
@@ -3065,13 +2711,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 ? "cursor-grabbing"
                 : "cursor-default"
             }
-            onPointerDownCapture={handleStagePointerDownCapture}
-            onPointerDown={handleStagePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={stopDrag}
-            onPointerCancel={cancelDrag}
-            onLostPointerCapture={cancelDrag}
-            onWheel={handleWheel}
+            onPointerDownCapture={gestures.stagePointerDownCapture}
+            onPointerDown={gestures.stagePointerDown}
+            onPointerMove={gestures.pointerMove}
+            onPointerUp={gestures.pointerUp}
+            onPointerCancel={gestures.pointerCancel}
+            onLostPointerCapture={gestures.pointerCancel}
+            onWheel={gestures.wheel}
             onAuxClick={(event) => event.preventDefault()}
           >
             <CanvasFrame
@@ -3091,7 +2737,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 } as React.CSSProperties
               }
               onContextMenu={handleCanvasContextMenu}
-              onPointerDown={handleWorldPointerDown}
+              onPointerDown={gestures.worldPointerDown}
             >
               {snapGuides.map((guide) => (
                 <div
