@@ -97,7 +97,11 @@
    card layout they drive live in `useContainerCardScroll`. The chrome also owns undo/redo
    availability and the side panel's sleep-mode and intro behaviour. The interaction controller, camera
    bridge, text card drag service, stage size and pointer tracking come from `useCanvasInteraction`.
-   Still in `App.tsx`: the wiring that connects these hooks, and update and toast setup. Text cards and mind-map nodes place with `translate` like the
+   Element lookups come from
+   `useCanvasScene`, geometry from `createCanvasGeometry`, context targeting from
+   `createContextTargets`, workspace press handling from `useWorkspacePointerPolicy`, and what the
+   layers render from `useCanvasPresentation` and `useContainerLayerLayout`. `App.tsx` is now the
+   wiring between these hooks (~840 lines). Text cards and mind-map nodes place with `translate` like the
    other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it

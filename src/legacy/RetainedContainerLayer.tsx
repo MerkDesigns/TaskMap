@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { getVirtualRowRange, isVirtualRowInRange } from "../canvasMath";
 import type { ElementId } from "../domain/ids/entityIds";
 import { ContainerRenderer } from "../elements/container/ContainerRenderer";
@@ -13,9 +14,21 @@ import {
   CONTAINER_TEXT_CARD_GAP,
   CONTAINER_TEXT_CARD_PADDING,
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
+  containerCardStackTop,
+  containerViewportHeight,
 } from "./containerCardLayout";
+import type {
+  LegacyTextCardPresentation,
+  LegacyTextCardRelease,
+} from "./interactions/legacyTextCardInteraction";
 import { useRetainedDocumentElements } from "./RetainedCanvasContext";
-import { editDraft, isMultiSelected, type LayerProps } from "./retainedElementPresentation";
+import {
+  editDraft,
+  isMultiSelected,
+  type LayerProps,
+  type RetainedElementPresentation,
+} from "./retainedElementPresentation";
+import type { useContainerCardScroll } from "./useContainerCardScroll";
 
 const CONTAINER_TEXT_CARD_OVERSCAN_ROWS = 3;
 const ROW_PITCH = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
@@ -45,6 +58,80 @@ export interface ContainerCardLayout {
   readonly contentRevision: object;
   /** The edit in progress on one of this container's cards, so the container redraws it. */
   readonly contentEditRevision: (containerId: string) => string;
+}
+
+/** A token that changes exactly when one of `dependencies` changes identity. */
+function useRevisionToken(dependencies: readonly unknown[]): object {
+  const revision = useRef<{ dependencies: readonly unknown[]; token: object } | null>(null);
+  const previous = revision.current;
+  if (
+    !previous ||
+    previous.dependencies.length !== dependencies.length ||
+    dependencies.some((dependency, index) => !Object.is(dependency, previous.dependencies[index]))
+  )
+    revision.current = { dependencies, token: {} };
+  return revision.current!.token;
+}
+
+export interface ContainerLayerLayoutInput {
+  readonly cardScroll: ReturnType<typeof useContainerCardScroll>;
+  readonly textCards: readonly TextCardElement[];
+  readonly presentation: RetainedElementPresentation;
+  readonly interactionKind: string | undefined;
+  readonly draggedCardIds: readonly string[];
+  readonly heldCards: LegacyTextCardPresentation | null;
+  readonly cardRelease: LegacyTextCardRelease | null;
+  readonly releasingCardIds: readonly string[];
+  /** The container of the card being edited, if any. */
+  readonly editingCardContainerId: string | undefined;
+}
+
+/** The card rows the container layer draws, and when they need redrawing. */
+export function useContainerLayerLayout({
+  cardScroll,
+  textCards,
+  presentation,
+  interactionKind,
+  draggedCardIds,
+  heldCards,
+  cardRelease,
+  releasingCardIds,
+  editingCardContainerId,
+}: ContainerLayerLayoutInput): ContainerCardLayout {
+  const { layout } = cardScroll;
+  const edit = presentation.textCardEdit;
+  const contentRevision = useRevisionToken([
+    cardScroll.offsets,
+    presentation.deleting.textCards,
+    draggedCardIds,
+    interactionKind,
+    heldCards,
+    cardRelease,
+    presentation.entering.textCards,
+    presentation.outlinedIds,
+    presentation.pulsing.textCards,
+    presentation.selectedIds.length,
+    textCards,
+  ]);
+  return {
+    cardsOf: (container) =>
+      (cardScroll.grouped.get(container.id) ?? []).filter(
+        (card) => !draggedCardIds.includes(card.id),
+      ),
+    visibleCards: (container, cards) => layout.visible(container, [...cards]),
+    scrollOffset: layout.scrollOffset,
+    viewportHeight: containerViewportHeight,
+    stackTop: containerCardStackTop,
+    insertion: {
+      containerId: heldCards?.targetContainerId ?? null,
+      index: heldCards?.insertionIndex ?? null,
+      count: heldCards?.ids.length ?? 0,
+    },
+    releasingIds: releasingCardIds,
+    contentRevision,
+    contentEditRevision: (containerId) =>
+      editingCardContainerId === containerId ? `${edit.id}\u0000${edit.draft}` : "",
+  };
 }
 
 export function ContainerLayer({

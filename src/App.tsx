@@ -1,4 +1,4 @@
-import { PointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
@@ -38,15 +38,14 @@ import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
 import { useCanvasScene } from "./legacy/useCanvasScene";
 import { createCanvasGeometry } from "./legacy/canvasGeometry";
+import { useCanvasPresentation } from "./legacy/useCanvasPresentation";
 import { createContextTargets } from "./legacy/contextTargets";
 import { useWorkspacePointerPolicy } from "./legacy/useWorkspacePointerPolicy";
 import { useContainerCardScroll } from "./legacy/useContainerCardScroll";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
-import type { ContainerCardLayout } from "./legacy/RetainedContainerLayer";
-import { containerCardStackTop, containerViewportHeight } from "./legacy/containerCardLayout";
+import { useContainerLayerLayout } from "./legacy/RetainedContainerLayer";
 import { elementShadows } from "./legacy/RetainedElementLayers";
-import type { RetainedElementPresentation } from "./legacy/retainedElementPresentation";
 import { useRetainedExtensionCommands } from "./legacy/useRetainedExtensionCommands";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
@@ -62,50 +61,6 @@ import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
 
 const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
-
-const EMPTY_IDS: string[] = [];
-
-type CallbackMap = Record<string, (...args: never[]) => unknown>;
-
-const useStableCallbacks = <T extends CallbackMap>(callbacks: T): T => {
-  const callbacksRef = useRef<T | null>(callbacks);
-  const stableCallbacksRef = useRef<T | null>(null);
-  callbacksRef.current = callbacks;
-  useLayoutEffect(() => {
-    callbacksRef.current = callbacks;
-    return () => {
-      callbacksRef.current = null;
-    };
-  });
-
-  if (!stableCallbacksRef.current) {
-    stableCallbacksRef.current = Object.fromEntries(
-      Object.keys(callbacks).map((name) => [
-        name,
-        (...args: never[]) => callbacksRef.current?.[name](...args),
-      ]),
-    ) as T;
-  }
-
-  return stableCallbacksRef.current;
-};
-
-const useRevisionToken = (dependencies: readonly unknown[]) => {
-  const revisionRef = useRef<{ dependencies: readonly unknown[]; token: object } | undefined>(
-    undefined,
-  );
-  const previous = revisionRef.current;
-  const changed =
-    !previous ||
-    previous.dependencies.length !== dependencies.length ||
-    dependencies.some((dependency, index) => !Object.is(dependency, previous.dependencies[index]));
-
-  if (changed) {
-    revisionRef.current = { dependencies, token: {} };
-  }
-
-  return revisionRef.current!.token;
-};
 
 interface AppProps {
   readonly useSettings: typeof useLegacyCanvasSettings;
@@ -150,11 +105,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     connectionMode: () => connectionDrawing.mode,
   });
   const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
-  const { editingId: renamingId, draft: renameDraft, end: endRename } = rename;
+  const { editingId: renamingId, end: endRename } = rename;
   const textCardEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
-  const { editingId: editingTextCardId, draft: textCardDraft } = textCardEdit;
+  const { editingId: editingTextCardId } = textCardEdit;
   const textBlockEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
-  const { editingId: editingTextBlockId, draft: textBlockDraft } = textBlockEdit;
+  const { editingId: editingTextBlockId } = textBlockEdit;
   const measuredCards = useMeasuredTextCardSizes(activeCanvas.id);
   const measuredInteractionCardSizes = measuredCards.sizes;
   const settings = useSettings();
@@ -179,14 +134,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     top: number;
   } | null>(null);
   const presenceMarks = useElementPresenceMarks();
-  const { textCards: enteringTextCardIds } = presenceMarks.entering;
   const {
     containers: deletingIds,
     textCards: deletingTextCardIds,
     textBlocks: deletingTextBlockIds,
     images: deletingImageIds,
   } = presenceMarks.deleting;
-  const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const snapGuides = interactionSnapshot.snapGuides;
 
   const scene = useCanvasScene({
@@ -242,14 +195,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     onNodeCreated: (id) => animateTextCardIn(id),
     closeContextMenus: () => closeContextMenus(),
   });
-  const draggedTextCardIds =
-    interactionSnapshot.activeInteraction?.kind === "move"
-      ? interactionSnapshot.activeInteraction.targetIds.filter((id) => textCardsById.has(id))
-      : EMPTY_IDS;
-  const activeTextCardPresentation = textCardInteractionSnapshot.active;
-  const releasingTextCardIds =
-    textCardInteractionSnapshot.release?.cards.map(({ card }) => card.id) ?? EMPTY_IDS;
-  const renderedLooseTextCards = looseTextCards;
 
   const { imageUrlVersion } = useImageCache({
     activeImages: NO_CACHED_IMAGES,
@@ -260,13 +205,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         message: commandErrorMessage(error),
       });
     },
-  });
-
-  const lifecycleActions = useStableCallbacks({
-    getCanvasBrowserCanvases: () =>
-      canvases.map((canvas) =>
-        canvas.id === activeCanvas.id ? { ...activeCanvas, previewViewport: stageSize } : canvas,
-      ),
   });
 
   const updates = useAppUpdates({
@@ -294,7 +232,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textBlocks,
     textCards,
     images,
-    looseCards: renderedLooseTextCards,
+    looseCards: looseTextCards,
     looseImages,
     previews: interactionSnapshot.geometryPreviews,
   });
@@ -327,20 +265,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
   });
 
-  const selectionBounds = interactionSnapshot.selectionRectangle
-    ? {
-        left: interactionSnapshot.selectionRectangle.x,
-        top: interactionSnapshot.selectionRectangle.y,
-        width: interactionSnapshot.selectionRectangle.width,
-        height: interactionSnapshot.selectionRectangle.height,
-      }
-    : null;
-  const outlinedIds = interactionSnapshot.selectionRectangle
-    ? interactionSnapshot.selectionPreviewIds
-    : selectedIds.length > 1
-      ? selectedIds
-      : [];
-
   const createElement = useCanvasElementCreation({
     callbacks: retained.runtime.callbacks,
     activeCanvasId: () => activeCanvas.id,
@@ -369,6 +293,20 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
   const pickImageForElement = imageImport.pick;
   const loadingImageIds = imageImport.importingIds;
+  const canvasPresentation = useCanvasPresentation({
+    interaction: interactionSnapshot,
+    cardDrags: textCardInteractionSnapshot,
+    isCard: (id) => textCardsById.has(id),
+    rename,
+    cardEdit: textCardEdit,
+    blockEdit: textBlockEdit,
+    marks: presenceMarks,
+    shadowsUnderElements,
+    recentColors,
+    importingImageIds: loadingImageIds,
+  });
+  const { outlinedIds } = canvasPresentation.presentation;
+  const draggedTextCardIds = canvasPresentation.draggedCardIds;
 
   const startMindmapConnection = connectionDrawing.start;
 
@@ -684,44 +622,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     () => canvasMindMapConnections(documentConnections, activeCanvas.id),
     [documentConnections, activeCanvas.id],
   );
-  const editingTextCardContainerId = editingTextCardId
-    ? textCardsById.get(editingTextCardId)?.containerId
-    : undefined;
-  const containerContentRevision = useRevisionToken([
-    cardScroll.offsets,
-    deletingTextCardIds,
-    draggedTextCardIds,
-    interactionSnapshot.activeInteraction?.kind,
-    activeTextCardPresentation,
-    textCardInteractionSnapshot.release,
-    enteringTextCardIds,
-    outlinedIds,
-    pulsingTextCardIds,
-    selectedIds.length,
-    textCards,
-  ]);
-
   const canvasWidth = activeCanvas.width;
   const canvasHeight = activeCanvas.height;
-  const dragPinnedIds =
-    interactionSnapshot.activeInteraction?.kind === "move" ||
-    interactionSnapshot.activeInteraction?.kind === "resize"
-      ? interactionSnapshot.activeInteraction.targetIds
-      : EMPTY_IDS;
-  const pinnedRenderIds = useMemo(() => {
-    const ids = new Set(selectedIds);
-    [renamingId, editingTextBlockId, editingTextCardId].forEach((id) => {
-      if (id) ids.add(id);
-    });
-    dragPinnedIds.forEach((id) => ids.add(id));
-    return ids;
-  }, [dragPinnedIds, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
   const minimapViewportWorld = viewportWorldRectangle(interactionSnapshot.viewport);
   const connectableBoundsById = geometry.connectableBounds();
-  const overlaidTextCardIds = [...(activeTextCardPresentation?.ids ?? []), ...releasingTextCardIds];
   const canvasElementShadows = elementShadows(layers, {
     deleting: presenceMarks.deleting,
-    overlaidCardIds: overlaidTextCardIds,
+    overlaidCardIds: canvasPresentation.overlaidCardIds,
     draggedCardIds: draggedTextCardIds,
     cardSize: geometry.looseCard,
     preview: (id) => geometry.preview(id),
@@ -731,8 +638,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       image.background === false,
   });
   const canvasManagerCanvases = useMemo(
-    () => lifecycleActions.getCanvasBrowserCanvases(),
-    // The stable callback reads these document revisions. Camera frames are excluded.
+    () =>
+      canvases.map((canvas) =>
+        canvas.id === activeCanvas.id ? { ...activeCanvas, previewViewport: stageSize } : canvas,
+      ),
+    // Deletions refresh the previews; camera frames do not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       activeCanvas,
@@ -742,48 +652,21 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       deletingTextCardIds,
       deletingTextBlockIds,
       deletingImageIds,
-      lifecycleActions,
     ],
   );
-  const elementPresentation: RetainedElementPresentation = {
-    outlinedIds,
-    selectedIds,
-    draggedIds: dragPinnedIds,
-    primaryMoveId:
-      interactionSnapshot.activeInteraction?.kind === "move"
-        ? (interactionSnapshot.activeInteraction.targetIds[0] ?? null)
-        : null,
-    shadowsUnderElements,
-    recentColors,
-    entering: presenceMarks.entering,
-    deleting: presenceMarks.deleting,
-    pulsing: presenceMarks.pulsing,
-    textCardEdit: { id: editingTextCardId, draft: textCardDraft },
-    textBlockEdit: { id: editingTextBlockId, draft: textBlockDraft },
-    rename: { id: renamingId, draft: renameDraft },
-    importingImageIds: loadingImageIds,
-  };
-  const containerCardLayout: ContainerCardLayout = {
-    cardsOf: (container) =>
-      (cardScroll.grouped.get(container.id) ?? []).filter(
-        (card) => !draggedTextCardIds.includes(card.id),
-      ),
-    visibleCards: (container, cards) => cardLayout.visible(container, [...cards]),
-    scrollOffset: cardLayout.scrollOffset,
-    viewportHeight: containerViewportHeight,
-    stackTop: containerCardStackTop,
-    insertion: {
-      containerId: activeTextCardPresentation?.targetContainerId ?? null,
-      index: activeTextCardPresentation?.insertionIndex ?? null,
-      count: activeTextCardPresentation?.ids.length ?? 0,
-    },
-    releasingIds: releasingTextCardIds,
-    contentRevision: containerContentRevision,
-    contentEditRevision: (containerId) =>
-      editingTextCardContainerId === containerId
-        ? `${editingTextCardId}\u0000${textCardDraft}`
-        : "",
-  };
+  const containerCardLayout = useContainerLayerLayout({
+    cardScroll,
+    textCards,
+    presentation: canvasPresentation.presentation,
+    interactionKind: interactionSnapshot.activeInteraction?.kind,
+    draggedCardIds: draggedTextCardIds,
+    heldCards: canvasPresentation.heldCards,
+    cardRelease: textCardInteractionSnapshot.release,
+    releasingCardIds: canvasPresentation.releasingCardIds,
+    editingCardContainerId: editingTextCardId
+      ? textCardsById.get(editingTextCardId)?.containerId
+      : undefined,
+  });
 
   return (
     <WorkspaceRoot
@@ -852,21 +735,21 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               onConnectionClick: openMindmapConnectionMenu,
             }}
             layers={layers}
-            pinnedIds={pinnedRenderIds}
+            pinnedIds={canvasPresentation.pinnedIds}
             shadows={{
               underElements: shadowsUnderElements,
               rectangles: canvasElementShadows,
-              draggedIds: dragPinnedIds,
+              draggedIds: canvasPresentation.presentation.draggedIds,
             }}
-            presentation={elementPresentation}
+            presentation={canvasPresentation.presentation}
             containerLayout={containerCardLayout}
             actions={elementActions}
             extensionCommands={extensionCommands}
             media={retained.runtime.media}
-            overlaidCardIds={overlaidTextCardIds}
+            overlaidCardIds={canvasPresentation.overlaidCardIds}
             cardPosition={geometry.renderPosition}
             overlays={{
-              heldCards: activeTextCardPresentation,
+              heldCards: canvasPresentation.heldCards,
               releasedCards: textCardInteractionSnapshot.release,
               cardById: (id) => textCardsById.get(id),
               outlinedIds,
@@ -889,7 +772,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                   }
                 : null,
             }}
-            selectionVisible={Boolean(selectionBounds)}
+            selectionVisible={canvasPresentation.selectionVisible}
           />
 
           <RetainedCanvasMenus
