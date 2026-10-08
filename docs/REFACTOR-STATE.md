@@ -92,8 +92,9 @@
    through `RetainedWorkspaceChrome` (minimap timing in `useMinimapPresence`), and snap guides
    through `CanvasSnapGuides`. Layer order, gesture previews and culling boxes come from
    `useLayeredCanvasElements`, and shadow rectangles from `elementShadows`. The stage, canvas frame,
-   element layers and overlays render through `RetainedCanvasStage`. Still in `App.tsx`: selection
-   and deletion, container card scrolling, lifecycle wiring and interaction setup. Text cards and mind-map nodes place with `translate` like the
+   element layers and overlays render through `RetainedCanvasStage`. Deleting elements (after
+   their exit animation) and clearing the canvas go through `useCanvasDeletion`. Still in `App.tsx`:
+   selection state, container card scrolling, lifecycle wiring and interaction setup. Text cards and mind-map nodes place with `translate` like the
    other elements.
 4. Not yet wired by design: `src/elements/registry.ts` (no element definitions). Unused
    future plumbing (typed Redux hooks, media/workflow client interfaces) was deleted; recreate it

@@ -1,7 +1,6 @@
 import {
   PointerEvent,
   SetStateAction,
-  Suspense,
   WheelEvent,
   useCallback,
   useEffect,
@@ -21,8 +20,6 @@ import { getTextCardAccent } from "./constants";
 import { clamp } from "./canvasMath";
 import { ContainerElement, TextBlockElement, TextCardElement } from "./types";
 import { commandErrorMessage } from "./app/commandError";
-import { planCanvasDeletion } from "./app/canvasDocument";
-import { DEFAULT_CANVAS } from "./app/defaultData";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
@@ -31,7 +28,7 @@ import {
   type RetainedCanvasContextValue,
 } from "./legacy/RetainedCanvasContext";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
-import type { CanvasId, ElementId, ConnectionId } from "./domain/ids/entityIds";
+import type { ElementId, ConnectionId } from "./domain/ids/entityIds";
 import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
@@ -59,6 +56,7 @@ import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
+import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
 import type { ContainerCardLayout } from "./legacy/RetainedContainerLayer";
@@ -90,14 +88,13 @@ import { applyLegacySelectionAction } from "./legacy/interactions/legacySelectio
 import { createLegacyTextCardInteractionService } from "./legacy/interactions/legacyTextCardInteraction";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import { WorkspaceRoot, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS } from "./ui/patterns/workspace";
-import { isModalPresenceBlocking, ModalPresence } from "./ui/patterns/overlays";
+import { isModalPresenceBlocking } from "./ui/patterns/overlays";
 import { useChromeAutoHide } from "./ui/patterns/workspace/chromeSleep";
 import { setWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
 import {
   useWorkspaceIntroArrival,
   useWorkspaceIntroDeparture,
 } from "./ui/patterns/workspace/workspaceIntro";
-import { ClearCanvasModal } from "./components/Modals";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
@@ -173,8 +170,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const containerScrollOffsetsRef = useRef<Record<string, number>>({});
-  const pendingDeletionTimeoutsRef = useRef<Map<string, Set<number>>>(new Map());
-  const activeCanvasIdRef = useRef(DEFAULT_CANVAS.id);
   const {
     activeCanvas,
     canvases,
@@ -187,7 +182,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textCards,
     zoom: legacyZoom,
   } = useDocument();
-  activeCanvasIdRef.current = activeCanvas.id;
   const interactionBindingsRef = useRef({ activeCanvas, setActiveCanvas, setCamera });
   interactionBindingsRef.current = { activeCanvas, setActiveCanvas, setCamera };
   const textCardInteractionRef = useRef<ReturnType<
@@ -264,7 +258,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
   } = settings;
-  const [clearModalOpen, setClearModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const { toasts, showToast, dismissToast } = useToastQueue();
@@ -390,7 +383,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       });
     },
   });
-  activeCanvasIdRef.current = activeCanvas.id;
 
   const updateHistoryState = () => {
     const history = retained.runtime.controller.store.getState().documentWorkspace.history;
@@ -421,16 +413,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
     showToast,
   });
-
-  useEffect(() => {
-    const pendingDeletionTimeouts = pendingDeletionTimeoutsRef.current;
-    return () => {
-      pendingDeletionTimeouts.forEach((timeouts) =>
-        timeouts.forEach((timeout) => window.clearTimeout(timeout)),
-      );
-      pendingDeletionTimeouts.clear();
-    };
-  }, []);
 
   useEffect(() => {
     const htmlSpellCheck = document.documentElement.getAttribute("spellcheck");
@@ -556,60 +538,25 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const animateImageIn = (id: string) => presenceMarks.animateIn("images", id);
 
-  const scheduleDeletionCommit = (canvasId: string, commit: () => void, delayMs: number) => {
-    const timeout = window.setTimeout(() => {
-      const canvasTimeouts = pendingDeletionTimeoutsRef.current.get(canvasId);
-      canvasTimeouts?.delete(timeout);
-      if (canvasTimeouts?.size === 0) {
-        pendingDeletionTimeoutsRef.current.delete(canvasId);
-      }
-      commit();
-    }, delayMs);
-    const canvasTimeouts = pendingDeletionTimeoutsRef.current.get(canvasId) ?? new Set<number>();
-    canvasTimeouts.add(timeout);
-    pendingDeletionTimeoutsRef.current.set(canvasId, canvasTimeouts);
-  };
-
-  const cancelPendingDeletionCommits = (canvasId: string) => {
-    pendingDeletionTimeoutsRef.current
-      .get(canvasId)
-      ?.forEach((timeout) => window.clearTimeout(timeout));
-    pendingDeletionTimeoutsRef.current.delete(canvasId);
-    if (canvasId === activeCanvasIdRef.current) {
-      presenceMarks.clearDeleting();
-    }
-  };
-
   const removeMindmapConnection = (id: string) => {
     retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
     menus.closeConnection();
   };
 
-  const deleteRetainedSelection = (ids: string[]) => {
-    const capture = retained.runtime.callbacks.captureDelete(ids as ElementId[]);
-    if (!capture) return;
-    const plan = planCanvasDeletion(activeCanvas, ids, isElementDeletionLocked);
-    presenceMarks.markDeleting({
-      containers: plan.containerIds,
-      textCards: plan.textCardIds,
-      textBlocks: plan.textBlockIds,
-      images: plan.imageIds,
-    });
-    closeContextMenus();
-    scheduleDeletionCommit(
-      activeCanvas.id,
-      () => {
-        capture.complete();
-        presenceMarks.clearDeleting();
-        setSelectedIds([]);
-      },
-      180,
-    );
-  };
-
-  const deleteCanvasSelection = (actionIds: string[]) => {
-    deleteRetainedSelection(actionIds);
-  };
+  const deletion = useCanvasDeletion({
+    callbacks: retained.runtime.callbacks,
+    activeCanvas: () => activeCanvas,
+    isDeletionLocked: isElementDeletionLocked,
+    markDeleting: presenceMarks.markDeleting,
+    clearDeleting: presenceMarks.clearDeleting,
+    clearSelection: () => setSelectedIds([]),
+    closeContextMenus,
+    endEditing: () => {
+      rename.end();
+      textCardEdit.end();
+      textBlockEdit.end();
+    },
+  });
 
   const { close: closeLeftPanel, show: switchLeftPanel } = leftPanel;
   const closeCanvasManager = useCallback(() => closeLeftPanel("canvases"), [closeLeftPanel]);
@@ -623,10 +570,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     window.addEventListener("pointermove", trackPointer, true);
     return () => window.removeEventListener("pointermove", trackPointer, true);
   }, []);
-
-  const deletionActions = useStableCallbacks({
-    deleteCanvasSelection,
-  });
 
   const getLooseTextCardSelectionBounds = (card: TextCardElement) =>
     looseCardBounds(card, measuredInteractionCardSizes.get(card.id));
@@ -820,24 +763,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       }),
   });
 
-  const requestClearCanvas = () => {
-    closeContextMenus();
-    setClearModalOpen(true);
-  };
-
-  const clearCanvas = () => {
-    const result = retained.runtime.callbacks
-      .captureRemoveCanvas(activeCanvas.id as CanvasId, "clear")
-      ?.complete(true);
-    if (!result?.ok) return;
-    closeContextMenus();
-    setSelectedIds([]);
-    rename.end();
-    textCardEdit.end();
-    textBlockEdit.end();
-    setClearModalOpen(false);
-  };
-
   const getContextActionIds = (id: string) => [...contextActionIds(selectedIds, id)];
 
   const isMultiContextAction = (id: string) => selectedIds.length > 1 && selectedIds.includes(id);
@@ -863,7 +788,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const deleteContextSelection = (id: string, actionIdsOverride?: string[]) => {
     const actionIds = actionIdsOverride ?? getContextActionIds(id);
-    deleteCanvasSelection(actionIds);
+    deletion.remove(actionIds);
     closeContextMenus();
     rename.end();
   };
@@ -981,7 +906,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
 
   const resetCanvasPresentation = () => {
-    cancelPendingDeletionCommits(activeCanvas.id);
+    deletion.cancelPending(activeCanvas.id);
     textCardInteraction.reset();
     setSelectedIds([]);
     presenceMarks.clearDeleting();
@@ -1003,7 +928,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   useCanvasShortcuts({
     modalOpen: () =>
-      settingsOpen || clearModalOpen || updates.updateModalOpen || isModalPresenceBlocking(),
+      settingsOpen ||
+      deletion.clearDialogOpen ||
+      updates.updateModalOpen ||
+      isModalPresenceBlocking(),
     setConnectionMode: connectionDrawing.setConnectionMode,
     setShiftHeld: (held) =>
       applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, held),
@@ -1016,7 +944,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     leftPanel,
     closeContextMenus,
     endRename,
-    deleteSelection: () => deletionActions.deleteCanvasSelection(selectedIds),
+    deleteSelection: () => deletion.remove(selectedIds),
     copySelection: clipboard.copySelection,
     canPaste: () => clipboard.hasCopy,
     pasteAtPointer: () => {
@@ -1415,16 +1343,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               onCreateTextBlock: createElement.textBlock,
               onCreateImage: createElement.imagePlaceholder,
               onCreateMindmap: createElement.mindmapNode,
-              onClear: requestClearCanvas,
+              onClear: deletion.requestClear,
             }}
             onDeleteConnection={removeMindmapConnection}
           />
 
-          <ModalPresence open={clearModalOpen}>
-            <Suspense fallback={null}>
-              <ClearCanvasModal onCancel={() => setClearModalOpen(false)} onConfirm={clearCanvas} />
-            </Suspense>
-          </ModalPresence>
+          {deletion.clearDialog}
 
           {copyPasteJson.editorWindow}
           {workflowEditor.editorWindow}
