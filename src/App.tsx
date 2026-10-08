@@ -6,8 +6,7 @@ import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { ToastStack } from "./components/ToastStack";
 import { getTextCardAccent } from "./constants";
-import { clamp } from "./canvasMath";
-import { ContainerElement, TextBlockElement, TextCardElement } from "./types";
+import type { TextCardElement } from "./types";
 import { commandErrorMessage } from "./app/commandError";
 import { useImageCache } from "./hooks/useImageCache";
 import { useAppUpdates } from "./hooks/useAppUpdates";
@@ -23,17 +22,8 @@ import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
 import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
 import { useCanvasGestures } from "./legacy/useCanvasGestures";
-import type { DropBounds } from "./legacy/extensionDropTarget";
 import { useToastQueue } from "./components/useToastQueue";
-import {
-  clipToContainer,
-  connectableBounds,
-  connectableElementBounds,
-  containerRowSize,
-  looseCardBounds,
-  measureRenderedCard,
-  useMeasuredTextCardSizes,
-} from "./legacy/canvasElementBounds";
+import { useMeasuredTextCardSizes } from "./legacy/canvasElementBounds";
 import { RetainedSettingsDialog } from "./legacy/RetainedSettingsDialog";
 import { RetainedWorkspaceChrome } from "./legacy/RetainedWorkspaceChrome";
 import { useMinimapPresence } from "./legacy/useMinimapPresence";
@@ -48,15 +38,12 @@ import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
 import { useCanvasScene } from "./legacy/useCanvasScene";
+import { createCanvasGeometry } from "./legacy/canvasGeometry";
 import { useContainerCardScroll } from "./legacy/useContainerCardScroll";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
 import type { ContainerCardLayout } from "./legacy/RetainedContainerLayer";
-import {
-  CONTAINER_TEXT_CARD_ROW_HEIGHT,
-  containerCardStackTop,
-  containerViewportHeight,
-} from "./legacy/containerCardLayout";
+import { containerCardStackTop, containerViewportHeight } from "./legacy/containerCardLayout";
 import { elementShadows } from "./legacy/RetainedElementLayers";
 import type { RetainedElementPresentation } from "./legacy/retainedElementPresentation";
 import {
@@ -66,9 +53,7 @@ import {
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
 import { useWorkflowRuns } from "./extensions/workflow/useWorkflowRuns";
-import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
 import { viewportWorldRectangle } from "./canvas/geometry/viewportMath";
-import { rectanglesIntersect } from "./canvas/geometry/canvasGeometry";
 import { getLegacyInteractionElements } from "./legacy/interactions/legacyCanvasGeometry";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import { WorkspaceRoot, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS } from "./ui/patterns/workspace";
@@ -224,13 +209,19 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     () => getLegacyInteractionElements(activeCanvas, measuredInteractionCardSizes),
     [activeCanvas, measuredInteractionCardSizes],
   );
-  const isElementLocked = (id: string) =>
-    isLocked(
-      containersById.get(id) ??
-        textBlocksById.get(id) ??
-        textCardsById.get(id) ??
-        imagesById.get(id),
-    );
+  const isElementLocked = (id: string) => isLocked(scene.element(id));
+  const geometry = createCanvasGeometry({
+    worldRef,
+    controller: interactionController,
+    canvas: activeCanvas,
+    scene,
+    cardLayout,
+    restingPosition: cardScroll.restingPosition,
+    measuredCardSizes: measuredInteractionCardSizes,
+    interactionElements,
+    previews: interactionSnapshot.geometryPreviews,
+    isLocked: isElementLocked,
+  });
   const deletionProtected = useMemo(
     () =>
       deletionProtectedIds(
@@ -242,7 +233,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const isElementDeletionLocked = (id: string) => deletionProtected.has(id);
   const connectionDrawing = useConnectionDrawing({
     callbacks: retained.runtime.callbacks,
-    boundsOf: (id) => getConnectableElementBounds(id),
+    boundsOf: (id) => geometry.connectableBoundsOf(id),
     connected: (first, second) =>
       mindmapConnections.some(
         (connection) =>
@@ -250,7 +241,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
           (connection.sourceId === second && connection.targetId === first),
       ),
     isMindmapNode: (id) => textCardsById.get(id)?.kind === "mindmap",
-    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasPoint: (clientX, clientY) => geometry.canvasPoint({ clientX, clientY }),
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
     mindmapAccent: () => defaultElementColors.mindmap,
     onNodeCreated: (id) => animateTextCardIn(id),
@@ -325,37 +316,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   );
   const showMinimap = minimap.show;
 
-  const canvasPointFromEvent = (event: { clientX: number; clientY: number }) => {
-    const { zoom } = interactionController.getSnapshot().viewport;
-    const worldRect = worldRef.current?.getBoundingClientRect();
-    if (!worldRect) {
-      return { x: 0, y: 0 };
-    }
-
-    return {
-      x: clamp((event.clientX - worldRect.left) / zoom, 0, canvasWidth),
-      y: clamp((event.clientY - worldRect.top) / zoom, 0, canvasHeight),
-    };
-  };
-
-  const isElementVisible = (element: ContainerElement | TextBlockElement) =>
-    rectanglesIntersect(
-      viewportWorldRectangle(interactionController.getSnapshot().viewport),
-      element,
-    );
-
-  const interactionGeometryById = new Map(
-    interactionSnapshot.geometryPreviews.map((preview) => [preview.id, preview.geometry]),
-  );
-
-  const getTextCardRenderPosition = (card: TextCardElement) => {
-    const preview = interactionGeometryById.get(card.id);
-    if (preview) return { x: preview.x, y: preview.y };
-    if (!card.containerId) return undefined;
-    const container = containersById.get(card.containerId);
-    return container ? cardLayout.cardPosition(container, card) : { x: card.x, y: card.y };
-  };
-
   const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
     (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
 
@@ -402,41 +362,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
   });
 
-  const getLooseTextCardSelectionBounds = (card: TextCardElement) =>
-    looseCardBounds(card, measuredInteractionCardSizes.get(card.id));
-
-  const getConnectableElementBounds = (id: string) =>
-    connectableElementBounds(
-      id,
-      {
-        element: (elementId) =>
-          scene.find.container(elementId) ??
-          scene.find.textBlock(elementId) ??
-          scene.find.image(elementId),
-        card: (cardId) => textCardsById.get(cardId),
-      },
-      getLooseTextCardSelectionBounds,
-    );
-
-  const getTextCardRippleBounds = (card: TextCardElement): DropBounds | null => {
-    const measured = measureRenderedCard(
-      worldRef.current,
-      interactionController.getSnapshot().viewport.zoom,
-      card.id,
-    );
-    if (!card.containerId) {
-      return measured ?? { ...getLooseTextCardSelectionBounds(card), borderRadius: 8 };
-    }
-    const container = containersById.get(card.containerId);
-    const position = getTextCardRenderPosition(card);
-    if (!container || !position) return null;
-    if (!cardLayout.visible(container).some(({ id }) => id === card.id)) return null;
-    return clipToContainer(
-      container,
-      measured ?? { left: position.x, top: position.y, ...containerRowSize(container) },
-    );
-  };
-
   const selectionBounds = interactionSnapshot.selectionRectangle
     ? {
         left: interactionSnapshot.selectionRectangle.x,
@@ -454,7 +379,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const createElement = useCanvasElementCreation({
     callbacks: retained.runtime.callbacks,
     activeCanvasId: () => activeCanvas.id,
-    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasPoint: (clientX, clientY) => geometry.canvasPoint({ clientX, clientY }),
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
     colors: () => defaultElementColors,
     containers: () => elements,
@@ -472,7 +397,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const imageImport = useRetainedImageImport({
     runtime: retained.runtime,
-    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasPoint: (clientX, clientY) => geometry.canvasPoint({ clientX, clientY }),
     images: () => looseImages,
     accent: () => defaultElementColors.image,
     showToast,
@@ -523,38 +448,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus();
   };
 
-  const getGestureElement = (
-    id: string,
-    includeContainedCard = false,
-  ): InteractionElement | null => {
-    const generic = interactionElements.find((element) => element.id === id);
-    if (generic) return generic;
-    const card = textCardsById.get(id);
-    if (!card || !includeContainedCard) return null;
-    const position = cardScroll.restingPosition(card);
-    const measuredSize = measuredInteractionCardSizes.get(id);
-    return {
-      id,
-      geometry: {
-        x: position.x,
-        y: position.y,
-        width: measuredSize?.width ?? CONTAINER_TEXT_CARD_ROW_HEIGHT * 5,
-        height: measuredSize?.height ?? CONTAINER_TEXT_CARD_ROW_HEIGHT,
-      },
-      locked: isElementLocked(id),
-      movable: true,
-      resizable: false,
-      centerSnapping: card.kind === "mindmap",
-    };
-  };
-
   const startMindmapConnection = connectionDrawing.start;
 
   const openMindmapConnectionMenu = (event: PointerEvent<SVGPathElement>, connectionId: string) =>
     menus.openConnection(event, connectionId);
 
   const getTextCardCopyPosition = (card: TextCardElement) => {
-    const position = getTextCardRenderPosition(card) ?? cardScroll.restingPosition(card);
+    const position = geometry.renderPosition(card) ?? cardScroll.restingPosition(card);
     return { x: position.x, y: position.y };
   };
 
@@ -567,7 +467,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       const card = textCardsById.get(id);
       return card ? getTextCardCopyPosition(card) : undefined;
     },
-    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasPoint: (clientX, clientY) => geometry.canvasPoint({ clientX, clientY }),
     containerCardIndex: (containerId, point) => {
       const container = containersById.get(containerId);
       return container ? cardLayout.dropIndex(container, point, textCards, "") : undefined;
@@ -684,7 +584,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const extensionDrop = useExtensionDrop({
     callbacks: retained.runtime.callbacks,
     document: () => retained.runtime.controller.store.getState().documentWorkspace.document,
-    canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
+    canvasPoint: (clientX, clientY) => geometry.canvasPoint({ clientX, clientY }),
     scene: () => ({
       containers: elements,
       textBlocks,
@@ -693,8 +593,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     }),
     find: scene.find,
     cardLayout: () => cardLayout,
-    cardBounds: getTextCardRippleBounds,
-    looseCardEstimate: getLooseTextCardSelectionBounds,
+    cardBounds: geometry.cardRippleBounds,
+    looseCardEstimate: geometry.looseCard,
     selection: () => selectedIds,
     select: setSelectedIds,
     closeContextMenus,
@@ -796,16 +696,16 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     world: () => worldRef.current,
     selection: () => interactionController.getSnapshot().selectedIds,
     interactionElements: () => interactionElements,
-    gestureElement: getGestureElement,
+    gestureElement: geometry.gestureElement,
     scene: () => ({ containers: elements, textBlocks, textCards }),
     isLocked: isElementLocked,
-    isFrameVisible: isElementVisible,
-    canvasPoint: canvasPointFromEvent,
+    isFrameVisible: geometry.isFrameVisible,
+    canvasPoint: geometry.canvasPoint,
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
     cardPosition: (card) => cardScroll.restingPosition(card),
     containerCardCandidates: (container) =>
       cardLayout.visible(container).flatMap((card) => {
-        const bounds = getTextCardRippleBounds(card);
+        const bounds = geometry.cardRippleBounds(card);
         return bounds
           ? [
               {
@@ -902,23 +802,14 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     return ids;
   }, [dragPinnedIds, editingTextBlockId, editingTextCardId, renamingId, selectedIds]);
   const minimapViewportWorld = viewportWorldRectangle(interactionSnapshot.viewport);
-  const connectableBoundsById = connectableBounds(
-    {
-      containers: elements,
-      textBlocks,
-      images: looseImages,
-      mindmapNodes: looseTextCards.filter((card) => card.kind === "mindmap"),
-    },
-    getLooseTextCardSelectionBounds,
-    (id) => interactionGeometryById.get(id),
-  );
+  const connectableBoundsById = geometry.connectableBounds();
   const overlaidTextCardIds = [...(activeTextCardPresentation?.ids ?? []), ...releasingTextCardIds];
   const canvasElementShadows = elementShadows(layers, {
     deleting: presenceMarks.deleting,
     overlaidCardIds: overlaidTextCardIds,
     draggedCardIds: draggedTextCardIds,
-    cardSize: getLooseTextCardSelectionBounds,
-    preview: (id) => interactionGeometryById.get(id),
+    cardSize: geometry.looseCard,
+    preview: (id) => geometry.preview(id),
     chromeless: (image) =>
       Boolean((image as unknown as RetainedImageView).media) &&
       !loadingImageIds.includes(image.id) &&
@@ -1058,7 +949,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             extensionCommands={extensionCommands}
             media={retained.runtime.media}
             overlaidCardIds={overlaidTextCardIds}
-            cardPosition={getTextCardRenderPosition}
+            cardPosition={geometry.renderPosition}
             overlays={{
               heldCards: activeTextCardPresentation,
               releasedCards: textCardInteractionSnapshot.release,
