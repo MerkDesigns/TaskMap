@@ -1,13 +1,4 @@
-import {
-  PointerEvent,
-  SetStateAction,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { PointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
@@ -55,6 +46,7 @@ import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
+import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
 import { useContainerCardScroll } from "./legacy/useContainerCardScroll";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
@@ -73,16 +65,10 @@ import {
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
 import { useWorkflowRuns } from "./extensions/workflow/useWorkflowRuns";
-import type { CanvasInteractionController } from "./app/interactions/canvasInteractionController";
 import type { InteractionElement } from "./app/interactions/canvasInteractionTypes";
-import { useStableCanvasInteractionController } from "./app/interactions/useStableCanvasInteractionController";
 import { viewportWorldRectangle } from "./canvas/geometry/viewportMath";
 import { rectanglesIntersect } from "./canvas/geometry/canvasGeometry";
-import { useLegacyInteractionSnapshot } from "./legacy/interactions/useLegacyInteractionSnapshot";
-import { useLegacyCameraPresentation } from "./legacy/interactions/useLegacyCameraPresentation";
 import { getLegacyInteractionElements } from "./legacy/interactions/legacyCanvasGeometry";
-import { applyLegacySelectionAction } from "./legacy/interactions/legacySelectionCompatibility";
-import { createLegacyTextCardInteractionService } from "./legacy/interactions/legacyTextCardInteraction";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import { WorkspaceRoot, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking } from "./ui/patterns/overlays";
@@ -152,61 +138,29 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     retained.runtime.callbacks
       .captureContent([{ elementId: id as ElementId, fields: Object.keys(to) }])
       ?.complete([{ elementId: id as ElementId, to }]);
-  const stageRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
-  const selectionRef = useRef<HTMLDivElement>(null);
-  const [stageSize, setStageSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
-  const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const {
     activeCanvas,
     canvases,
     elements,
     images,
     mindmapConnections,
-    setActiveCanvas,
-    setCamera,
     textBlocks,
     textCards,
     zoom: legacyZoom,
   } = useDocument();
-  const interactionBindingsRef = useRef({ activeCanvas, setActiveCanvas, setCamera });
-  interactionBindingsRef.current = { activeCanvas, setActiveCanvas, setCamera };
-  const textCardInteractionRef = useRef<ReturnType<
-    typeof createLegacyTextCardInteractionService
-  > | null>(null);
-  if (!textCardInteractionRef.current) {
-    textCardInteractionRef.current = createLegacyTextCardInteractionService({
-      requestFrame: (callback) => window.requestAnimationFrame(callback),
-      cancelFrame: (handle) => window.cancelAnimationFrame(handle),
-      setTimer: (callback, delay) => window.setTimeout(callback, delay),
-      clearTimer: (handle) => window.clearTimeout(handle),
-    });
-  }
-  const textCardInteraction = textCardInteractionRef.current;
-  const interactionControllerRef = useRef<CanvasInteractionController | null>(null);
-  const interactionStageSizeRef = useRef(stageSize);
-  interactionStageSizeRef.current = stageSize;
-  const interactionController = useStableCanvasInteractionController(
-    () => retained.binding.interaction,
-  );
-  interactionControllerRef.current = interactionController;
-  const interactionSnapshot = useLegacyInteractionSnapshot(interactionController);
-  useLegacyCameraPresentation(interactionController, stageRef, selectionRef);
-  const textCardInteractionSnapshot = useSyncExternalStore(
-    textCardInteraction.subscribe,
-    textCardInteraction.getSnapshot,
-    textCardInteraction.getSnapshot,
-  );
-  useEffect(() => {
-    interactionController.resizeViewport(stageSize);
-  }, [interactionController, stageSize]);
-  const selectedIds = interactionSnapshot.selectedIds as string[];
-  const setSelectedIds = (value: SetStateAction<string[]>) => {
-    applyLegacySelectionAction(interactionController, value);
-  };
+  const {
+    stageRef,
+    selectionRef,
+    stageSize,
+    lastPointer: lastPointerPositionRef,
+    controller: interactionController,
+    snapshot: interactionSnapshot,
+    selectedIds,
+    setSelection: setSelectedIds,
+    cardDrags: textCardInteraction,
+    cardDragSnapshot: textCardInteractionSnapshot,
+  } = useCanvasInteraction(retained);
   const menus = useCanvasMenus({
     selection: () => interactionController.getSnapshot().selectedIds,
     select: (ids) => setSelectedIds(ids),
@@ -220,16 +174,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { editingId: editingTextCardId, draft: textCardDraft } = textCardEdit;
   const textBlockEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
   const { editingId: editingTextBlockId, draft: textBlockDraft } = textBlockEdit;
-  useEffect(() => {
-    const reset = () => {
-      textCardInteraction.reset();
-    };
-    const unsubscribe = retained.runtime.callbacks.subscribeInvalidation(reset);
-    return () => {
-      unsubscribe();
-      reset();
-    };
-  }, [retained, textCardInteraction]);
   const measuredCards = useMeasuredTextCardSizes(activeCanvas.id);
   const measuredInteractionCardSizes = measuredCards.sizes;
   const settings = useSettings();
@@ -263,32 +207,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   } = presenceMarks.deleting;
   const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const snapGuides = interactionSnapshot.snapGuides;
-
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) {
-      return;
-    }
-
-    const updateStageSize = () => {
-      const width = stage.clientWidth;
-      const height = stage.clientHeight;
-      setStageSize((current) =>
-        current.width === width && current.height === height ? current : { width, height },
-      );
-    };
-    updateStageSize();
-    const observer = new ResizeObserver(updateStageSize);
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(
-    () => () => {
-      textCardInteraction.cancelScheduledPresentation();
-    },
-    [textCardInteraction],
-  );
 
   const containersById = useMemo(
     () => new Map(elements.map((element) => [element.id, element])),
@@ -492,15 +410,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       textBlockEdit.end();
     },
   });
-
-  useEffect(() => {
-    const trackPointer = (event: globalThis.PointerEvent) => {
-      lastPointerPositionRef.current = { x: event.clientX, y: event.clientY };
-    };
-
-    window.addEventListener("pointermove", trackPointer, true);
-    return () => window.removeEventListener("pointermove", trackPointer, true);
-  }, []);
 
   const getLooseTextCardSelectionBounds = (card: TextCardElement) =>
     looseCardBounds(card, measuredInteractionCardSizes.get(card.id));
