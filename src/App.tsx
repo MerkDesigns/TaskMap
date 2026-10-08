@@ -47,6 +47,7 @@ import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
+import { useCanvasScene } from "./legacy/useCanvasScene";
 import { useContainerCardScroll } from "./legacy/useContainerCardScroll";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
@@ -208,27 +209,17 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const snapGuides = interactionSnapshot.snapGuides;
 
-  const containersById = useMemo(
-    () => new Map(elements.map((element) => [element.id, element])),
-    [elements],
-  );
-  const textCardsById = useMemo(
-    () => new Map(textCards.map((card) => [card.id, card])),
-    [textCards],
-  );
-  const textBlocksById = useMemo(
-    () => new Map(textBlocks.map((element) => [element.id, element])),
-    [textBlocks],
-  );
+  const scene = useCanvasScene({
+    containers: elements,
+    textBlocks,
+    textCards,
+    images,
+    connections: mindmapConnections,
+  });
+  const { containersById, textBlocksById, textCardsById, imagesById } = scene;
+  const { looseCards: looseTextCards, looseImages } = scene;
   const cardScroll = useContainerCardScroll(textCards, (id) => containersById.get(id));
   const cardLayout = cardScroll.layout;
-  const looseTextCards = useMemo(() => textCards.filter((card) => !card.containerId), [textCards]);
-  const imagesById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
-  const mindmapConnectionsById = useMemo(
-    () => new Map(mindmapConnections.map((connection) => [connection.id, connection])),
-    [mindmapConnections],
-  );
-  const looseImages = useMemo(() => images.filter((image) => !image.containerId), [images]);
   const interactionElements = useMemo(
     () => getLegacyInteractionElements(activeCanvas, measuredInteractionCardSizes),
     [activeCanvas, measuredInteractionCardSizes],
@@ -419,9 +410,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       id,
       {
         element: (elementId) =>
-          containersById.get(elementId) ??
-          textBlocksById.get(elementId) ??
-          imagesById.get(elementId),
+          scene.find.container(elementId) ??
+          scene.find.textBlock(elementId) ??
+          scene.find.image(elementId),
         card: (cardId) => textCardsById.get(cardId),
       },
       getLooseTextCardSelectionBounds,
@@ -610,12 +601,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const getContextInstalledExtensions = (id: string): ReadonlySet<RetainedExtensionKey> => {
     const installed = new Set<RetainedExtensionKey>();
     for (const targetId of getContextActionIds(id)) {
-      const extensions = (
-        containersById.get(targetId) ??
-        textBlocksById.get(targetId) ??
-        textCardsById.get(targetId) ??
-        imagesById.get(targetId)
-      )?.extensions;
+      const extensions = scene.element(targetId)?.extensions;
       for (const [key, state] of Object.entries(extensions ?? {}))
         if (state) installed.add(key as RetainedExtensionKey);
     }
@@ -705,12 +691,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       looseCards: looseTextCards,
       images: looseImages,
     }),
-    find: {
-      container: (id) => containersById.get(id),
-      textBlock: (id) => textBlocksById.get(id),
-      image: (id) => imagesById.get(id),
-      card: (id) => textCardsById.get(id),
-    },
+    find: scene.find,
     cardLayout: () => cardLayout,
     cardBounds: getTextCardRippleBounds,
     looseCardEstimate: getLooseTextCardSelectionBounds,
@@ -863,12 +844,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
   const elementActions = useRetainedElementActions({
     callbacks: retained.runtime.callbacks,
-    find: {
-      container: (id) => containersById.get(id),
-      textBlock: (id) => textBlocksById.get(id),
-      image: (id) => imagesById.get(id),
-      card: (id) => textCardsById.get(id),
-    },
+    find: scene.find,
     menus,
     gestures,
     rename,
@@ -1118,16 +1094,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             containerContentMenus={menus.pairs.containerContent}
             canvasMenus={menus.pairs.canvas}
             connectionMenu={
-              menus.connection && mindmapConnectionsById.has(menus.connection.id)
+              menus.connection && scene.connectionsById.has(menus.connection.id)
                 ? menus.connection
                 : null
             }
-            elementOf={(id) =>
-              containersById.get(id) ??
-              textCardsById.get(id) ??
-              textBlocksById.get(id) ??
-              imagesById.get(id)
-            }
+            elementOf={scene.element}
             isMultiTarget={isMultiContextAction}
             installedOnTargets={getContextInstalledExtensions}
             extensionCommands={extensionCommands}
