@@ -1,0 +1,19 @@
+[package]
+name = "taskmap-legacy-migrator-writer"
+version = "0.1.0"
+description = "Writes a migrated TaskMap document and its media into a new encrypted database"
+edition = "2021"
+publish = false
+
+# Versions match src-tauri, whose database and crypto modules this binary compiles in.
+[dependencies]
+argon2 = { version = "0.5.3", features = ["zeroize"] }
+base64 = "0.22.1"
+chacha20poly1305 = "0.10.1"
+rand = "0.8.5"
+rusqlite = { version = "0.32.1", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10.8"
+thiserror = "2.0"
+zeroize = { version = "1.8", features = ["derive"] }

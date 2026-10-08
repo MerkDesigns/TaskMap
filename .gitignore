@@ -23,3 +23,7 @@ scripts/__pycache__/
 
 # Local acceptance fixtures, disposable databases, and validation logs
 /.tmp-*
+
+# Legacy migrator build output
+tools/legacy-migrator/writer/target/
+dist-migrator/

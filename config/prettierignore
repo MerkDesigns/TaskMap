@@ -10,6 +10,8 @@
 ../installer/gen/
 ../installer/target/
 ../dist-installer/
+../dist-migrator/
+../tools/legacy-migrator/writer/target/
 ../release/
 ../package-lock.json
 

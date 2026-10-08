@@ -10,6 +10,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Added
 
+- Legacy migrator (`npm run migrate-legacy`): turns a TaskMap 0.3 export file into a new TaskMap
+  database with a password you choose, and reports anything that could not come across.
 - Workflow extension for text cards, replacing the old Command Runner: in a movable, resizable
   window you type one command per line (`npm run dev`, `a && b`, `start http://localhost:3000`),
   with an optional working directory and a terminal window or the background. The Command Runner's

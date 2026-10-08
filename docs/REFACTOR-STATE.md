@@ -13,7 +13,10 @@
 - **Phase 6 (extensions) is complete**, signed off by the user on 2026-10-04. Extensions contribute
   their UI through typed contribution points (ADR 008) and own their rules and flows; the extension
   definitions are the one registry.
-- **Next: Phase 7 — Workflow Runner.**
+- Phase 7 (Workflow Runner) and remaining settings work continue as ordinary product work, not
+  refactor gates (user decision, 2026-10-08).
+- **Phase 9 (legacy migrator): built** as a one-time developer tool (`npm run migrate-legacy`,
+  ADR 010). Next: the user migrates their own export and checks it in TaskMap Beta.
 - No open pull request; the user merges nothing into `main` yet.
 
 ## Active ownership and accepted behavior
@@ -123,7 +126,8 @@ holds the user's real data and must keep working:
 
 ## Remaining gates
 
-- Phase 6 extensions, Phase 7 Workflow Runner, Phase 8 remaining features, Phase 9 migrator.
+- Phase 9: the user's own migration, checked in TaskMap Beta.
+- Phase 10 hardening/release (no code signing: the user has no certificate).
 - Packaged stable/dev coexistence was approved with 4.5G by user direction; run the packaged check
   before the first release that ships both editions.
 

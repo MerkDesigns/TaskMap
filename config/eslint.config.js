@@ -9,6 +9,8 @@ export default tseslint.config(
       "**/coverage/**",
       "**/dist/**",
       "**/dist-installer/**",
+      "**/dist-migrator/**",
+      "**/tools/legacy-migrator/writer/target/**",
       "**/installer/gen/**",
       "**/installer/target/**",
       "**/node_modules/**",
@@ -19,7 +21,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["**/src/**/*.{ts,tsx}"],
+    files: ["**/src/**/*.{ts,tsx}", "**/tools/**/*.ts"],
     languageOptions: {
       globals: globals.browser,
     },
@@ -40,7 +42,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.config.{js,cjs,mjs,ts}", "**/scripts/**/*.mjs"],
+    files: ["**/*.config.{js,cjs,mjs,ts}", "**/scripts/**/*.mjs", "**/tools/**/*.mjs"],
     languageOptions: {
       globals: globals.node,
     },
