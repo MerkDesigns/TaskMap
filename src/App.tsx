@@ -1,7 +1,6 @@
 import {
   PointerEvent,
   SetStateAction,
-  WheelEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -57,6 +56,7 @@ import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
+import { useContainerCardScroll } from "./legacy/useContainerCardScroll";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
 import type { ContainerCardLayout } from "./legacy/RetainedContainerLayer";
@@ -64,8 +64,6 @@ import {
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
   containerCardStackTop,
   containerViewportHeight,
-  createContainerCardLayout,
-  groupContainerCards,
 } from "./legacy/containerCardLayout";
 import { elementShadows } from "./legacy/RetainedElementLayers";
 import type { RetainedElementPresentation } from "./legacy/retainedElementPresentation";
@@ -169,7 +167,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     height: window.innerHeight,
   });
   const lastPointerPositionRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-  const containerScrollOffsetsRef = useRef<Record<string, number>>({});
   const {
     activeCanvas,
     canvases,
@@ -279,9 +276,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const { textCards: pulsingTextCardIds } = presenceMarks.pulsing;
   const snapGuides = interactionSnapshot.snapGuides;
 
-  const [containerScrollOffsets, setContainerScrollOffsets] = useState<Record<string, number>>({});
-  containerScrollOffsetsRef.current = containerScrollOffsets;
-
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) {
@@ -320,7 +314,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     () => new Map(textBlocks.map((element) => [element.id, element])),
     [textBlocks],
   );
-  const orderedTextCardsByContainerId = useMemo(() => groupContainerCards(textCards), [textCards]);
+  const cardScroll = useContainerCardScroll(textCards, (id) => containersById.get(id));
+  const cardLayout = cardScroll.layout;
   const looseTextCards = useMemo(() => textCards.filter((card) => !card.containerId), [textCards]);
   const imagesById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
   const mindmapConnectionsById = useMemo(
@@ -444,37 +439,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   );
   const showMinimap = minimap.show;
 
-  const cardLayout = createContainerCardLayout(
-    textCards,
-    orderedTextCardsByContainerId,
-    containerScrollOffsets,
-  );
-  const getContainerVisibleTextCards = cardLayout.visible;
-
-  const getContainerViewportHeight = containerViewportHeight;
-
-  const getContainerMaxScroll = cardLayout.maxScroll;
-
-  const getContainerScrollOffset = cardLayout.scrollOffset;
-
-  const getContainerCardStackTop = containerCardStackTop;
-
-  const handleContainerWheel = (event: WheelEvent<HTMLElement>, container: ContainerElement) => {
-    const maxScroll = getContainerMaxScroll(container);
-
-    if (maxScroll <= 0) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    setContainerScrollOffsets((current) => ({
-      ...current,
-      [container.id]: clamp((current[container.id] ?? 0) + event.deltaY, 0, maxScroll),
-    }));
-  };
-
   const canvasPointFromEvent = (event: { clientX: number; clientY: number }) => {
     const { zoom } = interactionController.getSnapshot().viewport;
     const worldRect = worldRef.current?.getBoundingClientRect();
@@ -494,11 +458,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       element,
     );
 
-  const getTextCardStackPosition = (card: TextCardElement, cards = textCards) => {
-    const container = card.containerId ? containersById.get(card.containerId) : null;
-    return container ? cardLayout.cardPosition(container, card, cards) : { x: card.x, y: card.y };
-  };
-
   const interactionGeometryById = new Map(
     interactionSnapshot.geometryPreviews.map((preview) => [preview.id, preview.geometry]),
   );
@@ -510,7 +469,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const container = containersById.get(card.containerId);
     return container ? cardLayout.cardPosition(container, card) : { x: card.x, y: card.y };
   };
-  const getTextCardDropIndex = cardLayout.dropIndex;
 
   const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
     (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
@@ -599,7 +557,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     const container = containersById.get(card.containerId);
     const position = getTextCardRenderPosition(card);
     if (!container || !position) return null;
-    if (!getContainerVisibleTextCards(container).some(({ id }) => id === card.id)) return null;
+    if (!cardLayout.visible(container).some(({ id }) => id === card.id)) return null;
     return clipToContainer(
       container,
       measured ?? { left: position.x, top: position.y, ...containerRowSize(container) },
@@ -630,8 +588,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textBlocks: () => textBlocks,
     textCards: () => textCards,
     cardLayout: () => cardLayout,
-    scrollContainer: (containerId, offset) =>
-      setContainerScrollOffsets((current) => ({ ...current, [containerId]: offset })),
+    scrollContainer: cardScroll.scrollTo,
     select: setSelectedIds,
     animateIn: presenceMarks.animateIn,
     closeContextMenus,
@@ -701,7 +658,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     if (generic) return generic;
     const card = textCardsById.get(id);
     if (!card || !includeContainedCard) return null;
-    const position = getTextCardStackPosition(card);
+    const position = cardScroll.restingPosition(card);
     const measuredSize = measuredInteractionCardSizes.get(id);
     return {
       id,
@@ -724,7 +681,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     menus.openConnection(event, connectionId);
 
   const getTextCardCopyPosition = (card: TextCardElement) => {
-    const position = getTextCardRenderPosition(card) ?? getTextCardStackPosition(card);
+    const position = getTextCardRenderPosition(card) ?? cardScroll.restingPosition(card);
     return { x: position.x, y: position.y };
   };
 
@@ -740,7 +697,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     canvasPoint: (clientX, clientY) => canvasPointFromEvent({ clientX, clientY }),
     containerCardIndex: (containerId, point) => {
       const container = containersById.get(containerId);
-      return container ? getTextCardDropIndex(container, point, textCards, "") : undefined;
+      return container ? cardLayout.dropIndex(container, point, textCards, "") : undefined;
     },
     deleteElements: (ids) => deleteContextSelection(ids[0], [...ids]),
     closeContextMenus,
@@ -807,7 +764,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       return container?.extensions?.copyPasteJson ? container.name : null;
     },
     onReplaced: (id) => {
-      setContainerScrollOffsets((current) => ({ ...current, [id]: 0 }));
+      cardScroll.reset([id]);
       setSelectedIds([id]);
       textCardEdit.end();
       rename.end();
@@ -849,11 +806,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     callbacks: retained.runtime.callbacks,
     selection: () => interactionController.getSnapshot().selectedIds,
     rememberRecentColor: (color) => rememberRecentColor(color),
-    resetContainerScroll: (ids) =>
-      setContainerScrollOffsets((current) => ({
-        ...current,
-        ...Object.fromEntries(ids.map((id) => [id, 0])),
-      })),
+    resetContainerScroll: cardScroll.reset,
     closeContextMenus,
     copyPasteJson,
     openWorkflowEditor: workflowEditor.openWorkflowEditor,
@@ -1019,9 +972,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     isFrameVisible: isElementVisible,
     canvasPoint: canvasPointFromEvent,
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
-    cardPosition: (card) => getTextCardStackPosition(card),
+    cardPosition: (card) => cardScroll.restingPosition(card),
     containerCardCandidates: (container) =>
-      getContainerVisibleTextCards(container).flatMap((card) => {
+      cardLayout.visible(container).flatMap((card) => {
         const bounds = getTextCardRippleBounds(card);
         return bounds
           ? [
@@ -1040,7 +993,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             ]
           : [];
       }),
-    containerScrollOffsets: () => containerScrollOffsetsRef.current,
+    containerScrollOffsets: cardScroll.currentOffsets,
     camera: () => ({ pan: activeCanvas.pan, zoom: activeCanvas.zoom }),
     editingCardId: () => editingTextCardId,
     saveOpenEdits: () => {
@@ -1083,7 +1036,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       remove: deleteContextSelection,
     },
     pickImage: pickImageForElement,
-    wheelContainer: handleContainerWheel,
+    wheelContainer: cardScroll.wheel,
     rememberCardSize: measuredCards.remember,
   });
   const documentConnections = useRetainedDocumentConnections();
@@ -1095,7 +1048,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     ? textCardsById.get(editingTextCardId)?.containerId
     : undefined;
   const containerContentRevision = useRevisionToken([
-    containerScrollOffsets,
+    cardScroll.offsets,
     deletingTextCardIds,
     draggedTextCardIds,
     interactionSnapshot.activeInteraction?.kind,
@@ -1181,13 +1134,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   };
   const containerCardLayout: ContainerCardLayout = {
     cardsOf: (container) =>
-      (orderedTextCardsByContainerId.get(container.id) ?? []).filter(
+      (cardScroll.grouped.get(container.id) ?? []).filter(
         (card) => !draggedTextCardIds.includes(card.id),
       ),
-    visibleCards: (container, cards) => getContainerVisibleTextCards(container, [...cards]),
-    scrollOffset: getContainerScrollOffset,
-    viewportHeight: getContainerViewportHeight,
-    stackTop: getContainerCardStackTop,
+    visibleCards: (container, cards) => cardLayout.visible(container, [...cards]),
+    scrollOffset: cardLayout.scrollOffset,
+    viewportHeight: containerViewportHeight,
+    stackTop: containerCardStackTop,
     insertion: {
       containerId: activeTextCardPresentation?.targetContainerId ?? null,
       index: activeTextCardPresentation?.insertionIndex ?? null,
