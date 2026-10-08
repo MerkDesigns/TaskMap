@@ -1,5 +1,4 @@
 import { PointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { RetainedExtensionKey } from "./extensions/retainedExtensionDefinition";
 import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
@@ -39,6 +38,8 @@ import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
 import { useCanvasScene } from "./legacy/useCanvasScene";
 import { createCanvasGeometry } from "./legacy/canvasGeometry";
+import { createContextTargets } from "./legacy/contextTargets";
+import { useWorkspacePointerPolicy } from "./legacy/useWorkspacePointerPolicy";
 import { useContainerCardScroll } from "./legacy/useContainerCardScroll";
 import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
@@ -46,10 +47,7 @@ import type { ContainerCardLayout } from "./legacy/RetainedContainerLayer";
 import { containerCardStackTop, containerViewportHeight } from "./legacy/containerCardLayout";
 import { elementShadows } from "./legacy/RetainedElementLayers";
 import type { RetainedElementPresentation } from "./legacy/retainedElementPresentation";
-import {
-  contextActionIds,
-  useRetainedExtensionCommands,
-} from "./legacy/useRetainedExtensionCommands";
+import { useRetainedExtensionCommands } from "./legacy/useRetainedExtensionCommands";
 import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
 import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
 import { useWorkflowRuns } from "./extensions/workflow/useWorkflowRuns";
@@ -64,9 +62,6 @@ import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
 
 const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
-
-const isEditableKeyboardTarget = (target: HTMLElement | null) =>
-  target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
 const EMPTY_IDS: string[] = [];
 
@@ -286,28 +281,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     showToast,
   });
 
-  useEffect(() => {
-    const htmlSpellCheck = document.documentElement.getAttribute("spellcheck");
-    const bodySpellCheck = document.body.getAttribute("spellcheck");
-
-    document.documentElement.setAttribute("spellcheck", "false");
-    document.body.setAttribute("spellcheck", "false");
-
-    return () => {
-      if (htmlSpellCheck === null) {
-        document.documentElement.removeAttribute("spellcheck");
-      } else {
-        document.documentElement.setAttribute("spellcheck", htmlSpellCheck);
-      }
-
-      if (bodySpellCheck === null) {
-        document.body.removeAttribute("spellcheck");
-      } else {
-        document.body.setAttribute("spellcheck", bodySpellCheck);
-      }
-    };
-  }, []);
-
   const closeContextMenus = menus.closeAll;
 
   const minimap = useMinimapPresence(
@@ -315,14 +288,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     interactionSnapshot.activeInteraction?.kind === "pan",
   );
   const showMinimap = minimap.show;
-
-  const getLayerActionIds = (id: string, predicate: (actionId: string) => boolean) =>
-    (selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : [id]).filter(predicate);
-
-  const moveCanvasLayers = (id: string, direction: "back" | "backward" | "forward" | "front") => {
-    interactionController.reorder(getLayerActionIds(id, layers.isTopLevel), direction);
-    rename.end();
-  };
 
   const layers = useLayeredCanvasElements({
     containers: elements,
@@ -405,49 +370,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const pickImageForElement = imageImport.pick;
   const loadingImageIds = imageImport.importingIds;
 
-  const handleCanvasContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-
-    if (event.target !== worldRef.current) {
-      return;
-    }
-
-    menus.openCanvas(event.clientX, event.clientY);
-  };
-
-  const suppressContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
-  };
-
-  const handleMainPointerDownCapture = (event: PointerEvent<HTMLElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    const target = event.target as HTMLElement | null;
-    // Quick Extensions owns its outside-click close so its exit animation can run.
-
-    if (!target?.closest("[data-text-block-content]") && !isEditableKeyboardTarget(target)) {
-      window.getSelection()?.removeAllRanges();
-    }
-
-    const focusedControl = target?.closest("button, [role='button'], a, select, [tabindex]");
-    if (focusedControl instanceof HTMLElement && !isEditableKeyboardTarget(focusedControl)) {
-      requestAnimationFrame(() => focusedControl.blur());
-    }
-
-    if (renamingId && !target?.closest("[data-container-rename-input]")) {
-      elementActions.saveRename();
-    }
-
-    // A menu's own trigger toggles it on click; closing it here first would reopen it.
-    if (target?.closest("[data-context-menu], [data-context-menu-trigger]")) {
-      return;
-    }
-
-    closeContextMenus();
-  };
-
   const startMindmapConnection = connectionDrawing.start;
 
   const openMindmapConnectionMenu = (event: PointerEvent<SVGPathElement>, connectionId: string) =>
@@ -472,7 +394,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       const container = containersById.get(containerId);
       return container ? cardLayout.dropIndex(container, point, textCards, "") : undefined;
     },
-    deleteElements: (ids) => deleteContextSelection(ids[0], [...ids]),
+    deleteElements: (ids) => contextTargets.remove(ids[0], [...ids]),
     closeContextMenus,
     onPasted: (inserted) => {
       setSelectedIds(inserted.filter((entry) => entry.root).map((entry) => entry.id));
@@ -493,30 +415,23 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       }),
   });
 
-  const getContextActionIds = (id: string) => [...contextActionIds(selectedIds, id)];
-
-  const isMultiContextAction = (id: string) => selectedIds.length > 1 && selectedIds.includes(id);
-
-  /** Extensions installed on any of a context menu's targets. */
-  const getContextInstalledExtensions = (id: string): ReadonlySet<RetainedExtensionKey> => {
-    const installed = new Set<RetainedExtensionKey>();
-    for (const targetId of getContextActionIds(id)) {
-      const extensions = scene.element(targetId)?.extensions;
-      for (const [key, state] of Object.entries(extensions ?? {}))
-        if (state) installed.add(key as RetainedExtensionKey);
-    }
-    return installed;
-  };
-
-  const updateContextAccent = (id: string, accent: string) =>
-    extensionCommands.updateSelectionAccent(id, accent);
-
-  const deleteContextSelection = (id: string, actionIdsOverride?: string[]) => {
-    const actionIds = actionIdsOverride ?? getContextActionIds(id);
-    deletion.remove(actionIds);
-    closeContextMenus();
-    rename.end();
-  };
+  const contextTargets = createContextTargets({
+    selection: selectedIds,
+    element: scene.element,
+    isTopLevel: layers.isTopLevel,
+    reorder: (ids, direction) => interactionController.reorder([...ids], direction),
+    updateAccent: (id, accent) => extensionCommands.updateSelectionAccent(id, accent),
+    remove: deletion.remove,
+    closeContextMenus,
+    endRename: () => rename.end(),
+  });
+  const pointerPolicy = useWorkspacePointerPolicy({
+    worldRef,
+    renamingId: () => renamingId,
+    saveRename: () => elementActions.saveRename(),
+    closeContextMenus,
+    openCanvasMenu: menus.openCanvas,
+  });
 
   const copyPasteJson = useCopyPasteJsonFlow({
     getJson: (id) => retained.runtime.callbacks.getContainerJsonForAi(id as ElementId),
@@ -754,11 +669,11 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       setSelectedIds((current) => (additive ? Array.from(new Set([...current, ...ids])) : ids)),
     pulse: presenceMarks.pulse,
     context: {
-      updateAccent: updateContextAccent,
+      updateAccent: contextTargets.updateAccent,
       cut: clipboard.cut,
       copy: clipboard.copy,
-      moveLayer: moveCanvasLayers,
-      remove: deleteContextSelection,
+      moveLayer: contextTargets.moveLayer,
+      remove: contextTargets.remove,
     },
     pickImage: pickImageForElement,
     wheelContainer: cardScroll.wheel,
@@ -874,8 +789,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     <WorkspaceRoot
       className="taskmap-workspace-root--canvas"
       spellCheck={false}
-      onContextMenu={suppressContextMenu}
-      onPointerDownCapture={handleMainPointerDownCapture}
+      onContextMenu={pointerPolicy.suppressContextMenu}
+      onPointerDownCapture={pointerPolicy.onPointerDownCapture}
     >
       <div className="h-full">
         <section className="relative h-full overflow-hidden">
@@ -926,7 +841,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               gridOpacity: canvasGridOpacity[canvasGridStyle],
               imageUrlVersion,
             }}
-            onCanvasContextMenu={handleCanvasContextMenu}
+            onCanvasContextMenu={pointerPolicy.onCanvasContextMenu}
             snapGuides={snapGuides}
             ripples={extensionDrop.ripples}
             connections={{
@@ -990,8 +905,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
                 : null
             }
             elementOf={scene.element}
-            isMultiTarget={isMultiContextAction}
-            installedOnTargets={getContextInstalledExtensions}
+            isMultiTarget={contextTargets.isMulti}
+            installedOnTargets={contextTargets.installedExtensions}
             extensionCommands={extensionCommands}
             recentColors={recentColors}
             containerActions={elementActions.containerMenu}
