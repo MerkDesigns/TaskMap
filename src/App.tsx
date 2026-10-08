@@ -2,11 +2,7 @@ import { PointerEvent, useMemo, useRef, useState } from "react";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
-import { ToastStack } from "./components/ToastStack";
 import type { TextCardElement } from "./types";
-import { commandErrorMessage } from "./app/commandError";
-import { useImageCache } from "./hooks/useImageCache";
-import { useAppUpdates } from "./hooks/useAppUpdates";
 import { useCanvasDocument } from "./hooks/useCanvasDocument";
 import {
   useRetainedDocumentConnections,
@@ -19,9 +15,7 @@ import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
 import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
 import { useCanvasGestures } from "./legacy/useCanvasGestures";
-import { useToastQueue } from "./components/useToastQueue";
 import { useMeasuredTextCardSizes } from "./legacy/canvasElementBounds";
-import { RetainedSettingsDialog } from "./legacy/RetainedSettingsDialog";
 import { RetainedWorkspaceChrome } from "./legacy/RetainedWorkspaceChrome";
 import { useMinimapPresence } from "./legacy/useMinimapPresence";
 import { useCanvasElementCreation } from "./legacy/useCanvasElementCreation";
@@ -32,6 +26,7 @@ import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
+import { useWorkspaceServices } from "./legacy/useWorkspaceServices";
 import { useRetainedExtensionFlows } from "./legacy/useRetainedExtensionFlows";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
@@ -51,9 +46,6 @@ import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacy
 import { WorkspaceRoot, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking } from "./ui/patterns/overlays";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
-
-// Retained images resolve media through session leases; the legacy hash cache holds nothing.
-const NO_CACHED_IMAGES: { hash: string; format?: string }[] = [];
 
 const CANVAS_MANAGER_ANIMATION_MS = WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS;
 
@@ -112,12 +104,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     shadowsUnderElements,
     allowLockedElementDeletion,
     minimapEnabled,
-    dismissedUpdateVersion,
-    setDismissedUpdateVersion,
   } = settings;
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
-  const { toasts, showToast, dismissToast } = useToastQueue();
+  const services = useWorkspaceServices({
+    retained,
+    settings,
+    rememberRecentColor: (color) => rememberRecentColor(color),
+  });
+  const { showToast } = services;
   const leftPanel = useLeftPanel(CANVAS_MANAGER_ANIMATION_MS);
   const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
     left: number;
@@ -184,29 +177,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     mindmapAccent: () => defaultElementColors.mindmap,
     onNodeCreated: (id) => presenceMarks.animateIn("textCards", id),
     closeContextMenus: () => closeContextMenus(),
-  });
-
-  const { imageUrlVersion } = useImageCache({
-    activeImages: NO_CACHED_IMAGES,
-    onStoreError: (error) => {
-      showToast({
-        tone: "error",
-        title: "Could not add image",
-        message: commandErrorMessage(error),
-      });
-    },
-  });
-
-  const updates = useAppUpdates({
-    // App mounts once the database is open; the storage-free preview never checks.
-    checkOnStartup: import.meta.env.MODE !== "storage-preview",
-    dismissedUpdateVersion,
-    onDismissUpdateVersion: setDismissedUpdateVersion,
-    saveCurrentData: async () => {
-      const result = await retained.runtime.controller.prepareWindowClose();
-      if (!result.ok) throw new Error("The database could not be saved before updating.");
-    },
-    showToast,
   });
 
   const closeContextMenus = menus.closeAll;
@@ -428,11 +398,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   });
 
   useCanvasShortcuts({
-    modalOpen: () =>
-      settingsOpen ||
-      deletion.clearDialogOpen ||
-      updates.updateModalOpen ||
-      isModalPresenceBlocking(),
+    modalOpen: () => services.dialogOpen || deletion.clearDialogOpen || isModalPresenceBlocking(),
     setConnectionMode: connectionDrawing.setConnectionMode,
     setShiftHeld: (held) =>
       applyLegacyTextCardShiftTransition(interactionController, textCardInteraction, held),
@@ -488,26 +454,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     canvasPoint: geometry.canvasPoint,
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
     cardPosition: (card) => cardScroll.restingPosition(card),
-    containerCardCandidates: (container) =>
-      cardLayout.visible(container).flatMap((card) => {
-        const bounds = geometry.cardRippleBounds(card);
-        return bounds
-          ? [
-              {
-                id: card.id,
-                geometry: {
-                  x: bounds.left,
-                  y: bounds.top,
-                  width: bounds.width,
-                  height: bounds.height,
-                },
-                locked: isElementLocked(card.id),
-                movable: true,
-                resizable: false,
-              },
-            ]
-          : [];
-      }),
+    containerCardCandidates: geometry.containerCardCandidates,
     containerScrollOffsets: cardScroll.currentOffsets,
     camera: () => ({ pan: activeCanvas.pan, zoom: activeCanvas.zoom }),
     editingCardId: () => editingTextCardId,
@@ -630,10 +577,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             historyStore={retained.runtime.controller.store}
             onUndo={undo}
             onRedo={redo}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={services.openSettings}
             quickExtensions={quickExtensionsMenu}
             onCloseQuickExtensions={() => setQuickExtensionsMenu(null)}
-            fpsCounterVisible={fpsCounterVisible}
+            fpsCounterVisible={services.fpsCounterVisible}
           />
           <RetainedCanvasStage
             stageRef={stageRef}
@@ -650,7 +597,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               height: canvasHeight,
               gridStyle: canvasGridStyle,
               gridOpacity: canvasGridOpacity[canvasGridStyle],
-              imageUrlVersion,
+              imageUrlVersion: services.imageUrlVersion,
             }}
             onCanvasContextMenu={pointerPolicy.onCanvasContextMenu}
             snapGuides={snapGuides}
@@ -733,18 +680,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
           {extensionFlows.windows}
 
-          <RetainedSettingsDialog
-            open={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
-            settings={settings}
-            updates={updates}
-            session={retained.runtime.controller}
-            onRememberRecentColor={rememberRecentColor}
-            fpsCounterVisible={fpsCounterVisible}
-            onFpsCounterVisibleChange={setFpsCounterVisible}
-          />
-
-          <ToastStack toasts={toasts} onDismiss={dismissToast} />
+          {services.overlays}
         </section>
       </div>
     </WorkspaceRoot>

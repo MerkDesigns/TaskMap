@@ -42,10 +42,15 @@ assert.equal(
   pkg.scripts["app:preview:mcp"],
   "tauri dev --features storage-free-preview,mcp-development --config src-tauri/tauri.storage-preview.conf.json",
 );
-const app = await read("src/App.tsx");
-assert.equal(app.split('checkOnStartup: import.meta.env.MODE !== "storage-preview"').length - 1, 1);
+// The workspace services own the update check; the storage-free preview must never run it.
+const services = await read("src/legacy/useWorkspaceServices.tsx");
+assert.equal(
+  services.split('checkOnStartup: import.meta.env.MODE !== "storage-preview"').length - 1,
+  1,
+);
 // The canvas saves only through the database session; no legacy autosave may come back.
-assert.ok(!app.includes("useAutosave("));
+for (const path of ["src/App.tsx", "src/legacy/useWorkspaceServices.tsx"])
+  assert.ok(!(await read(path)).includes("useAutosave("));
 for (const path of ["tauri.conf.json", "tauri.dev.conf.json", "tauri.mcp.dev.conf.json"]) {
   assert.ok(!(await read(`src-tauri/${path}`)).includes("storage-preview"));
 }

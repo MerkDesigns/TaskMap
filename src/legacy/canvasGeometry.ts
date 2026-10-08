@@ -68,6 +68,24 @@ export function createCanvasGeometry({
     return container ? cardLayout.cardPosition(container, card) : { x: card.x, y: card.y };
   };
 
+  /** A card's shown bounds, clipped to its container; null when scrolled out of view. */
+  const cardRippleBounds = (card: TextCardElement): DropBounds | null => {
+    const measured = measureRenderedCard(
+      worldRef.current,
+      controller.getSnapshot().viewport.zoom,
+      card.id,
+    );
+    if (!card.containerId) return measured ?? { ...looseCard(card), borderRadius: 8 };
+    const container = scene.containersById.get(card.containerId);
+    const position = renderPosition(card);
+    if (!container || !position) return null;
+    if (!cardLayout.visible(container).some(({ id }) => id === card.id)) return null;
+    return clipToContainer(
+      container,
+      measured ?? { left: position.x, top: position.y, ...containerRowSize(container) },
+    );
+  };
+
   return {
     preview: (id: string) => previewById.get(id),
     /** A pointer position in canvas units, kept inside the canvas. */
@@ -108,22 +126,28 @@ export function createCanvasGeometry({
         looseCard,
         (id) => previewById.get(id),
       ),
-    /** A card's shown bounds, clipped to its container; null when scrolled out of view. */
-    cardRippleBounds(card: TextCardElement): DropBounds | null {
-      const measured = measureRenderedCard(
-        worldRef.current,
-        controller.getSnapshot().viewport.zoom,
-        card.id,
-      );
-      if (!card.containerId) return measured ?? { ...looseCard(card), borderRadius: 8 };
-      const container = scene.containersById.get(card.containerId);
-      const position = renderPosition(card);
-      if (!container || !position) return null;
-      if (!cardLayout.visible(container).some(({ id }) => id === card.id)) return null;
-      return clipToContainer(
-        container,
-        measured ?? { left: position.x, top: position.y, ...containerRowSize(container) },
-      );
+    cardRippleBounds,
+    /** A container's shown cards as move targets, at their on-screen bounds. */
+    containerCardCandidates(container: ContainerElement): InteractionElement[] {
+      return cardLayout.visible(container).flatMap((card) => {
+        const bounds = cardRippleBounds(card);
+        return bounds
+          ? [
+              {
+                id: card.id,
+                geometry: {
+                  x: bounds.left,
+                  y: bounds.top,
+                  width: bounds.width,
+                  height: bounds.height,
+                },
+                locked: isLocked(card.id),
+                movable: true,
+                resizable: false,
+              },
+            ]
+          : [];
+      });
     },
     /** The element a gesture acts on; contained cards only when the gesture can move them. */
     gestureElement(id: string, includeContainedCard = false): InteractionElement | null {

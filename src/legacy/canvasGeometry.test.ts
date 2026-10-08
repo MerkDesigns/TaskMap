@@ -95,6 +95,13 @@ describe("createCanvasGeometry", () => {
     });
   });
 
+  it("offers a container's shown cards as move targets at their bounds", () => {
+    const [candidate] = setup().containerCardCandidates(box);
+
+    expect(candidate).toMatchObject({ id: "inside", locked: false, resizable: false });
+    expect(candidate?.geometry).toMatchObject({ x: 117, height: 43 });
+  });
+
   it("anchors connections to mind-map nodes at their measured size", () => {
     expect(setup().connectableBounds().get("node")).toEqual({
       x: 40,
