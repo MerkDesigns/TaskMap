@@ -66,3 +66,21 @@ export function useRetainedInlineEdit(
   );
   return useMemo(() => ({ editingId, draft, setDraft, ...actions }), [actions, draft, editingId]);
 }
+
+/** The canvas's three in-place edits: renaming frames, card text and text block text. */
+export function useRetainedInlineEdits(callbacks: RetainedActionCallbacks) {
+  const rename = useRetainedInlineEdit(callbacks, "name");
+  const card = useRetainedInlineEdit(callbacks, "text");
+  const block = useRetainedInlineEdit(callbacks, "text");
+  return {
+    rename,
+    card,
+    block,
+    /** Stops every edit without committing it. */
+    endAll() {
+      rename.end();
+      card.end();
+      block.end();
+    },
+  };
+}

@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RetainedActionCallbacks } from "../app/commands/createRetainedActionCallbacks";
-import { useRetainedInlineEdit } from "./useRetainedInlineEdit";
+import { useRetainedInlineEdit, useRetainedInlineEdits } from "./useRetainedInlineEdit";
 
 function fakeCallbacks() {
   const captured = { complete: vi.fn(() => true), cancel: vi.fn() };
@@ -57,5 +57,20 @@ describe("useRetainedInlineEdit", () => {
     act(() => invalidate());
 
     expect(result.current.draft).toBe("");
+  });
+});
+
+describe("useRetainedInlineEdits", () => {
+  it("ends every open edit at once without committing", () => {
+    const { callbacks, captured } = fakeCallbacks();
+    const { result } = renderHook(() => useRetainedInlineEdits(callbacks));
+
+    act(() => result.current.rename.begin("box", "Box"));
+    act(() => result.current.card.begin("card", "Card"));
+    act(() => result.current.endAll());
+
+    expect(result.current.rename.editingId).toBeNull();
+    expect(result.current.card.editingId).toBeNull();
+    expect(captured.complete).not.toHaveBeenCalled();
   });
 });

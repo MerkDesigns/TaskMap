@@ -1,10 +1,8 @@
-import { PointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { captureRetainedViewJsonEdit } from "./legacy/retainedViewJsonEdit";
+import { PointerEvent, useMemo, useRef, useState } from "react";
 import { useRetainedImageImport } from "./legacy/useRetainedImageImport";
 import type { RetainedImageView } from "./elements/image/imageViewProjection";
 import { canvasMindMapConnections } from "./elements/mind-map/mindMapConnectionViewProjection";
 import { ToastStack } from "./components/ToastStack";
-import { getTextCardAccent } from "./constants";
 import type { TextCardElement } from "./types";
 import { commandErrorMessage } from "./app/commandError";
 import { useImageCache } from "./hooks/useImageCache";
@@ -15,8 +13,8 @@ import {
   type RetainedCanvasContextValue,
 } from "./legacy/RetainedCanvasContext";
 import { useLegacyCanvasSettings } from "./legacy/useLegacyCanvasSettings";
-import type { ElementId, ConnectionId } from "./domain/ids/entityIds";
-import { useRetainedInlineEdit } from "./legacy/useRetainedInlineEdit";
+import type { ConnectionId } from "./domain/ids/entityIds";
+import { useRetainedInlineEdits } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
 import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
@@ -34,6 +32,7 @@ import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
 import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
+import { useRetainedExtensionFlows } from "./legacy/useRetainedExtensionFlows";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
 import { useCanvasScene } from "./legacy/useCanvasScene";
@@ -46,10 +45,6 @@ import { useLayeredCanvasElements } from "./legacy/useLayeredCanvasElements";
 import { RetainedCanvasStage } from "./legacy/RetainedCanvasStage";
 import { useContainerLayerLayout } from "./legacy/RetainedContainerLayer";
 import { elementShadows } from "./legacy/RetainedElementLayers";
-import { useRetainedExtensionCommands } from "./legacy/useRetainedExtensionCommands";
-import { useCopyPasteJsonFlow } from "./extensions/copy-paste-json/useCopyPasteJsonFlow";
-import { useWorkflowEditorFlow } from "./extensions/workflow/useWorkflowEditorFlow";
-import { useWorkflowRuns } from "./extensions/workflow/useWorkflowRuns";
 import { viewportWorldRectangle } from "./canvas/geometry/viewportMath";
 import { getLegacyInteractionElements } from "./legacy/interactions/legacyCanvasGeometry";
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
@@ -70,10 +65,6 @@ interface AppProps {
 }
 
 function App({ useDocument, useSettings, retained }: AppProps) {
-  const completeRetainedContent = (id: string, to: Record<string, string | boolean | null>) =>
-    retained.runtime.callbacks
-      .captureContent([{ elementId: id as ElementId, fields: Object.keys(to) }])
-      ?.complete([{ elementId: id as ElementId, to }]);
   const worldRef = useRef<HTMLDivElement>(null);
   const {
     activeCanvas,
@@ -104,11 +95,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     endTextCardEdit: () => textCardEdit.end(),
     connectionMode: () => connectionDrawing.mode,
   });
-  const rename = useRetainedInlineEdit(retained.runtime.callbacks, "name");
+  const edits = useRetainedInlineEdits(retained.runtime.callbacks);
+  const { rename, card: textCardEdit, block: textBlockEdit } = edits;
   const { editingId: renamingId, end: endRename } = rename;
-  const textCardEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
   const { editingId: editingTextCardId } = textCardEdit;
-  const textBlockEdit = useRetainedInlineEdit(retained.runtime.callbacks, "text");
   const { editingId: editingTextBlockId } = textBlockEdit;
   const measuredCards = useMeasuredTextCardSizes(activeCanvas.id);
   const measuredInteractionCardSizes = measuredCards.sizes;
@@ -149,7 +139,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     images,
     connections: mindmapConnections,
   });
-  const { containersById, textBlocksById, textCardsById, imagesById } = scene;
+  const { containersById, textCardsById } = scene;
   const { looseCards: looseTextCards, looseImages } = scene;
   const cardScroll = useContainerCardScroll(textCards, (id) => containersById.get(id));
   const cardLayout = cardScroll.layout;
@@ -192,7 +182,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     canvasPoint: (clientX, clientY) => geometry.canvasPoint({ clientX, clientY }),
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
     mindmapAccent: () => defaultElementColors.mindmap,
-    onNodeCreated: (id) => animateTextCardIn(id),
+    onNodeCreated: (id) => presenceMarks.animateIn("textCards", id),
     closeContextMenus: () => closeContextMenus(),
   });
 
@@ -237,14 +227,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     previews: interactionSnapshot.geometryPreviews,
   });
 
-  const animateContainerIn = (id: string) => presenceMarks.animateIn("containers", id);
-
-  const animateTextCardIn = (id: string) => presenceMarks.animateIn("textCards", id);
-
-  const animateTextBlockIn = (id: string) => presenceMarks.animateIn("textBlocks", id);
-
-  const animateImageIn = (id: string) => presenceMarks.animateIn("images", id);
-
   const removeMindmapConnection = (id: string) => {
     retained.runtime.callbacks.captureConnectionDelete(id as ConnectionId)?.complete();
     menus.closeConnection();
@@ -258,11 +240,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     clearDeleting: presenceMarks.clearDeleting,
     clearSelection: () => setSelectedIds([]),
     closeContextMenus,
-    endEditing: () => {
-      rename.end();
-      textCardEdit.end();
-      textBlockEdit.end();
-    },
+    endEditing: edits.endAll,
   });
 
   const createElement = useCanvasElementCreation({
@@ -336,12 +314,18 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     closeContextMenus,
     onPasted: (inserted) => {
       setSelectedIds(inserted.filter((entry) => entry.root).map((entry) => entry.id));
-      inserted.forEach((entry) => {
-        if (entry.type === "container") animateContainerIn(entry.id);
-        else if (entry.type === "image") animateImageIn(entry.id);
-        else if (entry.type === "text-block") animateTextBlockIn(entry.id);
-        else animateTextCardIn(entry.id);
-      });
+      inserted.forEach((entry) =>
+        presenceMarks.animateIn(
+          entry.type === "container"
+            ? "containers"
+            : entry.type === "image"
+              ? "images"
+              : entry.type === "text-block"
+                ? "textBlocks"
+                : "textCards",
+          entry.id,
+        ),
+      );
       closeContextMenus();
       rename.end();
     },
@@ -371,68 +355,22 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     openCanvasMenu: menus.openCanvas,
   });
 
-  const copyPasteJson = useCopyPasteJsonFlow({
-    getJson: (id) => retained.runtime.callbacks.getContainerJsonForAi(id as ElementId),
-    captureReplace: (id) =>
-      captureRetainedViewJsonEdit(
-        retained.runtime.callbacks,
-        retained.runtime.controller.store.getState().documentWorkspace.document,
-        id as ElementId,
-        { nextUuid: () => crypto.randomUUID() },
-      ),
-    containerName: (id) => {
-      const container = containersById.get(id);
-      return container?.extensions?.copyPasteJson ? container.name : null;
-    },
-    onReplaced: (id) => {
-      cardScroll.reset([id]);
-      setSelectedIds([id]);
+  const extensionFlows = useRetainedExtensionFlows({
+    retained,
+    container: scene.find.container,
+    card: scene.find.card,
+    selection: () => interactionController.getSnapshot().selectedIds,
+    select: setSelectedIds,
+    resetContainerScroll: cardScroll.reset,
+    endEditing: () => {
       textCardEdit.end();
       rename.end();
     },
+    rememberRecentColor: (color) => rememberRecentColor(color),
+    closeContextMenus,
     showToast,
   });
-  useEffect(
-    () => retained.runtime.callbacks.subscribeInvalidation(copyPasteJson.closeEditor),
-    [retained, copyPasteJson.closeEditor],
-  );
-  const workflowEditor = useWorkflowEditorFlow({
-    getLines: (id) => textCardsById.get(id)?.extensions?.workflow?.lines ?? null,
-    getCardName: (id) => textCardsById.get(id)?.text ?? "",
-    saveLines: (id, lines) =>
-      retained.runtime.callbacks
-        .captureExtensionConfiguration("workflow", id as ElementId)
-        ?.complete({ lines }).ok ?? false,
-    saveCardName: (id, name) => Boolean(completeRetainedContent(id, { text: name })?.ok),
-    trust: async (lines) => (await retained.runtime.workflows.trust(lines)).ok,
-    chooseFolder: async () => {
-      const chosen = await retained.runtime.workflows.chooseFolder();
-      return chosen.ok ? chosen.value : null;
-    },
-  });
-  useEffect(
-    () => retained.runtime.callbacks.subscribeInvalidation(workflowEditor.closeEditor),
-    [retained, workflowEditor.closeEditor],
-  );
-  const workflowRuns = useWorkflowRuns({
-    getLines: (id) => textCardsById.get(id)?.extensions?.workflow?.lines ?? null,
-    client: retained.runtime.workflows,
-  });
-  useEffect(
-    () => retained.runtime.callbacks.subscribeInvalidation(workflowRuns.reset),
-    [retained, workflowRuns.reset],
-  );
-
-  const extensionCommands = useRetainedExtensionCommands({
-    callbacks: retained.runtime.callbacks,
-    selection: () => interactionController.getSnapshot().selectedIds,
-    rememberRecentColor: (color) => rememberRecentColor(color),
-    resetContainerScroll: cardScroll.reset,
-    closeContextMenus,
-    copyPasteJson,
-    openWorkflowEditor: workflowEditor.openWorkflowEditor,
-    workflowRuns,
-  });
+  const extensionCommands = extensionFlows.commands;
 
   const extensionDrop = useExtensionDrop({
     callbacks: retained.runtime.callbacks,
@@ -460,17 +398,13 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
   const undo = () => {
     retained.runtime.callbacks.undo();
-    rename.end();
-    textCardEdit.end();
-    textBlockEdit.end();
+    edits.endAll();
     closeContextMenus();
   };
 
   const redo = () => {
     retained.runtime.callbacks.redo();
-    rename.end();
-    textCardEdit.end();
-    textBlockEdit.end();
+    edits.endAll();
     closeContextMenus();
   };
 
@@ -479,9 +413,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     textCardInteraction.reset();
     setSelectedIds([]);
     presenceMarks.clearDeleting();
-    rename.end();
-    textCardEdit.end();
-    textBlockEdit.end();
+    edits.endAll();
     connectionDrawing.cancel();
     closeContextMenus();
   };
@@ -586,11 +518,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     saveTextBlockEdit: () => {
       if (editingTextBlockId) elementActions.saveBlockEdit(editingTextBlockId);
     },
-    endEditing: () => {
-      rename.end();
-      textCardEdit.end();
-      textBlockEdit.end();
-    },
+    endEditing: edits.endAll,
     endRename: () => rename.end(),
     closeContextMenus,
     showMinimap: () => showMinimap(),
@@ -756,17 +684,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               connectionPorts: connectionDrawing.mode
                 ? {
                     bounds: connectableBoundsById,
-                    accentOf: (ownerId) => {
-                      const mindmap = textCardsById.get(ownerId);
-                      return (
-                        containersById.get(ownerId)?.accent ??
-                        textBlocksById.get(ownerId)?.accent ??
-                        imagesById.get(ownerId)?.accent ??
-                        (mindmap?.kind === "mindmap"
-                          ? getTextCardAccent(mindmap.accent)
-                          : defaultElementColors.mindmap)
-                      );
-                    },
+                    accentOf: (ownerId) =>
+                      scene.portAccent(ownerId) ?? defaultElementColors.mindmap,
                     drag: connectionDrawing.draft,
                     onStartConnection: startMindmapConnection,
                   }
@@ -812,9 +731,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
 
           {deletion.clearDialog}
 
-          {copyPasteJson.editorWindow}
-          {workflowEditor.editorWindow}
-          {workflowRuns.reviewDialog}
+          {extensionFlows.windows}
 
           <RetainedSettingsDialog
             open={settingsOpen}

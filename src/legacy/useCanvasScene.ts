@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getTextCardAccent } from "../constants";
 import type {
   ContainerElement,
   ImageElement,
@@ -61,6 +62,16 @@ export function useCanvasScene({
     looseCards,
     looseImages,
     find,
+    /** The accent of an element's connection ports; undefined for cards that cannot connect. */
+    portAccent(id: string): string | undefined {
+      const card = textCardsById.get(id);
+      return (
+        containersById.get(id)?.accent ??
+        textBlocksById.get(id)?.accent ??
+        imagesById.get(id)?.accent ??
+        (card?.kind === "mindmap" ? getTextCardAccent(card.accent) : undefined)
+      );
+    },
     /** Any element on the canvas by id. */
     element: (id: string) =>
       containersById.get(id) ??
