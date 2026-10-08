@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ToastMessage } from "../types";
 
-/** Matches the toast exit animation (240 ms) with a frame of slack. */
+/** The toast exit (240 ms, see ToastStack) with a frame of slack. */
 const EXIT_MS = 260;
 const DEFAULT_DURATION_MS = 4800;
 const MAX_TOASTS = 4;

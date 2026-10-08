@@ -37,6 +37,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- Notifications use the same glass as the toolbars, slide in and out without the blur dropping
+  out, and sit below the window controls instead of covering them.
 - The minimap pans the canvas: press anywhere on it to jump there, or drag its viewport frame. It
   stays visible while the pointer is over it, and its background is see-through like the Canvas
   Browser previews.

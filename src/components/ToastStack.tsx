@@ -1,52 +1,78 @@
 import { IconAlertTriangle, IconCircleCheck, IconInfoCircle, IconX } from "@tabler/icons-react";
-import { ToastMessage, ToastTone } from "../types";
+import { useLayoutEffect, useRef } from "react";
+import type { ToastMessage, ToastTone } from "../types";
+import { MaterialSurface } from "../ui/materials/MaterialSurface";
+import { markMaterialPresenceContent } from "../ui/materials/materialPresence";
+import { EASE_EMPHASIZED, EASE_STANDARD } from "../ui/motion/presencePresets";
+import { usePresenceMotion } from "../ui/motion/usePresenceMotion";
+import { IconButton } from "../ui/primitives/Button";
+import "./ToastStack.css";
 
 type ToastStackProps = {
   toasts: ToastMessage[];
   onDismiss: (id: string) => void;
 };
 
-const TOAST_STYLES: Record<ToastTone, { Icon: typeof IconInfoCircle; iconClass: string }> = {
-  info: { Icon: IconInfoCircle, iconClass: "text-sky-200" },
-  success: { Icon: IconCircleCheck, iconClass: "text-emerald-200" },
-  warning: { Icon: IconAlertTriangle, iconClass: "text-amber-200" },
-  error: { Icon: IconAlertTriangle, iconClass: "text-red-200" },
+const TONE_ICONS: Record<ToastTone, typeof IconInfoCircle> = {
+  info: IconInfoCircle,
+  success: IconCircleCheck,
+  warning: IconAlertTriangle,
+  error: IconAlertTriangle,
 };
 
-export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
-  if (!toasts.length) {
-    return null;
-  }
+/** Slides in from the right edge; the queue keeps an exiting toast until its exit has played. */
+const TOAST_PRESENCE = {
+  channels: { materialFade: true, slide: { x: 72 } },
+  enter: { durationMs: 320, easing: EASE_EMPHASIZED },
+  exit: { durationMs: 240, easing: EASE_STANDARD },
+} as const;
+
+function Toast({ toast, onDismiss }: { toast: ToastMessage; onDismiss: (id: string) => void }) {
+  const surfaceRef = useRef<HTMLElement | null>(null);
+  const presence = usePresenceMotion(surfaceRef, { ...TOAST_PRESENCE, initialProgress: 0 });
+  useLayoutEffect(() => {
+    if (surfaceRef.current) markMaterialPresenceContent(surfaceRef.current);
+    if (toast.exiting) presence.hide();
+    else presence.show();
+  }, [presence, toast.exiting]);
+  const Icon = TONE_ICONS[toast.tone];
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[70] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2">
-      {toasts.map((toast) => {
-        const { Icon, iconClass } = TOAST_STYLES[toast.tone];
+    <MaterialSurface
+      ref={surfaceRef}
+      material="acrylic-large"
+      radius={12}
+      role={toast.tone === "error" ? "alert" : "status"}
+      className="taskmap-toast"
+      data-tone={toast.tone}
+    >
+      <div className="taskmap-toast__body">
+        <Icon size={19} stroke={2} className="taskmap-toast__icon" aria-hidden="true" />
+        <div className="taskmap-toast__text">
+          <div className="taskmap-toast__title">{toast.title}</div>
+          {toast.message && <div className="taskmap-toast__message">{toast.message}</div>}
+        </div>
+        <IconButton
+          icon={<IconX size={16} stroke={2} />}
+          variant="ghost"
+          size="compact"
+          aria-label="Dismiss notification"
+          title="Dismiss notification"
+          onClick={() => onDismiss(toast.id)}
+        />
+      </div>
+    </MaterialSurface>
+  );
+}
 
-        return (
-          <div
-            key={toast.id}
-            className={`${toast.exiting ? "toast-exit" : "toast-enter"} toast-item pointer-events-auto overflow-hidden rounded-lg border border-white/[0.15] bg-[#1b1b1e]/94 p-3 text-white shadow-[0_18px_48px_rgba(0,0,0,0.45)] backdrop-blur-md`}
-          >
-            <div className="flex items-start gap-3">
-              <Icon size={19} stroke={2} className={`mt-0.5 shrink-0 ${iconClass}`} />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-5">{toast.title}</div>
-                {toast.message && (
-                  <div className="mt-0.5 text-xs leading-5 text-white/58">{toast.message}</div>
-                )}
-              </div>
-              <button
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/50 transition-colors hover:bg-white/[0.10] hover:text-white"
-                onClick={() => onDismiss(toast.id)}
-                title="Dismiss notification"
-              >
-                <IconX size={16} stroke={2} />
-              </button>
-            </div>
-          </div>
-        );
-      })}
+/** Notifications in the top-right corner over the workspace, newest first. */
+export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
+  if (!toasts.length) return null;
+  return (
+    <div className="taskmap-toast-stack">
+      {toasts.map((toast) => (
+        <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
+      ))}
     </div>
   );
 }
