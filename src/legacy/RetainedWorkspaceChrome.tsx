@@ -1,4 +1,13 @@
-import { lazy, memo, Suspense, useRef, useState, type ComponentProps } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentProps,
+} from "react";
 import type { CanvasInteractionController } from "../app/interactions/canvasInteractionTypes";
 import { CanvasManager as CanvasManagerView } from "../components/CanvasManager";
 import { ExtensionsPanel, QuickExtensionsMenu } from "../components/ExtensionsPanel";
@@ -11,7 +20,12 @@ import {
   WorkspaceSidePanel,
   WorkspaceSidePanelContentSwitcher,
 } from "../ui/patterns/workspace";
-import { useWorkspaceRadii } from "../ui/patterns/workspace/workspaceRadii";
+import { useChromeAutoHide } from "../ui/patterns/workspace/chromeSleep";
+import { setWorkspaceRadii, useWorkspaceRadii } from "../ui/patterns/workspace/workspaceRadii";
+import {
+  useWorkspaceIntroArrival,
+  useWorkspaceIntroDeparture,
+} from "../ui/patterns/workspace/workspaceIntro";
 import type { useCanvasManagement } from "./useCanvasManagement";
 import type { useLegacyCanvasSettings } from "./useLegacyCanvasSettings";
 import type { useLeftPanel } from "./useLeftPanel";
@@ -69,13 +83,66 @@ export interface RetainedWorkspaceChromeProps {
     | "viewportWorld"
     | "onResetZoom"
   > & { readonly presence: ReturnType<typeof useMinimapPresence> };
-  readonly history: { readonly canUndo: boolean; readonly canRedo: boolean };
+  /** The document store, whose history enables the undo and redo buttons. */
+  readonly historyStore: {
+    readonly subscribe: (listener: () => void) => () => void;
+    readonly getState: () => {
+      readonly documentWorkspace: {
+        readonly history: {
+          readonly past: readonly unknown[];
+          readonly future: readonly unknown[];
+        };
+      };
+    };
+  };
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onOpenSettings: () => void;
   readonly quickExtensions: { readonly left: number; readonly top: number } | null;
   readonly onCloseQuickExtensions: () => void;
   readonly fpsCounterVisible: boolean;
+}
+
+function useHistoryAvailability(store: RetainedWorkspaceChromeProps["historyStore"]) {
+  const canUndo = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().documentWorkspace.history.past.length > 0,
+  );
+  const canRedo = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().documentWorkspace.history.future.length > 0,
+  );
+  return { canUndo, canRedo };
+}
+
+/**
+ * The side panel follows the chrome: sleep mode closes it with the toolbars and reopens it when
+ * they wake, the unlock reveal ends with the Canvas Browser sliding in, and locking slides it out.
+ */
+function useSidePanelPresence(
+  leftPanel: ReturnType<typeof useLeftPanel>,
+  settings: ReturnType<typeof useLegacyCanvasSettings>,
+) {
+  const slept = useRef<"canvases" | "extensions" | null>(null);
+  useChromeAutoHide(
+    settings.chromeAutoHideEnabled,
+    () => {
+      const shown = leftPanel.current();
+      slept.current = shown === "closed" ? null : shown;
+      if (shown !== "closed") leftPanel.close(shown);
+    },
+    () => {
+      const panel = slept.current;
+      slept.current = null;
+      if (panel) leftPanel.show(panel);
+    },
+    settings.chromeAutoHideDelayMs,
+  );
+  useWorkspaceIntroArrival(() => leftPanel.show("canvases"));
+  useWorkspaceIntroDeparture(() => {
+    const shown = leftPanel.current();
+    if (shown !== "closed") leftPanel.close(shown);
+  });
 }
 
 /**
@@ -93,7 +160,7 @@ export function RetainedWorkspaceChrome({
   viewportSize,
   onDropExtension,
   minimap: { presence, ...minimapScene },
-  history,
+  historyStore,
   onUndo,
   onRedo,
   onOpenSettings,
@@ -102,6 +169,12 @@ export function RetainedWorkspaceChrome({
   fpsCounterVisible,
 }: RetainedWorkspaceChromeProps) {
   const radii = useWorkspaceRadii();
+  const history = useHistoryAvailability(historyStore);
+  useSidePanelPresence(leftPanel, settings);
+  // Saved radii drive the shared store; Settings previews slider drags there before saving.
+  useLayoutEffect(() => {
+    setWorkspaceRadii(settings.chromeRadii);
+  }, [settings.chromeRadii]);
   const panelRef = useRef<HTMLDivElement>(null);
   const [minimalView, setMinimalView] = useState(false);
   const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;

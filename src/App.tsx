@@ -1,7 +1,6 @@
 import {
   PointerEvent,
   SetStateAction,
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -87,12 +86,6 @@ import { createLegacyTextCardInteractionService } from "./legacy/interactions/le
 import { applyLegacyTextCardShiftTransition } from "./legacy/interactions/legacyTextCardModifierTransition";
 import { WorkspaceRoot, WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS } from "./ui/patterns/workspace";
 import { isModalPresenceBlocking } from "./ui/patterns/overlays";
-import { useChromeAutoHide } from "./ui/patterns/workspace/chromeSleep";
-import { setWorkspaceRadii } from "./ui/patterns/workspace/workspaceRadii";
-import {
-  useWorkspaceIntroArrival,
-  useWorkspaceIntroDeparture,
-} from "./ui/patterns/workspace/workspaceIntro";
 import { deletionProtectedIds, isLocked } from "./extensions/lock/lockRule";
 
 // Retained images resolve media through session leases; the legacy hash cache holds nothing.
@@ -249,9 +242,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     shadowsUnderElements,
     allowLockedElementDeletion,
     minimapEnabled,
-    chromeAutoHideEnabled,
-    chromeAutoHideDelayMs,
-    chromeRadii,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
   } = settings;
@@ -259,12 +249,10 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const [fpsCounterVisible, setFpsCounterVisible] = useState(false);
   const { toasts, showToast, dismissToast } = useToastQueue();
   const leftPanel = useLeftPanel(CANVAS_MANAGER_ANIMATION_MS);
-  const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;
   const [quickExtensionsMenu, setQuickExtensionsMenu] = useState<{
     left: number;
     top: number;
   } | null>(null);
-  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const presenceMarks = useElementPresenceMarks();
   const { textCards: enteringTextCardIds } = presenceMarks.entering;
   const {
@@ -379,23 +367,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     },
   });
 
-  const updateHistoryState = () => {
-    const history = retained.runtime.controller.store.getState().documentWorkspace.history;
-    setHistoryState({ canUndo: history.past.length > 0, canRedo: history.future.length > 0 });
-  };
-
   const lifecycleActions = useStableCallbacks({
     getCanvasBrowserCanvases: () =>
       canvases.map((canvas) =>
         canvas.id === activeCanvas.id ? { ...activeCanvas, previewViewport: stageSize } : canvas,
       ),
-    updateHistoryState,
   });
-
-  useEffect(() => {
-    lifecycleActions.updateHistoryState();
-    return retained.runtime.controller.store.subscribe(() => lifecycleActions.updateHistoryState());
-  }, [lifecycleActions, retained]);
 
   const updates = useAppUpdates({
     // App mounts once the database is open; the storage-free preview never checks.
@@ -515,10 +492,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
       textBlockEdit.end();
     },
   });
-
-  const { close: closeLeftPanel, show: switchLeftPanel } = leftPanel;
-  const closeCanvasManager = useCallback(() => closeLeftPanel("canvases"), [closeLeftPanel]);
-  const closeExtensionsPanel = useCallback(() => closeLeftPanel("extensions"), [closeLeftPanel]);
 
   useEffect(() => {
     const trackPointer = (event: globalThis.PointerEvent) => {
@@ -911,39 +884,6 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     finishCanvasCycle: canvasManagement.finishCycle,
   });
 
-  // Sleep mode: the side panel closes with the chrome islands and reopens when they wake.
-  const sleptSidePanel = useRef<"canvases" | "extensions" | null>(null);
-  useChromeAutoHide(
-    Boolean(retained) && chromeAutoHideEnabled,
-    () => {
-      sleptSidePanel.current = null;
-      if (canvasManagerOpen && !canvasManagerClosing) {
-        sleptSidePanel.current = "canvases";
-        closeCanvasManager();
-      } else if (extensionsOpen && !extensionsClosing) {
-        sleptSidePanel.current = "extensions";
-        closeExtensionsPanel();
-      }
-    },
-    () => {
-      const panel = sleptSidePanel.current;
-      sleptSidePanel.current = null;
-      if (panel) switchLeftPanel(panel);
-    },
-    chromeAutoHideDelayMs,
-  );
-  // The unlock reveal ends with the Canvas Browser sliding in alongside the toolbars.
-  useWorkspaceIntroArrival(() => switchLeftPanel("canvases"));
-  // Locking plays the reveal in reverse; the side panel slides out with the toolbars.
-  useWorkspaceIntroDeparture(() => {
-    if (canvasManagerOpen && !canvasManagerClosing) closeCanvasManager();
-    if (extensionsOpen && !extensionsClosing) closeExtensionsPanel();
-  });
-  // Saved radii drive the shared store; Settings previews slider drags there before saving.
-  useLayoutEffect(() => {
-    setWorkspaceRadii(chromeRadii);
-  }, [chromeRadii]);
-
   const rememberRecentColor = (color?: string) => {
     if (!color) {
       return;
@@ -1185,7 +1125,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
               viewportWorld: minimapViewportWorld,
               onResetZoom: resetZoom,
             }}
-            history={historyState}
+            historyStore={retained.runtime.controller.store}
             onUndo={undo}
             onRedo={redo}
             onOpenSettings={() => setSettingsOpen(true)}
