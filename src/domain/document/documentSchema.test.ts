@@ -198,3 +198,26 @@ describe("current document structural parsing", () => {
     }
   });
 });
+
+describe("repeated validation", () => {
+  const deepFreeze = <Value>(value: Value): Value => {
+    if (value !== null && typeof value === "object") {
+      Object.freeze(value);
+      Object.values(value).forEach(deepFreeze);
+    }
+    return value;
+  };
+
+  it("answers a validated deep-frozen document again with the same object", () => {
+    const document = deepFreeze(createValidDocumentInput());
+    expect(validateTaskMapDocument(document)).toMatchObject({ ok: true });
+    expect(validateTaskMapDocument(document)).toEqual({ ok: true, document });
+  });
+
+  it("validates a mutable document in full every time", () => {
+    const input = createValidDocumentInput();
+    expect(validateTaskMapDocument(input)).toMatchObject({ ok: true });
+    input.schemaVersion = 2 as typeof input.schemaVersion;
+    expect(validateTaskMapDocument(input)).toMatchObject({ ok: false, stage: "structure" });
+  });
+});

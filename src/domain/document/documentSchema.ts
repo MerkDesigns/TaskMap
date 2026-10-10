@@ -22,16 +22,17 @@ export const moduleIdSchema = z
   .max(DOCUMENT_LIMITS.typeIdentifierLength)
   .regex(/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/);
 
-const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([
-    z.null(),
-    z.boolean(),
-    finiteNumberSchema,
-    z.string().max(DOCUMENT_LIMITS.jsonStringLength),
-    z.array(jsonValueSchema).max(DOCUMENT_LIMITS.jsonArrayLength),
-    z.record(z.string().max(DOCUMENT_LIMITS.jsonStringLength), jsonValueSchema),
-  ]),
-);
+// zod calls a lazy schema's getter on every parse, so the union is built once outside it; building
+// it inside would construct six schemas for every JSON value of every validated document.
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => jsonValueUnion);
+const jsonValueUnion: z.ZodType<JsonValue> = z.union([
+  z.null(),
+  z.boolean(),
+  finiteNumberSchema,
+  z.string().max(DOCUMENT_LIMITS.jsonStringLength),
+  z.array(jsonValueSchema).max(DOCUMENT_LIMITS.jsonArrayLength),
+  z.record(z.string().max(DOCUMENT_LIMITS.jsonStringLength), jsonValueSchema),
+]);
 export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(
   z.string().max(DOCUMENT_LIMITS.jsonStringLength),
   jsonValueSchema,

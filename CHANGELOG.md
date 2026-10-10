@@ -54,6 +54,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Switching canvas and every other edit are several times cheaper on large databases: each edit
+  checks the document once instead of four times, and the check itself is about three times faster.
+  Panning straight after a canvas switch no longer starts with a long stall.
 - Text cards scrolled up in a container stay under its header; a card on a high layer used to be
   drawn over the title and search row.
 - Shift-resizing an element snaps its width and height together, so it can match one neighbour's
