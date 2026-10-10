@@ -1,0 +1,12 @@
+/* The camera transform changes on every pan frame. An inherited custom property would make the
+   browser restyle every element on the canvas each frame (thousands on a busy canvas), so it is
+   registered as non-inherited: a change restyles only the stage and the camera layers, which take
+   it from the stage explicitly. Camera layers must be direct children of the stage. */
+@property --taskmap-camera-transform {
+  syntax: "*";
+  inherits: false;
+}
+
+[data-stage] > [data-camera-layer] {
+  --taskmap-camera-transform: inherit;
+}

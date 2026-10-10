@@ -54,6 +54,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Panning over busy canvases runs at the display's full rate without stutters: a pan frame no
+  longer makes the browser restyle every element on the canvas.
 - Images that were already shown since unlocking load much faster when they are needed again,
   because their bytes are not decoded again just to check them; large GIFs benefit most.
 - Images no longer reload, with a loading spinner, each time they come back into view or you return

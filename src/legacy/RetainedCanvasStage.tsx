@@ -119,6 +119,7 @@ export function RetainedCanvasStage({
       <CanvasFrame
         ref={worldRef}
         className="absolute"
+        data-camera-layer
         data-grid-style={canvas.gridStyle}
         data-image-url-version={canvas.imageUrlVersion}
         style={

@@ -33,6 +33,7 @@ function CameraLayer({
   return (
     <div
       className={`pointer-events-none absolute left-0 top-0 ${className} overflow-visible`}
+      data-camera-layer
       style={{
         width,
         height,

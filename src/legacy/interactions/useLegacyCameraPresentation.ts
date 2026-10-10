@@ -1,10 +1,15 @@
 import { useLayoutEffect, type RefObject } from "react";
 import type { CanvasInteractionController } from "../../app/interactions/canvasInteractionTypes";
+import "./legacyCameraPresentation.css";
 
 /** How long the zoom must stay unchanged before element layers are recreated at its scale. */
 const ZOOM_SETTLE_MS = 150;
 
-/** The stage variables are inherited by the world and every camera-aligned overlay. */
+/**
+ * Writes the camera to stage variables. The transform reaches only the camera layers (the world
+ * and camera-aligned overlays, marked `data-camera-layer`); the zoom variables are inherited by
+ * everything that scales with zoom, so they are written only when the zoom changes.
+ */
 export function useLegacyCameraPresentation(
   controller: CanvasInteractionController,
   stageRef: RefObject<HTMLElement | null>,
@@ -30,17 +35,20 @@ export function useLegacyCameraPresentation(
       if (!stage) return;
       const { pan, zoom } = viewport;
       if (viewport !== previousViewport) {
-        if (previousViewport && previousViewport.zoom !== zoom) markZooming(stage);
+        const zoomChanged = previousViewport?.zoom !== zoom;
+        if (previousViewport && zoomChanged) markZooming(stage);
         previousViewport = viewport;
         stage.style.setProperty(
           "--taskmap-camera-transform",
           `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
         );
-        stage.style.setProperty("--taskmap-camera-inverse-zoom", `${1 / zoom}`);
-        stage.style.setProperty(
-          "--taskmap-canvas-dot-opacity-scale",
-          `${Math.min(1, Math.max(0, (zoom - 0.55) / 0.45))}`,
-        );
+        if (zoomChanged) {
+          stage.style.setProperty("--taskmap-camera-inverse-zoom", `${1 / zoom}`);
+          stage.style.setProperty(
+            "--taskmap-canvas-dot-opacity-scale",
+            `${Math.min(1, Math.max(0, (zoom - 0.55) / 0.45))}`,
+          );
+        }
       }
       const selection = selectionRef.current;
       if (selection && selectionRectangle) {
