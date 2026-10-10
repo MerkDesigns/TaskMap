@@ -19,6 +19,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["../src", "../tools/legacy-migrator/*.ts"],
+  "include": ["../src", "../tools/*/*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

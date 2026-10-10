@@ -1,7 +1,7 @@
 [package]
-name = "taskmap-legacy-migrator-writer"
+name = "taskmap-dev-database"
 version = "0.1.0"
-description = "Writes a migrated TaskMap document and its media into a new encrypted database"
+description = "Reads and writes TaskMap databases for the developer tools in tools/"
 edition = "2021"
 publish = false
 

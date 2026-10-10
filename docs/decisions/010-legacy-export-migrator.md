@@ -28,7 +28,8 @@ the workflow editor's command-line parser, and run like any other workflow (trus
 What cannot come across (removed features, shell-only commands, device preferences, per-canvas
 camera) is listed in a report rather than dropped silently.
 
-**The database is written by the app's own Rust code.** `tools/legacy-migrator/writer` compiles in
+**The database is written by the app's own Rust code.** `tools/dev-database` (shared with other
+developer tools) compiles in
 `src-tauri`'s crypto, schema, document repository and limits modules, mirrors the app's database
 creation, stores the media under the ids the document references, and then reads the database back
 the way unlocking does before reporting success. No key derivation or encryption is reimplemented.

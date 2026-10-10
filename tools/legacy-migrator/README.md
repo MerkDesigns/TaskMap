@@ -24,4 +24,4 @@ The export and the old app are only read. The tool refuses to overwrite an exist
 | `legacyExportSchema.ts`  | the legacy data shape                                              |
 | `legacyExtensions.ts`    | extensions, incl. Command Runner commands → workflow lines         |
 | `legacyMedia.ts`         | bundled images → media                                             |
-| `writer/`                | Rust: creates the encrypted database with the app's own crate code |
+| `../dev-database/`       | Rust: creates the encrypted database with the app's own crate code |

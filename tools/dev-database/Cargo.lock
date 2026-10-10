@@ -456,7 +456,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "taskmap-legacy-migrator-writer"
+name = "taskmap-dev-database"
 version = "0.1.0"
 dependencies = [
  "argon2",

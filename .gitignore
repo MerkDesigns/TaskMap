@@ -25,5 +25,5 @@ scripts/__pycache__/
 /.tmp-*
 
 # Legacy migrator build output
-tools/legacy-migrator/writer/target/
-dist-migrator/
+tools/dev-database/target/
+dist-tools/

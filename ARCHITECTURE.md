@@ -314,9 +314,11 @@ src-tauri/src/
 installer/         installer bootstrapper (own Tauri crate): runs the embedded NSIS installer
                    silently, detects existing installs, creates shortcuts (ADR 007)
 
-tools/legacy-migrator/  one-time 0.3 export → .tmapdb migration (ADR 010); not part of the
-                   product: TypeScript conversion plus a Rust writer built from src-tauri's
-                   database and crypto modules
+tools/             developer tools, not part of the product (built by their npm scripts)
+├─ dev-database/   Rust CLI that reads and writes databases with src-tauri's database and
+│                  crypto modules, plus the Node client the tools share
+├─ legacy-migrator/  one-time 0.3 export → .tmapdb migration (ADR 010)
+└─ db-scrambler/   copies a database with all text scrambled, for performance investigations
 
 scripts/           boundary checks (architecture, production exclusion, security), dev launcher,
                    trusted-input window driver, fixture generators, release installer build

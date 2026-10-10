@@ -1,35 +1,39 @@
-//! Writes one migrated TaskMap document and its media into a new encrypted database.
+//! Reads and writes TaskMap databases for the developer tools in `tools/`.
+//!
+//!   taskmap-dev-database read    unlocks a database and returns its document
+//!   taskmap-dev-database write   creates a new database from a document and media
 //!
 //! The database format, key derivation and document encryption are the app's own: the modules
-//! below are compiled in from `src-tauri`, so the result opens exactly like a database the app
-//! created. The request arrives as JSON on stdin; nothing sensitive is written anywhere else.
+//! below are compiled in from `src-tauri`, so a written database opens exactly like one the app
+//! created. Requests arrive as JSON on stdin and results leave on stdout; nothing sensitive is
+//! written anywhere else.
 #![allow(dead_code)]
 
-#[path = "../../../../src-tauri/src/error.rs"]
+#[path = "../../../src-tauri/src/error.rs"]
 mod error;
 
 mod crypto {
-    #[path = "../../../../../src-tauri/src/crypto/document_cipher.rs"]
+    #[path = "../../../../src-tauri/src/crypto/document_cipher.rs"]
     pub(crate) mod document_cipher;
-    #[path = "../../../../../src-tauri/src/crypto/key_derivation.rs"]
+    #[path = "../../../../src-tauri/src/crypto/key_derivation.rs"]
     pub(crate) mod key_derivation;
-    #[path = "../../../../../src-tauri/src/crypto/secret_key.rs"]
+    #[path = "../../../../src-tauri/src/crypto/secret_key.rs"]
     pub(crate) mod secret_key;
 }
 
 mod database {
-    #[path = "../../../../../src-tauri/src/database/document_repository.rs"]
+    #[path = "../../../../src-tauri/src/database/document_repository.rs"]
     pub(crate) mod document_repository;
-    #[path = "../../../../../src-tauri/src/database/envelope_validation.rs"]
+    #[path = "../../../../src-tauri/src/database/envelope_validation.rs"]
     pub(crate) mod envelope_validation;
-    #[path = "../../../../../src-tauri/src/database/limits.rs"]
+    #[path = "../../../../src-tauri/src/database/limits.rs"]
     pub(crate) mod limits;
-    #[path = "../../../../../src-tauri/src/database/schema.rs"]
+    #[path = "../../../../src-tauri/src/database/schema.rs"]
     pub(crate) mod schema;
 }
 
 mod session {
-    #[path = "../../../../../src-tauri/src/session/session_support.rs"]
+    #[path = "../../../../src-tauri/src/session/session_support.rs"]
     mod session_support;
 
     pub(crate) fn document_aad(database_id: &str, schema_version: i64, revision: i64) -> Vec<u8> {
@@ -61,8 +65,10 @@ use database::schema::{
     create_schema, insert_format_info, NewFormatInfo, CURRENT_DOCUMENT_SCHEMA_VERSION,
 };
 use rand::{rngs::OsRng, RngCore};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OpenFlags, Transaction};
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -71,12 +77,23 @@ use zeroize::Zeroizing;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Request {
+struct ReadRequest {
+    path: PathBuf,
+    password: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WriteRequest {
     output: PathBuf,
     password: String,
     database_id: String,
     document: String,
+    #[serde(default)]
     media: Vec<Media>,
+    /// A database whose media rows are copied over unchanged, ids included.
+    #[serde(default)]
+    copy_media_from: Option<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -88,22 +105,64 @@ struct Media {
 }
 
 fn main() {
-    match run() {
-        Ok(media) => println!("{}", serde_json::json!({ "ok": true, "media": media })),
+    let result = match std::env::args().nth(1).as_deref() {
+        Some("read") => request().and_then(run_read),
+        Some("write") => request().and_then(run_write),
+        _ => Err("Usage: taskmap-dev-database read|write < request.json".to_string()),
+    };
+    match result {
+        Ok(value) => println!("{value}"),
         Err(message) => {
-            println!("{}", serde_json::json!({ "ok": false, "error": message }));
+            println!("{}", json!({ "ok": false, "error": message }));
             std::process::exit(1);
         }
     }
 }
 
-fn run() -> Result<usize, String> {
+fn request<T: DeserializeOwned>() -> Result<T, String> {
     let mut input = Zeroizing::new(String::new());
     std::io::stdin()
         .read_to_string(&mut input)
         .map_err(|error| format!("Could not read the request: {error}"))?;
-    let mut request: Request =
-        serde_json::from_str(&input).map_err(|error| format!("Invalid request: {error}"))?;
+    serde_json::from_str(&input).map_err(|error| format!("Invalid request: {error}"))
+}
+
+/// Unlocks a database the way the app does and returns its current document.
+fn run_read(mut request: ReadRequest) -> Result<Value, String> {
+    let password = Zeroizing::new(std::mem::take(&mut request.password).into_bytes());
+    if !request.path.exists() {
+        return Err(format!("{} does not exist", request.path.display()));
+    }
+    let connection = open_read_only(&request.path)?;
+    let unreadable = |_| "This is not a readable TaskMap database".to_string();
+    let format = read_format_info(&connection).map_err(unreadable)?;
+    let key = derive_key(&password, &format.kdf_salt, format.kdf_parameters)
+        .map_err(|_| "Could not derive the database key".to_string())?;
+    verify_key_check(
+        &key,
+        &format.key_check_nonce,
+        &format.key_check_ciphertext,
+        &session::key_check_aad(&format.database_id),
+    )
+    .map_err(|_| "Wrong password".to_string())?;
+    let row = read_encrypted_document(&connection).map_err(unreadable)?;
+    let plaintext = decrypt(
+        &key,
+        &row.nonce,
+        &row.ciphertext,
+        &session::document_aad(
+            &format.database_id,
+            row.document_schema_version,
+            row.save_revision,
+        ),
+    )
+    .map_err(|_| "The document does not decrypt".to_string())?;
+    let document = std::str::from_utf8(&plaintext)
+        .map_err(|_| "The document is not valid text".to_string())?;
+    Ok(json!({ "ok": true, "databaseId": format.database_id, "document": document }))
+}
+
+fn run_write(mut request: WriteRequest) -> Result<Value, String> {
     let password = Zeroizing::new(std::mem::take(&mut request.password).into_bytes());
     let document = Zeroizing::new(std::mem::take(&mut request.document));
 
@@ -117,20 +176,22 @@ fn run() -> Result<usize, String> {
         ));
     }
 
-    let written = write_database(&request, &password, &document)
-        .and_then(|media| {
-            verify_database(&request.output, &request.database_id, &password, &document)
-                .map(|_| media)
-        });
+    let written = write_database(&request, &password, &document).and_then(|media| {
+        verify_database(&request.output, &request.database_id, &password, &document).map(|_| media)
+    });
     if written.is_err() {
         // A half-written database must not be mistaken for a finished one.
         let _ = std::fs::remove_file(&request.output);
     }
-    written
+    written.map(|media| json!({ "ok": true, "media": media }))
+}
+
+fn sqlite(error: rusqlite::Error) -> String {
+    format!("SQLite: {error}")
 }
 
 fn open(path: &Path) -> Result<Connection, String> {
-    let connection = Connection::open(path).map_err(|error| format!("SQLite: {error}"))?;
+    let connection = Connection::open(path).map_err(sqlite)?;
     // The same connection settings the app's database connection uses.
     connection
         .busy_timeout(Duration::from_secs(2))
@@ -138,13 +199,30 @@ fn open(path: &Path) -> Result<Connection, String> {
         .and_then(|_| connection.pragma_update(None, "journal_mode", "DELETE"))
         .and_then(|_| connection.pragma_update(None, "synchronous", "FULL"))
         .and_then(|_| connection.pragma_update(None, "temp_store", "MEMORY"))
-        .map_err(|error| format!("SQLite: {error}"))?;
+        .map_err(sqlite)?;
     Ok(connection)
 }
 
-/// Mirrors the app's database creation, then stores every media item under the id the document
+/// Read-only, so a database TaskMap has open is read through SQLite's locking, never changed.
+fn open_read_only(path: &Path) -> Result<Connection, String> {
+    let connection = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(sqlite)?;
+    connection
+        .busy_timeout(Duration::from_secs(2))
+        .map_err(sqlite)?;
+    Ok(connection)
+}
+
+/// Mirrors the app's database creation, then stores the media under the ids the document
 /// already references.
-fn write_database(request: &Request, password: &[u8], document: &str) -> Result<usize, String> {
+fn write_database(
+    request: &WriteRequest,
+    password: &[u8],
+    document: &str,
+) -> Result<usize, String> {
     let now = session::timestamp();
     let mut salt = Zeroizing::new([0_u8; KDF_SALT_BYTES]);
     OsRng.fill_bytes(salt.as_mut());
@@ -162,9 +240,7 @@ fn write_database(request: &Request, password: &[u8], document: &str) -> Result<
     .map_err(|_| "Could not encrypt the document".to_string())?;
 
     let mut connection = open(&request.output)?;
-    let transaction = connection
-        .transaction()
-        .map_err(|error| format!("SQLite: {error}"))?;
+    let transaction = connection.transaction().map_err(sqlite)?;
     let failed = |_| "Could not write the database".to_string();
     create_schema(&transaction).map_err(failed)?;
     insert_format_info(
@@ -195,35 +271,58 @@ fn write_database(request: &Request, password: &[u8], document: &str) -> Result<
         },
     )
     .map_err(failed)?;
+    let mut stored = 0;
     for item in &request.media {
         let bytes = BASE64
             .decode(item.base64.as_bytes())
             .map_err(|_| format!("Media {} is not valid base64", item.id))?;
-        validate_media_id(&item.id).map_err(|_| format!("Invalid media id {}", item.id))?;
-        validate_mime_type(&item.mime_type)
-            .map_err(|_| format!("Invalid type for media {}", item.id))?;
-        validate_media_size(bytes.len())
-            .map_err(|_| format!("Media {} is too large", item.id))?;
-        transaction
-            .execute(
-                "INSERT INTO media (
-                    media_id, mime_type, byte_length, content_hash, bytes, created_at
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    item.id,
-                    item.mime_type,
-                    bytes.len() as i64,
-                    Sha256::digest(&bytes).as_slice(),
-                    bytes,
-                    now,
-                ],
-            )
-            .map_err(|error| format!("Could not store media {}: {error}", item.id))?;
+        insert_media(&transaction, &item.id, &item.mime_type, &bytes, &now)?;
+        stored += 1;
     }
+    if let Some(source) = &request.copy_media_from {
+        let source = open_read_only(source)?;
+        let mut statement = source
+            .prepare("SELECT media_id, mime_type, bytes FROM media")
+            .map_err(sqlite)?;
+        let mut rows = statement.query([]).map_err(sqlite)?;
+        while let Some(row) = rows.next().map_err(sqlite)? {
+            let id: String = row.get(0).map_err(sqlite)?;
+            let mime_type: String = row.get(1).map_err(sqlite)?;
+            let bytes: Vec<u8> = row.get(2).map_err(sqlite)?;
+            insert_media(&transaction, &id, &mime_type, &bytes, &now)?;
+            stored += 1;
+        }
+    }
+    transaction.commit().map_err(sqlite)?;
+    Ok(stored)
+}
+
+fn insert_media(
+    transaction: &Transaction<'_>,
+    id: &str,
+    mime_type: &str,
+    bytes: &[u8],
+    now: &str,
+) -> Result<(), String> {
+    validate_media_id(id).map_err(|_| format!("Invalid media id {id}"))?;
+    validate_mime_type(mime_type).map_err(|_| format!("Invalid type for media {id}"))?;
+    validate_media_size(bytes.len()).map_err(|_| format!("Media {id} is too large"))?;
     transaction
-        .commit()
-        .map_err(|error| format!("SQLite: {error}"))?;
-    Ok(request.media.len())
+        .execute(
+            "INSERT INTO media (
+                media_id, mime_type, byte_length, content_hash, bytes, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                id,
+                mime_type,
+                bytes.len() as i64,
+                Sha256::digest(bytes).as_slice(),
+                bytes,
+                now,
+            ],
+        )
+        .map_err(|error| format!("Could not store media {id}: {error}"))?;
+    Ok(())
 }
 
 /// Reopens the new database the way unlocking does and checks the document comes back intact.
