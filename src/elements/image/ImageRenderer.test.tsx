@@ -50,7 +50,7 @@ async function openSession() {
 }
 
 describe("ImageRenderer media leases", () => {
-  it("loads once across pointer rerenders, revokes on culling, and reacquires on remount", async () => {
+  it("loads once across pointer rerenders and culling, and revokes on lock", async () => {
     const runtime = await openSession();
     const url = "blob:visible-image";
     const create = vi.spyOn(URL, "createObjectURL").mockReturnValue(url);
@@ -82,15 +82,20 @@ describe("ImageRenderer media leases", () => {
       for (let n = 0; n < 100; n++) view.rerender(draw(true, n));
       expect(acquire).toHaveBeenCalledTimes(1);
       view.rerender(draw(false));
-      expect(revoke).toHaveBeenCalledWith(url);
+      expect(revoke).not.toHaveBeenCalled();
       await act(async () => {
         view.rerender(draw(true));
       });
       expect(acquire).toHaveBeenCalledTimes(2);
+      expect(create).toHaveBeenCalledTimes(1);
+      view.rerender(draw(false));
+      // Already loaded: the remounted image shows on its first render, without a spinner.
+      view.rerender(draw(true));
+      expect(view.container.querySelector("img")?.getAttribute("src")).toBe(url);
       await act(async () => {
         await runtime.controller.lock();
       });
-      expect(revoke).toHaveBeenCalledTimes(2);
+      expect(revoke).toHaveBeenCalledTimes(1);
       view.unmount();
     } finally {
       create.mockRestore();
@@ -146,6 +151,7 @@ describe("ImageRenderer", () => {
   };
   const noLeases: ImageMediaLeases = {
     acquire: () => ({ ready: Promise.resolve(null), release: () => {} }),
+    peek: () => null,
   };
 
   it("invites a pick or drop while it has no media, and spins while a file imports", () => {

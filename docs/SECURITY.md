@@ -193,8 +193,11 @@ subsequent chunks use its immutable validated bytes, never a fresh query of the 
 two snapshots of up to 64 MiB each are retained per session. Completion, explicit release and lock/
 close discard snapshots; abandoned reads expire on the next media request after 60 seconds idle.
 Native validation still holds bounded full-image/decode buffers. Tokens do not bypass session checks.
-Frontend leases cancel late results and revoke URLs on release/session transitions. Retained visible
-renderers now use those leases. WTS lock notifications are wired to native session revocation before
+Frontend leases cancel late results on session transitions and revoke every URL on lock, close and
+workspace replacement. While unlocked, URLs of loaded media that no element shows stay cached up to
+128 MiB of encoded bytes (least recently shown evicted first), so returning to an image does not
+reload and re-decode it; queued loads whose last lease ends never start. Retained visible renderers
+use those leases. WTS lock notifications are wired to native session revocation before
 a content-free renderer event; the retained view then synchronously unmounts its canvas and portals
 without flushing document changes. Production activation is implemented and the user reported
 Windows lock and screenshot exclusion working on September 23. Packaged edition coexistence remains

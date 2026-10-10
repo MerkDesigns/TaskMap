@@ -12,6 +12,8 @@ export interface ImageMediaLeases {
     readonly ready: Promise<string | null>;
     readonly release: () => void;
   };
+  /** The URL of media that is already loaded, so a remounted image shows it without a spinner. */
+  readonly peek: (media: ImageMediaMetadata) => string | null;
 }
 
 /** Transient presentation state of an image; everything persistent is read from its element. */
@@ -74,8 +76,9 @@ function useMediaUrl(media: ImageMediaMetadata | null, leases: ImageMediaLeases)
       lease.release();
     };
   }, [media, leases]);
-  const settled = media !== null && loaded?.media === media;
-  return { settled, url: settled ? loaded.url : null };
+  if (media !== null && loaded?.media === media) return { settled: true, url: loaded.url };
+  const cached = media === null ? null : leases.peek(media);
+  return { settled: cached !== null, url: cached };
 }
 
 function ImageRendererComponent({ element, view, actions, leases }: ImageRendererProps) {

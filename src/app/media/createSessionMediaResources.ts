@@ -5,6 +5,14 @@ import type { PlatformResult } from "../../platform/platformErrors";
 import type { ImageDrop } from "../../platform/media/imageDropClient";
 export type MediaImportSource = Blob | null | { readonly dropToken: string };
 
+// Encoded bytes of loaded images that no element shows right now but stay ready for when one
+// does again (panned back into view, canvas switched back). Without this every return reloads
+// the image from the database and decodes it again, which for a large GIF takes seconds and
+// leaves the WebView holding another decoded copy under a new URL.
+const IDLE_MEDIA_BUDGET_BYTES = 128 * 1024 * 1024;
+
+const mediaKey = (media: ImageMediaMetadata) => `${media.id}:${media.mimeType}:${media.byteLength}`;
+
 export function createSessionMediaResources(
   session: RetainedCallbackSession,
   client: ApplicationMediaClient,
@@ -16,8 +24,12 @@ export function createSessionMediaResources(
   type Entry = {
     count: number;
     cancelled: boolean;
+    started: boolean;
+    settled: boolean;
     url: string | null;
     promise: Promise<string | null>;
+    readonly byteLength: number;
+    lastUsed: number;
   };
   const entries = new Map<string, Entry>();
   let generation = 0;
@@ -29,6 +41,24 @@ export function createSessionMediaResources(
   const canImport = () => canRead() && !session.getSnapshot().busy;
   const pump = () => {
     while (running < 2 && queue.length) queue.shift()!();
+  };
+  let useClock = 0;
+  /** Drops idle entries, least recently used first, until they fit the idle budget. */
+  const trimIdle = () => {
+    const idle = [...entries].filter(([, entry]) => entry.count === 0);
+    // A load that failed is forgotten, so the next element showing it tries again.
+    for (const [key, entry] of idle) if (entry.settled && entry.url === null) entries.delete(key);
+    const loaded = idle
+      .filter(([, entry]) => entry.url !== null)
+      .sort(([, a], [, b]) => a.lastUsed - b.lastUsed);
+    let bytes = loaded.reduce((sum, [, entry]) => sum + entry.byteLength, 0);
+    for (const [key, entry] of loaded) {
+      if (bytes <= IDLE_MEDIA_BUDGET_BYTES) break;
+      bytes -= entry.byteLength;
+      urls.revoke(entry.url!);
+      entry.url = null;
+      entries.delete(key);
+    }
   };
   const clear = () => {
     generation++;
@@ -62,10 +92,12 @@ export function createSessionMediaResources(
       client.subscribeDrops?.((drop) => {
         if (canImport()) listener(drop);
       }) ?? Promise.resolve(() => {}),
+    peek: (media: ImageMediaMetadata) =>
+      canRead() ? (entries.get(mediaKey(media))?.url ?? null) : null,
     // Call only for visible/imminently-visible media. Leases own URL lifetime, not element IDs/bytes.
     acquire(media: ImageMediaMetadata) {
       if (!canRead()) return { ready: Promise.resolve(null), release() {} };
-      const key = `${media.id}:${media.mimeType}:${media.byteLength}`;
+      const key = mediaKey(media);
       let entry = entries.get(key);
       if (!entry) {
         const token = generation;
@@ -74,15 +106,20 @@ export function createSessionMediaResources(
         entry = {
           count: 0,
           cancelled: false,
+          started: false,
+          settled: false,
           url: null,
           promise: new Promise((done) => {
             resolve = done;
           }),
+          byteLength: media.byteLength,
+          lastUsed: 0,
         };
         const captured = entry;
         entries.set(key, entry);
         queue.push(() => {
           running++;
+          captured.started = true;
           void (async () => {
             const cancelled = () => captured.cancelled || token !== generation || !canRead();
             if (!port || cancelled()) return null;
@@ -92,7 +129,12 @@ export function createSessionMediaResources(
             return captured.url;
           })()
             .catch(() => null)
-            .then(resolve)
+            .then((url) => {
+              captured.settled = true;
+              resolve(url);
+              // A load that finished after its last lease ended is kept as idle, within budget.
+              if (captured.count === 0 && entries.get(key) === captured) trimIdle();
+            })
             .finally(() => {
               running--;
               pump();
@@ -100,22 +142,25 @@ export function createSessionMediaResources(
         });
       }
       entry.count++;
+      entry.lastUsed = ++useClock;
       pump();
       const captured = entry;
       let released = false;
       return {
-        ready: entry.promise,
+        // A lease released before the load settles never sees its URL.
+        ready: entry.promise.then((url) => (released ? null : url)),
         release() {
           if (released) return;
           released = true;
-          if (--captured.count === 0) {
+          if (--captured.count > 0) return;
+          captured.lastUsed = ++useClock;
+          if (!captured.started) {
+            // Still queued: nothing shows it any more, so it never loads.
             captured.cancelled = true;
-            if (captured.url) {
-              urls.revoke(captured.url);
-              captured.url = null;
-            }
             if (entries.get(key) === captured) entries.delete(key);
+            return;
           }
+          trimIdle();
         },
       };
     },

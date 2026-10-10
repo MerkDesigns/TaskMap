@@ -69,7 +69,7 @@ it("keeps pending and displayed media usable during a failed close, then revokes
   await setup.controller.dispose();
 });
 
-it("shares one lazy load per media and revokes its URL after the last lease", async () => {
+it("shares one lazy load per media and keeps its URL for the next lease", async () => {
   const setup = await callbackSetup();
   const { client, port, urls } = mediaFixture();
   const media = createSessionMediaResources(setup.controller, client, urls);
@@ -80,35 +80,77 @@ it("shares one lazy load per media and revokes its URL after the last lease", as
   expect(await b.ready).toBe("blob:test-owned");
   expect(port.load).toHaveBeenCalledTimes(1);
   a.release();
+  b.release();
+  b.release();
   expect(urls.revoke).not.toHaveBeenCalled();
-  b.release();
-  b.release();
+  const again = media.acquire(metadata);
+  expect(await again.ready).toBe("blob:test-owned");
+  expect(port.load).toHaveBeenCalledTimes(1);
+  again.release();
+  media.dispose();
   expect(urls.revoke).toHaveBeenCalledTimes(1);
+  await setup.dispose();
+});
+
+it("revokes the least recently shown idle media beyond the idle budget", async () => {
+  const setup = await callbackSetup();
+  const { client, urls } = mediaFixture();
+  let created = 0;
+  urls.create.mockImplementation(() => `blob:media-${++created}`);
+  const media = createSessionMediaResources(setup.controller, client, urls);
+  const large = (id: string) => ({
+    ...metadata,
+    id: asEntityId("media", id.repeat(24)),
+    byteLength: 100 * 1024 * 1024,
+  });
+  const first = media.acquire(large("C"));
+  const second = media.acquire(large("D"));
+  expect(await first.ready).toBe("blob:media-1");
+  expect(await second.ready).toBe("blob:media-2");
+  first.release();
+  expect(urls.revoke).not.toHaveBeenCalled();
+  second.release();
+  expect(urls.revoke).toHaveBeenCalledTimes(1);
+  expect(urls.revoke).toHaveBeenCalledWith("blob:media-1");
   media.dispose();
   await setup.dispose();
 });
 
-it.each(["release", "lock", "reload"])(
-  "never publishes a late media URL after %s",
-  async (reason) => {
-    const setup = await callbackSetup();
-    const { client, port, urls } = mediaFixture();
-    const pending = deferred<Awaited<ReturnType<typeof port.load>>>();
-    port.load.mockReturnValue(pending.promise);
-    const media = createSessionMediaResources(setup.controller, client, urls);
-    const lease = media.acquire(metadata);
-    if (reason === "release") lease.release();
-    if (reason === "lock") await setup.controller.lock();
-    if (reason === "reload")
-      setup.store.workspace.load(setup.store.getState().documentWorkspace.document!, 4);
-    pending.resolve({ ok: true, value: new Blob(["test"]) });
-    expect(await lease.ready).toBeNull();
-    expect(urls.create).not.toHaveBeenCalled();
-    media.dispose();
-    lease.release();
-    await setup.dispose();
-  },
-);
+it("keeps a load that finishes after its last lease, without publishing it to that lease", async () => {
+  const setup = await callbackSetup();
+  const { client, port, urls } = mediaFixture();
+  const pending = deferred<Awaited<ReturnType<typeof port.load>>>();
+  port.load.mockReturnValue(pending.promise);
+  const media = createSessionMediaResources(setup.controller, client, urls);
+  const lease = media.acquire(metadata);
+  lease.release();
+  pending.resolve({ ok: true, value: new Blob(["test"]) });
+  expect(await lease.ready).toBeNull();
+  const again = media.acquire(metadata);
+  expect(await again.ready).toBe("blob:test-owned");
+  expect(port.load).toHaveBeenCalledTimes(1);
+  again.release();
+  media.dispose();
+  await setup.dispose();
+});
+
+it.each(["lock", "reload"])("never publishes a late media URL after %s", async (reason) => {
+  const setup = await callbackSetup();
+  const { client, port, urls } = mediaFixture();
+  const pending = deferred<Awaited<ReturnType<typeof port.load>>>();
+  port.load.mockReturnValue(pending.promise);
+  const media = createSessionMediaResources(setup.controller, client, urls);
+  const lease = media.acquire(metadata);
+  if (reason === "lock") await setup.controller.lock();
+  if (reason === "reload")
+    setup.store.workspace.load(setup.store.getState().documentWorkspace.document!, 4);
+  pending.resolve({ ok: true, value: new Blob(["test"]) });
+  expect(await lease.ready).toBeNull();
+  expect(urls.create).not.toHaveBeenCalled();
+  media.dispose();
+  lease.release();
+  await setup.dispose();
+});
 
 it("bounds concurrent loads at two and skips cancelled queued work", async () => {
   const setup = await callbackSetup();
