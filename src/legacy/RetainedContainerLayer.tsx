@@ -231,7 +231,9 @@ export function ContainerLayer({
                 actions={cardActions}
                 extensionCommands={extensionCommands}
                 view={{
-                  layer: card.layer ?? 0,
+                  // Rows never overlap, so a card's canvas layer means nothing here; it would
+                  // only lift a high-layer card over the container header when scrolled.
+                  layer: 0,
                   extensions: card.extensions,
                   editing: textCardEdit.id === card.id,
                   draft: editDraft(textCardEdit, card.id),
