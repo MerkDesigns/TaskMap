@@ -77,3 +77,29 @@ opt-level = 3
 
 [profile.dev.package.chacha20poly1305]
 opt-level = 3
+
+# Unoptimized image decoding made each dev image load take seconds (a large GIF tens of seconds),
+# so dev measurements of media loading were meaningless. Same treatment as the crypto crates.
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.image-webp]
+opt-level = 3
+
+[profile.dev.package.gif]
+opt-level = 3
+
+[profile.dev.package.weezl]
+opt-level = 3
+
+[profile.dev.package.png]
+opt-level = 3
+
+[profile.dev.package.fdeflate]
+opt-level = 3
+
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3

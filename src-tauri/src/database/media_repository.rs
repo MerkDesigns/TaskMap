@@ -13,6 +13,8 @@ pub(crate) struct MediaRecord {
     pub(crate) media_id: String,
     pub(crate) mime_type: String,
     pub(crate) bytes: Vec<u8>,
+    /// SHA-256 of `bytes`, checked against the stored hash.
+    pub(crate) content_hash: Vec<u8>,
 }
 
 pub(crate) fn store_media(
@@ -94,6 +96,7 @@ pub(crate) fn load_media(connection: &Connection, media_id: &str) -> ServiceResu
                         media_id: row.get(0)?,
                         mime_type: row.get(1)?,
                         bytes: row.get(2)?,
+                        content_hash: Vec::new(),
                     },
                     row.get::<_, i64>(3)?,
                     row.get::<_, Vec<u8>>(4)?,
@@ -109,7 +112,10 @@ pub(crate) fn load_media(connection: &Connection, media_id: &str) -> ServiceResu
     {
         return Err(ServiceFailure::CorruptDatabase);
     }
-    Ok(record)
+    Ok(MediaRecord {
+        content_hash: actual_hash.to_vec(),
+        ..record
+    })
 }
 
 #[cfg(test)]

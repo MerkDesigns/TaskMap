@@ -86,3 +86,53 @@ fn validated_chunks_survive_external_mutation_and_tokens_are_bounded_and_revoked
         )
         .is_err());
 }
+
+#[test]
+fn repeat_loads_skip_only_the_decode_of_identical_bytes() {
+    use sha2::{Digest, Sha256};
+
+    let root = tempfile::tempdir().unwrap();
+    let (service, path) = create_database(&root, "repeat-read.tmapdb");
+    let session_id = service.get_status().unwrap().session_id.unwrap();
+    let image = root.path().join("fixture.svg");
+    std::fs::write(
+        &image,
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"/>",
+    )
+    .unwrap();
+    let MediaReply::Stored { id, .. } = service
+        .import_media_file(DATABASE_ID, &session_id, &image)
+        .unwrap()
+    else {
+        panic!()
+    };
+    let run = |action| service.media_transfer(DATABASE_ID, &session_id, action);
+    let describe = || {
+        run(MediaAction::Describe {
+            media_id: id.clone(),
+        })
+    };
+    for _ in 0..2 {
+        let MediaReply::Description { token, .. } = describe().unwrap() else {
+            panic!()
+        };
+        run(MediaAction::ReleaseRead { token }).unwrap();
+    }
+
+    // Replacing the bytes and their stored hash together passes the hash check, so only the
+    // format validation can catch it: the remembered hash belongs to the original bytes.
+    let tampered = b"not an svg at all, but the same kind of row".to_vec();
+    let connection = crate::database::connection::open_connection(&path).unwrap();
+    connection
+        .execute(
+            "UPDATE media SET bytes = ?1, byte_length = ?2, content_hash = ?3 WHERE media_id = ?4",
+            rusqlite::params![
+                tampered,
+                tampered.len() as i64,
+                Sha256::digest(&tampered).to_vec(),
+                id
+            ],
+        )
+        .unwrap();
+    assert!(describe().is_err());
+}

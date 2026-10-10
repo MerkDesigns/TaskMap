@@ -54,6 +54,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Images that were already shown since unlocking load much faster when they are needed again,
+  because their bytes are not decoded again just to check them; large GIFs benefit most.
 - Images no longer reload, with a loading spinner, each time they come back into view or you return
   to their canvas: loaded images stay ready while the database is unlocked (up to 128 MB). This also
   stops memory from climbing when a large GIF scrolls in and out of view.
