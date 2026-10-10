@@ -65,20 +65,29 @@ export function snapResizedGeometry(
       guides: [{ axis: "y", position: y.guide, pointerPosition: pointer.x }],
     };
   }
-  if (x.guide !== null) {
+  if (aspectRatio && x.guide !== null) {
     const width = geometry.width + x.offset;
     return {
-      geometry: { ...geometry, width, height: aspectRatio ? width / aspectRatio : geometry.height },
+      geometry: { ...geometry, width, height: width / aspectRatio },
       guides: [{ axis: "x", position: x.guide, pointerPosition: pointer.y }],
     };
   }
-  if (y.guide !== null) {
-    return {
-      geometry: { ...geometry, height: geometry.height + y.offset },
-      guides: [{ axis: "y", position: y.guide, pointerPosition: pointer.x }],
-    };
-  }
-  return { geometry, guides: [] };
+  // Without a fixed ratio the two edges are independent, so both snap at once.
+  return {
+    geometry: {
+      ...geometry,
+      width: geometry.width + (x.guide === null ? 0 : x.offset),
+      height: geometry.height + (y.guide === null ? 0 : y.offset),
+    },
+    guides: [
+      ...(x.guide === null
+        ? []
+        : [{ axis: "x" as const, position: x.guide, pointerPosition: pointer.y }]),
+      ...(y.guide === null
+        ? []
+        : [{ axis: "y" as const, position: y.guide, pointerPosition: pointer.x }]),
+    ],
+  };
 }
 
 function axisGuides(start: number, size: number, center: boolean): AlignmentGuide[] {

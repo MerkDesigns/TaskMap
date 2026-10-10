@@ -76,4 +76,18 @@ describe("snapping engine", () => {
     expect(result.geometry).toEqual({ x: 0, y: 0, width: 200, height: 100 });
     expect(result.guides).toEqual([{ axis: "x", position: 200, pointerPosition: 40 }]);
   });
+
+  it("snaps both edges of a free resize at once", () => {
+    const result = snapResizedGeometry(
+      { x: 0, y: 0, width: 195, height: 304 },
+      undefined,
+      prepareSnapTargets([target("below", 0, 400, 200, 50), target("beside", 300, 0, 100, 300)]),
+      { x: 30, y: 40 },
+    );
+    expect(result.geometry).toEqual({ x: 0, y: 0, width: 200, height: 300 });
+    expect(result.guides).toEqual([
+      { axis: "x", position: 200, pointerPosition: 40 },
+      { axis: "y", position: 300, pointerPosition: 30 },
+    ]);
+  });
 });

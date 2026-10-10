@@ -56,6 +56,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 - Text cards scrolled up in a container stay under its header; a card on a high layer used to be
   drawn over the title and search row.
+- Shift-resizing an element snaps its width and height together, so it can match one neighbour's
+  width and another's height in one drag; it used to snap only one edge at a time.
 - The minimap stays visible for as long as you pan the canvas, and fades out only after the pan
   ends; it used to disappear two seconds into a longer pan.
 - Pressing a container's or text block's menu button again closes its menu instead of reopening it.
