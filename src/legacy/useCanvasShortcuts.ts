@@ -137,6 +137,9 @@ export function useCanvasShortcuts(ports: CanvasShortcutPorts) {
         return;
       const key = event.key.toLowerCase();
       if (key === "c") {
+        // Highlighted text (in a text block, say) is copied by the browser, not as elements.
+        const textSelection = window.getSelection();
+        if (textSelection && !textSelection.isCollapsed && textSelection.toString().trim()) return;
         if (!p.copySelection()) return;
       } else if (key === "v") {
         if (!p.canPaste()) return;

@@ -135,6 +135,13 @@ function TextBlockRendererComponent({
               ref={contentRef}
               data-text-block-content
               className="markdown-content taskmap-scrollbar-hidden taskmap-text-block__markdown"
+              onCopy={(event) => {
+                // Copy what is shown as plain text: no Markdown source, no rendered formatting.
+                const text = window.getSelection()?.toString();
+                if (!text) return;
+                event.preventDefault();
+                event.clipboardData.setData("text/plain", text);
+              }}
             >
               <Suspense fallback={<div className="taskmap-text-block__fallback">{data.text}</div>}>
                 <MarkdownContent>{data.text}</MarkdownContent>
