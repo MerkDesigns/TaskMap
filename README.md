@@ -2,9 +2,7 @@
 
 <img alt="TaskMap banner" src=".github/assets/taskmap-banner.jpg">
 
-<h1>TaskMap</h1>
-
-<p><strong>A fast, private canvas for your tasks, notes and ideas — on your own PC.</strong></p>
+<p><strong>Local canvas to organize your tasks, notes and ideas.</strong></p>
 
 <p>
   <a href="https://github.com/MerkDesigns/TaskMap/releases/latest">
