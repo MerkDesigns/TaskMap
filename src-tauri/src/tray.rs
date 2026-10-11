@@ -8,6 +8,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
@@ -63,11 +64,23 @@ pub(crate) fn install(app: &AppHandle) -> tauri::Result<()> {
                 let _ = reopen_main_window(tray.app_handle());
             }
         });
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
+    if let Some(icon) = tray_icon().or_else(|| app.default_window_icon().cloned()) {
+        builder = builder.icon(icon);
     }
     builder.build(app)?;
     Ok(())
+}
+
+/// The monochrome TaskMap icon, which sits with the other tray icons instead of the coloured app
+/// icon. Compiled in, so it needs no resource lookup at runtime.
+const TRAY_ICON_PNG: &[u8] = include_bytes!("../../Assets/TaskMap_App_Icon_BW.png");
+
+fn tray_icon() -> Option<Image<'static>> {
+    let decoded = image::load_from_memory_with_format(TRAY_ICON_PNG, image::ImageFormat::Png)
+        .ok()?
+        .into_rgba8();
+    let (width, height) = decoded.dimensions();
+    Some(Image::new_owned(decoded.into_raw(), width, height))
 }
 
 /// With the window open, its renderer owns unsaved edits and quits through the session controller;
@@ -115,7 +128,17 @@ pub(crate) fn cancel_lock(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::TrayLock;
+    use super::{tray_icon, TrayLock};
+
+    #[test]
+    fn the_tray_uses_the_monochrome_icon() {
+        let icon = tray_icon().expect("the compiled-in tray icon decodes");
+        assert_eq!((icon.width(), icon.height()), (256, 256));
+        assert!(icon
+            .rgba()
+            .chunks_exact(4)
+            .all(|pixel| pixel[0] == pixel[1] && pixel[1] == pixel[2]));
+    }
 
     #[test]
     fn a_timer_fires_only_while_nothing_has_happened_since_it_was_armed() {
