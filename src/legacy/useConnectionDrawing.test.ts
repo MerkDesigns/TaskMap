@@ -103,6 +103,23 @@ describe("useConnectionDrawing", () => {
     expect(ports.onNodeCreated).toHaveBeenCalled();
   });
 
+  it("places the new node so its connecting port is where the pointer was released", () => {
+    const { drawing, completion } = setup();
+    document.elementFromPoint = () => document.body;
+    act(() => drawing().setConnectionMode(true));
+    act(() => drawing().start(press, "node", "right"));
+
+    act(() => void drawing().finish({ pointerId: 1, clientX: 400, clientY: 300 }));
+
+    // Without a rendered source node to measure beside, the size is estimated from the text.
+    const call = completion.complete.mock.calls[0] as unknown as [
+      { newNode: { geometry: { x: number; y: number } } },
+    ];
+    const { x, y } = call[0].newNode.geometry;
+    expect(x).toBe(400);
+    expect(y).toBeCloseTo(300 - 43 / 2);
+  });
+
   it("abandons the connection when C is released", () => {
     const { drawing, completion } = setup();
     act(() => drawing().setConnectionMode(true));
