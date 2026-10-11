@@ -3,7 +3,7 @@ import type { SnapGuide } from "../app/interactions/canvasInteractionTypes";
 
 /** A guide fades out this far either side of the pointer, so long guides stay quiet. */
 const GUIDE_REACH = 260;
-const GUIDE_DASHES = "rgba(45, 216, 200, 0.48) 0 6px, transparent 6px 13px";
+const GUIDE_DASHES = "var(--taskmap-canvas-guide-color) 0 6px, transparent 6px 13px";
 const GUIDE_THICKNESS = "calc(2px * var(--taskmap-camera-inverse-zoom, 1))";
 
 function guideStyle(guide: SnapGuide, canvasWidth: number, canvasHeight: number): CSSProperties {

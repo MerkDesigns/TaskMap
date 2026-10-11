@@ -2,7 +2,9 @@ import {
   createContext,
   forwardRef,
   useContext,
+  useEffect,
   useRef,
+  useState,
   type ForwardedRef,
   type HTMLAttributes,
   type MouseEvent,
@@ -11,6 +13,7 @@ import {
 import { MaterialSurface } from "../../materials/MaterialSurface";
 import { ScrollArea } from "../../primitives/Layout";
 import { LiquidToggleSwitch } from "../../primitives/LiquidToggleSwitch";
+import { Slider } from "../../primitives/SelectionControls";
 import { GlassListFrame } from "../workspace/GlassListFrame";
 import { useSharedSmallGlassList } from "../workspace/useSharedSmallGlassList";
 import { useWorkspaceRadii } from "../workspace/workspaceRadii";
@@ -171,5 +174,63 @@ export function SettingsToggleRow({
         }
       />
     </SettingsIsland>
+  );
+}
+
+export interface SettingsCommittedSliderProps {
+  readonly label: string;
+  readonly className?: string;
+  readonly value: number;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly format: (value: number) => string;
+  readonly onPreview?: (value: number) => void;
+  readonly onCommit: (value: number) => void;
+}
+
+/**
+ * A labelled slider that shows drags immediately (optionally previewing them live) and saves once
+ * on release, so a drag never queues a save per pixel or lags behind a saved snapshot.
+ */
+export function SettingsCommittedSlider({
+  label,
+  className,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onPreview,
+  onCommit,
+}: SettingsCommittedSliderProps) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    if (draft !== value) onCommit(draft);
+  };
+  return (
+    <label className={["taskmap-settings-committed-slider", className].filter(Boolean).join(" ")}>
+      <span className="taskmap-settings-slider-heading">
+        <span>{label}</span>
+        <span className="taskmap-settings-slider-value">{format(draft)}</span>
+      </span>
+      <Slider
+        className="taskmap-settings-slider"
+        min={min}
+        max={max}
+        step={step}
+        value={draft}
+        aria-label={label}
+        onChange={(event) => {
+          const next = Number(event.currentTarget.value);
+          setDraft(next);
+          onPreview?.(next);
+        }}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
+      />
+    </label>
   );
 }

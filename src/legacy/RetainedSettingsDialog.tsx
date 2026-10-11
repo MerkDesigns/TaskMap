@@ -38,7 +38,7 @@ export function RetainedSettingsDialog({
   onFpsCounterVisibleChange,
 }: RetainedSettingsDialogProps) {
   const [temporaryPanelsVisible, setTemporaryPanelsVisible] = useState(false);
-  const { canvasGridStyle, gridOpacityEdit } = settings;
+  const { gridOpacityEdit } = settings;
   const close = () => {
     gridOpacityEdit?.cancel();
     onClose();
@@ -67,14 +67,11 @@ export function RetainedSettingsDialog({
               onTrayLockMinutesChange: settings.setTrayLockMinutes,
             }}
             gridOpacityEdit={gridOpacityEdit}
-            canvasGridStyle={canvasGridStyle}
-            onCanvasGridStyleChange={settings.setCanvasGridStyle}
-            canvasGridOpacity={settings.canvasGridOpacity[canvasGridStyle]}
+            canvasBackgroundColor={settings.canvasBackgroundColor}
+            onCanvasBackgroundColorChange={settings.setCanvasBackgroundColor}
+            canvasGridOpacity={settings.canvasGridOpacity.dots}
             onCanvasGridOpacityChange={(opacity) =>
-              settings.setCanvasGridOpacity((current) => ({
-                ...current,
-                [canvasGridStyle]: opacity,
-              }))
+              settings.setCanvasGridOpacity((current) => ({ ...current, dots: opacity }))
             }
             defaultElementColors={settings.defaultElementColors}
             onDefaultElementColorChange={(elementType, color) =>

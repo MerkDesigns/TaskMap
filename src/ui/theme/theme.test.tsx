@@ -14,13 +14,7 @@ describe("target theme tokens", () => {
     expect(target.getPropertyValue("--taskmap-void-bg")).toBe("#0b0b0c");
     expect(target.getPropertyValue("--taskmap-canvas-bg")).toBe("#0f1011");
     expect(target.getPropertyValue("--taskmap-canvas-dot-rgb")).toBe("70 79 96");
-    expect(target.getPropertyValue("--taskmap-canvas-line-rgb")).toBe("88 101 124");
-    expect(target.getPropertyValue("--taskmap-canvas-line-major-rgb")).toBe("118 136 164");
     expect(target.getPropertyValue("--taskmap-canvas-grid-spacing")).toBe("24px");
-    expect(target.getPropertyValue("--taskmap-canvas-grid-major-spacing")).toBe("120px");
-    expect(target.getPropertyValue("--taskmap-canvas-grid-major-every")).toBe("5");
-    expect(target.getPropertyValue("--taskmap-canvas-line-minor-opacity-scale")).toBe("0.62");
-    expect(target.getPropertyValue("--taskmap-canvas-line-major-opacity-scale")).toBe("0.48");
     expect(target.getPropertyValue("--taskmap-canvas-dot-radius")).toBe("1.25px");
     expect(target.getPropertyValue("--taskmap-canvas-dot-opacity-fade-start")).toBe("0.55");
     expect(target.getPropertyValue("--taskmap-canvas-dot-opacity-fade-span")).toBe("0.45");

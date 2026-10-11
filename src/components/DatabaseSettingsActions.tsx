@@ -83,8 +83,8 @@ export function DatabaseSettingsActions(actions: DatabaseSettingsActionsProps) {
         label="Keep running in the tray"
         description={
           actions.closeToTray
-            ? "Closing the window keeps the database unlocked in the tray, so it reopens without the password."
-            : "Closing the window locks the database and quits TaskMap."
+            ? "Closing the window keeps it unlocked in the tray."
+            : "Closing the window locks it and quits TaskMap."
         }
         checked={actions.closeToTray}
         onCheckedChange={actions.onCloseToTrayChange}

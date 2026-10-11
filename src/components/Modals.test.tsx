@@ -61,8 +61,8 @@ describe("modal keyboard behavior", () => {
               trayLockMinutes: 0,
               onTrayLockMinutesChange: vi.fn(),
             }}
-            canvasGridStyle="dots"
-            onCanvasGridStyleChange={vi.fn()}
+            canvasBackgroundColor="#0F1011"
+            onCanvasBackgroundColorChange={vi.fn()}
             canvasGridOpacity={50}
             onCanvasGridOpacityChange={vi.fn()}
             defaultElementColors={DEFAULT_ELEMENT_COLORS}

@@ -49,6 +49,10 @@ fn default_chrome_auto_hide_delay_ms() -> u32 {
 fn default_close_to_tray() -> bool {
     true
 }
+/// The shipped canvas colour, `--taskmap-canvas-bg` in the theme.
+fn default_canvas_background_color() -> String {
+    "#0F1011".to_string()
+}
 /// Longest "lock after this long in the tray" choice: one day.
 pub(crate) const MAX_TRAY_LOCK_MINUTES: u32 = 24 * 60;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -75,6 +79,9 @@ pub(crate) struct DevicePreferences {
     /// Minutes in the tray before the session locks and TaskMap exits; 0 never locks.
     #[serde(default)]
     pub tray_lock_minutes: u32,
+    /// Background colour of every canvas. Absent in older files; defaults to the shipped colour.
+    #[serde(default = "default_canvas_background_color")]
+    pub canvas_background_color: String,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -104,6 +111,7 @@ impl Default for DevicePreferences {
             dismissed_update_version: None,
             close_to_tray: default_close_to_tray(),
             tray_lock_minutes: 0,
+            canvas_background_color: default_canvas_background_color(),
         }
     }
 }
@@ -139,6 +147,7 @@ impl DevicePreferences {
             .into_iter()
             .any(|radius| radius > MAX_CHROME_RADIUS)
             || self.recent_colors.iter().any(|s| !valid_color(s))
+            || !valid_color(&self.canvas_background_color)
             || self.tray_lock_minutes > MAX_TRAY_LOCK_MINUTES
             || self
                 .dismissed_update_version

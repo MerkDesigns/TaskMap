@@ -86,13 +86,8 @@ export function useRetainedCanvasSettings(): ReturnType<typeof useLegacyCanvasSe
     };
   return {
     settingsError,
-    canvasGridStyle: settings.grid.style,
-    setCanvasGridStyle(value) {
-      cancelOpacity();
-      const current = readSettings();
-      if (current)
-        complete(["grid.style"], { grid: { style: resolve(value, current.grid.style) } });
-    },
+    canvasBackgroundColor: preferences.canvasBackgroundColor,
+    setCanvasBackgroundColor: preferenceSetter("canvasBackgroundColor"),
     canvasGridOpacity: gridDraft ?? settings.grid.opacityPercent,
     setCanvasGridOpacity(value) {
       const current = readSettings();
@@ -121,7 +116,8 @@ export function useRetainedCanvasSettings(): ReturnType<typeof useLegacyCanvasSe
         cancelOpacity();
         const current = readSettings();
         if (!current) return;
-        const style = current.grid.style;
+        // Only the dot grid exists; a document that once chose lines still shows dots.
+        const style = "dots";
         const capture = runtime.callbacks.captureDocumentSettings([`grid.opacityPercent.${style}`]);
         if (capture)
           pending.current = { capture, style, value: current.grid.opacityPercent[style] };

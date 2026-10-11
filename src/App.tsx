@@ -96,7 +96,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const measuredInteractionCardSizes = measuredCards.sizes;
   const settings = useSettings();
   const {
-    canvasGridStyle,
+    canvasBackgroundColor,
     canvasGridOpacity,
     defaultElementColors,
     recentColors,
@@ -595,8 +595,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             canvas={{
               width: canvasWidth,
               height: canvasHeight,
-              gridStyle: canvasGridStyle,
-              gridOpacity: canvasGridOpacity[canvasGridStyle],
+              backgroundColor: canvasBackgroundColor,
+              gridOpacity: canvasGridOpacity.dots,
               imageUrlVersion: services.imageUrlVersion,
             }}
             onCanvasContextMenu={pointerPolicy.onCanvasContextMenu}

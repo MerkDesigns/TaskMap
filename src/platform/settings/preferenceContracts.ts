@@ -27,6 +27,8 @@ export const DEFAULT_CHROME_RADII: ChromeRadii = Object.freeze({
   settings: 12,
   settingsIsland: 8,
 });
+/** Shipped canvas background (`--taskmap-canvas-bg`, mirrored by the Rust default). */
+export const DEFAULT_CANVAS_BACKGROUND_COLOR = "#0F1011";
 export const devicePreferencesSchema = z
   .object({
     defaultElementColors: z
@@ -42,6 +44,8 @@ export const devicePreferencesSchema = z
     closeToTray: z.boolean(),
     /** Minutes in the tray before the session locks and TaskMap exits; 0 never locks. */
     trayLockMinutes: z.number().int().min(0).max(1440),
+    /** Background colour of every canvas. */
+    canvasBackgroundColor: color,
     dismissedUpdateVersion: z
       .string()
       .min(1)

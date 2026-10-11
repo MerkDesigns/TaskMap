@@ -39,6 +39,17 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- The canvas browser's header reads "Canvases" with the stack icon and the canvas count beside the
+  title; the "x Canvas Cards" line is gone.
+- Minor glass (toolbar islands, canvas cards, settings islands) no longer blurs what is behind it;
+  only its light pre-blur remains, so the content underneath stays readable.
+- The tray icon is the monochrome TaskMap icon instead of the coloured app icon.
+- Settings → Visual: the canvas grid is always dots (the lines option is gone), and the island is
+  now "Canvas" with a canvas background colour picker and a "Dot grid opacity" slider.
+- Canvas cards in the canvas browser preview text cards and mind-map nodes, with their connections,
+  as well as containers, text blocks and images.
+- Settings: the sleep mode delay slider and the Privacy mode toggle moved to Misc.
+- The box selection rectangle and snap guides are a quiet translucent white instead of teal.
 - Notifications use the same glass as the toolbars, slide in and out without the blur dropping
   out, and sit below the window controls instead of covering them.
 - The minimap pans the canvas: press anywhere on it to jump there, or drag its viewport frame. It
@@ -54,6 +65,15 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- A mind-map node created by releasing a C-drag connection on empty canvas is placed so its
+  connecting point sits exactly where the pointer was released.
+- Toggling the minimap from the toolbar is no longer an undo step.
+- Highlighted text in a text block can be copied with Ctrl+C, as plain text, without opening the
+  editor.
+- The "Keep running in the tray" setting keeps its height when switched; both descriptions fit on
+  one line.
+- In Settings → Shortcuts the title stays in place and only the list scrolls, inside its glass
+  island.
 - Panning over busy canvases runs at the display's full rate without stutters: a pan frame no
   longer makes the browser restyle every element on the canvas.
 - Images that were already shown since unlocking load much faster when they are needed again,

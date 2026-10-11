@@ -179,7 +179,7 @@ it("routes settings through document transactions and exits through the session 
   const mounted = render(<RetainedCanvasApplication runtime={runtime} />);
   try {
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
-    const slider = await screen.findByTitle("Grid opacity");
+    const slider = await screen.findByTitle("Dot grid opacity");
     Object.defineProperty(slider, "setPointerCapture", { value: () => {} });
     const before = runtime.controller.store.getState().documentWorkspace;
     fireEvent.pointerDown(slider, { pointerId: 1 });

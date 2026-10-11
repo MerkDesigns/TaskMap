@@ -5,7 +5,7 @@ import { ExtensionDropRipples } from "../components/ExtensionDropRipples";
 import type { ImageMediaLeases } from "../elements/image/ImageRenderer";
 import { MindMapConnections } from "../elements/mind-map/MindMapConnections";
 import type { ExtensionCommands } from "../extensions/extensionCommands";
-import type { CanvasGridStyle, TextCardElement } from "../types";
+import type { TextCardElement } from "../types";
 import { CanvasFrame, WorkspaceBackdropLayer } from "../ui/patterns/workspace";
 import { CanvasSnapGuides } from "./CanvasSnapGuides";
 import { LegacyCanvasVisibility } from "./interactions/LegacyCanvasVisibility";
@@ -39,8 +39,8 @@ export interface RetainedCanvasStageProps {
   readonly canvas: {
     readonly width: number;
     readonly height: number;
-    readonly gridStyle: CanvasGridStyle;
-    /** Grid opacity in percent. */
+    readonly backgroundColor: string;
+    /** Dot grid opacity in percent. */
     readonly gridOpacity: number;
     readonly imageUrlVersion: number;
   };
@@ -120,10 +120,11 @@ export function RetainedCanvasStage({
         ref={worldRef}
         className="absolute"
         data-camera-layer
-        data-grid-style={canvas.gridStyle}
+        data-grid-style="dots"
         data-image-url-version={canvas.imageUrlVersion}
         style={
           {
+            "--taskmap-canvas-bg": canvas.backgroundColor,
             "--taskmap-canvas-grid-opacity": canvas.gridOpacity / 100,
             "--taskmap-canvas-dot-size": "calc(1.25px * var(--taskmap-camera-inverse-zoom, 1))",
             width: canvas.width,
@@ -205,10 +206,7 @@ export function RetainedCanvasStage({
         extensionCommands={extensionCommands}
       />
       {selectionVisible && (
-        <div
-          ref={selectionRef}
-          className="pointer-events-none absolute z-30 rounded-md border border-dashed border-[#2dd8c8]/80 bg-[#2dd8c8]/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.22)]"
-        />
+        <div ref={selectionRef} className="taskmap-canvas-selection-rectangle" />
       )}
     </WorkspaceBackdropLayer>
   );

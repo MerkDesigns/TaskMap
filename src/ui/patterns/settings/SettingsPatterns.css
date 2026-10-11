@@ -154,20 +154,16 @@
   line-height: var(--taskmap-text-caption-line);
 }
 
-/* Interface island: compact two-column slider grid; the sleep delay spans both columns. */
+/* Interface island: compact two-column slider grid. */
 .taskmap-settings-interface-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--taskmap-space-2) var(--taskmap-space-4);
 }
 
-.taskmap-settings-interface-slider {
+.taskmap-settings-committed-slider {
   display: block;
   min-width: 0;
-}
-
-.taskmap-settings-interface-grid__wide {
-  grid-column: 1 / -1;
 }
 
 .taskmap-settings-grid-controls {
@@ -175,6 +171,23 @@
   grid-template-columns: 176px minmax(0, 1fr);
   align-items: center;
   gap: var(--taskmap-space-3);
+}
+
+/* Canvas island: the background colour button with its reset button beside it. */
+.taskmap-settings-background-control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--taskmap-space-1);
+}
+
+.taskmap-settings-background-control .taskmap-settings-color-trigger {
+  min-width: 0;
+  flex: 1;
+}
+
+.taskmap-settings-background-reset {
+  flex: none;
 }
 
 .taskmap-settings-grid-segments,
@@ -298,8 +311,45 @@
   margin-top: auto;
 }
 
+/* The shortcuts tab fits the visible height: its heading stays put and only the rows scroll,
+   inside the island's glass. */
+.taskmap-settings-content-stack--fit {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.taskmap-settings-shortcuts-tab {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
 .taskmap-settings-shortcuts {
-  --taskmap-settings-island-padding: var(--taskmap-space-2) var(--taskmap-space-3);
+  --taskmap-settings-island-padding: 0;
+  display: flex;
+  min-height: 0;
+  flex: 0 1 auto;
+  flex-direction: column;
+}
+
+.taskmap-settings-shortcuts > .taskmap-settings-island__content {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* Rows fade out within the padding instead of being cut off under the island's rim. */
+.taskmap-settings-shortcuts__rows {
+  min-height: 0;
+  padding: var(--taskmap-space-2) var(--taskmap-space-3);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black var(--taskmap-space-3),
+    black calc(100% - var(--taskmap-space-3)),
+    transparent 100%
+  );
 }
 
 .taskmap-settings-shortcut-row {

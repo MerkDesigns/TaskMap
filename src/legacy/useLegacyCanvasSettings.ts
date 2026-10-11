@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { DEFAULT_CHROME_RADII, type ChromeRadii } from "../platform/settings/preferenceContracts";
+import {
+  DEFAULT_CANVAS_BACKGROUND_COLOR,
+  DEFAULT_CHROME_RADII,
+  type ChromeRadii,
+} from "../platform/settings/preferenceContracts";
 import type { CanvasGridStyle, DefaultElementColors } from "../types";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import { DEFAULT_GRID_OPACITY } from "../app/defaultData";
@@ -12,7 +16,9 @@ export interface SettingsGesture {
 
 /** Legacy settings owner retained until the database route replaces legacy startup. */
 export function useLegacyCanvasSettings() {
-  const [canvasGridStyle, setCanvasGridStyle] = useState<CanvasGridStyle>("dots");
+  const [canvasBackgroundColor, setCanvasBackgroundColor] = useState(
+    DEFAULT_CANVAS_BACKGROUND_COLOR,
+  );
   const [canvasGridOpacity, setCanvasGridOpacity] =
     useState<Record<CanvasGridStyle, number>>(DEFAULT_GRID_OPACITY);
   const [defaultElementColors, setDefaultElementColors] =
@@ -32,8 +38,8 @@ export function useLegacyCanvasSettings() {
     undefined,
   );
   return {
-    canvasGridStyle,
-    setCanvasGridStyle,
+    canvasBackgroundColor,
+    setCanvasBackgroundColor,
     canvasGridOpacity,
     setCanvasGridOpacity,
     defaultElementColors,

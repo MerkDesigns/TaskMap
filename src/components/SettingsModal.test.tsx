@@ -26,12 +26,12 @@ describe("Settings modal", () => {
     expect(dialog).toHaveAttribute("data-material-plane", "modal");
     expect(dialog.style.getPropertyValue("--taskmap-material-radius")).toBe("12px");
     expect(document.querySelector(".taskmap-modal-scrim")).toBeInTheDocument();
-    expect(document.querySelectorAll(".taskmap-settings-island")).toHaveLength(5);
+    expect(document.querySelectorAll(".taskmap-settings-island")).toHaveLength(4);
 
     expect(document.querySelectorAll("[data-material='acrylic-large']")).toHaveLength(1);
     expect(
       document.querySelectorAll(".taskmap-material-surface[data-material='acrylic-small']"),
-    ).toHaveLength(8);
+    ).toHaveLength(6);
     // Islands share one settled Minor batch; knobs on islands are shells; the tab indicator sits
     // directly on the shell (first Minor depth) and keeps its own blur.
     expect(document.querySelectorAll("[data-glass-batch-id='settings-small']")).toHaveLength(1);
@@ -39,7 +39,7 @@ describe("Settings modal", () => {
       [...document.querySelectorAll(".taskmap-settings-island")].map((island) =>
         island.getAttribute("data-material-backdrop-source"),
       ),
-    ).toEqual(["shared", "shared", "shared", "shared", "shared"]);
+    ).toEqual(["shared", "shared", "shared", "shared"]);
     // Island content sits in the shared list mask so scroll edges morph instead of guillotining.
     document.querySelectorAll(".taskmap-settings-island").forEach((island) => {
       expect(island.querySelector(":scope > .taskmap-glass-list__content")).not.toBeNull();
@@ -68,13 +68,9 @@ describe("Settings modal", () => {
     renderSettings(props);
 
     const shadowsSwitch = screen.getByRole("switch", { name: "Canvas-only shadows" });
-    const privacySwitch = screen.getByRole("switch", { name: "Privacy mode" });
     expect(shadowsSwitch).toHaveAttribute("aria-checked", "true");
-    expect(privacySwitch).toHaveAttribute("aria-checked", "false");
     await user.click(shadowsSwitch);
-    await user.click(privacySwitch);
     expect(props.onShadowsUnderElementsChange).toHaveBeenCalledWith(false);
-    expect(props.onPrivacyModeEnabledChange).toHaveBeenCalledWith(true);
 
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((tab) => tab.textContent)).toEqual([
@@ -91,9 +87,8 @@ describe("Settings modal", () => {
     expect(screen.getByRole("button", { name: "Lock database" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "visual" }));
-    await user.click(screen.getByRole("button", { name: "Lines" }));
-    expect(props.onCanvasGridStyleChange).toHaveBeenCalledWith("lines");
-    const slider = screen.getByRole("slider", { name: "Grid opacity" });
+    expect(screen.queryByRole("button", { name: "Lines" })).toBeNull();
+    const slider = screen.getByRole("slider", { name: "Dot grid opacity" });
     expect(slider).toHaveAttribute("min", "0");
     expect(slider).toHaveAttribute("max", "100");
     expect(slider).toHaveAttribute("step", "any");
@@ -108,6 +103,18 @@ describe("Settings modal", () => {
     expect(screen.getByText("MADE BY MERK - v0.3.4")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close settings" }));
     expect(props.onClose).toHaveBeenCalledOnce();
+  });
+
+  it("resets the canvas background color to the default", async () => {
+    const user = userEvent.setup();
+    const props = settingsProps({ canvasBackgroundColor: "#223344" });
+    const view = renderSettings(props);
+    await user.click(screen.getByRole("button", { name: "Reset canvas background color" }));
+    expect(props.onCanvasBackgroundColorChange).toHaveBeenCalledExactlyOnceWith("#0F1011");
+
+    view.unmount();
+    renderSettings({ ...props, canvasBackgroundColor: "#0f1011" });
+    expect(screen.getByRole("button", { name: "Reset canvas background color" })).toBeDisabled();
   });
 
   it("uses single-action toggle rows", async () => {
@@ -127,6 +134,24 @@ describe("Settings modal", () => {
     await user.click(screen.getByText("Lock canvas interactions without preventing removal."));
     expect(props.onAllowLockedElementDeletionChange).toHaveBeenCalledTimes(2);
     expect(props.onAllowLockedElementDeletionChange).toHaveBeenLastCalledWith(false);
+
+    const privacySwitch = screen.getByRole("switch", { name: "Privacy mode" });
+    expect(privacySwitch).toHaveAttribute("aria-checked", "false");
+    await user.click(privacySwitch);
+    expect(props.onPrivacyModeEnabledChange).toHaveBeenCalledWith(true);
+  });
+
+  it("saves the sleep mode delay in milliseconds on release", async () => {
+    const user = userEvent.setup();
+    const props = settingsProps();
+    renderSettings(props);
+    await user.click(screen.getByRole("tab", { name: "misc" }));
+
+    const slider = screen.getByRole("slider", { name: "Delay" });
+    fireEvent.change(slider, { target: { value: "6.5" } });
+    expect(screen.getByText("6.5s")).toBeInTheDocument();
+    fireEvent.keyUp(slider, { key: "ArrowRight" });
+    expect(props.onSleepDelayChange).toHaveBeenCalledExactlyOnceWith(6500);
   });
 
   it("preserves the update action, shortcut order, and DEV toggles", async () => {
@@ -193,7 +218,7 @@ describe("Settings modal", () => {
     const groupSurfaces = () =>
       [...group.querySelectorAll("[data-material-strategy='native-glass']")] as HTMLElement[];
 
-    expect(groupSurfaces()).toHaveLength(9);
+    expect(groupSurfaces()).toHaveLength(7);
     expect(groupSurfaces().every((surface) => surface.dataset.materialPlane === "modal")).toBe(
       true,
     );
@@ -304,8 +329,8 @@ function settingsProps(
       trayLockMinutes: 0,
       onTrayLockMinutesChange: vi.fn(),
     },
-    canvasGridStyle: "dots",
-    onCanvasGridStyleChange: vi.fn(),
+    canvasBackgroundColor: "#0F1011",
+    onCanvasBackgroundColorChange: vi.fn(),
     canvasGridOpacity: 50,
     onCanvasGridOpacityChange: vi.fn(),
     defaultElementColors: DEFAULT_ELEMENT_COLORS,

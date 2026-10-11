@@ -1,19 +1,22 @@
 import {
   IconEye,
   IconEyeOff,
-  IconGrid3x3,
-  IconGridDots,
   IconKeyboard,
+  IconMoon,
   IconPalette,
   IconRefresh,
+  IconRestore,
   IconSettings,
 } from "@tabler/icons-react";
 import { SettingsInterfaceIsland } from "./SettingsInterfaceIsland";
-import type { ChromeRadii } from "../platform/settings/preferenceContracts";
+import {
+  DEFAULT_CANVAS_BACKGROUND_COLOR,
+  type ChromeRadii,
+} from "../platform/settings/preferenceContracts";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { commandErrorMessage } from "../app/commandError";
-import { AppUpdateInfo, CanvasGridStyle, DefaultElementColors } from "../types";
-import { Button, Keycap, LiquidTabs, SegmentedControl, Slider } from "../ui/primitives";
+import { AppUpdateInfo, DefaultElementColors } from "../types";
+import { Button, IconButton, Keycap, LiquidTabs, ScrollArea, Slider } from "../ui/primitives";
 import {
   isNestedModalPresenceBlocking,
   ModalDialogHeader,
@@ -21,6 +24,7 @@ import {
   useDialogFocus,
 } from "../ui/patterns/overlays";
 import {
+  SettingsCommittedSlider,
   SettingsIsland,
   SettingsIslandList,
   SettingsShell,
@@ -38,8 +42,8 @@ export { ClearCanvasModal, UpdateAvailableModal } from "./ProductionDialogs";
 type SettingsModalProps = {
   databaseActions: DatabaseSettingsActionsProps;
   gridOpacityEdit?: { begin(): void; commit(): void; cancel(): void };
-  canvasGridStyle: CanvasGridStyle;
-  onCanvasGridStyleChange: (style: CanvasGridStyle) => void;
+  canvasBackgroundColor: string;
+  onCanvasBackgroundColorChange: (color: string) => void;
   canvasGridOpacity: number;
   onCanvasGridOpacityChange: (opacity: number) => void;
   defaultElementColors: DefaultElementColors;
@@ -66,15 +70,6 @@ type SettingsModalProps = {
   onInstallUpdate: () => Promise<void>;
   onClose: () => void;
 };
-
-const GRID_OPTIONS: Array<{
-  label: string;
-  value: CanvasGridStyle;
-  Icon: typeof IconGridDots;
-}> = [
-  { label: "Dots", value: "dots", Icon: IconGridDots },
-  { label: "Lines", value: "lines", Icon: IconGrid3x3 },
-];
 
 const DEFAULT_COLOR_OPTIONS: Array<{
   label: string;
@@ -113,21 +108,11 @@ const SETTINGS_TAB_ITEMS = SETTINGS_TABS.map((tab) => ({
   label: tab === "data" ? "database" : tab,
 }));
 
-const GRID_SEGMENTS = GRID_OPTIONS.map(({ Icon, label, value }) => ({
-  value,
-  label: (
-    <>
-      <Icon size={15} stroke={2} />
-      <span>{label}</span>
-    </>
-  ),
-}));
-
 export function SettingsModal({
   databaseActions,
   gridOpacityEdit,
-  canvasGridStyle,
-  onCanvasGridStyleChange,
+  canvasBackgroundColor,
+  onCanvasBackgroundColorChange,
   canvasGridOpacity,
   onCanvasGridOpacityChange,
   defaultElementColors,
@@ -161,8 +146,8 @@ export function SettingsModal({
   const [activeTab, setActiveTab] = useState<"visual" | "data" | "misc" | "shortcuts" | "dev">(
     "visual",
   );
-  const [defaultColorPicker, setDefaultColorPicker] = useState<{
-    elementType: keyof DefaultElementColors;
+  const [colorPicker, setColorPicker] = useState<{
+    target: keyof DefaultElementColors | "canvasBackground";
     left: number;
     top: number;
   } | null>(null);
@@ -181,7 +166,7 @@ export function SettingsModal({
 
   useEffect(() => {
     if (activeTab !== "visual") {
-      setDefaultColorPicker(null);
+      setColorPicker(null);
     }
   }, [activeTab]);
 
@@ -233,22 +218,63 @@ export function SettingsModal({
             }}
           />
           <SettingsIslandList key={activeTab}>
-            <div className="taskmap-settings-content-stack">
+            <div
+              className={[
+                "taskmap-settings-content-stack",
+                activeTab === "shortcuts" && "taskmap-settings-content-stack--fit",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               {activeTab === "visual" && (
                 <>
                   <SettingsIsland>
-                    <div className="taskmap-settings-section-heading">Canvas grid</div>
+                    <div className="taskmap-settings-section-heading">Canvas</div>
                     <div className="taskmap-settings-grid-controls">
-                      <SegmentedControl
-                        className="taskmap-settings-grid-segments"
-                        label="Canvas grid style"
-                        items={GRID_SEGMENTS}
-                        value={canvasGridStyle}
-                        onValueChange={onCanvasGridStyleChange}
-                      />
+                      <div className="taskmap-settings-background-control">
+                        <Button
+                          variant="ghost"
+                          className="taskmap-settings-color-trigger"
+                          onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            setColorPicker({
+                              target: "canvasBackground",
+                              left: rect.right + 8,
+                              top: rect.top,
+                            });
+                          }}
+                          title="Choose canvas background color"
+                        >
+                          <span
+                            className="taskmap-settings-color-swatch"
+                            style={{ backgroundColor: canvasBackgroundColor }}
+                          />
+                          <span className="taskmap-settings-color-copy">
+                            <span className="taskmap-settings-color-label">Background</span>
+                            <span className="taskmap-settings-color-value">
+                              {canvasBackgroundColor}
+                            </span>
+                          </span>
+                        </Button>
+                        <IconButton
+                          variant="ghost"
+                          size="compact"
+                          className="taskmap-settings-background-reset"
+                          aria-label="Reset canvas background color"
+                          title="Reset to default"
+                          disabled={
+                            canvasBackgroundColor.toLowerCase() ===
+                            DEFAULT_CANVAS_BACKGROUND_COLOR.toLowerCase()
+                          }
+                          onClick={() =>
+                            onCanvasBackgroundColorChange(DEFAULT_CANVAS_BACKGROUND_COLOR)
+                          }
+                          icon={<IconRestore size={14} stroke={2} />}
+                        />
+                      </div>
                       <div>
                         <div className="taskmap-settings-slider-heading">
-                          <span>Opacity</span>
+                          <span>Dot grid opacity</span>
                           <span className="taskmap-settings-slider-value">
                             {Math.round(canvasGridOpacity)}%
                           </span>
@@ -288,7 +314,7 @@ export function SettingsModal({
                             if (!opacityCancelled.current)
                               onCanvasGridOpacityChange(Number(event.currentTarget.value));
                           }}
-                          title="Grid opacity"
+                          title="Dot grid opacity"
                         />
                       </div>
                     </div>
@@ -296,8 +322,6 @@ export function SettingsModal({
                   <SettingsInterfaceIsland
                     radii={chromeRadii}
                     onRadiusChange={onChromeRadiusChange}
-                    sleepDelayMs={sleepDelayMs}
-                    onSleepDelayChange={onSleepDelayChange}
                   />
                   <SettingsIsland>
                     <div className="taskmap-settings-section-heading">
@@ -315,8 +339,8 @@ export function SettingsModal({
                           className="taskmap-settings-color-trigger"
                           onClick={(event) => {
                             const rect = event.currentTarget.getBoundingClientRect();
-                            setDefaultColorPicker({
-                              elementType: value,
+                            setColorPicker({
+                              target: value,
                               left: rect.right + 8,
                               top: rect.top,
                             });
@@ -343,6 +367,17 @@ export function SettingsModal({
                     checked={shadowsUnderElements}
                     onCheckedChange={onShadowsUnderElementsChange}
                   />
+                </>
+              )}
+              {activeTab === "data" && <DatabaseSettingsActions {...databaseActions} />}
+              {activeTab === "misc" && (
+                <div className="taskmap-settings-misc">
+                  <SettingsToggleRow
+                    label="Allow removing locked elements"
+                    description="Lock canvas interactions without preventing removal."
+                    checked={allowLockedElementDeletion}
+                    onCheckedChange={onAllowLockedElementDeletionChange}
+                  />
                   <SettingsToggleRow
                     label="Privacy mode"
                     description="Hide TaskMap from screenshots and screen capture."
@@ -356,17 +391,24 @@ export function SettingsModal({
                     checked={privacyModeEnabled}
                     onCheckedChange={onPrivacyModeEnabledChange}
                   />
-                </>
-              )}
-              {activeTab === "data" && <DatabaseSettingsActions {...databaseActions} />}
-              {activeTab === "misc" && (
-                <div className="taskmap-settings-misc">
-                  <SettingsToggleRow
-                    label="Allow removing locked elements"
-                    description="Lock canvas interactions without preventing removal."
-                    checked={allowLockedElementDeletion}
-                    onCheckedChange={onAllowLockedElementDeletionChange}
-                  />
+                  <SettingsIsland>
+                    <div className="taskmap-settings-section-heading">
+                      <IconMoon size={16} stroke={2} />
+                      <span>Sleep mode</span>
+                    </div>
+                    <div className="taskmap-settings-section-description">
+                      Hides the toolbars and side panel after this long without input.
+                    </div>
+                    <SettingsCommittedSlider
+                      label="Delay"
+                      value={sleepDelayMs / 1000}
+                      min={1}
+                      max={15}
+                      step={0.5}
+                      format={(value) => `${value}s`}
+                      onCommit={(value) => onSleepDelayChange(Math.round(value * 1000))}
+                    />
+                  </SettingsIsland>
                   <Button
                     className="taskmap-settings-update-button"
                     leadingIcon={<IconRefresh size={17} stroke={2} />}
@@ -378,22 +420,24 @@ export function SettingsModal({
                 </div>
               )}
               {activeTab === "shortcuts" && (
-                <div>
+                <div className="taskmap-settings-shortcuts-tab">
                   <div className="taskmap-settings-section-heading">
                     <IconKeyboard size={16} stroke={2} />
                     <span>Shortcuts</span>
                   </div>
                   <SettingsIsland className="taskmap-settings-shortcuts">
-                    {SHORTCUTS.map((shortcut) => (
-                      <div key={shortcut.label} className="taskmap-settings-shortcut-row">
-                        <span className="taskmap-settings-shortcut-label">{shortcut.label}</span>
-                        <span className="taskmap-settings-key-group">
-                          {shortcut.keys.map((key) => (
-                            <Keycap key={key}>{key}</Keycap>
-                          ))}
-                        </span>
-                      </div>
-                    ))}
+                    <ScrollArea scrollbar="hidden" className="taskmap-settings-shortcuts__rows">
+                      {SHORTCUTS.map((shortcut) => (
+                        <div key={shortcut.label} className="taskmap-settings-shortcut-row">
+                          <span className="taskmap-settings-shortcut-label">{shortcut.label}</span>
+                          <span className="taskmap-settings-key-group">
+                            {shortcut.keys.map((key) => (
+                              <Keycap key={key}>{key}</Keycap>
+                            ))}
+                          </span>
+                        </div>
+                      ))}
+                    </ScrollArea>
                   </SettingsIsland>
                 </div>
               )}
@@ -418,18 +462,26 @@ export function SettingsModal({
         </div>
         <div className="taskmap-settings-footer">MADE BY MERK - v{appVersion}</div>
       </SettingsShell>
-      {defaultColorPicker && (
+      {colorPicker && (
         <ColorPickerMenu
           aboveModals
-          key={defaultColorPicker.elementType}
-          color={defaultElementColors[defaultColorPicker.elementType]}
-          left={defaultColorPicker.left}
-          top={defaultColorPicker.top}
+          key={colorPicker.target}
+          color={
+            colorPicker.target === "canvasBackground"
+              ? canvasBackgroundColor
+              : defaultElementColors[colorPicker.target]
+          }
+          left={colorPicker.left}
+          top={colorPicker.top}
           recentColors={recentColors}
-          onChange={(color) => onDefaultElementColorChange(defaultColorPicker.elementType, color)}
+          onChange={(color) =>
+            colorPicker.target === "canvasBackground"
+              ? onCanvasBackgroundColorChange(color)
+              : onDefaultElementColorChange(colorPicker.target, color)
+          }
           onClose={(recentColor) => {
             onRememberRecentColor(recentColor);
-            setDefaultColorPicker(null);
+            setColorPicker(null);
           }}
         />
       )}

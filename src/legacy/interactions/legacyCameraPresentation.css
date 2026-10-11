@@ -10,3 +10,14 @@
 [data-stage] > [data-camera-layer] {
   --taskmap-camera-transform: inherit;
 }
+
+/* The box selection rectangle, positioned in screen pixels by the camera presentation. */
+.taskmap-canvas-selection-rectangle {
+  position: absolute;
+  z-index: 30;
+  border: 1px dashed var(--taskmap-canvas-selection-border);
+  border-radius: 0.375rem;
+  background-color: var(--taskmap-canvas-selection-fill);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.22);
+  pointer-events: none;
+}

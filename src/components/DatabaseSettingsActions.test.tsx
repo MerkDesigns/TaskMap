@@ -42,9 +42,7 @@ describe("DatabaseSettingsActions", () => {
   it("hides the tray timer when closing quits instead", () => {
     renderActions({ closeToTray: false });
 
-    expect(
-      screen.getByText("Closing the window locks the database and quits TaskMap."),
-    ).toBeVisible();
+    expect(screen.getByText("Closing the window locks it and quits TaskMap.")).toBeVisible();
     expect(screen.queryByText("Lock in the tray after")).not.toBeInTheDocument();
   });
 });

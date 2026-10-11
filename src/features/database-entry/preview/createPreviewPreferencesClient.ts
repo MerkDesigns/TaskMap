@@ -21,6 +21,7 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       chromeAutoHideDelayMs: 3000,
       closeToTray: true,
       trayLockMinutes: 0,
+      canvasBackgroundColor: "#0F1011",
       chromeRadii: { ...DEFAULT_CHROME_RADII },
       dismissedUpdateVersion: null,
     },
