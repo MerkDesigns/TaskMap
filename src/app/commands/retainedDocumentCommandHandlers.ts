@@ -2,7 +2,10 @@ import { coreDocumentCommandHandlers } from "../../domain/commands/core/coreDocu
 import type { DomainCommandHandler } from "../../domain/commands/commandHandler";
 import { editRetainedExtensionsCommand } from "./retainedExtensionCommand";
 import { pasteRetainedElementsCommand } from "./retainedPasteCommand";
-import { editRetainedSettingsCommand } from "./retainedSettingsCommand";
+import {
+  editRetainedSettingsCommand,
+  editRetainedViewSettingsCommand,
+} from "./retainedSettingsCommand";
 import { importRetainedImageCommand } from "./retainedImageImportCommand";
 import { replaceRetainedImageCommand } from "./retainedImageReplaceCommand";
 import { retainedCanvasCommandHandlers } from "./retainedCanvasCommands";
@@ -35,6 +38,7 @@ const retainedHandlers = [
   importRetainedImageCommand,
   replaceRetainedImageCommand,
   editRetainedSettingsCommand,
+  editRetainedViewSettingsCommand,
   insertRetainedContainerCardCommand,
   replaceRetainedContainerCardsCommand,
   pasteRetainedElementsCommand,

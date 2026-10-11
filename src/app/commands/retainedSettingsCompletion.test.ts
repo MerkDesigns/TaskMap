@@ -2,7 +2,11 @@
 import { expect, it, vi } from "vitest";
 import { callbackSetup } from "./retainedCallbackTestSupport";
 import { retainedSettingFields, type RetainedSettingField } from "./retainedSettingsCallbacks";
-import { settingsEntries, type RetainedSettingsUpdate } from "./retainedSettingsCommand";
+import {
+  RETAINED_VIEW_SETTING_FIELDS,
+  settingsEntries,
+  type RetainedSettingsUpdate,
+} from "./retainedSettingsCommand";
 
 const changes: Record<RetainedSettingField, RetainedSettingsUpdate> = {
   "grid.style": { grid: { style: "lines" } },
@@ -13,28 +17,41 @@ const changes: Record<RetainedSettingField, RetainedSettingsUpdate> = {
   minimapEnabled: { minimapEnabled: false },
 };
 
-it.each(retainedSettingFields)(
-  "routes %s through one reversible document transaction",
-  async (field) => {
-    const setup = await callbackSetup();
-    const before = setup.store.getState().documentWorkspace.document!;
-    const edit = setup.actions.captureDocumentSettings([field])!;
-    expect(edit.complete(changes[field])).toEqual({ ok: true, changed: true });
-    const after = setup.store.getState().documentWorkspace;
-    const values = new Map(settingsEntries(after.document!.documentSettings));
-    for (const [key, value] of settingsEntries(changes[field])) expect(values.get(key)).toBe(value);
-    expect(after.history.past).toHaveLength(1);
-    expect(after.document!.elements).toBe(before.elements);
-    expect(after.document!.mediaReferences).toBe(before.mediaReferences);
-    expect(after.document!.canvases).toBe(before.canvases);
-    expect(setup.actions.undo()).toEqual({ ok: true, changed: true });
-    expect(setup.store.getState().documentWorkspace.document).toEqual(before);
-    expect(setup.actions.redo()).toEqual({ ok: true, changed: true });
-    expect(setup.store.getState().documentWorkspace.document).toEqual(after.document);
-    expect(edit.complete(changes[field])).toEqual({ ok: false, code: "expired-action" });
-    await setup.dispose();
-  },
+const recordedFields = retainedSettingFields.filter(
+  (field) => !(RETAINED_VIEW_SETTING_FIELDS as readonly string[]).includes(field),
 );
+
+it.each(recordedFields)("routes %s through one reversible document transaction", async (field) => {
+  const setup = await callbackSetup();
+  const before = setup.store.getState().documentWorkspace.document!;
+  const edit = setup.actions.captureDocumentSettings([field])!;
+  expect(edit.complete(changes[field])).toEqual({ ok: true, changed: true });
+  const after = setup.store.getState().documentWorkspace;
+  const values = new Map(settingsEntries(after.document!.documentSettings));
+  for (const [key, value] of settingsEntries(changes[field])) expect(values.get(key)).toBe(value);
+  expect(after.history.past).toHaveLength(1);
+  expect(after.document!.elements).toBe(before.elements);
+  expect(after.document!.mediaReferences).toBe(before.mediaReferences);
+  expect(after.document!.canvases).toBe(before.canvases);
+  expect(setup.actions.undo()).toEqual({ ok: true, changed: true });
+  expect(setup.store.getState().documentWorkspace.document).toEqual(before);
+  expect(setup.actions.redo()).toEqual({ ok: true, changed: true });
+  expect(setup.store.getState().documentWorkspace.document).toEqual(after.document);
+  expect(edit.complete(changes[field])).toEqual({ ok: false, code: "expired-action" });
+  await setup.dispose();
+});
+
+it("toggles the minimap without adding an undo step", async () => {
+  const setup = await callbackSetup();
+  const edit = setup.actions.captureDocumentSettings(["minimapEnabled"])!;
+  expect(edit.complete({ minimapEnabled: false })).toEqual({ ok: true, changed: true });
+  const after = setup.store.getState().documentWorkspace;
+  expect(after.document!.documentSettings.minimapEnabled).toBe(false);
+  expect(after.history.past).toHaveLength(0);
+  await setup.store.workspace.flushSave();
+  expect(setup.client.saveDocument).toHaveBeenCalledTimes(1);
+  await setup.dispose();
+});
 
 it("groups selected leaves without overwriting a concurrent unrelated setting", async () => {
   const setup = await callbackSetup();

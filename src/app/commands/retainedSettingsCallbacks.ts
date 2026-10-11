@@ -1,6 +1,9 @@
 import type { DocumentSettings } from "../../domain/document/documentTypes";
 import type { createRetainedCompletionOwner } from "./retainedCompletionOwner";
-import type { RetainedSettingsUpdate } from "./retainedSettingsCommand";
+import {
+  RETAINED_VIEW_SETTING_FIELDS,
+  type RetainedSettingsUpdate,
+} from "./retainedSettingsCommand";
 
 export const retainedSettingFields = [
   "grid.style",
@@ -59,6 +62,9 @@ export function retainedSettingsCallbacks(owner: ReturnType<typeof createRetaine
         fields.some((field) => !retainedSettingFields.includes(field))
       )
         return null;
+      const viewOnly = fields.every((field) =>
+        (RETAINED_VIEW_SETTING_FIELDS as readonly string[]).includes(field),
+      );
       return owner.capture(
         "settings",
         pickSettings(document.documentSettings, selected),
@@ -66,7 +72,9 @@ export function retainedSettingsCallbacks(owner: ReturnType<typeof createRetaine
           to === null
             ? null
             : {
-                type: "document.settings.edit-captured",
+                type: viewOnly
+                  ? "document.settings.edit-view-captured"
+                  : "document.settings.edit-captured",
                 payload: { from, to },
               },
       );

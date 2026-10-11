@@ -37,8 +37,8 @@ it("switches real bindings without replacing session, document, history or remem
   const initial = runtime.controller.store.getState().documentWorkspace.document!.documentSettings;
   expect(
     runtime.callbacks
-      .captureDocumentSettings(["minimapEnabled"])
-      ?.complete({ minimapEnabled: !initial.minimapEnabled }).ok,
+      .captureDocumentSettings(["showElementShadows"])
+      ?.complete({ showElementShadows: !initial.showElementShadows }).ok,
   ).toBe(true);
   await runtime.controller.store.workspace.flushSave();
   const dispose = vi.spyOn(runtime.controller, "dispose");
