@@ -136,8 +136,10 @@ mod tests {
         assert_eq!((icon.width(), icon.height()), (256, 256));
         assert!(icon
             .rgba()
-            .chunks_exact(4)
-            .all(|pixel| pixel[0] == pixel[1] && pixel[1] == pixel[2]));
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|[red, green, blue, _]| red == green && green == blue));
     }
 
     #[test]
