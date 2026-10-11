@@ -36,7 +36,10 @@
 .taskmap-workbench button[aria-pressed="true"] {
   background: #405a76;
 }
-.taskmap-workbench__body > label {
+.taskmap-workbench__tabs {
+  margin-top: 8px;
+}
+:is(.taskmap-workbench__body, .taskmap-workbench__pane) > label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -52,11 +55,11 @@
   background: #262d38;
   font: inherit;
 }
-.taskmap-workbench__body > label > input[type="range"] {
+:is(.taskmap-workbench__body, .taskmap-workbench__pane) > label > input[type="range"] {
   flex: 1;
 }
-.taskmap-workbench__body > label > output {
-  min-width: 32px;
+:is(.taskmap-workbench__body, .taskmap-workbench__pane) > label > output {
+  min-width: 40px;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -93,4 +96,7 @@
 }
 [data-taskmap-ui-lab="workbench-baseline"] .taskmap-ui-lab__stage {
   padding-bottom: 130px;
+}
+.taskmap-workbench__pane > button {
+  margin-top: 6px;
 }

@@ -115,6 +115,27 @@
   contain-intrinsic-size: 114.4px 66px;
 }
 
+/* Elements drawn in a preview; positions and sizes are set inline in preview pixels. */
+.taskmap-canvas-preview__item {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: 1px;
+  background-color: var(--taskmap-container-bg);
+}
+
+/* Mind-map connections sit under the nodes, like on the canvas. */
+.taskmap-canvas-preview__connections {
+  position: absolute;
+  z-index: 19;
+  overflow: visible;
+  fill: none;
+  pointer-events: none;
+  stroke: rgb(220 226 235 / 0.52);
+  stroke-width: 0.8px;
+}
+
 .taskmap-canvas-preview[data-material="cutout"] {
   border: var(--taskmap-canvas-preview-border-width, 1px) solid
     rgb(
@@ -139,7 +160,7 @@
 .taskmap-canvas-browser-card__title {
   overflow: hidden;
   color: rgb(255 255 255 / 88%);
-  font-size: 14px;
+  font-size: var(--taskmap-canvas-card-title-size, 14px);
   font-weight: 700;
   line-height: calc(1.2em - 2px);
   overflow-wrap: anywhere;
@@ -148,7 +169,7 @@
 
 .taskmap-canvas-browser-card__subtitle {
   color: rgb(255 255 255 / 58%);
-  font-size: 11px;
+  font-size: var(--taskmap-canvas-card-subtitle-size, 11px);
   font-variant-numeric: tabular-nums;
   line-height: normal;
   overflow-wrap: anywhere;

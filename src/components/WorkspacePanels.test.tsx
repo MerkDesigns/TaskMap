@@ -53,7 +53,7 @@ describe("Workspace panels", () => {
       </>,
     );
     expect(container.querySelector('[data-material="acrylic-large"]')).toBeNull();
-    expect(screen.getByRole("heading", { name: "Canvas Browser" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Canvases" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Extensions" })).toBeInTheDocument();
   });
 

@@ -10,6 +10,7 @@ import {
   type SurfacePresenceName,
 } from "../../ui/motion/usePresenceMotion";
 import { BlurPresenceTuning } from "./BlurPresenceTuning";
+import { CanvasBrowserTuning } from "./CanvasBrowserTuning";
 import { WorkbenchTools } from "./WorkbenchTools";
 import "../../ui-lab/uiLab.css";
 import "./visualWorkbench.css";
@@ -22,6 +23,7 @@ export default function DevelopmentVisualWorkbench({
 }) {
   const [view, setView] = useState<"app" | "lab">("app");
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [section, setSection] = useState<"general" | "canvases">("general");
   const [quickExtensionsPreset, setQuickExtensionsPreset] =
     useState<PresencePresetName>("materialFadeSlideUp");
   const [sidePanelPreset, setSidePanelPreset] =
@@ -79,49 +81,71 @@ export default function DevelopmentVisualWorkbench({
           </nav>
           {/* Hidden, not unmounted: the tuning controls keep their state while collapsed. */}
           <div className="taskmap-workbench__body" hidden={collapsed}>
-            <WorkbenchTools />
-            <label>
-              Quick Extensions motion
-              <select
-                value={quickExtensionsPreset}
-                onChange={(e) => setQuickExtensionsPreset(e.target.value as PresencePresetName)}
+            <nav className="taskmap-workbench__tabs" aria-label="Workbench sections">
+              <button
+                type="button"
+                aria-pressed={section === "general"}
+                onClick={() => setSection("general")}
               >
-                {presetOptions()}
-              </select>
-            </label>
-            <label>
-              Side panel motion
-              <select
-                value={sidePanelPreset}
-                onChange={(e) => setSidePanelPreset(e.target.value as SurfacePresenceName)}
+                General
+              </button>
+              <button
+                type="button"
+                aria-pressed={section === "canvases"}
+                onClick={() => setSection("canvases")}
               >
-                <option value="fadeScaleOffscreenSlide">
-                  Material fade + Off-screen slide + Scale
-                </option>
-                <option value="fadeOffscreenSlide">Material fade + Off-screen slide</option>
-                <option value="offscreenSlide">Off-screen slide</option>
-                {presetOptions()}
-              </select>
-            </label>
-            <label>
-              Minimap motion
-              <select
-                value={minimapPreset}
-                onChange={(e) => setMinimapPreset(e.target.value as PresencePresetName)}
-              >
-                {presetOptions()}
-              </select>
-            </label>
-            <label>
-              Dialog motion
-              <select
-                value={dialogPreset}
-                onChange={(e) => setDialogPreset(e.target.value as PresencePresetName)}
-              >
-                {presetOptions()}
-              </select>
-            </label>
-            <BlurPresenceTuning />
+                Canvases
+              </button>
+            </nav>
+            {/* Both sections stay mounted so their session overrides persist across tab switches. */}
+            <div className="taskmap-workbench__pane" hidden={section !== "general"}>
+              <WorkbenchTools />
+              <label>
+                Quick Extensions motion
+                <select
+                  value={quickExtensionsPreset}
+                  onChange={(e) => setQuickExtensionsPreset(e.target.value as PresencePresetName)}
+                >
+                  {presetOptions()}
+                </select>
+              </label>
+              <label>
+                Side panel motion
+                <select
+                  value={sidePanelPreset}
+                  onChange={(e) => setSidePanelPreset(e.target.value as SurfacePresenceName)}
+                >
+                  <option value="fadeScaleOffscreenSlide">
+                    Material fade + Off-screen slide + Scale
+                  </option>
+                  <option value="fadeOffscreenSlide">Material fade + Off-screen slide</option>
+                  <option value="offscreenSlide">Off-screen slide</option>
+                  {presetOptions()}
+                </select>
+              </label>
+              <label>
+                Minimap motion
+                <select
+                  value={minimapPreset}
+                  onChange={(e) => setMinimapPreset(e.target.value as PresencePresetName)}
+                >
+                  {presetOptions()}
+                </select>
+              </label>
+              <label>
+                Dialog motion
+                <select
+                  value={dialogPreset}
+                  onChange={(e) => setDialogPreset(e.target.value as PresencePresetName)}
+                >
+                  {presetOptions()}
+                </select>
+              </label>
+              <BlurPresenceTuning />
+            </div>
+            <div className="taskmap-workbench__pane" hidden={section !== "canvases"}>
+              <CanvasBrowserTuning />
+            </div>
           </div>
         </aside>
       </MotionProvider>

@@ -1,6 +1,7 @@
 import {
   IconCheck,
   IconLayoutSidebarLeftCollapse,
+  IconStack2,
   IconLayoutSidebarLeftExpand,
   IconDotsVertical,
   IconPencil,
@@ -22,6 +23,8 @@ import {
 import { createPortal } from "react-dom";
 import {} from "../constants";
 import { TaskCanvas } from "../types";
+import { looseCardBounds } from "../legacy/canvasElementBounds";
+import { getMindmapConnectionPath, getMindmapPortPoint } from "../mindmapMath";
 import { useClampedFixedPosition } from "../useClampedFixedPosition";
 import type { CanvasInteractionController } from "../app/interactions/canvasInteractionTypes";
 import {
@@ -327,9 +330,15 @@ export function CanvasManager({
       style={{ "--taskmap-canvas-preview-gap": `${previewGap}px` } as CSSProperties}
     >
       <header className="taskmap-canvas-browser__header">
-        <div className="taskmap-canvas-browser__header-copy">
-          <h2>Canvas Browser</h2>
-          <span>{canvases.length} Canvas Cards</span>
+        <div className="taskmap-canvas-browser__heading">
+          <IconStack2 size={18} stroke={2} className="taskmap-canvas-browser__heading-icon" />
+          <h2>Canvases</h2>
+          <output
+            className="taskmap-canvas-browser__header-count"
+            aria-label={`${canvases.length} canvases`}
+          >
+            {canvases.length}
+          </output>
         </div>
         <div className="taskmap-canvas-browser__header-end">
           <ToggleButton
@@ -357,12 +366,6 @@ export function CanvasManager({
             aria-label="Create canvas"
             icon={<IconPlus size={19} stroke={2} />}
           />
-          <output
-            className="taskmap-canvas-browser__header-count"
-            aria-label={`${canvases.length} canvases`}
-          >
-            {canvases.length}
-          </output>
         </div>
       </header>
 
@@ -617,6 +620,7 @@ export function CanvasManager({
                     }}
                   />
                 ))}
+              {workActive && <CanvasPreviewCards canvas={canvas} projection={projection} />}
             </CanvasPreview>
 
             <div className="taskmap-canvas-browser-card__copy">
@@ -751,4 +755,73 @@ function useStableCanvasOrder(canvases: readonly TaskCanvas[]): readonly string[
     orderRef.current = next;
   }
   return orderRef.current;
+}
+
+/**
+ * Loose text cards and mind-map nodes in a canvas preview, sized from their text like on the
+ * canvas before they are measured, and the mind-map connections between them. The connections
+ * are one SVG spanning the canvas in world units, so live camera presentation scales it like any
+ * other preview item.
+ */
+function CanvasPreviewCards({
+  canvas,
+  projection,
+}: {
+  readonly canvas: TaskCanvas;
+  readonly projection: ReturnType<typeof canvasPreviewProjection>;
+}) {
+  const looseCards = canvas.textCards.filter((card) => !card.containerId);
+  const bounds = new Map(
+    looseCards.map((card) => {
+      const box = looseCardBounds(card);
+      return [card.id, { x: box.left, y: box.top, width: box.width, height: box.height }];
+    }),
+  );
+  return (
+    <>
+      {canvas.mindmapConnections.length > 0 && (
+        <svg
+          className="taskmap-canvas-preview__connections"
+          viewBox={`0 0 ${canvas.width} ${canvas.height}`}
+          preserveAspectRatio="none"
+          {...{ [PREVIEW_WORLD_ATTRIBUTE]: `0 0 ${canvas.width} ${canvas.height}` }}
+          style={previewItemStyle(projection, 0, 0, canvas.width, canvas.height)}
+        >
+          {canvas.mindmapConnections.map((connection) => {
+            const source = bounds.get(connection.sourceId);
+            const target = bounds.get(connection.targetId);
+            if (!source || !target) return null;
+            return (
+              <path
+                key={connection.id}
+                d={getMindmapConnectionPath(
+                  getMindmapPortPoint(source, connection.sourcePort),
+                  connection.sourcePort,
+                  getMindmapPortPoint(target, connection.targetPort),
+                  connection.targetPort,
+                )}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          })}
+        </svg>
+      )}
+      {looseCards.map((card) => {
+        const box = bounds.get(card.id)!;
+        return (
+          <div
+            key={card.id}
+            data-canvas-preview-text-card={card.id}
+            className="taskmap-canvas-preview__item"
+            {...{ [PREVIEW_WORLD_ATTRIBUTE]: `${box.x} ${box.y} ${box.width} ${box.height}` }}
+            style={{
+              ...previewItemStyle(projection, box.x, box.y, box.width, box.height),
+              zIndex: 20 + (card.layer ?? 0),
+              borderColor: card.accent,
+            }}
+          />
+        );
+      })}
+    </>
+  );
 }
