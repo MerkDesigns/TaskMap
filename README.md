@@ -26,7 +26,7 @@
 
 </div>
 
-![TaskMap with a project board, notes, a mind map and the canvas browser](.github/assets/preview.png)
+![TaskMap showing a website relaunch board with checklists, private notes, a mind map, Markdown notes and the canvas browser](.github/assets/preview.png)
 
 ## What is TaskMap?
 
