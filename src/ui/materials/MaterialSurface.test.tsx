@@ -89,7 +89,7 @@ describe("MaterialSurface", () => {
     expect(surface).toHaveAttribute("data-material-strategy", "native-glass");
     expect(surface).toHaveAttribute("data-material-role", "small");
     expect(surface.style.getPropertyValue("--taskmap-material-radius")).toBe("13.5px");
-    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("23.5px");
+    expect(surface.style.getPropertyValue("--taskmap-material-blur")).toBe("0px");
     expect(surface.style.getPropertyValue("--taskmap-material-preblur")).toBe("5px");
     expect(surface.style.getPropertyValue("--taskmap-material-content-clip-inset")).toBe("2px");
     expect(surface.style.getPropertyValue("--taskmap-material-brightness")).toBe("0.9");
@@ -192,13 +192,13 @@ describe("MaterialSurface", () => {
     fireEvent(window, new Event("resize"));
     frame?.(0);
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
-    expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
+    expect(overscan(small)).toEqual(["5.00px", "15.00px", "15.00px", "15.00px"]);
 
     rerender(view("is-dragging is-snapping"));
     fireEvent(window, new Event("resize"));
     frame?.(16);
     expect(small).toHaveAttribute("data-material-sampling-boundary", "inherited");
-    expect(overscan(small)).toEqual(["5.00px", "20.00px", "85.50px", "85.50px"]);
+    expect(overscan(small)).toEqual(["5.00px", "15.00px", "15.00px", "15.00px"]);
   });
 
   it("coalesces scroll-driven position refreshes without creating a refresh loop", () => {

@@ -47,7 +47,9 @@ export const ACRYLIC_SMALL = Object.freeze({
   strategy: "native-glass",
   role: "small",
   defaultRadiusPx: 13.5,
-  blurPx: 23.5,
+  // Minor glass keeps only its 5px pre-blur: the light diffusion reads as glass without smearing
+  // the content behind small surfaces.
+  blurPx: 0,
   preblurPx: 5,
   interactionPreblurPx: null,
   saturation: 0.78,

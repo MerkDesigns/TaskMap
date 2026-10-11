@@ -14,7 +14,7 @@ are not instructions to restore those documents or follow their old requirements
 The cached Canvas2D acrylic compositor documented here was the previous production candidate. The
 accepted Large/Small path now uses live native CSS glass through the same feature-facing
 `MaterialSurface` abstraction. Large permanently composes a 6px pre-blur with a 60px main backdrop
-blur; Small permanently uses its accepted 5px pre-blur and 23.5px main backdrop blur. Tint, filtering, clipped blur-derived
+blur; Small uses its 5px pre-blur with no main backdrop blur (0px since 2026-10-11; 23.5px before). Tint, filtering, clipped blur-derived
 overscan, shadows, and the DPR-aware perimeter rim remain centralized in the material system.
 
 Nested Small surfaces inherit a logical Large sampling boundary, so their overscan cannot sample

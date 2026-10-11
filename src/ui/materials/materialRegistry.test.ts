@@ -65,7 +65,7 @@ describe("material definitions", () => {
       strategy: "native-glass",
       role: "small",
       defaultRadiusPx: 13.5,
-      blurPx: 23.5,
+      blurPx: 0,
       preblurPx: 5,
       interactionPreblurPx: null,
       saturation: 0.78,
