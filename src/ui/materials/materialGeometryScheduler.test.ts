@@ -174,6 +174,31 @@ describe("central material geometry", () => {
     expect(measure).not.toHaveBeenCalled();
   });
 
+  it("draws an owned rim at the latest supplied size even when an older write runs last", () => {
+    const card = document.createElement("div");
+    const canvas = document.createElement("canvas");
+    const definition = materialRegistry.require("acrylic-small");
+    if (definition.strategy !== "native-glass") throw new Error("Expected native Small");
+    disposals.push(
+      registerNativeGlassGeometry({
+        element: card,
+        canvas,
+        definition,
+        radius: 8,
+        owned: true,
+        shared: true,
+        samplingElement: () => null,
+      }),
+    );
+    supplyMaterialSurfaceSize(card, { width: 264, height: 84 });
+    frame();
+    // A card cut off at the list edge, then given its full height again before that write ran.
+    const stale = supplyMaterialSurfaceSize(card, { width: 264, height: 27 });
+    supplyMaterialSurfaceSize(card, { width: 264, height: 84 })?.();
+    stale?.();
+    expect([canvas.width, canvas.height]).toEqual([264, 84]);
+  });
+
   it("runs list ownership before native material reads, including new consumers dirtied by the list", () => {
     const card = document.createElement("div");
     const canvas = document.createElement("canvas");

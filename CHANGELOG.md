@@ -68,6 +68,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- A canvas card that was cut off at the bottom of the canvas list no longer shows a stretched rim
+  after the window is maximized.
 - A mind-map node created by releasing a C-drag connection on empty canvas is placed so its
   connecting point sits exactly where the pointer was released.
 - Toggling the minimap from the toolbar is no longer an undo step.

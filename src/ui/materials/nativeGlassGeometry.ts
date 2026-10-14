@@ -32,11 +32,15 @@ export function registerNativeGlassGeometry({
 }): () => void {
   let rimKey = "";
   let optics: { devicePixelRatio: number; borderBrightness: number } | undefined;
-  const prepareRimWrite = (size: MaterialSize) => {
+  const prepareRimWrite = (prepared: MaterialSize) => {
     if (!optics) return;
     const { devicePixelRatio, borderBrightness } = optics;
-    const key = `${size.width}:${size.height}:${radius}:${devicePixelRatio}:${borderBrightness}`;
     return () => {
+      // An owner can supply a newer size between this write being prepared (a geometry read) and
+      // run; drawing the prepared one then would leave the rim stretched over the new size, e.g.
+      // a canvas card that was cut off at the list edge when the window is maximized.
+      const size = (owned && readSuppliedMaterialSurfaceSize(element)) || prepared;
+      const key = `${size.width}:${size.height}:${radius}:${devicePixelRatio}:${borderBrightness}`;
       if (!canvas || key === rimKey) return;
       rimKey = key;
       drawNativeGlassRim(canvas, {
