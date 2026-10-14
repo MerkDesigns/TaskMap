@@ -2,11 +2,13 @@ import type { CardAdornment, CardAdornmentContext } from "./cardAdornment";
 import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 import { checkboxCardAdornment } from "./checkbox/checkboxCardAdornment";
 import { workflowCardAdornment } from "./workflow/workflowCardAdornment";
+import { folderCardAdornment } from "./folder/folderCardAdornment";
 
 /** Text-card adornments in display order. */
 const cardAdornments: readonly CardAdornment[] = Object.freeze([
   checkboxCardAdornment,
   workflowCardAdornment,
+  folderCardAdornment,
 ]);
 
 /** Whether installing the extension adds an adornment, and so changes a card's size. */

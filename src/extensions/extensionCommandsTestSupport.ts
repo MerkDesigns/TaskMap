@@ -18,5 +18,7 @@ export function mockExtensionCommands() {
     stopWorkflow: vi.fn(async () => undefined),
     subscribeWorkflowRuns: vi.fn(() => () => undefined),
     getWorkflowRun: vi.fn(() => null),
+    openFolderEditor: vi.fn(),
+    openFolder: vi.fn(async () => "opened" as const),
   } satisfies ExtensionCommands;
 }

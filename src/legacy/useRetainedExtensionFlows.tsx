@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import type { ToastRequest } from "../components/useToastQueue";
 import type { ElementId } from "../domain/ids/entityIds";
 import { useCopyPasteJsonFlow } from "../extensions/copy-paste-json/useCopyPasteJsonFlow";
+import type { FolderOpenResult } from "../extensions/extensionCommands";
+import { useFolderEditorFlow } from "../extensions/folder/useFolderEditorFlow";
 import { useWorkflowEditorFlow } from "../extensions/workflow/useWorkflowEditorFlow";
 import { useWorkflowRuns } from "../extensions/workflow/useWorkflowRuns";
 import type { ContainerElement, TextCardElement } from "../types";
@@ -27,8 +29,8 @@ export interface RetainedExtensionFlowPorts {
 
 /**
  * The extensions' own flows on the open canvas: the Copy/Paste JSON editor, the workflow editor,
- * workflow runs and their review dialog, and the extension commands the element menus call. A
- * reloaded document closes the editors and resets runs.
+ * workflow runs and their review dialog, the folder dialog and opening folders, and the extension
+ * commands the element menus call. A reloaded document closes the editors and resets runs.
  */
 export function useRetainedExtensionFlows({
   retained,
@@ -84,6 +86,30 @@ export function useRetainedExtensionFlows({
     },
   });
   const workflowRuns = useWorkflowRuns({ getLines: workflowLines, client: workflows });
+  const folderPath = (id: string) => card(id)?.extensions?.folder?.path ?? null;
+  const folderEditor = useFolderEditorFlow({
+    getPath: folderPath,
+    getCardName: (id) => card(id)?.text ?? "",
+    savePath: (id, path) =>
+      callbacks.captureExtensionConfiguration("folder", id as ElementId)?.complete({ path }).ok ??
+      false,
+    chooseFolder: async () => {
+      const chosen = await workflows.chooseFolder();
+      return chosen.ok ? chosen.value : null;
+    },
+  });
+  const openFolder = async (id: string): Promise<FolderOpenResult> => {
+    const path = folderPath(id);
+    if (!path) return "failed";
+    const opened = await workflows.openFolder(path);
+    if (opened.ok) return "opened";
+    if (opened.error.code === "file_not_found") {
+      showToast({ tone: "error", title: "Folder not found", message: path });
+      return "missing";
+    }
+    showToast({ tone: "error", title: "Couldn't open the folder", message: path });
+    return "failed";
+  };
 
   useEffect(
     () => callbacks.subscribeInvalidation(copyPasteJson.closeEditor),
@@ -97,6 +123,10 @@ export function useRetainedExtensionFlows({
     () => callbacks.subscribeInvalidation(workflowRuns.reset),
     [callbacks, workflowRuns.reset],
   );
+  useEffect(
+    () => callbacks.subscribeInvalidation(folderEditor.closeEditor),
+    [callbacks, folderEditor.closeEditor],
+  );
 
   const commands = useRetainedExtensionCommands({
     callbacks,
@@ -107,6 +137,8 @@ export function useRetainedExtensionFlows({
     copyPasteJson,
     openWorkflowEditor: workflowEditor.openWorkflowEditor,
     workflowRuns,
+    openFolderEditor: folderEditor.openFolderEditor,
+    openFolder,
   });
 
   return {
@@ -116,6 +148,7 @@ export function useRetainedExtensionFlows({
         {copyPasteJson.editorWindow}
         {workflowEditor.editorWindow}
         {workflowRuns.reviewDialog}
+        {folderEditor.editorDialog}
       </>
     ),
   };

@@ -15,6 +15,7 @@ const targets: Record<string, readonly string[]> = {
   "inherit-card-color": ["container"],
   "copy-paste-json": ["container"],
   workflow: ["text-card"],
+  folder: ["text-card"],
 };
 
 describe("retained extension definitions", () => {
@@ -55,7 +56,9 @@ describe("retained extension definitions", () => {
           ? { checked: false }
           : definition.id === "workflow"
             ? { lines: [] }
-            : { enabled: false };
+            : definition.id === "folder"
+              ? { path: "" }
+              : { enabled: false };
     expect(definition.parseConfiguration(configuration)).toEqual({
       ok: true,
       configuration,

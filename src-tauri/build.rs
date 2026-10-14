@@ -28,6 +28,7 @@ fn main() {
         "app_workflow_status",
         "app_workflow_stop",
         "app_workflow_choose_folder",
+        "app_open_folder",
         "load_app_data",
     ];
 

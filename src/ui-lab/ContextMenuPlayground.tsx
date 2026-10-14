@@ -92,6 +92,8 @@ export function ContextMenuPlayground() {
     stopWorkflow: async () => undefined,
     subscribeWorkflowRuns: () => () => undefined,
     getWorkflowRun: () => null,
+    openFolderEditor: () => undefined,
+    openFolder: async () => "opened" as const,
   };
 
   const menuActions: ContainerMenuActions = {

@@ -128,6 +128,8 @@ export function DraggableTextBlockFixture() {
     stopWorkflow: async () => undefined,
     subscribeWorkflowRuns: () => () => undefined,
     getWorkflowRun: () => null,
+    openFolderEditor: () => undefined,
+    openFolder: async () => "opened" as const,
   };
   const actions: TextBlockActions = {
     onDraftChange: ignore,

@@ -2,6 +2,7 @@ use super::database_window_commands::ensure_database_application;
 use super::ipc_limits::deserialize_limited;
 use crate::error::{CommandError, CommandResult, ServiceFailure, ServiceResult};
 use crate::session::database_session::DatabaseSessionState;
+use crate::workflow::open_local_folder;
 use crate::workflow::workflow_definition::{self, WorkflowLine};
 use crate::workflow::workflow_runs::{RunStatus, WorkflowRuns};
 use crate::workflow::workflow_trust::WorkflowTrust;
@@ -148,6 +149,31 @@ pub(crate) async fn app_workflow_stop(
 struct SessionInput {
     database_id: String,
     session_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FolderInput {
+    database_id: String,
+    session_id: String,
+    path: String,
+}
+
+/// Opens a folder card's local folder in Explorer; `file_not_found` when it does not exist.
+#[tauri::command]
+pub(crate) async fn app_open_folder(
+    app: tauri::AppHandle,
+    sessions: tauri::State<'_, DatabaseSessionState>,
+    request: tauri::ipc::Request<'_>,
+) -> CommandResult<()> {
+    ensure_database_application(&app)?;
+    let input: FolderInput = deserialize_limited(&request, 16 * 1024)?;
+    let sessions = sessions.inner().clone();
+    blocking(move || {
+        sessions.authorize(&input.database_id, &input.session_id)?;
+        open_local_folder(&input.path)
+    })
+    .await
 }
 
 /// Lets the user pick a working directory; returns only the folder they chose.

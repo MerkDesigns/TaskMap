@@ -140,6 +140,13 @@ Routine saves never copy the whole database. In the same transaction as a save, 
 - Track and stop only processes launched by TaskMap.
 - Do not log environment secrets or command output marked sensitive.
 
+## Folder cards
+
+The Folder extension opens a text card's folder in Explorer through the native `app_open_folder`
+command. It needs no trust because it never runs anything: the command opens only an existing
+directory on a drive-letter path (Explorer's plain open verb) and refuses UNC (`\\server\share`), `\\?\` and device
+paths, so a shared database cannot make Windows authenticate to a server it names.
+
 ## Development edition
 
 Stable and development builds use different identities and session managers. The development edition

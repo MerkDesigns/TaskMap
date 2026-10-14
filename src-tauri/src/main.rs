@@ -54,6 +54,7 @@ macro_rules! taskmap_invoke_handler {
             commands::application_workflow::app_workflow_status,
             commands::application_workflow::app_workflow_stop,
             commands::application_workflow::app_workflow_choose_folder,
+            commands::application_workflow::app_open_folder,
         ]
     };
 }

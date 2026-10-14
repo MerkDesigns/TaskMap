@@ -34,6 +34,8 @@ function setup(selection: string[] = []) {
       subscribeWorkflowRuns: vi.fn(),
       getWorkflowRun: vi.fn(),
     },
+    openFolderEditor: vi.fn(),
+    openFolder: vi.fn(async () => "opened" as const),
   };
   const { result, rerender } = renderHook(() => useRetainedExtensionCommands(ports));
   return { commands: () => result.current, rerender, callbacks, completion, ports };

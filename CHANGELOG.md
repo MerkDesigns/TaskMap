@@ -10,6 +10,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Added
 
+- Folder extension for text cards: paste or browse to a folder on your PC, and a folder button
+  before the card's text opens it in Explorer. It opens on hover; a folder that no longer exists
+  shows a toast and dims the button. Network folders are not supported.
 - Legacy migrator (`npm run migrate-legacy`): turns a TaskMap 0.3 export file into a new TaskMap
   database with a password you choose, and reports anything that could not come across.
 - Workflow extension for text cards, replacing the old Command Runner: in a movable, resizable

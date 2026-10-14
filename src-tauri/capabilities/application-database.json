@@ -31,6 +31,7 @@
     "allow-app-workflow-run",
     "allow-app-workflow-status",
     "allow-app-workflow-stop",
-    "allow-app-workflow-choose-folder"
+    "allow-app-workflow-choose-folder",
+    "allow-app-open-folder"
   ]
 }

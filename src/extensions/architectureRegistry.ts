@@ -9,6 +9,7 @@ import { counterDefinition } from "./counter/counterDefinition";
 import { inheritCardColorDefinition } from "./inherit-card-color/inheritCardColorDefinition";
 import { copyPasteJsonDefinition } from "./copy-paste-json/copyPasteJsonDefinition";
 import { workflowDefinition } from "./workflow/workflowDefinition";
+import { folderDefinition } from "./folder/folderDefinition";
 
 // Registration order is the order the Extensions panel lists them in.
 const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = Object.freeze([
@@ -22,6 +23,7 @@ const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = O
   inheritCardColorDefinition,
   copyPasteJsonDefinition,
   workflowDefinition,
+  folderDefinition,
 ]);
 
 export function getArchitectureExtensionDefinitions(): readonly RetainedExtensionDefinition[] {

@@ -57,6 +57,13 @@ export function createWorkflowClient(authority: () => SessionAuthority | null) {
     status: (runId: string) => call("app_workflow_status", { runId }, runStatusSchema),
     stop: (runId: string) => call("app_workflow_stop", { runId }, runStatusSchema),
     chooseFolder: () => call("app_workflow_choose_folder", {}, z.string().max(4096).nullable()),
+    /** Opens a local folder in Explorer; fails with file_not_found when it does not exist. */
+    openFolder: (path: string) =>
+      call(
+        "app_open_folder",
+        { path },
+        z.null().transform(() => undefined),
+      ),
   };
 }
 

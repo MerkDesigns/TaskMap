@@ -2,6 +2,7 @@ import { getArchitectureExtensionDefinitions } from "./architectureRegistry";
 import { colorPickerMenuItem } from "./color-picker/colorPickerMenuItem";
 import { lockMenuItem } from "./lock/lockMenuItem";
 import { workflowMenuItem } from "./workflow/workflowMenuItem";
+import { folderMenuItem } from "./folder/folderMenuItem";
 import type { ExtensionMenuItem, MenuItemContext } from "./menuItem";
 import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 
@@ -9,6 +10,7 @@ import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 const menuItems: readonly ExtensionMenuItem[] = Object.freeze([
   colorPickerMenuItem,
   workflowMenuItem,
+  folderMenuItem,
   lockMenuItem,
 ]);
 
@@ -24,6 +26,7 @@ const removalOrder: readonly RetainedExtensionKey[] = Object.freeze([
   "inheritCardColor",
   "copyPasteJson",
   "workflow",
+  "folder",
 ]);
 
 /** The items an element's menu shows: offered for its type, installed on any menu target. */

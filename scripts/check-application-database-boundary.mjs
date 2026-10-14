@@ -32,6 +32,7 @@ const operations = [
   "workflow_status",
   "workflow_stop",
   "workflow_choose_folder",
+  "open_folder",
 ];
 const capability = await json("src-tauri/capabilities/application-database.json");
 assert.deepEqual(capability.windows, ["main"]);

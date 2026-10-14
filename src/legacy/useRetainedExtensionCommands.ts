@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { RetainedActionCallbacks } from "../app/commands/createRetainedActionCallbacks";
 import type { ElementId } from "../domain/ids/entityIds";
-import type { ExtensionCommands } from "../extensions/extensionCommands";
+import type { ExtensionCommands, FolderOpenResult } from "../extensions/extensionCommands";
 import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
 import type { CardWorkflowRun } from "../extensions/workflow/workflowRunStore";
 import { retainedExtensionId } from "./retainedViewExtensions";
@@ -35,6 +35,8 @@ export interface RetainedExtensionCommandPorts {
     readonly subscribeWorkflowRuns: (listener: () => void) => () => void;
     readonly getWorkflowRun: (cardId: string) => CardWorkflowRun | null;
   };
+  readonly openFolderEditor: (cardId: string) => void;
+  readonly openFolder: (cardId: string) => Promise<FolderOpenResult>;
 }
 
 /**
@@ -106,6 +108,11 @@ export function useRetainedExtensionCommands(
       stopWorkflow: (cardId) => current().workflowRuns.stopWorkflow(cardId),
       subscribeWorkflowRuns: (listener) => current().workflowRuns.subscribeWorkflowRuns(listener),
       getWorkflowRun: (cardId) => current().workflowRuns.getWorkflowRun(cardId),
+      openFolderEditor: (cardId) => {
+        current().closeContextMenus();
+        current().openFolderEditor(cardId);
+      },
+      openFolder: (cardId) => current().openFolder(cardId),
     };
   }, []);
 }

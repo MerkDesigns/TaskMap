@@ -14,6 +14,7 @@ describe("extension catalog", () => {
       "inheritCardColor",
       "copyPasteJson",
       "workflow",
+      "folder",
     ]);
     expect(extensionCatalogEntry("copyPasteJson")).toMatchObject({
       label: "Copy/Paste JSON",

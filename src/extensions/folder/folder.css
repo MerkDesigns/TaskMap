@@ -1,0 +1,58 @@
+/* Folder button before a folder card's text, sized and placed like the workflow run button. */
+
+.taskmap-extension-folder {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: -7px 5px -7px -10px;
+  border-radius: 0.25rem;
+  color: #fff;
+  place-items: center;
+  transition:
+    transform 150ms ease-out,
+    background-color 150ms ease-out,
+    color 150ms ease-out;
+}
+
+.taskmap-extension-folder:hover {
+  background-color: rgb(255 255 255 / 0.1);
+}
+
+.taskmap-extension-folder:active {
+  transform: scale(0.9);
+}
+
+/* No folder chosen yet, or the folder was not found the last time it was opened. */
+.taskmap-extension-folder[data-state="empty"],
+.taskmap-extension-folder[data-state="missing"] {
+  color: rgb(255 255 255 / 0.4);
+}
+
+/* The folder opens while its button is hovered. */
+.taskmap-folder-glyph__open,
+.taskmap-extension-folder:hover .taskmap-folder-glyph__closed {
+  display: none;
+}
+
+.taskmap-extension-folder:hover .taskmap-folder-glyph__open {
+  display: inline;
+}
+
+.taskmap-folder-editor__row {
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+}
+
+.taskmap-folder-editor__row > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.taskmap-folder-editor__hint {
+  margin: 0;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-caption-size);
+  line-height: var(--taskmap-text-caption-line);
+}

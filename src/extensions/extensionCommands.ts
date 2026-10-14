@@ -1,6 +1,8 @@
 import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 import type { CardWorkflowRun } from "./workflow/workflowRunStore";
 
+export type FolderOpenResult = "opened" | "missing" | "failed";
+
 /**
  * The application commands extension UI contributions use, supplied once by the application and forwarded
  * by elements without inspection.
@@ -28,4 +30,8 @@ export interface ExtensionCommands {
   /** The cards' workflow runs as an external store, for the run buttons. */
   readonly subscribeWorkflowRuns: (listener: () => void) => () => void;
   readonly getWorkflowRun: (cardId: string) => CardWorkflowRun | null;
+  /** Opens the dialog that sets the card's folder. */
+  readonly openFolderEditor: (cardId: string) => void;
+  /** Opens the card's folder in Explorer; "missing" when the folder does not exist. */
+  readonly openFolder: (cardId: string) => Promise<FolderOpenResult>;
 }

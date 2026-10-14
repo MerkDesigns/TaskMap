@@ -48,7 +48,9 @@ it.each(getArchitectureExtensionDefinitions())(
                   },
                 ],
               }
-            : { enabled: false };
+            : definition.id === "folder"
+              ? { path: String.raw`C:\Users\Someone\Documents` }
+              : { enabled: false };
     expect(
       setup.actions
         .captureExtensionConfiguration(definition.id, elementId)!

@@ -441,6 +441,12 @@
           "markdownDescription": "Enables the app_open_database command without any pre-configured scope."
         },
         {
+          "description": "Enables the app_open_folder command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-app-open-folder",
+          "markdownDescription": "Enables the app_open_folder command without any pre-configured scope."
+        },
+        {
           "description": "Enables the app_quit_application command without any pre-configured scope.",
           "type": "string",
           "const": "allow-app-quit-application",
@@ -613,6 +619,12 @@
           "type": "string",
           "const": "deny-app-open-database",
           "markdownDescription": "Denies the app_open_database command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the app_open_folder command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-app-open-folder",
+          "markdownDescription": "Denies the app_open_folder command without any pre-configured scope."
         },
         {
           "description": "Denies the app_quit_application command without any pre-configured scope.",

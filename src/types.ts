@@ -35,6 +35,9 @@ export type ElementExtensions = {
       display: "terminal" | "background";
     }[];
   };
+  folder?: {
+    path: string;
+  };
 };
 
 export type ContainerElement = {

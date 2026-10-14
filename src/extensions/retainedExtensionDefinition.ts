@@ -13,7 +13,8 @@ export type RetainedExtensionKey =
   | "counter"
   | "inheritCardColor"
   | "copyPasteJson"
-  | "workflow";
+  | "workflow"
+  | "folder";
 export type RetainedExtensionView = {
   readonly [Key in RetainedExtensionKey]?: Readonly<NonNullable<ElementExtensions[Key]>>;
 };
