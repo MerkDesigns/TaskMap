@@ -3,6 +3,7 @@ import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
 import { notifyWorkspacePanelContentSizeChanged } from "./workspacePanelContentSize";
 import { supplyMaterialSurfaceSize } from "../../materials/materialGeometryInvalidation";
 import { MaterialGeometryFrame } from "../../materials/materialGeometryScheduler";
+import { glassListMorphInset } from "./glassListGeometry";
 
 export function readCanvasBrowserDragFrame(viewport: HTMLElement, card?: HTMLElement) {
   const frame = new MaterialGeometryFrame();
@@ -83,7 +84,9 @@ export function logicalCanvasBrowserCardRectangle<Id extends string>(
   shell: DOMRect,
 ): DOMRect {
   const top = shell.top - readCanvasBrowserCardSlice(record).offset;
-  return new DOMRect(shell.left, top, shell.width, record.height);
+  const inset =
+    Number.parseFloat(record.host.style.getPropertyValue("--taskmap-canvas-card-slice-inset")) || 0;
+  return new DOMRect(shell.left - inset, top, shell.width + inset * 2, record.height);
 }
 
 export function canvasBrowserCardRectangle<Id extends string>(record: CanvasBrowserCardRecord<Id>) {
@@ -158,9 +161,15 @@ export function writeCanvasBrowserCardViewport<Id extends string>(
   record.host.style.setProperty("--taskmap-canvas-card-visible-height", `${visibleHeight}px`);
   record.host.style.setProperty("--taskmap-canvas-card-full-height", `${record.height}px`);
   record.host.dataset.canvasCardVisible = String(visible);
-  // The settled shell morphs to its visible slice; rim and shadow follow it.
+  // The settled shell morphs to its visible slice and narrows once it is too thin for full corners;
+  // rim and shadow follow it.
+  const radius =
+    Number.parseFloat(record.card.style.getPropertyValue("--taskmap-material-radius")) ||
+    CANVAS_BROWSER_LAYOUT.smallRadius;
+  const inset = visible ? glassListMorphInset(visibleHeight, radius) : 0;
+  record.host.style.setProperty("--taskmap-canvas-card-slice-inset", `${inset}px`);
   supplyMaterialSurfaceSize(record.card, {
-    width: CANVAS_BROWSER_LAYOUT.cardWidth,
+    width: CANVAS_BROWSER_LAYOUT.cardWidth - inset * 2,
     height: visible ? visibleHeight : record.height,
   })?.();
 }

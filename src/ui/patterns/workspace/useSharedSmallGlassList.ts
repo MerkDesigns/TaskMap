@@ -14,6 +14,7 @@ import {
   projectGlassListSlices,
   type GlassListSlice,
 } from "./glassListScrollGeometry";
+import { narrowGlassListMorph } from "./glassListGeometry";
 
 interface SharedSmallGlassListOptions {
   readonly active: boolean;
@@ -49,7 +50,9 @@ export function useSharedSmallGlassList({
       const rimWrites: (() => void)[] = [];
       const relayout = !layout || reason === "layout";
       if (relayout) layout = readGlassListLayout(frame, viewport, plane, cardSelector);
-      const projected = projectGlassListSlices(layout!);
+      const projected = projectGlassListSlices(layout!).map((card) =>
+        morph && card.shape ? { ...card, shape: narrowGlassListMorph(card.shape) } : card,
+      );
       const sliceWrites: (() => void)[] = [];
       for (const card of projected) {
         const size = morph ? glassListSlicedSize(card) : card.size;

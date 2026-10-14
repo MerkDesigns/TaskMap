@@ -69,6 +69,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Cards cut off at the edge of a scrolling glass list (canvas browser, settings) narrow once they are
+  too thin for full corners, so a thin strip never reaches into the rounded corner area.
 - A canvas card that was cut off at the bottom of the canvas list no longer shows a stretched rim
   after the window is maximized.
 - A mind-map node created by releasing a C-drag connection on empty canvas is placed so its

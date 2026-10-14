@@ -2,9 +2,13 @@
    slice while content keeps its logical position. Held cards receive their full slice. */
 .taskmap-canvas-browser-card {
   position: relative;
-  width: 100%;
+  width: calc(100% - 2 * var(--taskmap-canvas-card-slice-inset, 0px));
   height: var(--taskmap-canvas-card-visible-height, var(--taskmap-canvas-card-full-height, 84px));
-  transform: translate3d(0, var(--taskmap-canvas-card-clip-offset, 0px), 0);
+  transform: translate3d(
+    var(--taskmap-canvas-card-slice-inset, 0px),
+    var(--taskmap-canvas-card-clip-offset, 0px),
+    0
+  );
   overflow: visible;
   color: rgb(255 255 255 / 88%);
   cursor: grab;
@@ -38,11 +42,14 @@
     0px - var(--taskmap-material-content-clip-inset, 0px) -
       var(--taskmap-canvas-card-clip-offset, 0px)
   );
-  left: calc(0px - var(--taskmap-material-content-clip-inset, 0px));
+  left: calc(
+    0px - var(--taskmap-material-content-clip-inset, 0px) -
+      var(--taskmap-canvas-card-slice-inset, 0px)
+  );
   display: flex;
   width: calc(
-    100% + var(--taskmap-material-content-clip-inset, 0px) +
-      var(--taskmap-material-content-clip-inset, 0px)
+    100% + 2 * var(--taskmap-material-content-clip-inset, 0px) + 2 *
+      var(--taskmap-canvas-card-slice-inset, 0px)
   );
   height: var(--taskmap-canvas-card-full-height, 84px);
 }

@@ -19,3 +19,27 @@ export function glassListShape(
   if (right <= left || bottom <= top) return null;
   return { ...card, clip: { left, top, width: right - left, height: bottom - top } };
 }
+
+/**
+ * How far a scroll-edge slice of `height` narrows on each side. A slice shorter than its corners
+ * can round squeezes into a pill; narrowing it by `radius - height / 2` starts the pill's straight
+ * edge exactly where the card's own corners end, so a thin strip never reaches into the corner
+ * area while the list scrolls. Zero once the slice is tall enough for full corners.
+ */
+export function glassListMorphInset(height: number, radius: number): number {
+  return height > 0 && height < radius * 2 ? radius - height / 2 : 0;
+}
+
+/** A morphing shape with its visible slice narrowed as `glassListMorphInset` describes. */
+export function narrowGlassListMorph(shape: SharedSmallGlassShape): SharedSmallGlassShape {
+  const inset = shape.clip ? glassListMorphInset(shape.clip.height, shape.radius) : 0;
+  if (!shape.clip || inset === 0) return shape;
+  return {
+    ...shape,
+    clip: {
+      ...shape.clip,
+      left: shape.clip.left + inset,
+      width: Math.max(0, shape.clip.width - inset * 2),
+    },
+  };
+}

@@ -142,11 +142,14 @@ describe("production Canvas Browser runtime", () => {
     expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("84px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-visible-height")).toBe("6px");
     expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-clip-offset")).toBe("0px");
-    // Rim/shadow geometry follows the visible silhouette.
+    // Rim/shadow geometry follows the visible silhouette; a slice too thin for full 13.5px corners
+    // narrows by radius - height / 2 per side, so its straight edge starts where the corners end.
+    expect(secondHost.style.getPropertyValue("--taskmap-canvas-card-slice-inset")).toBe("10.5px");
     expect(readSuppliedMaterialSurfaceSize(fixture.cards.get("b")!.card)).toEqual({
-      width: 264,
+      width: 243,
       height: 6,
     });
+    expect(firstHost.style.getPropertyValue("--taskmap-canvas-card-slice-inset")).toBe("0px");
 
     fixture.viewport.dispatchEvent(wheel(100));
     fixture.frames.fire(16);

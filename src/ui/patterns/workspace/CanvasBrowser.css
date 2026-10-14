@@ -139,7 +139,6 @@
 }
 
 .taskmap-canvas-browser-card-host > .taskmap-canvas-browser-card {
-  width: 100%;
   pointer-events: auto;
 }
 

@@ -5,7 +5,7 @@ import {
 import { CANVAS_BROWSER_LAYOUT } from "./canvasBrowserLayout";
 import { readCanvasBrowserCardSlice } from "./canvasBrowserDom";
 import type { CanvasBrowserCardRecord } from "./canvasBrowserRuntimeTypes";
-import { glassListShape } from "./glassListGeometry";
+import { glassListShape, narrowGlassListMorph } from "./glassListGeometry";
 
 export class CanvasBrowserSharedGlass<Id extends string> {
   constructor(
@@ -97,7 +97,7 @@ export function syncCanvasBrowserSharedGlass<Id extends string>(
         height: visibleHeight,
       },
     );
-    if (shape) shapes.push({ ...shape, morph: true });
+    if (shape) shapes.push({ ...narrowGlassListMorph(shape), morph: true });
   }
   writeSharedSmallGlassShapes(plane, shapes);
 }
