@@ -55,7 +55,8 @@ type ExtensionsPanelProps = {
   cardRadius?: number;
   availableExtensions?: readonly ExtensionCatalogEntry[];
   active?: boolean;
-  closing: boolean;
+  /** Only a standalone panel plays its own exit; a shared panel's owner animates it. */
+  closing?: boolean;
   onDropExtension: (extensionId: RetainedExtensionKey, clientX: number, clientY: number) => void;
   onDragExtension?: (
     extensionId: RetainedExtensionKey | null,
@@ -365,7 +366,7 @@ export function QuickExtensionsMenu({
 export function ExtensionsPanel({
   availableExtensions = EXTENSIONS,
   active = true,
-  closing,
+  closing = false,
   onDropExtension,
   onDragExtension,
   embedded = false,

@@ -1,4 +1,5 @@
 export const MATERIAL_PRESENCE_PROGRESS_PROPERTY = "--taskmap-material-presence-progress";
+const MATERIAL_PRESENCE_DIRECT_PROPERTY = "--taskmap-material-presence-direct";
 
 export function writeMaterialPresenceProgress(surface: HTMLElement, progress: number): void {
   surface.style.setProperty(MATERIAL_PRESENCE_PROGRESS_PROPERTY, String(clampProgress(progress)));
@@ -32,6 +33,84 @@ export function markMaterialPresenceContent(root: HTMLElement): void {
     }
   };
   visit(root);
+}
+
+/**
+ * Every material element whose own style reads the presence: native glass shadows, highlights,
+ * rims and visible backdrop filters, marked content, scroll indicators and toggle tracks.
+ */
+const MATERIAL_PRESENCE_READER_SELECTOR = [
+  '[data-material-strategy="native-glass"] > .taskmap-material-native-glass__shadow',
+  '[data-material-strategy="native-glass"] .taskmap-material-native-glass__highlight',
+  '[data-material-strategy="native-glass"] > .taskmap-material-native-glass__rim',
+  '.taskmap-native-glass-recipe .taskmap-native-glass-backdrop:not([data-material-backdrop-source="shared"] *)',
+  '.taskmap-native-glass-recipe .taskmap-native-glass-preblur[data-enabled="true"]:not([data-material-backdrop-source="shared"] *)',
+  `[${PRESENCE_CONTENT_ATTRIBUTE}]`,
+  ".taskmap-scroll-indicator",
+  ".taskmap-liquid-toggle__track",
+].join(", ");
+
+export interface MaterialPresenceReaders {
+  write(progress: number): void;
+  clear(): void;
+  destroy(): void;
+}
+
+/**
+ * Writes presence straight onto the elements under `surface` that read it, through a non-inherited
+ * property. The inherited presence variable restyles the surface's whole subtree on every frame,
+ * previews and labels included; this restyles only the readers. `contentSelector` names the
+ * surface's glass-free wrappers, which fade as marked content. Readers are collected again after
+ * the subtree's children change.
+ */
+export function createMaterialPresenceReaders(
+  surface: HTMLElement,
+  contentSelector: string,
+): MaterialPresenceReaders {
+  let readers: HTMLElement[] | null = null;
+  let written: readonly HTMLElement[] = [];
+  const observer =
+    typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(() => {
+          readers = null;
+        });
+  observer?.observe(surface, { childList: true, subtree: true });
+  const collect = () => {
+    for (const content of surface.querySelectorAll(contentSelector)) {
+      content.setAttribute(PRESENCE_CONTENT_ATTRIBUTE, "");
+    }
+    const found = [...surface.querySelectorAll<HTMLElement>(MATERIAL_PRESENCE_READER_SELECTOR)];
+    if (surface.matches(MATERIAL_PRESENCE_READER_SELECTOR)) found.unshift(surface);
+    return found;
+  };
+  const clear = () => {
+    for (const reader of written) reader.style.removeProperty(MATERIAL_PRESENCE_DIRECT_PROPERTY);
+    written = [];
+  };
+  return {
+    write(progress) {
+      // At rest readers follow the inherited value again.
+      if (progress >= 1) {
+        clear();
+        return;
+      }
+      if (!readers) {
+        clear();
+        readers = collect();
+      }
+      const value = String(clampProgress(progress));
+      for (const reader of readers) {
+        reader.style.setProperty(MATERIAL_PRESENCE_DIRECT_PROPERTY, value);
+      }
+      written = readers;
+    },
+    clear,
+    destroy() {
+      observer?.disconnect();
+      clear();
+    },
+  };
 }
 
 function clampProgress(progress: number): number {

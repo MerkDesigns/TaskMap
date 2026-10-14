@@ -2,7 +2,7 @@
   width: 3px;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.06);
-  opacity: var(--taskmap-material-presence-progress, 1);
+  opacity: var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1));
   pointer-events: none;
   transition: opacity 160ms ease;
 }

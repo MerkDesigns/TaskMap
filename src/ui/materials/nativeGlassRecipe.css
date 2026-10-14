@@ -1,13 +1,21 @@
 /* Blur presence is timed independently of tint/rim/shadow and content:
    it waits for `delay` of the presence, then follows `pow(progress, curve)`. The development
-   workbench tunes both; production uses these defaults. */
-.taskmap-native-glass-recipe {
+   workbench tunes both; production uses these defaults. Resolved on the filter layers themselves,
+   which may carry their own presence. */
+.taskmap-native-glass-recipe .taskmap-native-glass-preblur,
+.taskmap-native-glass-recipe .taskmap-native-glass-backdrop {
   --taskmap-material-blur-presence-progress: pow(
     clamp(
       0,
       calc(
         (
-            var(--taskmap-material-presence-progress, 1) -
+            var(
+                --taskmap-material-presence-direct,
+                var(
+                  --taskmap-material-presence-direct,
+                  var(--taskmap-material-presence-progress, 1)
+                )
+              ) -
               var(--taskmap-material-blur-presence-delay, 0.2)
           ) /
           (1 - var(--taskmap-material-blur-presence-delay, 0.2))
@@ -16,16 +24,18 @@
     ),
     var(--taskmap-material-blur-presence-curve, 1)
   );
-}
-
-.taskmap-native-glass-recipe .taskmap-native-glass-preblur,
-.taskmap-native-glass-recipe .taskmap-native-glass-backdrop {
   position: absolute;
   top: calc(0px - var(--taskmap-material-overscan-top, 0px));
   right: calc(0px - var(--taskmap-material-overscan-right, 0px));
   bottom: calc(0px - var(--taskmap-material-overscan-bottom, 0px));
   left: calc(0px - var(--taskmap-material-overscan-left, 0px));
-  background: rgb(0 0 0 / calc(0.001 * var(--taskmap-material-presence-progress, 1)));
+  background: rgb(
+    0 0 0 /
+      calc(
+        0.001 *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
+      )
+  );
   pointer-events: none;
 }
 
@@ -59,17 +69,20 @@
     )
     saturate(
       calc(
-        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
+        1 + (var(--taskmap-material-saturation) - 1) *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
       )
     )
     brightness(
       calc(
-        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
+        1 + (var(--taskmap-material-brightness) - 1) *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
       )
     )
     contrast(
       calc(
-        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
+        1 + (var(--taskmap-material-contrast) - 1) *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
       )
     );
   backdrop-filter: blur(
@@ -77,17 +90,20 @@
     )
     saturate(
       calc(
-        1 + (var(--taskmap-material-saturation) - 1) * var(--taskmap-material-presence-progress, 1)
+        1 + (var(--taskmap-material-saturation) - 1) *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
       )
     )
     brightness(
       calc(
-        1 + (var(--taskmap-material-brightness) - 1) * var(--taskmap-material-presence-progress, 1)
+        1 + (var(--taskmap-material-brightness) - 1) *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
       )
     )
     contrast(
       calc(
-        1 + (var(--taskmap-material-contrast) - 1) * var(--taskmap-material-presence-progress, 1)
+        1 + (var(--taskmap-material-contrast) - 1) *
+          var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
       )
     );
 }

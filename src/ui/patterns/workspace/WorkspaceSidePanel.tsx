@@ -89,7 +89,7 @@ export function WorkspaceSidePanelContentSwitcher({
   const reducedMotion = useReducedMotion();
   const [height, setHeight] = useState<number | null>(null);
   const [outgoingIndex, setOutgoingIndex] = useState<0 | 1 | null>(null);
-  const previousIndexRef = useRef(activeIndex);
+  const previousIndexRef = useRef<0 | 1 | null>(activeIndex);
   const heightInitializedRef = useRef(false);
 
   useLayoutEffect(() => {
@@ -97,7 +97,9 @@ export function WorkspaceSidePanelContentSwitcher({
     if (!activeView) return;
     const previousIndex = previousIndexRef.current;
     previousIndexRef.current = activeIndex;
-    if (previousIndex !== activeIndex) setOutgoingIndex(reducedMotion ? null : previousIndex);
+    if (previousIndex !== null && previousIndex !== activeIndex) {
+      setOutgoingIndex(reducedMotion ? null : previousIndex);
+    }
     const nextHeight = measurePanelViewHeight(activeView);
     if (!heightInitializedRef.current) {
       heightInitializedRef.current = true;
@@ -106,6 +108,14 @@ export function WorkspaceSidePanelContentSwitcher({
     }
     setHeight(nextHeight);
   }, [activeIndex, reducedMotion]);
+
+  // Hidden (a closed panel kept mounted): the next reveal shows its view without a switch fade.
+  useLayoutEffect(
+    () => () => {
+      previousIndexRef.current = null;
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     if (outgoingIndex !== null) return;

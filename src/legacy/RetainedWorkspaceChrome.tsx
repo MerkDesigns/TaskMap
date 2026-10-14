@@ -1,4 +1,5 @@
 import {
+  Activity,
   lazy,
   memo,
   Suspense,
@@ -10,7 +11,10 @@ import {
 } from "react";
 import type { CanvasInteractionController } from "../app/interactions/canvasInteractionTypes";
 import { CanvasManager as CanvasManagerView } from "../components/CanvasManager";
-import { ExtensionsPanel, QuickExtensionsMenu } from "../components/ExtensionsPanel";
+import {
+  ExtensionsPanel as ExtensionsPanelView,
+  QuickExtensionsMenu,
+} from "../components/ExtensionsPanel";
 import { FloatingToolbar } from "../components/FloatingToolbar";
 import { Minimap } from "../components/Minimap";
 import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
@@ -28,7 +32,7 @@ import {
 } from "../ui/patterns/workspace/workspaceIntro";
 import type { useCanvasManagement } from "./useCanvasManagement";
 import type { useLegacyCanvasSettings } from "./useLegacyCanvasSettings";
-import type { useLeftPanel } from "./useLeftPanel";
+import { useLeftPanelPresence, type LeftPanelController } from "./useLeftPanel";
 import type { useMinimapPresence } from "./useMinimapPresence";
 
 // Core surfaces are imported up front: a lazy first open waited on React's ~300 ms Suspense reveal
@@ -49,6 +53,8 @@ const CanvasManager = memo(
     previous.viewportWidth === next.viewportWidth &&
     previous.viewportHeight === next.viewportHeight,
 );
+// The panel's views take no part in its show/hide; toggling the panel must not re-render them.
+const ExtensionsPanel = memo(ExtensionsPanelView);
 const DevelopmentFpsCounter = import.meta.env.DEV
   ? lazy(() =>
       import("../components/FpsCounter").then(({ FpsCounter }) => ({ default: FpsCounter })),
@@ -63,7 +69,7 @@ type MinimapProps = ComponentProps<typeof Minimap>;
 export interface RetainedWorkspaceChromeProps {
   readonly controller: CanvasInteractionController;
   readonly settings: ReturnType<typeof useLegacyCanvasSettings>;
-  readonly leftPanel: ReturnType<typeof useLeftPanel>;
+  readonly leftPanel: LeftPanelController;
   /** The Canvas Browser's canvases, with the open one's live preview viewport. */
   readonly canvases: TaskCanvas[];
   readonly activeCanvasId: string;
@@ -120,7 +126,7 @@ function useHistoryAvailability(store: RetainedWorkspaceChromeProps["historyStor
  * they wake, the unlock reveal ends with the Canvas Browser sliding in, and locking slides it out.
  */
 function useSidePanelPresence(
-  leftPanel: ReturnType<typeof useLeftPanel>,
+  leftPanel: LeftPanelController,
   settings: ReturnType<typeof useLegacyCanvasSettings>,
 ) {
   const slept = useRef<"canvases" | "extensions" | null>(null);
@@ -177,7 +183,8 @@ export function RetainedWorkspaceChrome({
   }, [settings.chromeRadii]);
   const panelRef = useRef<HTMLDivElement>(null);
   const [minimalView, setMinimalView] = useState(false);
-  const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } = leftPanel;
+  const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } =
+    useLeftPanelPresence(leftPanel);
   const panelOpen = canvasManagerOpen || extensionsOpen;
   const panelClosing = canvasManagerClosing || extensionsClosing;
   const activeIndex = extensionsOpen ? 1 : 0;
@@ -185,7 +192,9 @@ export function RetainedWorkspaceChrome({
   return (
     <>
       <WorkspaceChromeLayer>
-        {panelOpen && (
+        {/* Kept mounted once built: a closed panel is hidden with its effects switched off and its
+            updates deferred, so opening it un-hides instead of building every view again. */}
+        <Activity mode={panelOpen ? "visible" : "hidden"}>
           <Suspense fallback={null}>
             <WorkspaceSidePanel
               ref={panelRef}
@@ -204,7 +213,6 @@ export function RetainedWorkspaceChrome({
                     canvases={canvases}
                     activeCanvasId={activeCanvasId}
                     cycleHighlightCanvasId={canvasManagement.cycleHighlightId}
-                    closing={panelClosing}
                     cardRadius={radii.canvasCard}
                     previewGap={CANVAS_PREVIEW_GAP}
                     minimalView={minimalView}
@@ -222,7 +230,6 @@ export function RetainedWorkspaceChrome({
                   <ExtensionsPanel
                     key="extensions"
                     active={activeIndex === 1}
-                    closing={panelClosing}
                     panelRef={panelRef}
                     cardRadius={radii.extensionCard}
                     sharedPanel
@@ -232,7 +239,7 @@ export function RetainedWorkspaceChrome({
               />
             </WorkspaceSidePanel>
           </Suspense>
-        )}
+        </Activity>
         {settings.minimapEnabled && presence.mounted && (
           <Minimap
             controller={controller}

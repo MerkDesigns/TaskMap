@@ -15,6 +15,15 @@ export const WORKSPACE_SIDE_PANEL_SLIDE_DURATION_MS = 300;
 export const WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX = 32;
 /** Scale while hidden for the default fade + slide + scale presence. */
 const SIDE_PANEL_SCALE = 0.94;
+/** Glass-free wrappers that fade with the panel's material; never an ancestor of glass. */
+const SIDE_PANEL_PRESENCE_CONTENT = [
+  ".taskmap-canvas-browser__header",
+  ".taskmap-workspace-panel-header",
+  ".taskmap-extension-browser-controls",
+  ".taskmap-extension-browser-section__heading",
+  ".taskmap-extension-browser-empty",
+  ".taskmap-glass-list__content",
+].join(", ");
 
 /** Ease in and out in both directions. */
 const easeInOutCubic = (progress: number) =>
@@ -36,6 +45,11 @@ export function useWorkspaceSidePanelMotion(
   const motionRef = useRef<PresenceMotion | null>(null);
   const presetRef = useRef(preset);
   presetRef.current = preset;
+  const closingRef = useRef(closing);
+  closingRef.current = closing;
+  // Set when the motion was just created (mount, or revealing a panel kept hidden): it already
+  // has fresh channels and its direction, so the next effect must not force another layout.
+  const createdRef = useRef(false);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
@@ -47,11 +61,16 @@ export function useWorkspaceSidePanelMotion(
       enter: TIMING,
       exit: TIMING,
       initialProgress: 0,
+      initialTarget: closingRef.current ? 0 : 1,
+      // The panel is hidden (or unmounted) by its owner once the exit has played.
+      inertWhenHidden: false,
+      materialPresenceContent: SIDE_PANEL_PRESENCE_CONTENT,
       onComplete: (endpoint) => {
         if (endpoint === "visible") refreshMaterialSurfaceBackdrop(panel);
       },
     });
     motionRef.current = motion;
+    createdRef.current = true;
     return () => {
       motion.destroy();
       motionRef.current = null;
@@ -62,6 +81,10 @@ export function useWorkspaceSidePanelMotion(
     const panel = panelRef.current;
     const motion = motionRef.current;
     if (!panel || !motion) return;
+    if (createdRef.current) {
+      createdRef.current = false;
+      return;
+    }
     motion.setChannels(sidePanelChannels(panel, preset));
     if (closing) motion.hide();
     else motion.show();

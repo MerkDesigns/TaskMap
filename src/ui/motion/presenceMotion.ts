@@ -1,6 +1,7 @@
 import type { MotionFrameScheduler } from "./motionFrameScheduler";
 import {
   clearMaterialPresenceProgress,
+  createMaterialPresenceReaders,
   writeMaterialPresenceProgress,
 } from "../materials/materialPresence";
 import { supplyMaterialPresentation } from "../materials/materialGeometryInvalidation";
@@ -37,10 +38,26 @@ export interface PresenceMotionOptions {
   readonly enter?: PresenceTiming;
   readonly exit?: PresenceTiming;
   readonly initialProgress?: number;
+  /**
+   * Where presence heads right after creation. A surface created hidden that shows at once never
+   * turns inert in between; toggling `inert` restyles the surface's whole subtree.
+   */
+  readonly initialTarget?: number;
+  /**
+   * False when the owner hides or removes the surface right after its exit (`aria-hidden` and
+   * `pointer-events` still apply): turning it inert would restyle its whole subtree for nothing.
+   */
+  readonly inertWhenHidden?: boolean;
   readonly onProgress?: (progress: number) => void;
   readonly onComplete?: (endpoint: PresenceEndpoint) => void;
   readonly onTransformWrite?: (transform: string) => void;
   readonly contentTargets?: () => readonly HTMLElement[];
+  /**
+   * The surface's glass-free content wrappers. Setting it writes material presence onto each
+   * element that reads it instead of onto the surface, where the inherited value restyles the
+   * whole subtree every frame; worth it for surfaces with large content.
+   */
+  readonly materialPresenceContent?: string;
 }
 
 export interface PresenceMotionSnapshot {
@@ -72,6 +89,11 @@ export function createPresenceMotion(
   let phase: PresencePhase = progress === 0 ? "hidden" : progress === 1 ? "visible" : "showing";
   let unsubscribe: (() => void) | null = null;
   let destroyed = false;
+  const inertWhenHidden = options.inertWhenHidden ?? true;
+  const directReaders =
+    options.materialPresenceContent === undefined
+      ? null
+      : createMaterialPresenceReaders(surface, options.materialPresenceContent);
 
   const stop = () => {
     unsubscribe?.();
@@ -81,7 +103,8 @@ export function createPresenceMotion(
   const write = (nextProgress: number) => {
     progress = clampProgress(nextProgress);
     if (channels.materialFade) {
-      if (progress === 1) clearMaterialPresenceProgress(surface);
+      if (directReaders) directReaders.write(progress);
+      else if (progress === 1) clearMaterialPresenceProgress(surface);
       else writeMaterialPresenceProgress(surface, progress);
     }
     if (channels.fade) {
@@ -108,7 +131,7 @@ export function createPresenceMotion(
   const complete = (endpoint: PresenceEndpoint) => {
     phase = endpoint;
     surface.dataset.presencePhase = endpoint;
-    setEndpointInteraction(surface, endpoint);
+    setEndpointInteraction(surface, inertWhenHidden, endpoint);
     options.onComplete?.(endpoint);
   };
 
@@ -121,7 +144,7 @@ export function createPresenceMotion(
     const opening = target > from;
     phase = opening ? "showing" : "hiding";
     surface.dataset.presencePhase = phase;
-    if (opening) setEndpointInteraction(surface, "visible");
+    if (opening) setEndpointInteraction(surface, inertWhenHidden, "visible");
 
     if (options.reducedMotion || distance < 0.0001) {
       write(target);
@@ -145,7 +168,11 @@ export function createPresenceMotion(
 
   write(progress);
   surface.dataset.presencePhase = phase;
-  setEndpointInteraction(surface, progress === 0 ? "hidden" : "visible");
+  if (options.initialTarget === undefined) {
+    setEndpointInteraction(surface, inertWhenHidden, progress === 0 ? "hidden" : "visible");
+  } else {
+    animateTo(options.initialTarget);
+  }
 
   return {
     show: () => animateTo(1),
@@ -160,12 +187,13 @@ export function createPresenceMotion(
       else {
         phase = "showing";
         surface.dataset.presencePhase = "showing";
-        setEndpointInteraction(surface, "visible");
+        setEndpointInteraction(surface, inertWhenHidden, "visible");
       }
     },
     setChannels(nextChannels) {
       if (destroyed) return;
       resetChannels(surface, channels, options.contentTargets);
+      directReaders?.clear();
       channels = nextChannels;
       write(progress);
     },
@@ -175,6 +203,7 @@ export function createPresenceMotion(
       destroyed = true;
       stop();
       resetChannels(surface, channels, options.contentTargets);
+      directReaders?.destroy();
       supplyMaterialPresentation(surface, { opacity: 1, translateX: 0, translateY: 0, scale: 1 });
       surface.style.pointerEvents = "";
       surface.inert = false;
@@ -219,9 +248,13 @@ function resetChannels(
   if (presenceMovement(channels, 1)) surface.style.transform = "";
 }
 
-function setEndpointInteraction(surface: HTMLElement, endpoint: PresenceEndpoint): void {
+function setEndpointInteraction(
+  surface: HTMLElement,
+  inertWhenHidden: boolean,
+  endpoint: PresenceEndpoint,
+): void {
   const hidden = endpoint === "hidden";
-  surface.inert = hidden;
+  surface.inert = hidden && inertWhenHidden;
   surface.style.pointerEvents = hidden ? "none" : "";
   if (hidden) {
     surface.setAttribute("aria-hidden", "true");

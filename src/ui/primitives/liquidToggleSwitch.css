@@ -24,6 +24,8 @@
 /* Track paint lives on a pseudo-element so it can follow the surrounding material presence
    (dialog fades): the track contains the glass knob, so it can never take opacity itself. */
 .taskmap-liquid-toggle__track::before {
+  /* Presence written on the track reaches its pseudo-element only explicitly. */
+  --taskmap-material-presence-direct: inherit;
   position: absolute;
   z-index: 0;
   border: 1px solid rgb(255 255 255 / 0.14);
@@ -34,7 +36,7 @@
     0 1px 3px rgb(0 0 0 / 0.24);
   content: "";
   inset: 0;
-  opacity: var(--taskmap-material-presence-progress, 1);
+  opacity: var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1));
   pointer-events: none;
   transition:
     background var(--taskmap-motion-normal) var(--taskmap-ease-standard),

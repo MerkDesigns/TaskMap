@@ -168,6 +168,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
             rimCanvasRef,
             nativeGlass,
             !sharedMajor && backdropSourceOverride !== "shell",
+            elevation !== "none",
           )
         : null,
       content,
@@ -179,9 +180,11 @@ function nativeGlassChrome(
   rimCanvasRef: RefObject<HTMLCanvasElement | null>,
   definition: NativeGlassMaterialDefinition,
   ownFilters: boolean,
+  shadow: boolean,
 ) {
   return (
     <>
+      {shadow && <span className="taskmap-material-native-glass__shadow" aria-hidden="true" />}
       <span className="taskmap-material-native-glass__clip" aria-hidden="true">
         {ownFilters && (
           <span

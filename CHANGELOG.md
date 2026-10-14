@@ -43,6 +43,11 @@ Architecture v1 (`architecture-v1`), not yet released.
 ### Changed
 
 - Settings → Visual: the corner radius sliders are titled "Interface roundness".
+- The side panel's show and hide animation keeps a much steadier frame rate: its fade now restyles
+  only the glass layers and content wrappers that change, not every preview and label in the panel,
+  and toggling the panel no longer re-renders the rest of the app, so closing starts without a
+  hitch. A closed panel stays ready in the background instead of being rebuilt, so it starts opening
+  sooner, and canvas previews no longer pop in partway through the slide.
 - The canvas browser's header reads "Canvases" with the stack icon and the canvas count beside the
   title; the "x Canvas Cards" line is gone.
 - Minor glass (toolbar islands, canvas cards, settings islands) no longer blurs what is behind it;

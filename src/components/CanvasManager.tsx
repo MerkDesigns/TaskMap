@@ -56,7 +56,8 @@ type CanvasManagerProps = {
   activeCanvasId: string;
   cycleHighlightCanvasId?: string | null;
   cardRadius?: number;
-  closing: boolean;
+  /** Only a standalone panel plays its own exit; a shared panel's owner animates it. */
+  closing?: boolean;
   embedded?: boolean;
   sharedPanel?: boolean;
   minimalView: boolean;
@@ -99,7 +100,7 @@ export function CanvasManager({
   activeCanvasId,
   cycleHighlightCanvasId = null,
   cardRadius,
-  closing,
+  closing = false,
   embedded = false,
   sharedPanel = false,
   minimalView,

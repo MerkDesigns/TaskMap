@@ -174,13 +174,22 @@ export function writeCanvasBrowserCardViewport<Id extends string>(
   })?.();
 }
 
+/**
+ * Puts the hosts in the layer in `order`, at its end. Moving a node restyles and lays out its whole
+ * subtree, so only hosts that are out of place move.
+ */
 export function reorderCanvasBrowserHosts<Id extends string>(
   order: readonly Id[],
   records: ReadonlyMap<Id, CanvasBrowserCardRecord<Id>>,
   cardsLayer: HTMLElement,
 ) {
-  order.forEach((id) => {
-    const host = records.get(id)?.host;
-    if (host && host.parentElement === cardsLayer) cardsLayer.append(host);
-  });
+  let next: Element | null = null;
+  for (let index = order.length - 1; index >= 0; index -= 1) {
+    const host = records.get(order[index])?.host;
+    if (!host || host.parentElement !== cardsLayer) continue;
+    const inPlace =
+      next === null ? host === cardsLayer.lastElementChild : host.nextElementSibling === next;
+    if (!inPlace) cardsLayer.insertBefore(host, next);
+    next = host;
+  }
 }

@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MotionProvider } from "../../motion/MotionProvider";
 import {
@@ -28,7 +29,9 @@ describe("WorkspaceSidePanel motion", () => {
         <ReducedMotionProvider override={false}>
           <MotionProvider scheduler={scheduler}>
             <WorkspaceSidePanel closing={closing} label="Test panel">
-              <div data-testid="panel-content">Panel</div>
+              <div className="taskmap-glass-list__content" data-testid="panel-content">
+                <span data-testid="panel-label">Panel</span>
+              </div>
             </WorkspaceSidePanel>
           </MotionProvider>
         </ReducedMotionProvider>
@@ -36,15 +39,26 @@ describe("WorkspaceSidePanel motion", () => {
     );
     const { rerender } = render(renderPanel(false));
     const panel = screen.getByLabelText("Test panel");
+    const content = screen.getByTestId("panel-content");
+    const label = screen.getByTestId("panel-label");
     const offscreenX = -(288 + 16 + WORKSPACE_SIDE_PANEL_OFFSCREEN_MARGIN_PX);
 
     expect(panel).toHaveAttribute("data-material", "acrylic-large");
     expect(panel).toHaveAttribute("data-presence-phase", "showing");
     expect(panel.style.transform).toBe(`translate3d(${offscreenX}px, 0px, 0) scale(0.94)`);
     expect(panel.style.opacity).toBe("");
-    // Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17).
-    const presence = () => panel.style.getPropertyValue("--taskmap-material-presence-progress");
+    // Material presence starts at zero (no blur/tint); never ancestor opacity (contract 17). It is
+    // written onto the glass layers and content wrappers that read it, never onto the panel, so a
+    // frame does not restyle the panel's children or everything inside the wrappers.
+    const shadow = panel.querySelector<HTMLElement>(".taskmap-material-native-glass__shadow")!;
+    const presence = (element: HTMLElement = shadow) =>
+      element.style.getPropertyValue("--taskmap-material-presence-direct");
     expect(presence()).toBe("0");
+    expect(presence(panel)).toBe("");
+    expect(presence(content)).toBe("0");
+    expect(content).toHaveAttribute("data-material-presence-content");
+    expect(presence(label)).toBe("");
+    expect(panel.style.getPropertyValue("--taskmap-material-presence-progress")).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 1, framePending: true });
 
     // The first frame starts the presence clock (zero delta); the second one advances it.
@@ -54,11 +68,14 @@ describe("WorkspaceSidePanel motion", () => {
     expect(readTranslateX(panel)).toBeLessThan(0);
     expect(Number(presence())).toBeGreaterThan(0);
     expect(Number(presence())).toBeLessThan(1);
+    expect(presence(content)).toBe(presence());
+    expect(presence(label)).toBe("");
     expect(panel.style.opacity).toBe("");
     act(() => driver.flush());
     expect(panel).toHaveAttribute("data-presence-phase", "visible");
     expect(panel.style.transform).toBe("");
     expect(presence()).toBe("");
+    expect(presence(content)).toBe("");
     expect(panel.style.opacity).toBe("");
     expect(scheduler.getSnapshot()).toEqual({ subscriberCount: 0, framePending: false });
     expect(driver.fire()).toBe(false);
@@ -170,6 +187,26 @@ describe("WorkspaceSidePanelContentSwitcher", () => {
     expect(views[1]).toHaveAttribute("data-active", "true");
     expect(views[1]).not.toHaveAttribute("inert");
     offsetHeight.mockRestore();
+  });
+
+  it("reveals a closed panel on its current view without a switch crossfade", () => {
+    const renderSwitcher = (mode: "visible" | "hidden", activeIndex: 0 | 1) => (
+      <Activity mode={mode}>
+        <WorkspaceSidePanelContentSwitcher
+          activeIndex={activeIndex}
+          views={[<div key="canvases">Canvases</div>, <div key="extensions">Extensions</div>]}
+        />
+      </Activity>
+    );
+    const { container, rerender } = render(renderSwitcher("visible", 0));
+    const views = container.querySelectorAll<HTMLElement>("[data-view-index]");
+
+    rerender(renderSwitcher("hidden", 0));
+    rerender(renderSwitcher("hidden", 1));
+    rerender(renderSwitcher("visible", 1));
+
+    expect(views[1]).toHaveAttribute("data-view-state", "active");
+    expect(views[0]).toHaveAttribute("data-view-state", "inactive");
   });
 
   it("measures natural content height so stretched views and glass overscan never ratchet it", () => {

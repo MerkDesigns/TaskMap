@@ -56,6 +56,53 @@ describe("presence motion channels", () => {
     motion.destroy();
   });
 
+  it("never makes a surface created hidden inert when it heads straight to visible", () => {
+    const surface = document.createElement("div");
+    const inertWrites: boolean[] = [];
+    Object.defineProperty(surface, "inert", {
+      get: () => inertWrites[inertWrites.length - 1] ?? false,
+      set: (value: boolean) => inertWrites.push(value),
+    });
+    const { scheduler, advance } = manualScheduler();
+    const motion = createPresenceMotion(surface, {
+      scheduler,
+      reducedMotion: false,
+      channels: { slide: { x: -100 } },
+      enter: linear(100),
+      initialProgress: 0,
+      initialTarget: 1,
+    });
+
+    expect(motion.getSnapshot()).toMatchObject({ progress: 0, target: 1, phase: "showing" });
+    advance(0);
+    advance(100);
+    expect(motion.getSnapshot()).toMatchObject({ progress: 1, phase: "visible" });
+    expect(inertWrites).not.toContain(true);
+    motion.destroy();
+  });
+
+  it("hides without inert when the owner hides the surface after its exit", () => {
+    const surface = document.createElement("div");
+    const { scheduler, advance } = manualScheduler();
+    const motion = createPresenceMotion(surface, {
+      scheduler,
+      reducedMotion: false,
+      channels: { slide: { x: -100 } },
+      exit: linear(100),
+      inertWhenHidden: false,
+    });
+
+    motion.hide();
+    advance(0);
+    advance(100);
+
+    expect(motion.getSnapshot().phase).toBe("hidden");
+    expect(surface.inert).toBe(false);
+    expect(surface).toHaveAttribute("aria-hidden", "true");
+    expect(surface.style.pointerEvents).toBe("none");
+    motion.destroy();
+  });
+
   it("uses separate enter and exit timing and completes at the endpoint", () => {
     const surface = document.createElement("div");
     const { scheduler, advance, active } = manualScheduler();

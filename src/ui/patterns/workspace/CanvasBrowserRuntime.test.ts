@@ -119,6 +119,30 @@ describe("production Canvas Browser runtime", () => {
     fixture.destroy();
   });
 
+  it("moves only out-of-place card hosts when reconciling", async () => {
+    const fixture = runtimeFixture(["a", "b", "c"]);
+    const moved: Node[] = [];
+    const observer = new MutationObserver((records) =>
+      records.forEach((record) => moved.push(...record.addedNodes)),
+    );
+    observer.observe(fixture.cardsLayer, { childList: true });
+    const hostIds = () =>
+      [...fixture.cardsLayer.children].map(
+        (host) => host.querySelector<HTMLElement>("[data-canvas-card-id]")!.dataset.canvasCardId,
+      );
+
+    fixture.runtime.reconcile(["a", "b", "c"]);
+    await Promise.resolve();
+    expect(moved).toEqual([]);
+
+    fixture.runtime.reconcile(["b", "a", "c"]);
+    await Promise.resolve();
+    expect(hostIds()).toEqual(["b", "a", "c"]);
+    expect(moved).toHaveLength(1);
+    observer.disconnect();
+    fixture.destroy();
+  });
+
   it("publishes a local panel-size change when the card count changes", () => {
     const fixture = runtimeFixture(["a", "b", "c"]);
     const changed = vi.fn();

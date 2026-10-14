@@ -122,6 +122,14 @@
   contain-intrinsic-size: 114.4px 66px;
 }
 
+/* A panel sliding in from off-screen would unlock every preview at once partway through the slide.
+   While the panel is revealed and shows, previews render with the reveal instead; the reveal styles
+   the panel before its presence phase is first written. */
+.taskmap-workspace-side-panel:is(:not([data-presence-phase]), [data-presence-phase="showing"])
+  .taskmap-canvas-preview {
+  content-visibility: visible;
+}
+
 /* Elements drawn in a preview; positions and sizes are set inline in preview pixels. */
 .taskmap-canvas-preview__item {
   position: absolute;

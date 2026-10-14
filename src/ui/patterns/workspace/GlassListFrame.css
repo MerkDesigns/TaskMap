@@ -22,24 +22,19 @@
 /* Settled scroll-edge morph for flow-laid list cards: body, rim,
    shadow and rounded content mask shrink to the visible slice written by the list owner. The card
    box and its content layout never change; held/dragged items are outside this context. */
-.taskmap-material-surface[data-material-strategy="native-glass"][data-glass-list-slice="true"] {
-  box-shadow: none;
-}
-
 /* Wholly outside the visible area, e.g. in a list's shadow gutter. */
 .taskmap-material-surface[data-glass-list-slice="hidden"] {
   visibility: hidden;
 }
 
 .taskmap-material-surface[data-material-strategy="native-glass"][data-glass-list-slice="true"]
-  > :is(.taskmap-material-native-glass__clip, .taskmap-material-native-glass__rim) {
+  > :is(
+    .taskmap-material-native-glass__shadow,
+    .taskmap-material-native-glass__clip,
+    .taskmap-material-native-glass__rim
+  ) {
   inset: var(--taskmap-glass-list-slice-top, 0px) var(--taskmap-glass-list-slice-right, 0px)
     var(--taskmap-glass-list-slice-bottom, 0px) var(--taskmap-glass-list-slice-left, 0px);
-}
-
-.taskmap-material-surface[data-material-strategy="native-glass"][data-glass-list-slice="true"]
-  > .taskmap-material-native-glass__clip {
-  box-shadow: var(--taskmap-material-shadow);
 }
 
 .taskmap-material-surface[data-glass-list-slice="true"] .taskmap-glass-list__content {

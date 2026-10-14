@@ -34,8 +34,9 @@ export function createMaterialSurfaceStyle(
     materialStyle["--taskmap-material-border-brightness"] = definition.borderBrightness;
     materialStyle["--taskmap-material-content-clip-inset"] =
       `${definition.rim.widthPx + definition.rim.softnessPx}px`;
-    materialStyle["--taskmap-material-shadow"] =
-      elevation === "none" ? "none" : nativeGlassShadow(definition.shadow);
+    // The shadow layer draws native glass shadows (MaterialSurface.css).
+    materialStyle["--taskmap-material-shadow"] = "none";
+    if (elevation !== "none") Object.assign(materialStyle, nativeGlassShadow(definition.shadow));
     return materialStyle;
   }
 
@@ -83,15 +84,17 @@ export function createMaterialSurfaceStyle(
   return materialStyle;
 }
 
+/** Geometry of the two shadows; their colour, and so their presence, is resolved by the layer. */
 function nativeGlassShadow(shadow: {
   readonly xPx: number;
   readonly yPx: number;
   readonly blurPx: number;
   readonly spreadPx: number;
   readonly opacity: number;
-}): string {
-  return [
-    `${shadow.xPx}px ${shadow.yPx}px ${Math.max(0, shadow.blurPx - 4)}px ${shadow.spreadPx}px color-mix(in srgb, rgb(0 0 0 / ${shadow.opacity}) calc(58% * var(--taskmap-material-presence-progress, 1)), transparent)`,
-    `${shadow.xPx}px ${shadow.yPx + 1}px ${shadow.blurPx}px ${Math.max(-4, shadow.spreadPx - 1)}px color-mix(in srgb, rgb(0 0 0 / ${shadow.opacity}) calc(42% * var(--taskmap-material-presence-progress, 1)), transparent)`,
-  ].join(", ");
+}): MaterialSurfaceStyle {
+  return {
+    "--taskmap-material-shadow-near": `${shadow.xPx}px ${shadow.yPx}px ${Math.max(0, shadow.blurPx - 4)}px ${shadow.spreadPx}px`,
+    "--taskmap-material-shadow-far": `${shadow.xPx}px ${shadow.yPx + 1}px ${shadow.blurPx}px ${Math.max(-4, shadow.spreadPx - 1)}px`,
+    "--taskmap-material-shadow-opacity": shadow.opacity,
+  };
 }

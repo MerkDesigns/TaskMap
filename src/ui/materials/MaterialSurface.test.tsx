@@ -82,6 +82,27 @@ describe("MaterialSurface", () => {
     expect(clip).not.toContainElement(rim);
   });
 
+  it("draws native glass shadows on their own layer instead of the surface", () => {
+    render(
+      <>
+        <MaterialSurface material="acrylic-large">Raised</MaterialSurface>
+        <MaterialSurface material="acrylic-large" radius={8} elevation="none">
+          Level
+        </MaterialSurface>
+      </>,
+    );
+    const raised = screen.getByText("Raised");
+
+    expect(raised.style.getPropertyValue("--taskmap-material-shadow")).toBe("none");
+    expect(raised.style.getPropertyValue("--taskmap-material-shadow-near")).not.toBe("");
+    expect(
+      raised.querySelector(":scope > .taskmap-material-native-glass__shadow"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Level").querySelector(".taskmap-material-native-glass__shadow"),
+    ).toBeNull();
+  });
+
   it("renders Acrylic Small with the same permanent two-pass recipe in every state", () => {
     render(<MaterialSurface material="acrylic-small">Small</MaterialSurface>);
     const surface = screen.getByText("Small");

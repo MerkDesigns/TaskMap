@@ -125,12 +125,15 @@
 /* Disabled dimming multiplies with an enclosing material fade instead of overriding it. */
 .taskmap-control:disabled[data-material-presence-content] {
   opacity: calc(
-    var(--taskmap-state-disabled-opacity) * var(--taskmap-material-presence-progress, 1)
+    var(--taskmap-state-disabled-opacity) *
+      var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
   );
 }
 
 .taskmap-control.taskmap-button:disabled[data-material-presence-content] {
-  opacity: calc(0.52 * var(--taskmap-material-presence-progress, 1));
+  opacity: calc(
+    0.52 * var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
+  );
 }
 
 .taskmap-button__icon,

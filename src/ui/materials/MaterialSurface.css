@@ -6,9 +6,17 @@
   initial-value: 1;
 }
 
+/* Presence written straight onto the element that reads it (createMaterialPresenceReaders), so a
+   frame restyles the readers instead of the subtree an inherited value would. Unset, readers
+   follow the inherited presence. */
+@property --taskmap-material-presence-direct {
+  syntax: "*";
+  inherits: false;
+}
+
 /* Glass-free content marked by markMaterialPresenceContent. */
 [data-material-presence-content] {
-  opacity: var(--taskmap-material-presence-progress, 1);
+  opacity: var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1));
 }
 
 .taskmap-material-surface {
@@ -58,6 +66,38 @@
     --taskmap-material-small-border-brightness-override,
     var(--taskmap-material-border-brightness)
   );
+}
+
+/* Native glass shadows sit on their own layer, which resolves presence itself: a fade restyles
+   this leaf instead of the surface, whose children would all follow. */
+.taskmap-material-surface[data-material-strategy="native-glass"]
+  > .taskmap-material-native-glass__shadow {
+  position: absolute;
+  z-index: -2;
+  border-radius: inherit;
+  box-shadow:
+    var(--taskmap-material-shadow-near)
+      color-mix(
+        in srgb,
+        rgb(0 0 0 / var(--taskmap-material-shadow-opacity))
+          calc(
+            58% *
+              var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
+          ),
+        transparent
+      ),
+    var(--taskmap-material-shadow-far)
+      color-mix(
+        in srgb,
+        rgb(0 0 0 / var(--taskmap-material-shadow-opacity))
+          calc(
+            42% *
+              var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1))
+          ),
+        transparent
+      );
+  inset: 0;
+  pointer-events: none;
 }
 
 .taskmap-material-surface[data-material-strategy="native-glass"]
@@ -128,7 +168,7 @@
       rgb(var(--taskmap-material-tone-rgb) / var(--taskmap-material-tone-opacity))
     );
   inset: 0;
-  opacity: var(--taskmap-material-presence-progress, 1);
+  opacity: var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1));
   pointer-events: none;
 }
 
@@ -139,7 +179,7 @@
   overflow: hidden;
   border-radius: inherit;
   inset: 0;
-  opacity: var(--taskmap-material-presence-progress, 1);
+  opacity: var(--taskmap-material-presence-direct, var(--taskmap-material-presence-progress, 1));
   pointer-events: none;
 }
 
