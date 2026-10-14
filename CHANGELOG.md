@@ -42,6 +42,7 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- Settings → Visual: the corner radius sliders are titled "Interface roundness".
 - The canvas browser's header reads "Canvases" with the stack icon and the canvas count beside the
   title; the "x Canvas Cards" line is gone.
 - Minor glass (toolbar islands, canvas cards, settings islands) no longer blurs what is behind it;

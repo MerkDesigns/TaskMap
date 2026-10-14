@@ -25,7 +25,7 @@ export function SettingsInterfaceIsland({ radii, onRadiusChange }: SettingsInter
     <SettingsIsland>
       <div className="taskmap-settings-section-heading">
         <IconLayoutDashboard size={16} stroke={2} />
-        <span>Interface</span>
+        <span>Interface roundness</span>
       </div>
       <div className="taskmap-settings-interface-grid">
         {RADIUS_SLIDERS.map(([key, label]) => (
