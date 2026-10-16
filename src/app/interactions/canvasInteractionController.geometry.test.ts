@@ -120,6 +120,27 @@ describe("move gesture", () => {
     expect(commits.commitMove).toHaveBeenCalledOnce();
   });
 
+  it("keeps one empty guide list across unsnapped move frames", () => {
+    const { controller } = setup();
+    controller.beginMove({
+      pointerId: 1,
+      screen: { x: 0, y: 0 },
+      primaryId: "a",
+      targets: [element("a")],
+      snapTargets: [],
+    });
+    const idle = controller.getSnapshot().snapGuides;
+    controller.updatePointer({ pointerId: 1, screen: { x: 10, y: 5 }, snapping: false });
+    const first = controller.getSnapshot();
+    controller.updatePointer({ pointerId: 1, screen: { x: 20, y: 10 }, snapping: false });
+    const second = controller.getSnapshot();
+
+    expect(second.geometryPreviews).not.toBe(first.geometryPreviews);
+    expect(second.snapGuides).toEqual([]);
+    expect(second.snapGuides).toBe(first.snapGuides);
+    expect(second.snapGuides).toBe(idle);
+  });
+
   it("does not commit cancelled, no-op, or below-threshold movement", () => {
     const { controller, commits } = setup();
     const source = element("a");

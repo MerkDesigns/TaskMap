@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -8,7 +9,10 @@ import {
 } from "react";
 import { useStableCanvasInteractionController } from "../app/interactions/useStableCanvasInteractionController";
 import { applyLegacySelectionAction } from "./interactions/legacySelectionCompatibility";
-import { createLegacyTextCardInteractionService } from "./interactions/legacyTextCardInteraction";
+import {
+  createLegacyTextCardInteractionService,
+  createLegacyTextCardStructureSelector,
+} from "./interactions/legacyTextCardInteraction";
 import { useLegacyCameraPresentation } from "./interactions/useLegacyCameraPresentation";
 import { useLegacyInteractionSnapshot } from "./interactions/useLegacyInteractionSnapshot";
 import type { RetainedCanvasContextValue } from "./RetainedCanvasContext";
@@ -37,12 +41,20 @@ export function useCanvasInteraction(retained: RetainedCanvasContextValue) {
   const [cardDrags] = useState(createCardDrags);
 
   const controller = useStableCanvasInteractionController(() => retained.binding.interaction);
-  const snapshot = useLegacyInteractionSnapshot(controller);
+  // Held text cards are drawn by their own overlay, which follows the pointer without App.
+  const snapshot = useLegacyInteractionSnapshot(
+    controller,
+    () => cardDrags.getSnapshot().active !== null,
+  );
   useLegacyCameraPresentation(controller, stageRef, selectionRef);
+  const getCardDragStructure = useMemo(
+    () => createLegacyTextCardStructureSelector(cardDrags),
+    [cardDrags],
+  );
   const cardDragSnapshot = useSyncExternalStore(
     cardDrags.subscribe,
-    cardDrags.getSnapshot,
-    cardDrags.getSnapshot,
+    getCardDragStructure,
+    getCardDragStructure,
   );
 
   useEffect(() => {

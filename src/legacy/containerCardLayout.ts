@@ -35,6 +35,26 @@ export const containerCardStackTop = (container: ContainerElement) =>
 export const containerViewportHeight = (container: ContainerElement) =>
   Math.max(0, container.height - CONTAINER_HEADER_HEIGHT - searchRowHeight(container));
 
+/** container.css: the shell's border, inside which the header and card rows sit. */
+const CONTAINER_BORDER_WIDTH = 2;
+
+/**
+ * The canvas band in which a container shows card rows: its content area below the header and
+ * search row, inside the border. Rows beyond it are clipped by the container.
+ */
+export const containerCardViewport = (
+  container: ContainerElement,
+): { readonly top: number; readonly bottom: number } => ({
+  top: container.y + CONTAINER_BORDER_WIDTH + CONTAINER_HEADER_HEIGHT + searchRowHeight(container),
+  bottom: container.y + container.height - CONTAINER_BORDER_WIDTH,
+});
+
+/** True when a card row at canvas `y` is not wholly inside the band its container shows. */
+export const isOutsideContainerCardViewport = (
+  y: number,
+  viewport: { readonly top: number; readonly bottom: number },
+) => y < viewport.top || y + CONTAINER_TEXT_CARD_ROW_HEIGHT > viewport.bottom;
+
 /** The height `count` card rows take, with padding above and below. */
 export const containerContentHeight = (count: number) =>
   count === 0

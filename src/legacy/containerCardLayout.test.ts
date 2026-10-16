@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { ContainerElement, TextCardElement } from "../types";
 import {
   containerCardStackTop,
+  containerCardViewport,
   createContainerCardLayout,
   groupContainerCards,
+  isOutsideContainerCardViewport,
 } from "./containerCardLayout";
 
 // 48 header + 17 padding; rows are 43 high with an 8 gap.
@@ -81,5 +83,14 @@ describe("container card layout", () => {
     expect(layout.dropIndex(box, { x: 0, y: 400 }, cards, "a", 1)).toBe(2);
     expect(layout.dropIndex(box, { x: 0, y: 0 }, cards, "a", 2)).toBe(1);
     expect(layout.dropIndex(box, { x: 0, y: 140 }, cards, "a", 1)).toBe(1);
+  });
+
+  it("shows card rows only inside the content band below the header, inside the border", () => {
+    const viewport = containerCardViewport(box);
+    expect(viewport).toEqual({ top: 50, bottom: 198 });
+    expect(isOutsideContainerCardViewport(65, viewport)).toBe(false);
+    expect(isOutsideContainerCardViewport(155, viewport)).toBe(false);
+    expect(isOutsideContainerCardViewport(156, viewport)).toBe(true);
+    expect(isOutsideContainerCardViewport(49, viewport)).toBe(true);
   });
 });

@@ -69,11 +69,30 @@
   transform: scale(1);
 }
 
-/* Bundled cards fly from their pickup offset into a swaying stack behind the held card. */
+/* Bundled cards hold their arrangement over open canvas and gather into a swaying stack behind
+   the held card over a container. Their position is relative to the held card, so it only changes
+   when they gather or spread, which glides. */
 .taskmap-text-card[data-drag="bundle"] {
-  animation: taskmap-text-card-bundle-pickup 190ms cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: center;
-  transition: transform 90ms ease-out;
+  transition:
+    transform 90ms ease-out,
+    translate 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Cards picked up straight into the stack (inside a container) gather from their rows once, as
+   they mount; the attribute stays for the whole drag, so the flight never replays. */
+.taskmap-text-card[data-drag="bundle"][data-bundle-pickup="true"] {
+  animation: taskmap-text-card-bundle-pickup 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes taskmap-text-card-bundle-pickup {
+  from {
+    transform: translate(var(--bundle-pickup-x), var(--bundle-pickup-y));
+  }
+
+  to {
+    transform: var(--bundle-rest-transform);
+  }
 }
 
 /* Shared element presence animations (also used by images and text blocks). */
@@ -255,14 +274,4 @@
   z-index: 10;
   border-radius: inherit;
   pointer-events: none;
-}
-
-@keyframes taskmap-text-card-bundle-pickup {
-  from {
-    transform: translate(var(--bundle-pickup-x), var(--bundle-pickup-y)) rotate(0deg) scale(1);
-  }
-
-  to {
-    transform: var(--bundle-rest-transform);
-  }
 }

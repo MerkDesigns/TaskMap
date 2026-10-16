@@ -9,6 +9,7 @@ import {
   getLegacyTextCardDragIds,
   type LegacyTextCardInteractionService,
 } from "./interactions/legacyTextCardInteraction";
+import { isLooseTextCardSelection } from "./interactions/legacyTextCardPlacement";
 import type { RetainedCanvasContextValue } from "./RetainedCanvasContext";
 
 type Point = { readonly x: number; readonly y: number };
@@ -186,22 +187,26 @@ export function createElementGestures(ports: () => CanvasGesturePorts) {
     },
     /**
      * Text cards drop into container slots and fly back when released elsewhere; a card in
-     * a container drags with the selected cards of that container. Mind-map nodes and loose
-     * multi-selections move like any other element.
+     * a container drags with the selected cards of that container, and a loose card with the
+     * other selected loose cards. Mind-map nodes and selections holding anything but loose text
+     * cards move like any other element.
      */
     moveTextCard(event: PointerEvent<HTMLElement>, card: TextCardElement) {
       if (p().editingCardId() === card.id) return;
       const selection = p().selection();
+      const scene = p().scene();
       // Mind-map nodes never drop into containers, and text-card placement rejects other
       // element types (which cancelled every mind-map drag).
       if (
         card.kind === "mindmap" ||
-        (!card.containerId && selection.length > 1 && selection.includes(card.id))
+        (!card.containerId &&
+          selection.length > 1 &&
+          selection.includes(card.id) &&
+          !isLooseTextCardSelection(scene.textCards, selection))
       ) {
         beginMove(event, card.id);
         return;
       }
-      const scene = p().scene();
       const movableIds = getLegacyTextCardDragIds([...scene.textCards], card.id, [...selection]);
       const start = p().cardPosition(card);
       const rect = event.currentTarget.getBoundingClientRect();

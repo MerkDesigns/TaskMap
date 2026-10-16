@@ -155,6 +155,14 @@ export interface CanvasInteractionController extends TransientInteractionService
   readonly dispose: () => void;
 }
 
+/**
+ * One shared empty guide list: every unsnapped move frame would otherwise publish a new empty
+ * array, and subscribers that compare snapshot fields would re-render for nothing.
+ */
+export const NO_SNAP_GUIDES: readonly SnapGuide[] = Object.freeze([]);
+export const snapGuidesOf = (guides: readonly SnapGuide[]) =>
+  guides.length > 0 ? guides : NO_SNAP_GUIDES;
+
 export function idleCanvasInteractionSnapshot(
   canvasKey: string,
   viewport: CanvasViewport,
@@ -167,6 +175,6 @@ export function idleCanvasInteractionSnapshot(
     selectionPreviewIds: [],
     selectionRectangle: null,
     geometryPreviews: [],
-    snapGuides: [],
+    snapGuides: NO_SNAP_GUIDES,
   };
 }

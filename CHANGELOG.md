@@ -42,6 +42,19 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- Several selected loose text cards drag into a container together: over the canvas they keep their
+  arrangement, over a container they gather into a stack and the container opens a slot for each,
+  and they drop in reading order. A selection that also holds other elements still moves as a
+  group. Cards dragged out of a container keep their rows and land on the canvas in that column.
+  Dragged cards never change their front-to-back order, and gathering into the stack no longer
+  flicks the cards outwards first. Cards dropped into rows a full container does not show slide
+  under its edge instead of briefly showing outside it. Grabbing cards in a container keeps their
+  gap open, so no other card slides, and the stack waits a moment before gathering or spreading,
+  so carrying it across the gap between two containers does not flicker. Letting go without
+  changing anything glides the cards back into place instead of snapping them there.
+- Dragging text cards no longer re-renders the whole canvas on every pointer move; only the held
+  cards follow the pointer, once per frame. Unsnapped moves of any element also stop publishing a
+  new (empty) snap-guide list on every frame.
 - Settings → Visual: the corner radius sliders are titled "Interface roundness".
 - The side panel's show and hide animation keeps a much steadier frame rate: its fade now restyles
   only the glass layers and content wrappers that change, not every preview and label in the panel,

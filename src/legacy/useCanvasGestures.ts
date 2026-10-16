@@ -126,20 +126,19 @@ export function useCanvasGestures(ports: CanvasGesturePorts) {
         if (p().connections.finish(event)) release(event);
         pointerMove(event);
         const { retained, controller, cardDrags } = p();
-        const workspace = () => retained.runtime.controller.store.getState().documentWorkspace;
-        const before = workspace().document;
         controller.completePointer({
           pointerId: event.pointerId,
           screen: { x: event.clientX, y: event.clientY },
           snapping: event.shiftKey,
         });
-        // A committed card drop lets the released cards fly from where they were let go.
-        if (before !== workspace().document) {
+        // Released cards settle from where they were let go: into their new places after a drop,
+        // back into their old ones when the drag changed nothing.
+        if (cardDrags.getSnapshot().active?.pointerId === event.pointerId) {
           const snapshot = retained.binding.getSnapshot();
           if (snapshot.phase === "ready" && snapshot.activeCanvas) {
             const canvas = snapshot.activeCanvas;
             const { pan, zoom } = p().camera();
-            cardDrags.finishCommitted({
+            cardDrags.finish({
               ...canvas,
               containers: [...canvas.containers],
               textCards: [...canvas.textCards],

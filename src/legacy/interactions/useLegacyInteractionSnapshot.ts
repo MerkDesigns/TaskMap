@@ -1,8 +1,17 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import type { CanvasInteractionController } from "../../app/interactions/canvasInteractionTypes";
 
-/** Camera frames have their own DOM presentation subscription, outside the legacy App tree. */
-export function useLegacyInteractionSnapshot(controller: CanvasInteractionController) {
+/**
+ * Camera frames have their own DOM presentation subscription, outside the legacy App tree.
+ * `previewsDrawnElsewhere` is true while the moved elements are drawn by an overlay that follows
+ * the pointer itself (held text cards): their geometry previews then do not re-render App.
+ */
+export function useLegacyInteractionSnapshot(
+  controller: CanvasInteractionController,
+  previewsDrawnElsewhere: () => boolean = () => false,
+) {
+  const previewsElsewhereRef = useRef(previewsDrawnElsewhere);
+  previewsElsewhereRef.current = previewsDrawnElsewhere;
   const getSnapshot = useMemo(() => {
     let previous = controller.getSnapshot();
     return () => {
@@ -13,7 +22,7 @@ export function useLegacyInteractionSnapshot(controller: CanvasInteractionContro
         next.selectedIds !== previous.selectedIds ||
         next.selectionPreviewIds !== previous.selectionPreviewIds ||
         next.selectionRectangle !== previous.selectionRectangle ||
-        next.geometryPreviews !== previous.geometryPreviews ||
+        (next.geometryPreviews !== previous.geometryPreviews && !previewsElsewhereRef.current()) ||
         next.snapGuides !== previous.snapGuides
       ) {
         previous = next;

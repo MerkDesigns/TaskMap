@@ -10,6 +10,7 @@ import {
 import {
   getLegacyTextCardDragIds,
   getLegacyTextCardFinalPosition,
+  isLooseTextCardSelection,
 } from "./legacyTextCardPlacement";
 import { isLocked } from "../../extensions/lock/lockRule";
 
@@ -62,7 +63,10 @@ export function createRetainedInteractionGeometry(
     ) {
       const card = cards.get(primaryId);
       const genericGroup =
-        !card?.containerId && selectedIds.length > 1 && selectedIds.includes(primaryId);
+        !card?.containerId &&
+        selectedIds.length > 1 &&
+        selectedIds.includes(primaryId) &&
+        !isLooseTextCardSelection(canvas.textCards, selectedIds);
       const cardGesture = !!card && !genericGroup;
       const ids = cardGesture
         ? getLegacyTextCardDragIds(canvas.textCards, primaryId, selectedIds)

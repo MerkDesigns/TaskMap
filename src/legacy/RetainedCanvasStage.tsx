@@ -67,7 +67,12 @@ export interface RetainedCanvasStageProps {
   readonly cardPosition: (card: TextCardElement) => { x: number; y: number } | undefined;
   readonly overlays: Pick<
     RetainedCanvasOverlaysProps,
-    "heldCards" | "releasedCards" | "cardById" | "outlinedIds" | "connectionPorts"
+    | "heldCards"
+    | "releasedCards"
+    | "cardViewportOf"
+    | "cardById"
+    | "outlinedIds"
+    | "connectionPorts"
   >;
   readonly selectionVisible: boolean;
 }

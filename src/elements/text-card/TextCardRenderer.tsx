@@ -18,10 +18,20 @@ export interface TextCardDrag {
   readonly primary: boolean;
   readonly atTrueSize: boolean;
   readonly bundleIndex: number;
-  readonly pickupX: number;
-  readonly pickupY: number;
+  /**
+   * Front-to-back rank among the dragged cards, as they were painted before the drag: dragged
+   * cards rise above everything else but never pass in front of one another.
+   */
+  readonly depth: number;
   readonly swayX: number;
   readonly swayY: number;
+  /** Shown in the arrangement it was picked up in instead of stacked behind the held card. */
+  readonly spread?: boolean;
+  /**
+   * Where a card picked up straight into the stack starts its gather from, relative to its place
+   * in the stack. It plays once as the card mounts and never restarts during the drag.
+   */
+  readonly pickup?: { readonly x: number; readonly y: number };
 }
 
 /** Transient presentation state; everything persistent is read from the element. */
@@ -123,9 +133,10 @@ function TextCardRendererComponent({
     .find(Boolean);
   const sized = Boolean(position?.width || position?.maxWidth);
   const bundled = drag !== undefined && !drag.primary;
-  const restTransform = bundled
-    ? bundleRestTransform(drag.swayX, drag.swayY, drag.bundleIndex, drag.atTrueSize)
-    : "none";
+  const restTransform =
+    bundled && !drag.spread
+      ? bundleRestTransform(drag.swayX, drag.swayY, drag.bundleIndex, drag.atTrueSize)
+      : "none";
   const { onSizeChange } = actions;
 
   useEffect(() => {
@@ -190,6 +201,8 @@ function TextCardRendererComponent({
             : "bundle"
           : undefined
       }
+      data-bundle-spread={(bundled && drag.spread) || undefined}
+      data-bundle-pickup={(bundled && drag.pickup && true) || undefined}
       data-motion={drag ? undefined : view.motion}
       data-entering={view.entering || undefined}
       data-deleting={view.deleting || undefined}
@@ -199,11 +212,7 @@ function TextCardRendererComponent({
       data-selected={selected || undefined}
       style={
         {
-          zIndex: drag
-            ? drag.primary
-              ? 10000
-              : 9999 - Math.max(0, drag.bundleIndex)
-            : 20 + view.layer,
+          zIndex: drag ? 9000 + drag.depth : 20 + view.layer,
           // Laid out at the origin and translated, like placementStyle: a drop or settle at a
           // fractional position then never re-rounds the card's border and text.
           left: 0,
@@ -215,8 +224,8 @@ function TextCardRendererComponent({
           borderColor: selected ? `color-mix(in srgb, ${accent} 72%, white 28%)` : accent,
           backgroundColor: `color-mix(in srgb, var(--container-bg) 92%, ${accent})`,
           transform: bundled ? restTransform : undefined,
-          "--bundle-pickup-x": `${drag?.pickupX ?? 0}px`,
-          "--bundle-pickup-y": `${drag?.pickupY ?? 0}px`,
+          "--bundle-pickup-x": drag?.pickup ? `${drag.pickup.x}px` : undefined,
+          "--bundle-pickup-y": drag?.pickup ? `${drag.pickup.y}px` : undefined,
           "--bundle-rest-transform": restTransform,
         } as CSSProperties
       }

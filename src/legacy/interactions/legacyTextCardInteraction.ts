@@ -1,10 +1,12 @@
 import type { ElementGeometry } from "../../canvas/geometry/canvasGeometry";
 import type { ContainerElement, TaskCanvas, TextBlockElement, TextCardElement } from "../../types";
 import {
+  getLegacyTextCardActiveOffset,
   getLegacyTextCardFinalPosition,
   getLegacyTextCardPlacementDecision,
   LEGACY_TEXT_CARD_ROW_HEIGHT,
   resolveLegacyTextCardPlacement,
+  type LegacyTextCardOffset,
   type LegacyTextCardPlacementDecision,
   type LegacyTextCardPlacementState,
 } from "./legacyTextCardPlacement";
@@ -23,15 +25,17 @@ export interface LegacyTextCardPresentation {
   readonly latestScreen: { x: number; y: number };
   readonly latestWorld: { x: number; y: number };
   readonly size: { width: number; height: number };
-  readonly offsets: readonly {
-    id: string;
-    x: number;
-    y: number;
-    pickupX: number;
-    pickupY: number;
-  }[];
+  readonly offsets: readonly LegacyTextCardOffset[];
   readonly sway: { x: number; y: number };
   readonly trueSize: boolean;
+  /** Picked up over a container, so the cards gather into the stack as they are picked up. */
+  readonly stackedAtPickup: boolean;
+  /**
+   * Shown in their original arrangement rather than stacked. It follows whether a container is
+   * targeted only once that has held for a moment, so carrying the stack across the gap between
+   * two containers does not flick it apart and back.
+   */
+  readonly spread: boolean;
   readonly startContainerId?: string;
   readonly targetContainerId: string | null;
   readonly insertionIndex: number | null;
@@ -59,7 +63,11 @@ export interface LegacyTextCardInteractionService {
   readonly update: (input: UpdateInput) => void;
   readonly enableTrueSize: (pointerId: number) => void;
   readonly getDecision: () => LegacyTextCardPlacementDecision | null;
-  readonly finishCommitted: (canvas: TaskCanvas) => void;
+  /**
+   * Ends the drag: the held cards settle from where they were shown to where `canvas` now has
+   * them, their new places after a drop or their old ones when nothing changed.
+   */
+  readonly finish: (canvas: TaskCanvas) => void;
   readonly cancelActive: (pointerId: number) => void;
   readonly reset: () => void;
   readonly cancelScheduledPresentation: () => void;
@@ -107,15 +115,35 @@ export function createLegacyTextCardInteractionService(options: {
   const listeners = new Set<() => void>();
   let frames: number[] = [];
   let timer: number | null = null;
+  let spreadTimer: number | null = null;
   const publish = (next: LegacyTextCardInteractionSnapshot) => {
     snapshot = next;
     listeners.forEach((listener) => listener());
+  };
+  const cancelSpreadChange = () => {
+    if (spreadTimer !== null) options.clearTimer(spreadTimer);
+    spreadTimer = null;
+  };
+  /** Shows the held cards spread (or stacked) once that has been wanted for a moment. */
+  const settleSpread = (spread: boolean) => {
+    if (!active || active.spread === spread) {
+      cancelSpreadChange();
+      return;
+    }
+    if (spreadTimer !== null) return;
+    spreadTimer = options.setTimer(() => {
+      spreadTimer = null;
+      if (!active || (active.targetContainerId === null) !== spread) return;
+      active = { ...active, spread };
+      publish({ ...snapshot, active });
+    }, SPREAD_CHANGE_DELAY_MS);
   };
   const cancelScheduledPresentation = () => {
     frames.forEach(options.cancelFrame);
     frames = [];
     if (timer !== null) options.clearTimer(timer);
     timer = null;
+    cancelSpreadChange();
   };
 
   return {
@@ -131,20 +159,25 @@ export function createLegacyTextCardInteractionService(options: {
         ? [...input.draggedIds]
         : [input.primaryId, ...input.draggedIds];
       const visualIds = [input.primaryId, ...orderedIds.filter((id) => id !== input.primaryId)];
+      const primaryCard = input.cards.find(({ id }) => id === input.primaryId)!;
+      // Held cards keep the order they were painted in: loose cards by canvas layer, a
+      // container's cards by row (the order of `orderedIds`).
+      const paintOrder = primaryCard.containerId
+        ? orderedIds
+        : [...orderedIds].sort(
+            (left, right) => layerOf(input.cards, left) - layerOf(input.cards, right),
+          );
       const offsets = visualIds.map((id, index) => {
         const geometry = input.geometries.get(id)!;
-        const x = index === 0 ? 0 : (index % 2 === 0 ? -1 : 1) * (5 + Math.min(index, 4) * 2);
-        const y = index === 0 ? 0 : Math.min(index, 5) * 4;
         return {
           id,
-          x,
-          y,
-          pickupX: geometry.x - (primary.x + x),
-          pickupY: geometry.y - (primary.y + y),
+          x: index === 0 ? 0 : (index % 2 === 0 ? -1 : 1) * (5 + Math.min(index, 4) * 2),
+          y: index === 0 ? 0 : Math.min(index, 5) * 4,
+          formation: { x: geometry.x - primary.x, y: geometry.y - primary.y },
+          depth: paintOrder.indexOf(id),
         };
       });
-      const primaryCard = input.cards.find(({ id }) => id === input.primaryId)!;
-      active = {
+      const picked: ActiveState = {
         pointerId: input.pointerId,
         primaryId: input.primaryId,
         ids: orderedIds,
@@ -156,6 +189,8 @@ export function createLegacyTextCardInteractionService(options: {
         offsets,
         sway: { x: 0, y: 0 },
         trueSize: false,
+        stackedAtPickup: false,
+        spread: true,
         startContainerId: primaryCard.containerId,
         targetContainerId: null,
         insertionIndex: null,
@@ -165,8 +200,19 @@ export function createLegacyTextCardInteractionService(options: {
         textBlocks: input.textBlocks,
         scrollOffsets: input.scrollOffsets,
         pointerOffsetY: input.startWorld.y - primary.y,
-        lastCenterY:
-          input.startWorld.y - (input.startWorld.y - primary.y) + LEGACY_TEXT_CARD_ROW_HEIGHT / 2,
+        lastCenterY: primary.y + LEGACY_TEXT_CARD_ROW_HEIGHT / 2,
+      };
+      // Resolve the slot under the pointer at once: cards picked up in a container keep their gap
+      // open from the first frame instead of closing it until the pointer first moves.
+      const placement = resolveLegacyTextCardPlacement(picked, input.startWorld, primary);
+      active = {
+        ...picked,
+        stackedAtPickup: placement.targetContainerId !== null,
+        spread: placement.targetContainerId === null,
+        targetContainerId: placement.targetContainerId,
+        insertionIndex: placement.insertionIndex,
+        dropPreview: placement.dropPreview,
+        lastCenterY: placement.centerY,
       };
       publish({ active, release: null });
     },
@@ -190,6 +236,7 @@ export function createLegacyTextCardInteractionService(options: {
         dropPreview: placement.dropPreview,
         lastCenterY: placement.centerY,
       };
+      settleSpread(placement.targetContainerId === null);
       publish({ ...snapshot, active });
     },
     enableTrueSize: (pointerId) => {
@@ -198,32 +245,47 @@ export function createLegacyTextCardInteractionService(options: {
       publish({ ...snapshot, active });
     },
     getDecision: () => (active ? getLegacyTextCardPlacementDecision(active) : null),
-    finishCommitted: (canvas) => {
+    finish: (canvas) => {
       if (!active) return;
+      cancelSpreadChange();
       const current = active;
-      const placement = getLegacyTextCardPlacementDecision(current);
-      const positions = new Map(
-        placement.loosePositions.map((position) => [position.id, position]),
-      );
+      // Cards settle from where they were shown (stacked or spread, which can lag the drop target
+      // for a moment) in the order they were painted in, so none passes in front of another.
+      const { spread } = current;
+      const offsetOf = (id: string) => current.offsets.find((offset) => offset.id === id);
+      const depthOf = (id: string) => offsetOf(id)?.depth ?? 0;
       const cards = current.ids.flatMap((id, index) => {
         const card = canvas.textCards.find((candidate) => candidate.id === id);
-        const fromPosition = positions.get(id);
-        if (!card || !fromPosition) return [];
+        const offset = offsetOf(id);
+        if (!card || !offset) return [];
+        const shown = getLegacyTextCardActiveOffset(offset, spread);
+        const fromPosition = { x: current.current.x + shown.x, y: current.current.y + shown.y };
+        const swaying = index > 0 && !spread;
         const factor = 0.18 + Math.min(index, 5) * 0.04;
         return [
           {
             card,
             from: {
-              x: fromPosition.x + (index > 0 ? current.sway.x * factor : 0),
+              x: fromPosition.x + (swaying ? current.sway.x * factor : 0),
               y:
                 fromPosition.y +
-                (index > 0 ? Math.abs(current.sway.x) * 0.08 + current.sway.y * 0.12 : 0),
+                (swaying ? Math.abs(current.sway.x) * 0.08 + current.sway.y * 0.12 : 0),
             },
             to: getLegacyTextCardFinalPosition(canvas, card, current.scrollOffsets),
           },
         ];
       });
+      cards.sort((left, right) => depthOf(left.card.id) - depthOf(right.card.id));
       active = null;
+      // Nothing to settle (a click on a single card): the cards are already where they belong,
+      // and no settling overlay should sit over a card about to be clicked again.
+      const moving = cards.some(
+        ({ from, to }) => Math.abs(from.x - to.x) > 0.5 || Math.abs(from.y - to.y) > 0.5,
+      );
+      if (!moving) {
+        publish({ active: null, release: null });
+        return;
+      }
       publish({ active: null, release: { active: false, cards } });
       frames.push(
         options.requestFrame(() => {
@@ -240,6 +302,7 @@ export function createLegacyTextCardInteractionService(options: {
     },
     cancelActive: (pointerId) => {
       if (active?.pointerId !== pointerId) return;
+      cancelSpreadChange();
       active = null;
       publish({ ...snapshot, active: null });
     },
@@ -251,6 +314,47 @@ export function createLegacyTextCardInteractionService(options: {
     cancelScheduledPresentation,
   };
 }
+
+/**
+ * The card-drag snapshot as everything but the held-card overlay reads it: it keeps its identity
+ * while pointer moves only carry the held cards along, and changes when a drag starts or ends, its
+ * cards, target slot or size change, or a release plays. The overlay follows the motion itself.
+ */
+export function createLegacyTextCardStructureSelector(
+  service: Pick<LegacyTextCardInteractionService, "getSnapshot">,
+): () => LegacyTextCardInteractionSnapshot {
+  let previous = service.getSnapshot();
+  return () => {
+    const next = service.getSnapshot();
+    if (next.release !== previous.release || structureChanged(previous.active, next.active)) {
+      previous = next;
+    }
+    return previous;
+  };
+}
+
+function structureChanged(
+  previous: LegacyTextCardPresentation | null,
+  next: LegacyTextCardPresentation | null,
+): boolean {
+  if (previous === next) return false;
+  if (!previous || !next) return true;
+  return (
+    previous.pointerId !== next.pointerId ||
+    previous.primaryId !== next.primaryId ||
+    previous.ids !== next.ids ||
+    previous.offsets !== next.offsets ||
+    previous.targetContainerId !== next.targetContainerId ||
+    previous.insertionIndex !== next.insertionIndex ||
+    previous.trueSize !== next.trueSize
+  );
+}
+
+/** How long held cards wait before gathering into the stack or spreading back out. */
+const SPREAD_CHANGE_DELAY_MS = 150;
+
+const layerOf = (cards: readonly TextCardElement[], id: string) =>
+  cards.find((card) => card.id === id)?.layer ?? 0;
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.max(minimum, Math.min(maximum, value));

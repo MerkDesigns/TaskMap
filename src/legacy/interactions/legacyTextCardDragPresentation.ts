@@ -1,4 +1,5 @@
 import type { LegacyTextCardPresentation } from "./legacyTextCardInteraction";
+import { getLegacyTextCardActiveOffset } from "./legacyTextCardPlacement";
 
 export interface LegacyTextCardDragRenderPosition {
   readonly x: number;
@@ -11,8 +12,13 @@ export function getLegacyTextCardDragRenderPosition(
   id: string,
 ): LegacyTextCardDragRenderPosition {
   const offset = presentation.offsets.find((candidate) => candidate.id === id);
-  return {
-    x: presentation.current.x + (offset?.x ?? 0),
-    y: presentation.current.y + (offset?.y ?? 0),
-  };
+  const active = offset
+    ? getLegacyTextCardActiveOffset(offset, presentation.spread)
+    : { x: 0, y: 0 };
+  return { x: presentation.current.x + active.x, y: presentation.current.y + active.y };
+}
+
+/** Held cards show in their original arrangement over open canvas, stacked over a container. */
+export function isLegacyTextCardSpread(presentation: LegacyTextCardPresentation) {
+  return presentation.spread;
 }

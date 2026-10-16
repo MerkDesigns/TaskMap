@@ -16,11 +16,26 @@ export interface LegacyTextCardPlacementDecision {
   readonly loosePositions: readonly { id: string; x: number; y: number }[];
 }
 
+/**
+ * Where a held card sits relative to the held (primary) card: in the arrangement it was picked up
+ * in (its place on the canvas, or its row in a container), or stacked behind it over a container.
+ */
+export interface LegacyTextCardOffset {
+  readonly id: string;
+  /** In the stack behind the held card. */
+  readonly x: number;
+  readonly y: number;
+  /** In the original arrangement. */
+  readonly formation: { readonly x: number; readonly y: number };
+  /** Front-to-back rank among the held cards, as they were painted; it never changes mid-drag. */
+  readonly depth: number;
+}
+
 export interface LegacyTextCardPlacementState {
   readonly primaryId: string;
   readonly ids: readonly string[];
   readonly current: { x: number; y: number };
-  readonly offsets: readonly { id: string; x: number; y: number }[];
+  readonly offsets: readonly LegacyTextCardOffset[];
   readonly startContainerId?: string;
   readonly targetContainerId: string | null;
   readonly insertionIndex: number | null;
@@ -46,6 +61,26 @@ export function getLegacyTextCardPreviewRowOffset(options: {
     : 0;
 }
 
+/**
+ * True when every selected element is a loose text card (not a mind-map node): such a selection
+ * drags as cards that can drop into a container. Anything else moves as a plain group.
+ */
+export function isLooseTextCardSelection(
+  cards: readonly TextCardElement[],
+  selectedIds: readonly string[],
+): boolean {
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  return selectedIds.every((id) => {
+    const card = byId.get(id);
+    return !!card && !card.containerId && card.kind !== "mindmap";
+  });
+}
+
+/**
+ * The cards a drag of `primaryId` carries: the selected cards of its container, every selected
+ * loose card of an all-loose-card selection (in reading order, the order they drop into a
+ * container in), or the card alone. Locked cards stay behind.
+ */
 export function getLegacyTextCardDragIds(
   cards: readonly TextCardElement[],
   primaryId: string,
@@ -53,15 +88,26 @@ export function getLegacyTextCardDragIds(
 ): string[] {
   const primary = cards.find(({ id }) => id === primaryId);
   if (!primary || isLocked(primary)) return [];
+  const selected = selectedIds.includes(primaryId);
   const bundle =
-    primary.containerId && selectedIds.includes(primaryId)
+    selected && primary.containerId
       ? cards
           .filter(
             (card) => card.containerId === primary.containerId && selectedIds.includes(card.id),
           )
           .sort(order)
-      : [primary];
+      : selected && isLooseTextCardSelection(cards, selectedIds)
+        ? cards.filter((card) => selectedIds.includes(card.id)).sort(readingOrder)
+        : [primary];
   return bundle.filter((card) => !isLocked(card)).map(({ id }) => id);
+}
+
+/** A held card's offset from the held card: in its original arrangement, or in the stack. */
+export function getLegacyTextCardActiveOffset(
+  offset: LegacyTextCardOffset,
+  spread: boolean,
+): { readonly x: number; readonly y: number } {
+  return spread ? offset.formation : offset;
 }
 
 export function resolveLegacyTextCardPlacement(
@@ -83,9 +129,13 @@ export function resolveLegacyTextCardPlacement(
     if (state.targetContainerId === target.id && state.insertionIndex !== null) {
       index = directionalIndex(state, target, withoutBundle, centerY);
     } else {
+      // Back in their own container the held cards start at their own slot: as many rows down as
+      // there are other cards above the held one.
+      const visible = visibleCards(target, state.cards);
+      const primaryIndex = visible.findIndex(({ id }) => id === state.primaryId);
       const original =
-        target.id === state.startContainerId
-          ? visibleCards(target, state.cards).findIndex(({ id }) => id === state.primaryId)
+        target.id === state.startContainerId && primaryIndex >= 0
+          ? visible.slice(0, primaryIndex).filter((card) => !state.ids.includes(card.id)).length
           : undefined;
       index = insertionIndex(
         target,
@@ -117,11 +167,10 @@ export function getLegacyTextCardPlacementDecision(
     targetContainerId: target?.id ?? null,
     visibleIndex,
     realIndex: target ? realInsertionIndex(target, cards, visibleIndex ?? 0) : null,
-    loosePositions: state.offsets.map((offset) => ({
-      id: offset.id,
-      x: state.current.x + offset.x,
-      y: state.current.y + offset.y,
-    })),
+    loosePositions: state.offsets.map((offset) => {
+      const { x, y } = getLegacyTextCardActiveOffset(offset, !target);
+      return { id: offset.id, x: state.current.x + x, y: state.current.y + y };
+    }),
   };
 }
 
@@ -281,6 +330,8 @@ const stackTop = (container: ContainerElement) =>
   container.y + HEADER_HEIGHT + searchRowHeight(container) + PADDING;
 const order = (left: TextCardElement, right: TextCardElement) =>
   (left.order ?? 0) - (right.order ?? 0);
+const readingOrder = (left: TextCardElement, right: TextCardElement) =>
+  left.y - right.y || left.x - right.x;
 const cardKind = (cards: readonly TextCardElement[], id: string) =>
   cards.find((card) => card.id === id)?.kind;
 const inside = (

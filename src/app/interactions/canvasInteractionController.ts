@@ -18,7 +18,11 @@ import type {
   ResizeGestureInput,
   SelectionGestureInput,
 } from "./canvasInteractionTypes";
-import { idleCanvasInteractionSnapshot } from "./canvasInteractionTypes";
+import {
+  idleCanvasInteractionSnapshot,
+  NO_SNAP_GUIDES,
+  snapGuidesOf,
+} from "./canvasInteractionTypes";
 import {
   isTinySelection,
   mergeSelection,
@@ -101,7 +105,7 @@ export function createCanvasInteractionController(
       selectionRectangle: null,
       selectionPreviewIds: [],
       geometryPreviews: [],
-      snapGuides: [],
+      snapGuides: NO_SNAP_GUIDES,
       ...patch,
     });
   };
@@ -131,7 +135,7 @@ export function createCanvasInteractionController(
       selectionRectangle: null,
       selectionPreviewIds: [],
       geometryPreviews: [],
-      snapGuides: [],
+      snapGuides: NO_SNAP_GUIDES,
     });
     return true;
   };
@@ -187,7 +191,7 @@ export function createCanvasInteractionController(
           id,
           geometry: { ...geometry, x: geometry.x + offset.x, y: geometry.y + offset.y },
         })),
-        snapGuides: snapped.guides,
+        snapGuides: snapGuidesOf(snapped.guides),
       });
       return;
     }
@@ -200,7 +204,7 @@ export function createCanvasInteractionController(
     const preview = constrainResizeGeometry(snapped.geometry, constraints);
     publish({
       geometryPreviews: [{ id: gesture.input.target.id, geometry: preview }],
-      snapGuides: snapped.guides,
+      snapGuides: snapGuidesOf(snapped.guides),
     });
   };
 
@@ -287,7 +291,7 @@ export function createCanvasInteractionController(
       if (enabled) {
         updatePointer({ pointerId, screen: gesture.lastScreen, snapping: true });
       } else if (snapshot.snapGuides.length > 0) {
-        publish({ snapGuides: [] });
+        publish({ snapGuides: NO_SNAP_GUIDES });
       }
     },
     completePointer: (sample) => {

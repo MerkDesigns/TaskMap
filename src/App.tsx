@@ -13,6 +13,7 @@ import type { ConnectionId } from "./domain/ids/entityIds";
 import { useRetainedInlineEdits } from "./legacy/useRetainedInlineEdit";
 import { useElementPresenceMarks } from "./legacy/useElementPresenceMarks";
 import { useCanvasMenus } from "./legacy/useCanvasMenus";
+import { containerCardViewport } from "./legacy/containerCardLayout";
 import { useConnectionDrawing } from "./legacy/useConnectionDrawing";
 import { useCanvasGestures } from "./legacy/useCanvasGestures";
 import { useMeasuredTextCardSizes } from "./legacy/canvasElementBounds";
@@ -624,8 +625,12 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             overlaidCardIds={canvasPresentation.overlaidCardIds}
             cardPosition={geometry.renderPosition}
             overlays={{
-              heldCards: canvasPresentation.heldCards,
+              heldCards: textCardInteraction,
               releasedCards: textCardInteractionSnapshot.release,
+              cardViewportOf: (containerId) => {
+                const container = containersById.get(containerId);
+                return container ? containerCardViewport(container) : null;
+              },
               cardById: (id) => textCardsById.get(id),
               outlinedIds,
               connectionPorts: connectionDrawing.mode

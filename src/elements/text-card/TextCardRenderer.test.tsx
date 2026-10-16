@@ -104,8 +104,7 @@ describe("TextCardRenderer", () => {
       primary: true,
       atTrueSize: false,
       bundleIndex: 0,
-      pickupX: 0,
-      pickupY: 0,
+      depth: 0,
       swayX: 0,
       swayY: 0,
     };
@@ -118,23 +117,29 @@ describe("TextCardRenderer", () => {
     );
   });
 
-  it("stacks bundled cards behind the held card with their pickup offset and sway", () => {
-    const { card } = renderCard(textCard(), {
-      drag: {
-        primary: false,
-        atTrueSize: false,
-        bundleIndex: 2,
-        pickupX: 12,
-        pickupY: -4,
-        swayX: 10,
-        swayY: 0,
-      },
-    });
+  it("sways stacked bundled cards and keeps every dragged card at its painted depth", () => {
+    const drag = {
+      primary: false,
+      atTrueSize: false,
+      bundleIndex: 2,
+      depth: 1,
+      swayX: 10,
+      swayY: 0,
+    };
+    const { card } = renderCard(textCard(), { drag });
 
     expect(card).toHaveAttribute("data-drag", "bundle");
-    expect(card.style.zIndex).toBe("9997");
-    expect(card.style.getPropertyValue("--bundle-pickup-x")).toBe("12px");
+    expect(card.style.zIndex).toBe("9001");
     expect(card.style.transform).toContain("rotate(");
+    cleanup();
+
+    const held = renderCard(textCard(), { drag: { ...drag, primary: true, depth: 0 } }).card;
+    expect(held.style.zIndex).toBe("9000");
+    cleanup();
+
+    const spread = renderCard(textCard(), { drag: { ...drag, spread: true } }).card;
+    expect(spread).toHaveAttribute("data-bundle-spread", "true");
+    expect(spread.style.transform).toBe("none");
   });
 
   it("only animates moves while it is not being dragged", () => {
@@ -148,8 +153,7 @@ describe("TextCardRenderer", () => {
       primary: true,
       atTrueSize: false,
       bundleIndex: 0,
-      pickupX: 0,
-      pickupY: 0,
+      depth: 0,
       swayX: 0,
       swayY: 0,
     };

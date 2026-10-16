@@ -190,6 +190,13 @@ export function LooseTextCardLayer({
 }) {
   const documentElements = useRetainedDocumentElements();
   const { textCardEdit, entering, deleting, pulsing, draggedIds } = presentation;
+  // Dragged cards keep their front-to-back order (by canvas layer) while they rise above the rest.
+  const dragDepth = new Map(
+    elements
+      .filter((card) => draggedIds.includes(card.id))
+      .sort((left, right) => (left.layer ?? 0) - (right.layer ?? 0))
+      .map((card, depth) => [card.id, depth]),
+  );
   return elements
     .filter((card) => visibleIds.has(card.id) && !hiddenIds.includes(card.id))
     .map((card) => {
@@ -216,8 +223,7 @@ export function LooseTextCardLayer({
                   primary: presentation.primaryMoveId === card.id,
                   atTrueSize: false,
                   bundleIndex: draggedIds.indexOf(card.id),
-                  pickupX: 0,
-                  pickupY: 0,
+                  depth: dragDepth.get(card.id) ?? 0,
                   swayX: 0,
                   swayY: 0,
                 }

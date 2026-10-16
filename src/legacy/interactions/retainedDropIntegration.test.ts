@@ -207,3 +207,43 @@ it.each(["missing", "exception"])(
     await setup.dispose();
   },
 );
+
+it.each([false, true])(
+  "drops a selection of loose cards into a slot in reading order, or keeps its layout (root=%s)",
+  async (root) => {
+    const input = dropInput();
+    for (const [id, x, y] of [
+      [ids.card, 900, 500],
+      [ids.bundle, 1000, 560],
+    ] as const) {
+      input.elements[id].geometry = { ...input.elements[id].geometry, x, y };
+      input.elements[id].data = { ...input.elements[id].data, placement: null };
+    }
+    const setup = await retainedDropSetup(input, ids.bundle, {});
+    expect(setup.plan.completionBehavior).toBe("place");
+    const before = setup.store.getState().documentWorkspace.document!;
+    expect(setup.begin()).toBe(true);
+    const sample = root ? setup.update(1300, 700) : setup.update(530, 100);
+    const decision = setup.placement.getDecision()!;
+    expect(decision.draggedIds).toEqual([ids.card, ids.bundle]);
+    setup.interaction.completePointer(sample);
+    expect(setup.onCompletion).toHaveBeenCalledWith({ ok: true, changed: true });
+    const after = setup.store.getState().documentWorkspace.document!;
+    if (root) {
+      const moved = (id: typeof ids.card) => ({
+        x: after.elements[id].geometry.x - before.elements[id].geometry.x,
+        y: after.elements[id].geometry.y - before.elements[id].geometry.y,
+      });
+      expect(moved(ids.bundle)).toEqual(moved(ids.card));
+      expect(moved(ids.card).x).not.toBe(0);
+      expect(after.elements[ids.card].data.placement).toBeNull();
+    } else {
+      expect(after.elements[ids.card].data.placement).toMatchObject({ containerId: ids.target });
+      expect(after.elements[ids.bundle].data.placement).toMatchObject({ containerId: ids.target });
+      const order = (id: typeof ids.card) =>
+        containerPlacementSchema.parse(after.elements[id].data.placement)!.order;
+      expect(order(ids.bundle)).toBe(order(ids.card) + 1);
+    }
+    await setup.dispose();
+  },
+);
