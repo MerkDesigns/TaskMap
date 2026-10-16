@@ -1,19 +1,14 @@
 import { IconCopy, IconCut, IconPencil, IconTrash } from "@tabler/icons-react";
 import { useRef } from "react";
 import type { SyntheticEvent } from "react";
-import { ACCENT_PRESETS } from "../../constants";
 import type { ElementExtensions } from "../../types";
 import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import type { RetainedExtensionKey } from "../../extensions/retainedExtensionDefinition";
 import { ContextMenuSurface } from "../../ui/primitives/ContextMenu";
-import {
-  ContextMenuDivider,
-  ContextMenuItem,
-  ContextMenuSwatch,
-  ContextMenuSwatches,
-} from "../../ui/primitives/ContextMenuParts";
+import { ContextMenuDivider, ContextMenuItem } from "../../ui/primitives/ContextMenuParts";
 import { useClampedFixedPosition } from "../../useClampedFixedPosition";
 import { LayerOrderActions, type LayerMove } from "../LayerOrderActions";
+import { useElementColorSwatches } from "../useElementColorSwatches";
 import { useElementMenuExtensions } from "../useElementMenuExtensions";
 import type { TextBlockDocumentElement } from "./textBlockModel";
 
@@ -38,6 +33,8 @@ export interface TextBlockMenuProps {
   /** Extensions installed on any of the menu's targets. */
   readonly installedOnTargets: ReadonlySet<RetainedExtensionKey>;
   readonly extensionCommands: ExtensionCommands;
+  /** Recently picked colors, offered by the color picker. */
+  readonly recentColors: readonly string[];
   readonly actions: TextBlockMenuActions;
 }
 
@@ -51,6 +48,7 @@ export function TextBlockMenu({
   extensions,
   installedOnTargets,
   extensionCommands,
+  recentColors,
   actions,
 }: TextBlockMenuProps) {
   const { id, data } = element;
@@ -63,10 +61,19 @@ export function TextBlockMenu({
       extensions: extensions ?? {},
       installedOnTargets,
       accent: data.accent,
-      recentColors: [],
+      recentColors,
     },
     commands: extensionCommands,
     closing,
+  });
+  const colors = useElementColorSwatches({
+    accent: data.accent,
+    accentOf: (preset) => preset.accent,
+    label: "Text block color",
+    recentColors,
+    closing,
+    onChange: (accent) => actions.onUpdateAccent(id, accent),
+    onRememberRecentColor: extensionCommands.rememberRecentColor,
   });
 
   return (
@@ -87,18 +94,7 @@ export function TextBlockMenu({
         </ContextMenuItem>
         {menuExtensions.items}
         <ContextMenuDivider />
-        <ContextMenuSwatches>
-          {ACCENT_PRESETS.map((preset) => (
-            <ContextMenuSwatch
-              key={preset.accent}
-              color={preset.swatch}
-              selected={data.accent === preset.accent}
-              title="Text block color"
-              aria-label={`Text block color ${preset.swatch}`}
-              onClick={() => actions.onUpdateAccent(id, preset.accent)}
-            />
-          ))}
-        </ContextMenuSwatches>
+        {colors.swatches}
         <ContextMenuDivider />
         <LayerOrderActions onMove={(direction) => actions.onMoveLayer(id, direction)} />
         <ContextMenuDivider />
@@ -122,6 +118,7 @@ export function TextBlockMenu({
         </ContextMenuItem>
       </ContextMenuSurface>
       {menuExtensions.panels}
+      {colors.panel}
     </>
   );
 }

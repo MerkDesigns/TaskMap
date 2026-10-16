@@ -14,7 +14,6 @@ describe("architecture registries", () => {
     expect(extensions.map((definition) => definition.id)).toEqual([
       "privacy",
       "lock",
-      "color-picker",
       "search",
       "checkbox",
       "auto-checkbox",
@@ -29,5 +28,12 @@ describe("architecture registries", () => {
     expect(Object.isFrozen(extensions)).toBe(true);
     expect(findElementDefinition("not-registered")).toBeUndefined();
     expect(findArchitectureExtensionDefinition("not-registered")).toBeUndefined();
+  });
+
+  it("still reads a retired extension's installations without offering it", () => {
+    expect(findArchitectureExtensionDefinition("color-picker")?.viewKey).toBe("colorPicker");
+    expect(getArchitectureExtensionDefinitions().some(({ id }) => id === "color-picker")).toBe(
+      false,
+    );
   });
 });

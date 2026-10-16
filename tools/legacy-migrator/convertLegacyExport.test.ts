@@ -51,6 +51,7 @@ const legacyExport = () => ({
             extensions: {
               privacy: { enabled: true },
               search: { query: "milk" },
+              colorPicker: { enabled: true },
               sorting: { mode: "alphabet", direction: "asc" },
             },
           },
@@ -275,6 +276,9 @@ describe("convertLegacyExport", () => {
     const notes = result.report.notes.join("\n");
     expect(notes).toMatch(/sorting extension no longer exists/);
     expect(notes).toMatch(/daily reset extension no longer exists/);
+    // Every element has the color picker built in, so its old extension is left out silently.
+    expect(installed.some(([extensionId]) => extensionId === "color-picker")).toBe(false);
+    expect(notes).not.toMatch(/colorPicker|color picker/i);
   });
 
   it("drops duplicate and dangling connections", () => {

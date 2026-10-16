@@ -38,6 +38,7 @@ function renderMenu(props: Partial<ImageMenuProps> = {}) {
       extensions={undefined}
       installedOnTargets={new Set()}
       extensionCommands={extensionCommands}
+      recentColors={[]}
       actions={actions}
       {...props}
     />,

@@ -42,6 +42,10 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- Extra colors is built into every element instead of being an extension: the last swatch of each
+  element menu (where pink was) opens the full color picker, with your recent colors. Elements that
+  had the Extra colors extension keep working; it no longer appears in the Extensions panel, and the
+  header palette button and "Open color picker" menu item are gone.
 - Several selected loose text cards drag into a container together: over the canvas they keep their
   arrangement, over a container they gather into a stack and the container opens a slot for each,
   and they drop in reading order. A selection that also holds other elements still moves as a

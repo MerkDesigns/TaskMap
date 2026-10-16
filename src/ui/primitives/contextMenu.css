@@ -197,6 +197,11 @@
   inset: 4px;
 }
 
+/* Four of the preset colors in quadrants, read as "more colors". */
+.taskmap-context-menu__swatch--picker {
+  background: conic-gradient(#dbc13d 0 25%, #91c85b 0 50%, #5f96e8 0 75%, #e85d61 0);
+}
+
 .taskmap-context-menu__swatch:focus-visible {
   box-shadow: 0 0 0 2px rgb(255 255 255 / 0.28);
 }

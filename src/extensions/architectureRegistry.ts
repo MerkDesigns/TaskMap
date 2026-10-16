@@ -15,7 +15,6 @@ import { folderDefinition } from "./folder/folderDefinition";
 const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = Object.freeze([
   privacyDefinition,
   lockDefinition,
-  colorPickerDefinition,
   searchDefinition,
   checkboxDefinition,
   autoCheckboxDefinition,
@@ -26,12 +25,24 @@ const registeredExtensionDefinitions: readonly RetainedExtensionDefinition[] = O
   folderDefinition,
 ]);
 
+/**
+ * Extensions that became built-in features. Documents keep their installations, which still parse
+ * so those documents open, but they are not offered, installable or shown anywhere.
+ */
+const retiredExtensionDefinitions: readonly RetainedExtensionDefinition[] = Object.freeze([
+  colorPickerDefinition,
+]);
+
+/** The extensions people can install, in registration order. */
 export function getArchitectureExtensionDefinitions(): readonly RetainedExtensionDefinition[] {
   return registeredExtensionDefinitions;
 }
 
+/** Any extension a document may hold, retired ones included. */
 export function findArchitectureExtensionDefinition(
   id: string,
 ): RetainedExtensionDefinition | undefined {
-  return registeredExtensionDefinitions.find((definition) => definition.id === id);
+  return [...registeredExtensionDefinitions, ...retiredExtensionDefinitions].find(
+    (definition) => definition.id === id,
+  );
 }

@@ -170,23 +170,28 @@ session-bound media service; these metadata props alone are not a complete Image
 Intermission step 3b4 adds the following strict configuration schemas to the existing architecture
 extension registry. All support element targets only; no canvas/document scope is silently remapped.
 
-| Canonical extension ID | Configuration          | Compatible canonical element types                     |
-| ---------------------- | ---------------------- | ------------------------------------------------------ |
-| `privacy`              | `{ enabled: boolean }` | container, text-block                                  |
-| `lock`                 | `{ enabled: boolean }` | container, text-block, text-card, mind-map-node, image |
-| `color-picker`         | `{ enabled: boolean }` | container, text-block, text-card, mind-map-node        |
-| `checkbox`             | `{ checked: boolean }` | text-card                                              |
-| `search`               | `{ query: string }`    | container                                              |
-| `auto-checkbox`        | `{ enabled: boolean }` | container                                              |
-| `counter`              | `{ enabled: boolean }` | container                                              |
-| `inherit-card-color`   | `{ enabled: boolean }` | container                                              |
-| `copy-paste-json`      | `{ enabled: boolean }` | container                                              |
-| `workflow`             | `{ lines: Line[] }`    | text-card                                              |
+| Canonical extension ID | Configuration          | Compatible canonical element types                        |
+| ---------------------- | ---------------------- | --------------------------------------------------------- |
+| `privacy`              | `{ enabled: boolean }` | container, text-block                                     |
+| `lock`                 | `{ enabled: boolean }` | container, text-block, text-card, mind-map-node, image    |
+| `color-picker`         | `{ enabled: boolean }` | container, text-block, text-card, mind-map-node (retired) |
+| `checkbox`             | `{ checked: boolean }` | text-card                                                 |
+| `search`               | `{ query: string }`    | container                                                 |
+| `auto-checkbox`        | `{ enabled: boolean }` | container                                                 |
+| `counter`              | `{ enabled: boolean }` | container                                                 |
+| `inherit-card-color`   | `{ enabled: boolean }` | container                                                 |
+| `copy-paste-json`      | `{ enabled: boolean }` | container                                                 |
+| `workflow`             | `{ lines: Line[] }`    | text-card                                                 |
 
 Fields are required, unknown keys rejected, and values are not coerced or defaulted during parsing.
 New-install defaults are true for flags, false for checkbox, empty query and no workflow lines.
 Search preserves all whitespace/Unicode and uses the existing generic JSON string limit. A workflow is `{ lines: Line[] }` (ADR 009). A `Line` is `{ invocations: Invocation[], workingDirectory: string | null, display: "terminal" | "background" }` with 1 to 8 invocations; an `Invocation` is `{ kind: "run", executable: string, arguments: string[] }` or `{ kind: "open", target: string }`. At most 32 lines and 64 arguments per run; each string at most 4096 UTF-8 bytes without NUL; executable, target and working directory not blank. There is no shell-string field; whether a workflow may run is per-device trust outside the document. These ten declare no mutual conflicts; one installation per ID/target is allowed, even when
 disabled. Removed extensions and the raw Command Runner are unsupported.
+
+`color-picker` is retired: every element menu has the full color picker built in. Its installations
+still validate and project, so documents holding them open unchanged, but the extension is not
+offered, installed, removed from menus or read by any feature, and the legacy migrator leaves a
+legacy color-picker extension out.
 
 Installation `enabled` is the activation gate, distinct from configuration `enabled`. A disabled
 installation contributes no effective element props but retains its validated configuration in the

@@ -106,6 +106,7 @@ export function RetainedCanvasMenus(props: RetainedCanvasMenusProps) {
             position={menu}
             closing={closing}
             {...shared}
+            recentColors={props.recentColors}
             actions={props.containerActions}
           />
         );
@@ -147,6 +148,7 @@ export function RetainedCanvasMenus(props: RetainedCanvasMenusProps) {
             position={menu}
             closing={closing}
             {...shared}
+            recentColors={props.recentColors}
             actions={props.textBlockActions}
           />
         );
@@ -162,6 +164,7 @@ export function RetainedCanvasMenus(props: RetainedCanvasMenusProps) {
             position={menu}
             closing={closing}
             {...shared}
+            recentColors={props.recentColors}
             actions={props.imageActions}
           />
         );

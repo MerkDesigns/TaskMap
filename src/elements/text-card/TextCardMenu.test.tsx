@@ -60,24 +60,31 @@ function renderMenu(props: Partial<TextCardMenuProps> = {}) {
 }
 
 describe("TextCardMenu", () => {
-  it("opens the Extra Colors picker directly below Edit Text", async () => {
+  it("offers seven color swatches and opens the full color picker from the last one", async () => {
     const user = userEvent.setup();
-    const { extensionCommands } = renderMenu({ installedOnTargets: new Set(["colorPicker"]) });
+    const { actions, extensionCommands } = renderMenu();
 
-    const editText = screen.getByRole("menuitem", { name: "Edit Text" });
-    const openPicker = screen.getByRole("menuitem", { name: "Open color picker" });
-    expect(editText.compareDocumentPosition(openPicker) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+    expect(screen.getAllByTitle("Text card color")).toHaveLength(7);
+    const morePicker = screen.getByRole("menuitem", { name: "Text card color: extra colors" });
+    expect(morePicker).toHaveAttribute("aria-pressed", "false");
 
-    await user.click(openPicker);
+    await user.click(morePicker);
     const colorInput = screen.getByTitle("Visual color picker");
     expect(colorInput.closest("[data-color-picker-menu]")).toHaveAttribute("data-context-menu");
     fireEvent.change(colorInput, { target: { value: "#123456" } });
-    expect(extensionCommands.updateSelectionAccent).toHaveBeenCalledWith(CARD_ID, "#123456");
+    expect(actions.onUpdateAccent).toHaveBeenCalledWith(CARD_ID, "#123456");
 
     await user.click(screen.getByTitle("Close"));
     expect(extensionCommands.rememberRecentColor).toHaveBeenCalledWith("#123456");
+  });
+
+  it("marks the picker swatch while the card has a color none of the swatches give", () => {
+    renderMenu({ element: textCard({ accent: "#123456" }) });
+
+    expect(screen.getByRole("menuitem", { name: "Text card color: extra colors" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("starts editing, cuts, copies and removes the card by id", async () => {

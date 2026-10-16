@@ -133,6 +133,35 @@ export interface ContextMenuSwatchProps extends ButtonHTMLAttributes<HTMLButtonE
   readonly "aria-label": string;
 }
 
+export interface ContextMenuColorPickerSwatchProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** The current colour is not one of the menu's swatches, so it came from the picker. */
+  readonly selected?: boolean;
+  readonly "aria-label": string;
+}
+
+/**
+ * The swatch slot that opens a full colour picker: four colour quadrants, marked while a custom
+ * colour is set.
+ */
+export function ContextMenuColorPickerSwatch({
+  selected = false,
+  tabIndex = -1,
+  type = "button",
+  ...props
+}: ContextMenuColorPickerSwatchProps) {
+  return (
+    <button
+      {...props}
+      type={type}
+      role="menuitem"
+      tabIndex={tabIndex}
+      aria-pressed={selected}
+      aria-haspopup="dialog"
+      className="taskmap-context-menu__swatch taskmap-context-menu__swatch--picker"
+    />
+  );
+}
+
 /** Colour choice inside a menu; the selected swatch shows an inner mark. */
 export function ContextMenuSwatch({
   color,

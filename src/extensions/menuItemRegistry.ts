@@ -1,5 +1,4 @@
 import { getArchitectureExtensionDefinitions } from "./architectureRegistry";
-import { colorPickerMenuItem } from "./color-picker/colorPickerMenuItem";
 import { lockMenuItem } from "./lock/lockMenuItem";
 import { workflowMenuItem } from "./workflow/workflowMenuItem";
 import { folderMenuItem } from "./folder/folderMenuItem";
@@ -8,7 +7,6 @@ import type { RetainedExtensionKey } from "./retainedExtensionDefinition";
 
 /** Extension menu items in display order. */
 const menuItems: readonly ExtensionMenuItem[] = Object.freeze([
-  colorPickerMenuItem,
   workflowMenuItem,
   folderMenuItem,
   lockMenuItem,
@@ -19,7 +17,6 @@ const removalOrder: readonly RetainedExtensionKey[] = Object.freeze([
   "privacy",
   "search",
   "lock",
-  "colorPicker",
   "checkbox",
   "autoCheckbox",
   "counter",

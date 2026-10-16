@@ -6,7 +6,6 @@ describe("extension catalog", () => {
     expect(EXTENSIONS.map((extension) => extension.id)).toEqual([
       "privacy",
       "lock",
-      "colorPicker",
       "search",
       "checkbox",
       "autoCheckbox",
@@ -33,7 +32,7 @@ describe("extension catalog", () => {
       EXTENSIONS.filter((extension) => extension.targets.includes("mindmap")).map(
         (extension) => extension.id,
       ),
-    ).toEqual(["lock", "colorPicker"]);
+    ).toEqual(["lock"]);
     expect(extensionCatalogEntry("lock").targets).toEqual([
       "container",
       "text-block",

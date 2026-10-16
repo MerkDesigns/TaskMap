@@ -11,6 +11,9 @@ export interface ConversionLog {
   readonly count: (what: string) => void;
 }
 
+// Legacy extensions whose feature every element now has built in; nothing is lost by leaving them out.
+const BUILT_IN_EXTENSIONS: ReadonlySet<string> = new Set(["colorPicker"]);
+
 // Legacy-only extensions of features the new app removed.
 const REMOVED_EXTENSIONS: Readonly<Record<string, string>> = {
   dailyReset: "daily reset",
@@ -72,7 +75,7 @@ export function convertLegacyExtensions(
   const definitions = getArchitectureExtensionDefinitions();
   const installations: ExtensionInstallation[] = [];
   for (const [key, value] of Object.entries(extensions ?? {})) {
-    if (value === undefined || value === null) continue;
+    if (value === undefined || value === null || BUILT_IN_EXTENSIONS.has(key)) continue;
     if (key in REMOVED_EXTENSIONS) {
       log.note(
         `${target.name}: the ${REMOVED_EXTENSIONS[key]} extension no longer exists and was left out.`,

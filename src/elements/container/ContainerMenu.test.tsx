@@ -37,6 +37,7 @@ function renderMenu(props: Partial<ContainerMenuProps> = {}) {
       extensions={undefined}
       installedOnTargets={new Set()}
       extensionCommands={extensionCommands}
+      recentColors={[]}
       actions={actions}
       {...props}
     />,

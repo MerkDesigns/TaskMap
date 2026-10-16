@@ -9,6 +9,10 @@ export const colorPickerConfigurationSchema = z
   })
   .strict();
 
+/**
+ * Retired: the full color picker is built into every element menu. Existing installations still
+ * parse so their documents open; nothing offers, installs or reads them.
+ */
 export const colorPickerDefinition = defineRetainedExtension({
   id: asEntityId("extension", "color-picker"),
   label: "Extra colors",

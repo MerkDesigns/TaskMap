@@ -172,6 +172,7 @@ export function ContextMenuPlayground() {
           extensions={extensions}
           installedOnTargets={new Set(Object.keys(extensions) as (keyof typeof extensions)[])}
           extensionCommands={extensionCommands}
+          recentColors={[]}
           actions={menuActions}
         />
       ) : null}

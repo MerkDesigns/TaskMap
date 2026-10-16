@@ -170,16 +170,15 @@ describe("ContainerRenderer", () => {
 
   it("keeps a panel opened from the overflow popover after the popover closes", () => {
     const { extensionCommands } = renderContainer(container(), {
-      extensions: { lock: { enabled: false }, colorPicker: { enabled: true } },
+      extensions: { lock: { enabled: false }, copyPasteJson: { enabled: true } },
     });
 
     fireEvent.click(screen.getByTitle("More extensions"));
-    fireEvent.click(screen.getByTitle("Open color picker"));
+    fireEvent.click(screen.getByTitle("Copy/Paste JSON"));
 
     expect(screen.queryByTitle("Lock")).not.toBeInTheDocument();
-    const picker = screen.getByTitle("Visual color picker");
-    fireEvent.change(picker, { target: { value: "#123456" } });
-    expect(extensionCommands.updateAccent).toHaveBeenCalledWith(CONTAINER_ID, "#123456");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open JSON editor" }));
+    expect(extensionCommands.openJsonEditor).toHaveBeenCalledWith(CONTAINER_ID);
   });
 
   it("counts its cards and opens the Copy/Paste JSON actions", () => {

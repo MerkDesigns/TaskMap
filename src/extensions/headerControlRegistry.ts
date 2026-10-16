@@ -1,4 +1,3 @@
-import { colorPickerHeaderControl } from "./color-picker/colorPickerHeaderControl";
 import { copyPasteJsonHeaderControl } from "./copy-paste-json/copyPasteJsonHeaderControl";
 import { counterHeaderControl } from "./counter/counterHeaderControl";
 import type { HeaderControl, HeaderControlContext } from "./headerControl";
@@ -9,7 +8,6 @@ import { privacyHeaderControl } from "./privacy/privacyHeaderControl";
 const headerControls: readonly HeaderControl[] = Object.freeze([
   lockHeaderControl,
   privacyHeaderControl,
-  colorPickerHeaderControl,
   counterHeaderControl,
   copyPasteJsonHeaderControl,
 ]);

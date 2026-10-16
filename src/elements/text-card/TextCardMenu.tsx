@@ -9,21 +9,17 @@ import {
 } from "@tabler/icons-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
-import { ACCENT_PRESETS, getTextCardAccent } from "../../constants";
+import { getTextCardAccent } from "../../constants";
 import type { ElementExtensions } from "../../types";
 import type { ExtensionCommands } from "../../extensions/extensionCommands";
 import type { RetainedExtensionKey } from "../../extensions/retainedExtensionDefinition";
 import { IconButton } from "../../ui/primitives/Button";
 import { ContextMenuSurface } from "../../ui/primitives/ContextMenu";
-import {
-  ContextMenuDivider,
-  ContextMenuItem,
-  ContextMenuSwatch,
-  ContextMenuSwatches,
-} from "../../ui/primitives/ContextMenuParts";
+import { ContextMenuDivider, ContextMenuItem } from "../../ui/primitives/ContextMenuParts";
 import { TextField } from "../../ui/primitives/FormControls";
 import { useClampedFixedPosition } from "../../useClampedFixedPosition";
 import { LayerOrderActions, type LayerMove } from "../LayerOrderActions";
+import { useElementColorSwatches } from "../useElementColorSwatches";
 import { useElementMenuExtensions } from "../useElementMenuExtensions";
 import type { TextCardRendererElement } from "./TextCardRenderer";
 
@@ -91,6 +87,15 @@ export function TextCardMenu({
     commands: extensionCommands,
     closing,
   });
+  const colors = useElementColorSwatches({
+    accent: activeAccent,
+    accentOf: (preset) => preset.textCardAccent,
+    label: "Text card color",
+    recentColors,
+    closing,
+    onChange: (accent) => actions.onUpdateAccent(id, accent),
+    onRememberRecentColor: extensionCommands.rememberRecentColor,
+  });
 
   useEffect(() => {
     setLinkDraft(link ?? "");
@@ -126,18 +131,7 @@ export function TextCardMenu({
         </ContextMenuItem>
         {menuExtensions.items}
         <ContextMenuDivider />
-        <ContextMenuSwatches>
-          {ACCENT_PRESETS.map((preset) => (
-            <ContextMenuSwatch
-              key={preset.textCardAccent}
-              color={preset.swatch}
-              selected={activeAccent === preset.textCardAccent}
-              title="Text card color"
-              aria-label={`Text card color ${preset.swatch}`}
-              onClick={() => actions.onUpdateAccent(id, preset.textCardAccent)}
-            />
-          ))}
-        </ContextMenuSwatches>
+        {colors.swatches}
         <ContextMenuDivider />
         {!contained && (
           <>
@@ -220,6 +214,7 @@ export function TextCardMenu({
       )}
 
       {menuExtensions.panels}
+      {colors.panel}
     </>
   );
 }

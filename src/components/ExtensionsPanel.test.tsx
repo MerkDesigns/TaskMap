@@ -122,8 +122,8 @@ describe("Extensions panel", () => {
     expect(screen.queryByText("Privacy")).not.toBeInTheDocument();
 
     await user.clear(search);
-    await user.type(search, "fine-tune");
-    expect(screen.getByText("Extra colors")).toBeInTheDocument();
+    await user.type(search, "with ai");
+    expect(screen.getByText("Copy/Paste JSON")).toBeInTheDocument();
     expect(screen.queryByText("Lock")).not.toBeInTheDocument();
   });
 
@@ -151,7 +151,6 @@ describe("Extensions panel", () => {
     }
     expect(trigger).toHaveAttribute("data-selected", "true");
     expect(screen.getByText("Lock")).toBeInTheDocument();
-    expect(screen.getByText("Extra colors")).toBeInTheDocument();
     expect(screen.queryByText("Privacy")).not.toBeInTheDocument();
 
     fireEvent.pointerDown(document.body);
@@ -171,14 +170,20 @@ describe("Extensions panel", () => {
     expect(within(sections[0] as HTMLElement).getByText("Favorites")).toBeInTheDocument();
     expect(extensionIds(sections[0] as HTMLElement)).toEqual(["privacy", "counter"]);
     expect(within(sections[1] as HTMLElement).getByText("Extensions")).toBeInTheDocument();
-    expect(extensionIds(sections[1] as HTMLElement).slice(0, 2)).toEqual(["lock", "colorPicker"]);
+    expect(extensionIds(sections[1] as HTMLElement).slice(0, 2)).toEqual(["lock", "search"]);
   });
 
   it("preserves favorite toggle persistence and the five-favorite limit", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
       FAVORITES_KEY,
-      JSON.stringify({ privacy: true, lock: true, colorPicker: true, search: true, counter: true }),
+      JSON.stringify({
+        privacy: true,
+        lock: true,
+        autoCheckbox: true,
+        search: true,
+        counter: true,
+      }),
     );
     const { container } = render(
       <ExtensionsPanel closing={false} embedded onDropExtension={vi.fn()} />,

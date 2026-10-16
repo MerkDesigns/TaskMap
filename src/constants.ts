@@ -20,6 +20,9 @@ export const ACCENT_PRESETS = [
   { swatch: "#DC68D8", accent: "#A753A4", textCardAccent: "#A753A4" },
 ];
 
+/** The swatches an element menu offers directly; its last slot opens the full color picker. */
+export const MENU_ACCENT_PRESETS = ACCENT_PRESETS.slice(0, 7);
+
 export const EXTENDED_ACCENT_PRESETS = [
   { swatch: "#E97146", accent: "#AD5837", textCardAccent: "#AD5837" },
   { swatch: "#51D88B", accent: "#41A76E", textCardAccent: "#41A76E" },

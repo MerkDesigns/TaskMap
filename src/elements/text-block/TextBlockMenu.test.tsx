@@ -37,6 +37,7 @@ function renderMenu(props: Partial<TextBlockMenuProps> = {}) {
       extensions={undefined}
       installedOnTargets={new Set()}
       extensionCommands={extensionCommands}
+      recentColors={[]}
       actions={actions}
       {...props}
     />,
