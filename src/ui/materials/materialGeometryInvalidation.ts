@@ -14,6 +14,8 @@ export interface MaterialPresentation {
   /** Uniform scale around the surface centre (CSS default transform origin). */
   readonly scale: number;
   readonly opacity: number;
+  /** Only this many px from the top are shown (`writeMaterialReveal`); absent shows it all. */
+  readonly visibleHeight?: number;
 }
 const IDENTITY_PRESENTATION: MaterialPresentation = {
   translateX: 0,
@@ -33,6 +35,19 @@ export function supplyMaterialPresentation(
 ): void {
   presentations.set(surface, { ...readMaterialPresentation(surface), ...value });
   presentationWriters.get(surface)?.();
+}
+/**
+ * Shows only the top `visible` px of a surface laid out `full` px tall. The element is clipped and
+ * shared glass planes draw the same rounded silhouette from cached cap images, so animating a
+ * reveal never relayouts, remeasures or re-encodes a mask the way animating height does.
+ */
+export function writeMaterialReveal(surface: HTMLElement, visible: number, full: number): void {
+  const hidden = Math.max(0, full - visible);
+  surface.style.clipPath =
+    hidden > 0 ? `inset(0 0 ${hidden}px 0 round var(--taskmap-material-radius))` : "";
+  // Kept even when nothing is hidden: right after the owner shrinks the layout to `visible`, the
+  // plane still holds the old, taller shape until the next geometry pass.
+  supplyMaterialPresentation(surface, { visibleHeight: visible });
 }
 export function subscribeMaterialPresentation(surface: HTMLElement, write: () => void): () => void {
   presentationWriters.set(surface, write);

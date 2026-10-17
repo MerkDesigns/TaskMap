@@ -8,6 +8,7 @@ export * from "./Field";
 export * from "./FloatingPanel";
 export * from "./FormControls";
 export * from "./Layout";
+export * from "./LiquidCellIndicator";
 export * from "./LiquidSelectionIndicator";
 export * from "./LiquidTabs";
 export * from "./LiquidToggleSwitch";

@@ -254,7 +254,8 @@
   background: rgb(var(--taskmap-material-fill-rgb) / var(--taskmap-material-fill-opacity, 1));
 }
 
-.taskmap-material-surface--bright-selection[data-material-strategy="native-glass"]::before {
+.taskmap-material-surface--bright-selection[data-material-strategy="native-glass"]::before,
+.taskmap-material-surface--clear-selection[data-material-strategy="native-glass"]::before {
   position: absolute;
   z-index: 0;
   border-radius: inherit;

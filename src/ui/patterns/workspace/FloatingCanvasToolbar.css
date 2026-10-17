@@ -3,7 +3,8 @@
   top: var(--taskmap-chrome-inset-top);
   left: var(--taskmap-chrome-inset-inline);
   display: flex;
-  align-items: center;
+  /* Groups share one height; the calendar island grows downward from the same top edge. */
+  align-items: flex-start;
   gap: var(--taskmap-chrome-gap);
 }
 

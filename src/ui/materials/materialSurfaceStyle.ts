@@ -1,11 +1,17 @@
 import type { CSSProperties } from "react";
-import type { MaterialDefinition, MaterialElevation, MaterialSurfaceStyle } from "./materialTypes";
+import type {
+  MaterialDefinition,
+  MaterialElevation,
+  MaterialSurfaceEffect,
+  MaterialSurfaceStyle,
+} from "./materialTypes";
 
 export function createMaterialSurfaceStyle(
   definition: MaterialDefinition,
   elevation: MaterialElevation,
   radius: number,
   style: CSSProperties | undefined,
+  effect?: MaterialSurfaceEffect,
 ): MaterialSurfaceStyle {
   const materialStyle: MaterialSurfaceStyle = {
     ...style,
@@ -23,6 +29,11 @@ export function createMaterialSurfaceStyle(
     materialStyle["--taskmap-material-preblur"] = `${definition.preblurPx ?? 0}px`;
     materialStyle["--taskmap-material-interaction-preblur"] =
       `${definition.interactionPreblurPx ?? 0}px`;
+    if (effect === "clear-selection") {
+      materialStyle["--taskmap-material-blur"] = "0px";
+      materialStyle["--taskmap-material-preblur"] = "0px";
+      materialStyle["--taskmap-material-interaction-preblur"] = "0px";
+    }
     materialStyle["--taskmap-material-saturation"] = definition.saturation;
     materialStyle["--taskmap-material-brightness"] = definition.brightness;
     materialStyle["--taskmap-material-contrast"] = definition.contrast;

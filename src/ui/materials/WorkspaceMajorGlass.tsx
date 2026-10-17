@@ -68,17 +68,26 @@ export function createWorkspaceMajorOwner(
     const width = window.innerWidth;
     const height = window.innerHeight;
     const visible = [...shapes].map(([element, shape]) => {
-      const { translateX, translateY, scale, opacity } = readMaterialPresentation(element);
+      const { translateX, translateY, scale, opacity, visibleHeight } =
+        readMaterialPresentation(element);
       const width = shape.width * scale;
       const height = shape.height * scale;
+      const x = shape.x + translateX + (shape.width - width) / 2;
+      const y = shape.y + translateY + (shape.height - height) / 2;
+      // A partial reveal is a morph: cached cap images, whatever the visible height this frame.
+      const revealed =
+        visibleHeight !== undefined && visibleHeight < shape.height
+          ? { clip: { left: x, top: y, width, height: visibleHeight * scale }, morph: true }
+          : null;
       return {
         ...shape,
-        x: shape.x + translateX + (shape.width - width) / 2,
-        y: shape.y + translateY + (shape.height - height) / 2,
+        x,
+        y,
         width,
         height,
         radius: shape.radius * scale,
         opacity,
+        ...revealed,
       };
     });
     plane.style.width = `${width}px`;

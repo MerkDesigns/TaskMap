@@ -110,3 +110,14 @@
   min-height: 1px;
   will-change: height, transform;
 }
+
+/* Placed entirely by LiquidCellIndicator's transform, rotating about its own centre. */
+.taskmap-liquid-cell-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-shadow: 0 2px 7px rgb(0 0 0 / 0.24);
+  pointer-events: none;
+  transform-origin: center;
+  will-change: width, transform;
+}

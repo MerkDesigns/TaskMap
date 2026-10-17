@@ -111,7 +111,7 @@ it("never clips the plane root (a clipped root becomes a WebView2 backdrop root)
   expect(plane).toHaveAttribute("data-glass-batch-state", "active");
 });
 
-it("morphs clipped scroll-edge shapes into rounded slices from cached corner caps", () => {
+it("morphs clipped scroll-edge shapes into rounded slices built from gradients", () => {
   const card = { x: 12, y: -40, width: 264, height: 84, radius: 13.5, morph: true };
   const slice = (top: number, height: number) =>
     layeredOutputMask(
@@ -121,17 +121,32 @@ it("morphs clipped scroll-edge shapes into rounded slices from cached corner cap
       ],
       10,
     )!;
+  const layers = (mask: ReturnType<typeof slice>) => mask.image.split(/,\s*(?=url|linear|radial)/);
   const first = slice(0, 44);
-  // Top cap + middle + bottom cap for the edge card, one full image for the visible card.
-  expect(first.composite).toBe("add, add, add, add");
-  expect(first.position).toBe("22px 10px, 22px 22.5px, 22px 40.5px, 22px 64px");
-  expect(first.size).toBe("264px 13.5px, 264px 19px, 264px 13.5px, 264px 84px");
-  expect(first.composite).not.toContain("intersect");
+  // Corner, band, corner on top; the middle; corner, band, corner below; one image for the
+  // fully visible card. Only that image is a data URL: a morph never waits on a decode.
+  expect(first.composite).toBe("add, add, add, add, add, add, add, add");
+  expect(
+    layers(first)
+      .slice(0, 7)
+      .every((layer) => !layer.startsWith("url")),
+  ).toBe(true);
+  expect(first.position.split(", ").slice(0, 4)).toEqual([
+    "22px 10px",
+    "34.5px 10px",
+    "272.5px 10px",
+    "22px 22.5px",
+  ]);
+  expect(first.size.split(", ")[3]).toBe("264px 19px");
+  // A shorter slice only resizes the middle; every image is reused.
   const second = slice(0, 30);
   expect(second.image).toBe(first.image);
-  expect(second.size).toBe("264px 13.5px, 264px 5px, 264px 13.5px, 264px 84px");
-  // A strip thinner than two radii keeps both caps, each half its height.
-  expect(slice(0, 10).size).toBe("264px 5px, 264px 5px, 264px 84px");
+  expect(second.size.split(", ")[3]).toBe("264px 5px");
+  // A strip thinner than two radii keeps both cap rows, each half its height.
+  const thin = slice(0, 10).size.split(", ");
+  expect(thin).toHaveLength(7);
+  expect(thin[0]).toBe("13.5px 5px");
+  expect(thin[3]).toBe("13.5px 5px");
 });
 
 it("hides the whole output with a full-size layer when there are no shapes", () => {

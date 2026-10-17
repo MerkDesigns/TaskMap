@@ -4,7 +4,8 @@ export type MaterialId = "acrylic-large" | "acrylic-small" | "opaque" | "cutout"
 export type MaterialStrategy = "native-glass" | "opaque" | "css";
 export type MaterialPlane = "base" | "modal";
 export type MaterialElevation = "default" | "none";
-export type MaterialSurfaceEffect = "bright-selection";
+/** `clear-selection`: the bright selection without any blur, so what lies beneath stays sharp. */
+export type MaterialSurfaceEffect = "bright-selection" | "clear-selection";
 /** `shell`: Minor body, rim and shadow without its own backdrop pass. */
 export type MaterialBackdropSource = "self" | "shared" | "shell";
 export type MaterialRgb = readonly [red: number, green: number, blue: number];

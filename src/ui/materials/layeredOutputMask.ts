@@ -124,28 +124,42 @@ function gradientRoundedLayers(
   return layers;
 }
 
-/** Rounded top cap, solid middle and rounded bottom cap; only sizes change as height changes. */
+/**
+ * Rounded top cap, solid middle and rounded bottom cap, generated from gradients: only sizes change
+ * as the visible height changes, and no frame waits on an image to decode. A morph starts on its
+ * first frame of motion, and a cap image still loading then made WebView2 paint the unmasked filter
+ * output for a frame. A strip thinner than two radii flattens its corners into ellipses.
+ */
 function capLayers({ x, y, width, height, radius, opacity }: NativeGlassShape): MaskLayer[] {
   const alpha = quantizedOpacity(opacity);
   const r = Math.max(0, Math.min(radius, width / 2));
   const cap = Math.min(r, height / 2);
   if (cap <= 0 || width <= 0 || alpha === 0) return [];
-  const layer = (image: string, top: number, layerHeight: number): MaskLayer => ({
-    image,
-    left: x,
-    top,
-    width,
-    height: layerHeight,
-    composite: "add",
-  });
   // Opaque layers overlap by 1px to hide seams; translucent ones must not (additive alpha).
   const overlap = alpha === 1 ? 1 : 0;
-  const middleTop = y + cap - overlap;
-  const middleHeight = height - 2 * cap + 2 * overlap;
+  const fill = solidLayer(alpha);
+  const layer = (image: string, left: number, top: number, w: number, h: number): MaskLayer => ({
+    image,
+    left,
+    top,
+    width: w,
+    height: h,
+    composite: "add",
+  });
+  const corner = (at: string) =>
+    `radial-gradient(${r}px ${cap}px at ${at}, rgb(0 0 0 / ${alpha}) 96%, transparent 100%)`;
+  const bands = width - 2 * r > 0;
+  const capRow = (top: number, edge: "top" | "bottom"): MaskLayer[] => [
+    layer(corner(edge === "top" ? "100% 100%" : "100% 0"), x, top, r, cap),
+    ...(bands ? [layer(fill, x + r - overlap, top, width - 2 * r + 2 * overlap, cap)] : []),
+    layer(corner(edge === "top" ? "0 100%" : "0 0"), x + width - r, top, r, cap),
+  ];
   return [
-    layer(cornerCapImage(width, r, "top", alpha), y, cap),
-    ...(height - 2 * cap > 0 ? [layer(solidLayer(alpha), middleTop, middleHeight)] : []),
-    layer(cornerCapImage(width, r, "bottom", alpha), y + height - cap, cap),
+    ...capRow(y, "top"),
+    ...(height - 2 * cap > 0
+      ? [layer(fill, x, y + cap - overlap, width, height - 2 * cap + 2 * overlap)]
+      : []),
+    ...capRow(y + height - cap, "bottom"),
   ];
 }
 
@@ -209,22 +223,6 @@ function roundedRectangleImage(
   return cacheMaskImage(
     key,
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><rect width="${width}" height="${height}" rx="${r}" fill="white" fill-opacity="${alpha}"/></svg>`,
-  );
-}
-
-function cornerCapImage(
-  width: number,
-  radius: number,
-  edge: "top" | "bottom",
-  alpha: number,
-): string {
-  const key = `${width}r${radius}${edge}a${alpha}`;
-  const image = roundedRectangleImages.get(key);
-  if (image) return image;
-  const y = edge === "top" ? 0 : -radius;
-  return cacheMaskImage(
-    key,
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${radius}" viewBox="0 0 ${width} ${radius}" preserveAspectRatio="none"><rect y="${y}" width="${width}" height="${radius * 2}" rx="${radius}" fill="white" fill-opacity="${alpha}"/></svg>`,
   );
 }
 

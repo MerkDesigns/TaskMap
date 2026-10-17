@@ -125,7 +125,7 @@ export const MaterialSurface = forwardRef<HTMLElement, MaterialSurfaceProps>(
       },
       [forwardedRef],
     );
-    const materialStyle = createMaterialSurfaceStyle(definition, elevation, radius, style);
+    const materialStyle = createMaterialSurfaceStyle(definition, elevation, radius, style, effect);
     const content =
       nativeGlass?.role === "large" ? (
         <MaterialSamplingBoundaryProvider boundary={providedBoundary}>
