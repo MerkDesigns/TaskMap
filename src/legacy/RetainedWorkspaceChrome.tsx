@@ -249,6 +249,8 @@ export function RetainedWorkspaceChrome({
           />
         )}
         <FloatingToolbar
+          buttons={settings.toolbarButtons}
+          calendarOpen={settings.calendarVisible}
           canRedo={history.canRedo}
           canUndo={history.canUndo}
           canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
@@ -263,6 +265,7 @@ export function RetainedWorkspaceChrome({
           onRedo={onRedo}
           onToggleExtensions={() => leftPanel.toggle("extensions")}
           onToggleCanvases={() => leftPanel.toggle("canvases")}
+          onToggleCalendar={() => settings.setCalendarVisible(!settings.calendarVisible)}
           onUndo={onUndo}
           onOpenSettings={onOpenSettings}
         />

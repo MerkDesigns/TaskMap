@@ -27,6 +27,38 @@ export const DEFAULT_CHROME_RADII: ChromeRadii = Object.freeze({
   settings: 12,
   settingsIsland: 8,
 });
+/** Every button the canvas toolbar can show; the ones not in the toolbar wait in its tray. */
+export const TOOLBAR_BUTTON_IDS = [
+  "canvases",
+  "extensions",
+  "settings",
+  "privacy",
+  "calendar",
+  "sleep",
+  "minimap",
+  "placeholder-1",
+  "placeholder-2",
+  "placeholder-3",
+] as const;
+export type ToolbarButtonId = (typeof TOOLBAR_BUTTON_IDS)[number];
+/** Slots in the toolbar's workspace group. */
+export const TOOLBAR_SLOT_COUNT = 6;
+/** Settings always stays in the toolbar: nothing else opens it. */
+export const PINNED_TOOLBAR_BUTTON: ToolbarButtonId = "settings";
+/** The shipped toolbar (mirrored by the Rust default). */
+export const DEFAULT_TOOLBAR_BUTTONS: readonly ToolbarButtonId[] = Object.freeze([
+  "canvases",
+  "extensions",
+  "settings",
+  "privacy",
+  "calendar",
+  "sleep",
+]);
+export const toolbarButtonsSchema = z
+  .array(z.enum(TOOLBAR_BUTTON_IDS))
+  .min(1)
+  .max(TOOLBAR_SLOT_COUNT)
+  .refine((ids) => new Set(ids).size === ids.length && ids.includes(PINNED_TOOLBAR_BUTTON));
 /** Shipped canvas background (`--taskmap-canvas-bg`, mirrored by the Rust default). */
 export const DEFAULT_CANVAS_BACKGROUND_COLOR = "#0F1011";
 export const devicePreferencesSchema = z
@@ -46,6 +78,10 @@ export const devicePreferencesSchema = z
     trayLockMinutes: z.number().int().min(0).max(1440),
     /** Background colour of every canvas. */
     canvasBackgroundColor: color,
+    /** The toolbar's workspace buttons, in order. */
+    toolbarButtons: toolbarButtonsSchema,
+    /** The calendar island beside the toolbar is shown. */
+    calendarVisible: z.boolean(),
     dismissedUpdateVersion: z
       .string()
       .min(1)

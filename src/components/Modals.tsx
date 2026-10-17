@@ -4,23 +4,23 @@ import {
   IconKeyboard,
   IconMoon,
   IconPalette,
-  IconRefresh,
   IconRestore,
   IconSettings,
 } from "@tabler/icons-react";
 import { SettingsInterfaceIsland } from "./SettingsInterfaceIsland";
+import { SettingsToolbarIsland } from "./SettingsToolbarIsland";
+import type { ToolbarToggleStates } from "./toolbarButtons";
 import {
   DEFAULT_CANVAS_BACKGROUND_COLOR,
   type ChromeRadii,
+  type ToolbarButtonId,
 } from "../platform/settings/preferenceContracts";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { commandErrorMessage } from "../app/commandError";
-import { AppUpdateInfo, DefaultElementColors } from "../types";
+import { DefaultElementColors } from "../types";
 import { Button, IconButton, Keycap, LiquidTabs, ScrollArea, Slider } from "../ui/primitives";
 import {
   isNestedModalPresenceBlocking,
   ModalDialogHeader,
-  ModalPresence,
   useDialogFocus,
 } from "../ui/patterns/overlays";
 import {
@@ -35,7 +35,6 @@ import {
   DatabaseSettingsActions,
   type DatabaseSettingsActionsProps,
 } from "./DatabaseSettingsActions";
-import { UpdateAvailableModal } from "./ProductionDialogs";
 
 export { ClearCanvasModal, UpdateAvailableModal } from "./ProductionDialogs";
 
@@ -54,7 +53,6 @@ type SettingsModalProps = {
   onShadowsUnderElementsChange: (enabled: boolean) => void;
   allowLockedElementDeletion: boolean;
   onAllowLockedElementDeletionChange: (enabled: boolean) => void;
-  availableUpdate: AppUpdateInfo | null;
   appVersion: string;
   fpsCounterVisible: boolean;
   onFpsCounterVisibleChange: (visible: boolean) => void;
@@ -64,10 +62,12 @@ type SettingsModalProps = {
   onChromeRadiusChange: (key: keyof ChromeRadii, radius: number) => void;
   sleepDelayMs: number;
   onSleepDelayChange: (delayMs: number) => void;
+  toolbarButtons: readonly ToolbarButtonId[];
+  onToolbarButtonsChange: (buttons: ToolbarButtonId[]) => void;
+  /** Toggle states the toolbar preview shows, as on the real toolbar. */
+  toolbarToggles: ToolbarToggleStates;
   temporaryPanelsVisible: boolean;
   onTemporaryPanelsVisibleChange: (visible: boolean) => void;
-  onCheckForUpdate: () => Promise<AppUpdateInfo | null>;
-  onInstallUpdate: () => Promise<void>;
   onClose: () => void;
 };
 
@@ -123,7 +123,6 @@ export function SettingsModal({
   onShadowsUnderElementsChange,
   allowLockedElementDeletion,
   onAllowLockedElementDeletionChange,
-  availableUpdate,
   appVersion,
   fpsCounterVisible,
   onFpsCounterVisibleChange,
@@ -133,16 +132,14 @@ export function SettingsModal({
   onChromeRadiusChange,
   sleepDelayMs,
   onSleepDelayChange,
+  toolbarButtons,
+  onToolbarButtonsChange,
+  toolbarToggles,
   temporaryPanelsVisible,
   onTemporaryPanelsVisibleChange,
-  onCheckForUpdate,
-  onInstallUpdate,
   onClose,
 }: SettingsModalProps) {
   const opacityCancelled = useRef(false);
-  const [, setUpdateStatus] = useState("");
-  const [updateBusy, setUpdateBusy] = useState(false);
-  const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"visual" | "data" | "misc" | "shortcuts" | "dev">(
     "visual",
   );
@@ -169,25 +166,6 @@ export function SettingsModal({
       setColorPicker(null);
     }
   }, [activeTab]);
-
-  const handleCheckForUpdate = async () => {
-    setUpdateStatus("");
-    setUpdateBusy(true);
-
-    try {
-      const update = await onCheckForUpdate();
-      if (update) {
-        setUpdateStatus("");
-        setUpdateModalOpen(true);
-      } else {
-        setUpdateStatus("");
-      }
-    } catch (error) {
-      setUpdateStatus(commandErrorMessage(error));
-    } finally {
-      setUpdateBusy(false);
-    }
-  };
 
   return (
     <Fragment>
@@ -409,14 +387,11 @@ export function SettingsModal({
                       onCommit={(value) => onSleepDelayChange(Math.round(value * 1000))}
                     />
                   </SettingsIsland>
-                  <Button
-                    className="taskmap-settings-update-button"
-                    leadingIcon={<IconRefresh size={17} stroke={2} />}
-                    onClick={handleCheckForUpdate}
-                    disabled={updateBusy}
-                  >
-                    {updateBusy ? "Checking..." : "Check for updates"}
-                  </Button>
+                  <SettingsToolbarIsland
+                    buttons={toolbarButtons}
+                    toggles={toolbarToggles}
+                    onButtonsChange={onToolbarButtonsChange}
+                  />
                 </div>
               )}
               {activeTab === "shortcuts" && (
@@ -485,15 +460,6 @@ export function SettingsModal({
           }}
         />
       )}
-      <ModalPresence open={updateModalOpen && Boolean(availableUpdate)} placement="nested">
-        {availableUpdate ? (
-          <UpdateAvailableModal
-            update={availableUpdate}
-            onInstall={onInstallUpdate}
-            onDismiss={() => setUpdateModalOpen(false)}
-          />
-        ) : null}
-      </ModalPresence>
     </Fragment>
   );
 }

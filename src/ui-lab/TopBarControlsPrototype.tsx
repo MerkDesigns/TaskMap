@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DEFAULT_TOOLBAR_BUTTONS } from "../platform/settings/preferenceContracts";
 import { FloatingToolbar } from "../components/FloatingToolbar";
 import "./topBarControlsPrototype.css";
 
@@ -22,6 +23,9 @@ export function TopBarControlsPrototype() {
 
       <div className="taskmap-ui-lab-top-bar-controls__sample">
         <FloatingToolbar
+          buttons={DEFAULT_TOOLBAR_BUTTONS}
+          calendarOpen={false}
+          onToggleCalendar={() => undefined}
           canRedo
           canUndo={false}
           canvasesOpen={canvasesOpen}

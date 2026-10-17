@@ -2,7 +2,9 @@ import { useState } from "react";
 import {
   DEFAULT_CANVAS_BACKGROUND_COLOR,
   DEFAULT_CHROME_RADII,
+  DEFAULT_TOOLBAR_BUTTONS,
   type ChromeRadii,
+  type ToolbarButtonId,
 } from "../platform/settings/preferenceContracts";
 import type { CanvasGridStyle, DefaultElementColors } from "../types";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
@@ -30,8 +32,12 @@ export function useLegacyCanvasSettings() {
   const [privacyModeEnabled, setPrivacyModeEnabled] = useState(false);
   const [toolbarButtonsVisible, setToolbarButtonsVisible] = useState(false);
   const [chromeAutoHideEnabled, setChromeAutoHideEnabled] = useState(false);
+  const [calendarVisible, setCalendarVisible] = useState(false);
   const [chromeAutoHideDelayMs, setChromeAutoHideDelayMs] = useState(3000);
   const [chromeRadii, setChromeRadii] = useState<ChromeRadii>(DEFAULT_CHROME_RADII);
+  const [toolbarButtons, setToolbarButtons] = useState<ToolbarButtonId[]>([
+    ...DEFAULT_TOOLBAR_BUTTONS,
+  ]);
   const [closeToTray, setCloseToTray] = useState(true);
   const [trayLockMinutes, setTrayLockMinutes] = useState(0);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
@@ -62,6 +68,10 @@ export function useLegacyCanvasSettings() {
     setChromeAutoHideDelayMs,
     chromeRadii,
     setChromeRadii,
+    toolbarButtons,
+    setToolbarButtons,
+    calendarVisible,
+    setCalendarVisible,
     closeToTray,
     setCloseToTray,
     trayLockMinutes,

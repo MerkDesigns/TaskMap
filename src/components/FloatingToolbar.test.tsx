@@ -83,6 +83,37 @@ describe("FloatingToolbar", () => {
     expect(screen.queryByRole("button", { name: /toolbar buttons/ })).toBeNull();
   });
 
+  it("shows the chosen buttons in the chosen order", () => {
+    render(
+      <FloatingToolbar
+        {...toolbarProps({ buttons: ["sleep", "settings", "placeholder-2", "canvases"] })}
+      />,
+    );
+    const workspace = screen.getByRole("group", { name: "Workspace controls" });
+    const names = [...workspace.querySelectorAll("button")].map((button) =>
+      button.getAttribute("aria-label"),
+    );
+    expect(names).toEqual(["Enable sleep mode", "Settings", "Placeholder 2", "Canvases"]);
+  });
+
+  it("toggles the calendar island, which follows the History group", async () => {
+    const user = userEvent.setup();
+    const props = toolbarProps({
+      calendarOpen: true,
+      buttons: ["canvases", "settings", "calendar"],
+    });
+    render(<FloatingToolbar {...props} />);
+    const calendarButton = screen.getByRole("button", { name: "Calendar" });
+    expect(calendarButton).toHaveAttribute("aria-pressed", "true");
+    await user.click(calendarButton);
+    expect(props.onToggleCalendar).toHaveBeenCalledOnce();
+
+    const groups = [...screen.getByLabelText("Canvas toolbar").children].map((group) =>
+      group.getAttribute("aria-label"),
+    );
+    expect(groups).toEqual(["Workspace controls", "History controls", "Calendar"]);
+  });
+
   it("uses two Acrylic Large groups and the cheap geometry invalidation seam", () => {
     const { container } = render(
       <>
@@ -104,6 +135,9 @@ describe("FloatingToolbar", () => {
 
 function toolbarProps(overrides: Partial<FloatingToolbarProps> = {}): FloatingToolbarProps {
   return {
+    buttons: ["canvases", "extensions", "settings", "privacy", "minimap", "sleep"],
+    calendarOpen: false,
+    onToggleCalendar: vi.fn(),
     canRedo: false,
     canUndo: false,
     canvasesOpen: false,

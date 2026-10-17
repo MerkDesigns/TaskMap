@@ -1,7 +1,10 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_CHROME_RADII } from "../platform/settings/preferenceContracts";
+import {
+  DEFAULT_CHROME_RADII,
+  DEFAULT_TOOLBAR_BUTTONS,
+} from "../platform/settings/preferenceContracts";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
 import type { ComponentProps } from "react";
 import { MaterialSurface } from "../ui/materials/MaterialSurface";
@@ -154,14 +157,10 @@ describe("Settings modal", () => {
     expect(props.onSleepDelayChange).toHaveBeenCalledExactlyOnceWith(6500);
   });
 
-  it("preserves the update action, shortcut order, and DEV toggles", async () => {
+  it("preserves the shortcut order and DEV toggles", async () => {
     const user = userEvent.setup();
     const props = settingsProps();
     renderSettings(props);
-
-    await user.click(screen.getByRole("tab", { name: "misc" }));
-    await user.click(screen.getByRole("button", { name: "Check for updates" }));
-    expect(props.onCheckForUpdate).toHaveBeenCalledOnce();
 
     await user.click(screen.getByRole("tab", { name: "shortcuts" }));
     const shortcutLabels = [
@@ -252,24 +251,6 @@ describe("Settings modal", () => {
     expect(screen.getByTestId("unrelated")).toHaveAttribute("data-material-plane", "base");
     scheduler.dispose();
   });
-
-  it("closes only the topmost nested Settings dialog on Escape", async () => {
-    const user = userEvent.setup();
-    const update = { version: "1.2.3", currentVersion: "1.0.0" };
-    const props = settingsProps({
-      availableUpdate: update,
-      onCheckForUpdate: vi.fn(async () => update),
-    });
-    renderSettings(props);
-
-    await user.click(screen.getByRole("tab", { name: "misc" }));
-    await user.click(screen.getByRole("button", { name: "Check for updates" }));
-    expect(await screen.findByRole("dialog", { name: "Update available" })).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog", { name: "Update available" })).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
-    expect(props.onClose).not.toHaveBeenCalled();
-  });
 });
 
 function renderSettings(props: ComponentProps<typeof SettingsModal>) {
@@ -341,7 +322,6 @@ function settingsProps(
     onShadowsUnderElementsChange: vi.fn(),
     allowLockedElementDeletion: false,
     onAllowLockedElementDeletionChange: vi.fn(),
-    availableUpdate: null,
     appVersion: "0.3.4",
     fpsCounterVisible: false,
     onFpsCounterVisibleChange: vi.fn(),
@@ -351,10 +331,11 @@ function settingsProps(
     onChromeRadiusChange: vi.fn(),
     sleepDelayMs: 3000,
     onSleepDelayChange: vi.fn(),
+    toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
+    onToolbarButtonsChange: vi.fn(),
+    toolbarToggles: { privacy: false, calendar: false, minimap: false, sleep: false },
     temporaryPanelsVisible: false,
     onTemporaryPanelsVisibleChange: vi.fn(),
-    onCheckForUpdate: vi.fn(async () => null),
-    onInstallUpdate: vi.fn(async () => undefined),
     onClose: vi.fn(),
     ...overrides,
   };

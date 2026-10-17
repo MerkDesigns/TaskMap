@@ -335,6 +335,7 @@ Key entry points:
   remembered views, privacy and media ownership; `createDatabaseSessionController.ts` — serialized
   lifecycle (open/unlock/lock/close), epochs, admission, save flushing and revocation.
 - `src/features/database-entry/` — unlock/create/recent-database screens and the unlock/lock reveal.
+- `src/features/calendar/` — the calendar island beside the toolbar and its local-date month math.
 - `src/legacy/RetainedCanvasApplication.tsx` + `src/App.tsx` + `src/components/` — retained
   presentation; not the persistence owner. Presentation state moves out of `App.tsx` into
   `src/legacy/` hooks as it migrates, e.g. `useRetainedInlineEdit.ts` (in-place text and name

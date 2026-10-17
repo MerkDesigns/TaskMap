@@ -1,7 +1,10 @@
 import { vi } from "vitest";
 import type { ApplicationPreferencesClient } from "../../platform/settings/applicationPreferencesClient";
 import type { PreferencesState } from "../../platform/settings/preferenceContracts";
-import { DEFAULT_CHROME_RADII } from "../../platform/settings/preferenceContracts";
+import {
+  DEFAULT_CHROME_RADII,
+  DEFAULT_TOOLBAR_BUTTONS,
+} from "../../platform/settings/preferenceContracts";
 export const preferencesFixture = (): PreferencesState => ({
   version: 1,
   edition: "development",
@@ -19,6 +22,8 @@ export const preferencesFixture = (): PreferencesState => ({
     toolbarButtonsVisible: true,
     chromeAutoHideEnabled: false,
     chromeAutoHideDelayMs: 3000,
+    toolbarButtons: [...DEFAULT_TOOLBAR_BUTTONS],
+    calendarVisible: false,
     closeToTray: true,
     trayLockMinutes: 0,
     canvasBackgroundColor: "#0F1011",

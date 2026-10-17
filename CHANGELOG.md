@@ -10,6 +10,14 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Added
 
+- Calendar: a toolbar button shows a calendar island beside the History buttons with today's
+  date. Its chevron slides it down to the full month, with arrows to browse months, today marked
+  and a liquid glass highlight that glides to the day you click. Calendar replaces Minimap in the
+  default toolbar; Minimap is still available among the unused buttons.
+- Customize Toolbar in Settings > Misc: on a copy of the toolbar, drag buttons to reorder them,
+  into a second bar to hide them, or drag a hidden one onto a toolbar button to swap them, like
+  icons on a phone. The toolbar has six slots and Settings always stays in it. Three placeholder buttons stand in for
+  buttons still to come.
 - Folder extension for text cards: paste or browse to a folder on your PC, and a folder button
   before the card's text opens it in Explorer. It opens on hover; a folder that no longer exists
   shows a toast and dims the button. Network folders are not supported.
@@ -144,6 +152,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Removed
 
+- The "Check for updates" button in Settings > Misc. TaskMap still offers an update it finds on
+  its own.
 - Discord Rich Presence, daily reset, sorting, pick-a-card, the old raw Command Runner and the
   production frosted-glass tuner.
 - Keyring-based encryption and legacy data migrations inside the app.

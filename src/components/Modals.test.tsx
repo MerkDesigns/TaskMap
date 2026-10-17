@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_ELEMENT_COLORS } from "../constants";
-import { DEFAULT_CHROME_RADII } from "../platform/settings/preferenceContracts";
+import {
+  DEFAULT_CHROME_RADII,
+  DEFAULT_TOOLBAR_BUTTONS,
+} from "../platform/settings/preferenceContracts";
 import { ReducedMotionProvider } from "../ui/motion/reducedMotionPreference";
 import { ModalPresence } from "../ui/patterns/overlays";
 import { ClearCanvasModal, SettingsModal } from "./Modals";
@@ -73,7 +76,6 @@ describe("modal keyboard behavior", () => {
             onShadowsUnderElementsChange={vi.fn()}
             allowLockedElementDeletion
             onAllowLockedElementDeletionChange={onAllowLockedElementDeletionChange}
-            availableUpdate={null}
             appVersion="0.2.8"
             fpsCounterVisible={false}
             onFpsCounterVisibleChange={vi.fn()}
@@ -83,10 +85,11 @@ describe("modal keyboard behavior", () => {
             onChromeRadiusChange={vi.fn()}
             sleepDelayMs={3000}
             onSleepDelayChange={vi.fn()}
+            toolbarButtons={DEFAULT_TOOLBAR_BUTTONS}
+            onToolbarButtonsChange={vi.fn()}
+            toolbarToggles={{ privacy: false, calendar: false, minimap: false, sleep: false }}
             temporaryPanelsVisible={false}
             onTemporaryPanelsVisibleChange={vi.fn()}
-            onCheckForUpdate={vi.fn(async () => null)}
-            onInstallUpdate={vi.fn(async () => undefined)}
             onClose={vi.fn()}
           />
         </ModalPresence>

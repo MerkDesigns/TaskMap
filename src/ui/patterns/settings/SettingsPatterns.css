@@ -306,11 +306,6 @@
   gap: var(--taskmap-space-2);
 }
 
-.taskmap-settings-update-button {
-  width: 100%;
-  margin-top: auto;
-}
-
 /* The shortcuts tab fits the visible height: its heading stays put and only the rows scroll,
    inside the island's glass. */
 .taskmap-settings-content-stack--fit {

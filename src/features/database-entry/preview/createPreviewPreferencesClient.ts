@@ -4,7 +4,10 @@ import type {
   PreferencesState,
   RememberedViews,
 } from "../../../platform/settings/preferenceContracts";
-import { DEFAULT_CHROME_RADII } from "../../../platform/settings/preferenceContracts";
+import {
+  DEFAULT_CHROME_RADII,
+  DEFAULT_TOOLBAR_BUTTONS,
+} from "../../../platform/settings/preferenceContracts";
 
 /** In-memory preview transport; no preferences/profile or native authority. */
 export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
@@ -19,6 +22,8 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       privacyModeEnabled: false,
       chromeAutoHideEnabled: false,
       chromeAutoHideDelayMs: 3000,
+      toolbarButtons: [...DEFAULT_TOOLBAR_BUTTONS],
+      calendarVisible: false,
       closeToTray: true,
       trayLockMinutes: 0,
       canvasBackgroundColor: "#0F1011",

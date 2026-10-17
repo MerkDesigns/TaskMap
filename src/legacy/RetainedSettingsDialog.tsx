@@ -83,7 +83,6 @@ export function RetainedSettingsDialog({
             onShadowsUnderElementsChange={settings.setShadowsUnderElements}
             allowLockedElementDeletion={settings.allowLockedElementDeletion}
             onAllowLockedElementDeletionChange={settings.setAllowLockedElementDeletion}
-            availableUpdate={updates.availableUpdate}
             appVersion={updates.appVersion}
             fpsCounterVisible={fpsCounterVisible}
             onFpsCounterVisibleChange={onFpsCounterVisibleChange}
@@ -95,10 +94,16 @@ export function RetainedSettingsDialog({
             }
             sleepDelayMs={settings.chromeAutoHideDelayMs}
             onSleepDelayChange={settings.setChromeAutoHideDelayMs}
+            toolbarButtons={settings.toolbarButtons}
+            onToolbarButtonsChange={settings.setToolbarButtons}
+            toolbarToggles={{
+              privacy: settings.privacyModeEnabled,
+              calendar: settings.calendarVisible,
+              minimap: settings.minimapEnabled,
+              sleep: settings.chromeAutoHideEnabled,
+            }}
             temporaryPanelsVisible={temporaryPanelsVisible}
             onTemporaryPanelsVisibleChange={setTemporaryPanelsVisible}
-            onCheckForUpdate={updates.checkForAppUpdate}
-            onInstallUpdate={updates.installAppUpdate}
             onClose={close}
           />
         </Suspense>

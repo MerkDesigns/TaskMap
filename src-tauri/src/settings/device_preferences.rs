@@ -53,6 +53,42 @@ fn default_close_to_tray() -> bool {
 fn default_canvas_background_color() -> String {
     "#0F1011".to_string()
 }
+/// Every button the toolbar can show; the ids match `TOOLBAR_BUTTON_IDS` in TypeScript.
+const TOOLBAR_BUTTON_IDS: [&str; 10] = [
+    "canvases",
+    "extensions",
+    "settings",
+    "privacy",
+    "calendar",
+    "sleep",
+    "minimap",
+    "placeholder-1",
+    "placeholder-2",
+    "placeholder-3",
+];
+const TOOLBAR_SLOT_COUNT: usize = 6;
+/// Nothing else opens Settings, so it can never leave the toolbar.
+const PINNED_TOOLBAR_BUTTON: &str = "settings";
+fn default_toolbar_buttons() -> Vec<String> {
+    [
+        "canvases",
+        "extensions",
+        "settings",
+        "privacy",
+        "calendar",
+        "sleep",
+    ]
+    .iter()
+    .map(|id| id.to_string())
+    .collect()
+}
+fn valid_toolbar_buttons(buttons: &[String]) -> bool {
+    (1..=TOOLBAR_SLOT_COUNT).contains(&buttons.len())
+        && buttons.iter().any(|id| id == PINNED_TOOLBAR_BUTTON)
+        && buttons.iter().enumerate().all(|(index, id)| {
+            TOOLBAR_BUTTON_IDS.contains(&id.as_str()) && !buttons[..index].contains(id)
+        })
+}
 /// Longest "lock after this long in the tray" choice: one day.
 pub(crate) const MAX_TRAY_LOCK_MINUTES: u32 = 24 * 60;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -82,6 +118,12 @@ pub(crate) struct DevicePreferences {
     /// Background colour of every canvas. Absent in older files; defaults to the shipped colour.
     #[serde(default = "default_canvas_background_color")]
     pub canvas_background_color: String,
+    /// The toolbar's buttons, in order. Absent in older files; defaults to the shipped toolbar.
+    #[serde(default = "default_toolbar_buttons")]
+    pub toolbar_buttons: Vec<String>,
+    /// The calendar island beside the toolbar is shown. Absent in older files; defaults to hidden.
+    #[serde(default)]
+    pub calendar_visible: bool,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +154,8 @@ impl Default for DevicePreferences {
             close_to_tray: default_close_to_tray(),
             tray_lock_minutes: 0,
             canvas_background_color: default_canvas_background_color(),
+            toolbar_buttons: default_toolbar_buttons(),
+            calendar_visible: false,
         }
     }
 }
@@ -149,6 +193,7 @@ impl DevicePreferences {
             || self.recent_colors.iter().any(|s| !valid_color(s))
             || !valid_color(&self.canvas_background_color)
             || self.tray_lock_minutes > MAX_TRAY_LOCK_MINUTES
+            || !valid_toolbar_buttons(&self.toolbar_buttons)
             || self
                 .dismissed_update_version
                 .as_ref()
@@ -237,7 +282,40 @@ mod tests {
         assert!(!preferences.chrome_auto_hide_enabled);
         assert_eq!(preferences.chrome_auto_hide_delay_ms, 3000);
         assert_eq!(preferences.chrome_radii, super::ChromeRadii::default());
+        assert_eq!(
+            preferences.toolbar_buttons,
+            super::default_toolbar_buttons()
+        );
+        assert!(!preferences.calendar_visible);
         assert!(preferences.validate().is_ok());
+    }
+
+    #[test]
+    fn toolbar_layouts_keep_settings_and_never_repeat_or_overflow() {
+        let layout = |ids: &[&str]| DevicePreferences {
+            toolbar_buttons: ids.iter().map(|id| id.to_string()).collect(),
+            ..DevicePreferences::default()
+        };
+        assert!(layout(&["calendar", "settings", "minimap"])
+            .validate()
+            .is_ok());
+        assert!(layout(&["sleep", "settings", "placeholder-2"])
+            .validate()
+            .is_ok());
+        assert!(layout(&["canvases", "minimap"]).validate().is_err());
+        assert!(layout(&["settings", "settings"]).validate().is_err());
+        assert!(layout(&["settings", "unknown"]).validate().is_err());
+        assert!(layout(&[
+            "settings",
+            "canvases",
+            "extensions",
+            "privacy",
+            "minimap",
+            "sleep",
+            "placeholder-1"
+        ])
+        .validate()
+        .is_err());
     }
 
     #[test]
