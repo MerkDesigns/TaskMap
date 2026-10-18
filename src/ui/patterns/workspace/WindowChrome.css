@@ -21,6 +21,30 @@
   touch-action: none;
 }
 
+/* A soft light along the top edge above the pointer shows that pressing here drags the window.
+   The strip lies under the toolbar islands, so it only lights between them. */
+.taskmap-window-drag-region::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 56px;
+  background: radial-gradient(
+    180px 52px at var(--taskmap-drag-glow-x, 50%) 0,
+    rgb(255 255 255 / 0.13),
+    rgb(255 255 255 / 0.04) 45%,
+    transparent 75%
+  );
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease-out;
+}
+
+.taskmap-window-drag-region:hover::before {
+  opacity: 1;
+}
+
 /* The window stays draggable while a modal (e.g. Settings) is open: rise above its scrim. The
    toolbar is covered by the scrim then, so the strip no longer competes with it. */
 :root[data-taskmap-modal-open="true"] .taskmap-window-drag-region {

@@ -78,12 +78,15 @@
   translate: 0 0;
 }
 
+/* The rule below the month and year sets them apart from the weekdays. */
 .taskmap-calendar__month-header {
   display: flex;
+  box-sizing: border-box;
   align-items: center;
   justify-content: space-between;
   height: 36px;
   margin-bottom: 4px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
 }
 
 .taskmap-calendar__month-title {
@@ -103,10 +106,25 @@
   text-align: center;
 }
 
+/* Shows six weeks of the scrolling list of weeks below. */
 .taskmap-calendar__grid {
   position: relative;
   width: 273px;
   height: 234px;
+  overflow: hidden;
+}
+
+/* Every week at its place in the continuous list; CalendarIsland scrolls it to the month shown. */
+.taskmap-calendar__weeks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transition: transform 300ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.taskmap-calendar__weeks[data-instant] {
+  transition: none;
 }
 
 .taskmap-calendar__today-mark {

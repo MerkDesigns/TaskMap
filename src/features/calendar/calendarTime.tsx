@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { calendarDayOf, formatClockTime, sameDay, type CalendarDay } from "./calendarMonth";
 
-/** The time in the strip; it alone re-renders each minute, never the month. */
+/** The time in the strip; it alone re-renders each second, never the month. */
 export function CalendarClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -10,8 +10,8 @@ export function CalendarClock() {
       const current = new Date();
       setNow(current);
       window.clearTimeout(timer);
-      // Just past the next minute, so a timer firing early never shows the old minute.
-      timer = window.setTimeout(tick, 60_000 - (current.getTime() % 60_000) + 50);
+      // Just past the next second, so a timer firing early never shows the old second.
+      timer = window.setTimeout(tick, 1000 - (current.getTime() % 1000) + 20);
     };
     tick();
     window.addEventListener("focus", tick);

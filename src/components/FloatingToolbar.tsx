@@ -26,6 +26,8 @@ export type FloatingToolbarProps = {
   /** The workspace buttons, in order (Settings → Misc → Toolbar). */
   buttons: readonly ToolbarButtonId[];
   calendarOpen: boolean;
+  /** The expanded calendar ignores clicks elsewhere (Settings > Misc). */
+  calendarStaysOpen?: boolean;
   canRedo: boolean;
   canUndo: boolean;
   canvasesOpen: boolean;
@@ -48,6 +50,7 @@ export type FloatingToolbarProps = {
 export function FloatingToolbar({
   buttons,
   calendarOpen,
+  calendarStaysOpen,
   canRedo,
   canUndo,
   canvasesOpen,
@@ -177,7 +180,7 @@ export function FloatingToolbar({
           icon={<IconArrowForwardUp size={18} stroke={2} />}
         />
       </ToolbarGroup>
-      <CalendarIsland open={calendarOpen} radius={toolbarRadius} />
+      <CalendarIsland open={calendarOpen} radius={toolbarRadius} staysOpen={calendarStaysOpen} />
     </FloatingCanvasToolbar>
   );
 }

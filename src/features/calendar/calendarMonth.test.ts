@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   addMonths,
+  calendarWeekOf,
+  daysOfWeeks,
   formatClockTime,
   formatCompactDate,
   formatFullDate,
@@ -50,6 +52,21 @@ describe("calendar month", () => {
     expect(formatCompactDate(day)).toBe("Saturday, 17 October");
     expect(formatMonthTitle(day)).toBe("October 2026");
     expect(formatFullDate(day)).toBe("Saturday, 17 October 2026");
-    expect(formatClockTime(new Date(2026, 9, 17, 9, 5))).toBe("09:05");
+    expect(formatClockTime(new Date(2026, 9, 17, 9, 5, 7))).toBe("09:05:07");
+  });
+
+  it("counts weeks continuously across months, years and daylight saving changes", () => {
+    const grid = monthGrid({ year: 2026, month: 9 });
+    const first = calendarWeekOf(grid[0]);
+    expect(calendarWeekOf(grid[41])).toBe(first + 5);
+    // November's grid starts four weeks into October's.
+    expect(calendarWeekOf(monthGrid({ year: 2026, month: 10 })[0])).toBe(first + 4);
+    // The clocks go back on Sunday 25 October 2026 in Europe; the week still ends that day.
+    expect(calendarWeekOf({ year: 2026, month: 9, day: 25 })).toBe(
+      calendarWeekOf({ year: 2026, month: 9, day: 19 }),
+    );
+    expect(
+      daysOfWeeks(first, first + 5).map(({ year, month, day }) => ({ year, month, day })),
+    ).toEqual(grid.map(({ year, month, day }) => ({ year, month, day })));
   });
 });

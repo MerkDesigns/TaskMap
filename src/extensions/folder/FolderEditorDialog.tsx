@@ -72,7 +72,7 @@ export function FolderEditorDialog({
         onClose={onCancel}
       />
       <ModalDialogBody className="taskmap-modal-dialog__form">
-        <Field label="Folder">
+        <Field label="Location">
           <div className="taskmap-folder-editor__row">
             <TextField
               ref={pathRef}
@@ -95,9 +95,6 @@ export function FolderEditorDialog({
             </Button>
           </div>
         </Field>
-        <p className="taskmap-folder-editor__hint">
-          Paste a folder on this PC, or browse to one. Network folders are not supported.
-        </p>
       </ModalDialogBody>
       <ModalDialogActions>
         <Button variant="ghost" leadingIcon={<IconX size={17} stroke={2} />} onClick={onCancel}>

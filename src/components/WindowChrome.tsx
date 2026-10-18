@@ -62,6 +62,11 @@ export function WindowChrome({
     void actions.startDragging();
   };
 
+  // The glow follows the pointer through a CSS variable alone: no render, one small repaint.
+  const handleDragPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.style.setProperty("--taskmap-drag-glow-x", `${event.clientX}px`);
+  };
+
   const handleDragDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     void toggleMaximize();
@@ -85,6 +90,7 @@ export function WindowChrome({
         aria-hidden="true"
         onDoubleClick={handleDragDoubleClick}
         onPointerDown={handleDragPointerDown}
+        onPointerMove={handleDragPointerMove}
       />
       <div className="taskmap-target-theme taskmap-window-chrome-layer">
         <WorkspaceMajorGlassBridge>

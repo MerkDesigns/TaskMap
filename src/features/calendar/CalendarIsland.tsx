@@ -28,6 +28,8 @@ import { useClampedFixedPosition } from "../../useClampedFixedPosition";
 import {
   addDays,
   addMonths,
+  daysOfWeeks,
+  calendarWeekOf,
   formatCompactDate,
   formatFullDate,
   formatMonthTitle,
@@ -45,6 +47,10 @@ import "./calendarIsland.css";
 /** Day cells: 36px targets on a 39px pitch, seven across the island's fixed width. */
 const CELL = 36;
 const PITCH = 39;
+/** Six weeks show any month. */
+const GRID_WEEKS = 6;
+/** Months further apart than this jump instead of scrolling past every week in between. */
+const MAX_SCROLL_WEEKS = 14;
 /** Today's mark and the selection glass share this rounded-square shape at rest. */
 const MARK_RADIUS = 10;
 /** Sleep mode's flight out; the island collapses only once it is out of sight. */
@@ -68,24 +74,34 @@ export interface CalendarIslandProps {
   /** The island is shown; it slides out before unmounting when this turns false. */
   readonly open: boolean;
   readonly radius?: number;
+  /** Clicks elsewhere and Escape leave it expanded; only its chevron and sleep collapse it. */
+  readonly staysOpen?: boolean;
 }
 
 /**
  * The calendar beside the toolbar, after the Windows calendar flyout: a compact strip with today's
  * date that expands downward into the month, with a glass highlight gliding to the selected day.
  */
-export function CalendarIsland({ open, radius }: CalendarIslandProps) {
+export function CalendarIsland({ open, radius, staysOpen = false }: CalendarIslandProps) {
   const [mounted, setMounted] = useState(open);
   useEffect(() => {
     if (open) setMounted(true);
   }, [open]);
   if (!mounted) return null;
-  return <CalendarIslandSurface open={open} radius={radius} onClosed={() => setMounted(false)} />;
+  return (
+    <CalendarIslandSurface
+      open={open}
+      radius={radius}
+      staysOpen={staysOpen}
+      onClosed={() => setMounted(false)}
+    />
+  );
 }
 
 function CalendarIslandSurface({
   open,
   radius,
+  staysOpen,
   onClosed,
 }: CalendarIslandProps & { readonly onClosed: () => void }) {
   const today = useToday();
@@ -109,9 +125,19 @@ function CalendarIslandSurface({
   const dayMenuReturnFocus = useRef<HTMLElement | null>(null);
   const dayMenuPosition = useClampedFixedPosition(dayMenuRef, dayMenu ?? { left: 0, top: 0 });
 
-  const days = monthGrid(view);
-  const selectedIndex = days.findIndex((day) => sameDay(day, selected));
-  const todayIndex = days.findIndex((day) => sameDay(day, today));
+  // The grid is one continuous list of weeks: switching months scrolls it to the month's first
+  // week, rendering both months' rows until the scroll has settled.
+  const viewWeek = calendarWeekOf(monthGrid(view)[0]);
+  const [settledWeek, setSettledWeek] = useState(viewWeek);
+  const instant = reducedMotion || Math.abs(viewWeek - settledWeek) > MAX_SCROLL_WEEKS;
+  if (instant && settledWeek !== viewWeek) setSettledWeek(viewWeek);
+  const firstWeek = Math.min(settledWeek, viewWeek);
+  const days = daysOfWeeks(firstWeek, Math.max(settledWeek, viewWeek) + GRID_WEEKS - 1);
+  const inView = (week: number) => week >= viewWeek && week < viewWeek + GRID_WEEKS;
+  const selectedShown = days.some((day) => sameDay(day, selected) && inView(day.week));
+  const todayCell = days.find((day) => sameDay(day, today));
+  const selectedWeek = calendarWeekOf(selected);
+  const selectedColumn = (new Date(selected.year, selected.month, selected.day).getDay() + 6) % 7;
 
   useLayoutEffect(() => {
     if (!focusSelected.current) return;
@@ -127,7 +153,7 @@ function CalendarIslandSurface({
   }, [asleep]);
   useEffect(() => {
     // An open day menu takes the outside click and Escape for itself.
-    if (!expanded || dayMenuOpen) return;
+    if (!expanded || dayMenuOpen || staysOpen) return;
     const collapseOutside = (event: PointerEvent) => {
       if (!surfaceRef.current?.contains(event.target as Node)) setExpanded(false);
     };
@@ -141,7 +167,7 @@ function CalendarIslandSurface({
       window.removeEventListener("pointerdown", collapseOutside, true);
       window.removeEventListener("keydown", collapseOnEscape);
     };
-  }, [dayMenuOpen, expanded]);
+  }, [dayMenuOpen, expanded, staysOpen]);
 
   const select = (day: CalendarDay) => {
     setSelected(day);
@@ -273,42 +299,60 @@ function CalendarIslandSurface({
               aria-label={formatMonthTitle(view)}
               onKeyDown={handleGridKeyDown}
             >
-              {todayIndex >= 0 && (
-                <span
-                  className="taskmap-calendar__today-mark"
-                  style={{ translate: `${cellLeft(todayIndex)}px ${cellTop(todayIndex)}px` }}
+              <div
+                className="taskmap-calendar__weeks"
+                data-instant={instant || undefined}
+                style={{ transform: `translate3d(0, ${-viewWeek * PITCH}px, 0)` }}
+                onTransitionEnd={(event) => {
+                  if (event.target === event.currentTarget) setSettledWeek(viewWeek);
+                }}
+              >
+                {todayCell && (
+                  <span
+                    className="taskmap-calendar__today-mark"
+                    style={{
+                      translate: `${cellLeft(todayCell.column)}px ${cellTop(todayCell.week)}px`,
+                    }}
+                  />
+                )}
+                {/* Always shown: away from the month on screen it simply scrolls out of view. */}
+                <LiquidCellIndicator
+                  x={cellLeft(selectedColumn) + CELL / 2}
+                  y={cellTop(selectedWeek) + CELL / 2}
+                  size={CELL}
+                  settledRadius={MARK_RADIUS}
+                  rigid
+                  clear
                 />
-              )}
-              <LiquidCellIndicator
-                x={cellLeft(Math.max(0, selectedIndex)) + CELL / 2}
-                y={cellTop(Math.max(0, selectedIndex)) + CELL / 2}
-                size={CELL}
-                settledRadius={MARK_RADIUS}
-                visible={expanded && selectedIndex >= 0}
-                rigid
-                clear
-              />
-              {days.map((day, index) => {
-                const isSelected = index === selectedIndex;
-                return (
-                  <button
-                    key={`${day.year}-${day.month}-${day.day}`}
-                    type="button"
-                    className="taskmap-calendar__day"
-                    data-outside={!day.inMonth || undefined}
-                    data-today={index === todayIndex || undefined}
-                    aria-pressed={isSelected}
-                    aria-current={index === todayIndex ? "date" : undefined}
-                    aria-label={formatFullDate(day)}
-                    tabIndex={isSelected || (selectedIndex < 0 && index === 0) ? 0 : -1}
-                    style={{ translate: `${cellLeft(index)}px ${cellTop(index)}px` }}
-                    onClick={() => select(day)}
-                    onContextMenu={(event) => openDayMenu(event, day)}
-                  >
-                    {day.day}
-                  </button>
-                );
-              })}
+                {days.map((day, index) => {
+                  const isSelected = sameDay(day, selected);
+                  const isToday = sameDay(day, today);
+                  return (
+                    <button
+                      key={`${day.year}-${day.month}-${day.day}`}
+                      type="button"
+                      className="taskmap-calendar__day"
+                      data-outside={day.month !== view.month || undefined}
+                      data-today={isToday || undefined}
+                      aria-hidden={!inView(day.week) || undefined}
+                      aria-pressed={isSelected}
+                      aria-current={isToday ? "date" : undefined}
+                      aria-label={formatFullDate(day)}
+                      tabIndex={
+                        (isSelected && selectedShown) ||
+                        (!selectedShown && index === (viewWeek - firstWeek) * 7)
+                          ? 0
+                          : -1
+                      }
+                      style={{ translate: `${cellLeft(day.column)}px ${cellTop(day.week)}px` }}
+                      onClick={() => select(day)}
+                      onContextMenu={(event) => openDayMenu(event, day)}
+                    >
+                      {day.day}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -336,10 +380,11 @@ function CalendarIslandSurface({
   );
 }
 
-function cellLeft(index: number): number {
-  return (index % 7) * PITCH + (PITCH - CELL) / 2;
+function cellLeft(column: number): number {
+  return column * PITCH + (PITCH - CELL) / 2;
 }
 
-function cellTop(index: number): number {
-  return Math.floor(index / 7) * PITCH + (PITCH - CELL) / 2;
+/** Rows sit at their week's place in the continuous list; the weeks layer scrolls past them. */
+function cellTop(week: number): number {
+  return week * PITCH + (PITCH - CELL) / 2;
 }

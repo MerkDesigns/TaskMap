@@ -111,4 +111,17 @@ describe("CalendarIsland", () => {
     await user.keyboard("{Escape}");
     expect(screen.getByRole("button", { name: "Collapse calendar" })).toBeInTheDocument();
   });
+  it("stays expanded through clicks elsewhere and Escape when asked to", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <CalendarIsland open staysOpen />
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+    await user.click(screen.getByRole("button", { name: "Expand calendar" }));
+    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Collapse calendar" })).toBeInTheDocument();
+  });
 });
