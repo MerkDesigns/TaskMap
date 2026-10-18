@@ -73,7 +73,6 @@ fn main() {
         }))
         .manage(DatabaseSessionState::default())
         .manage(DatabasePathAuthorizationState::default())
-        .manage(tray::TrayLock::default())
         .manage(workflow::workflow_runs::WorkflowRuns::default())
         .manage(workflow::workflow_trust::WorkflowTrust::default())
         .plugin(tauri_plugin_dialog::init())
@@ -98,8 +97,15 @@ fn main() {
             }
 
             tray::install(app.handle())?;
+            sync_launch_at_login(app.handle());
 
             if let Some(window) = app.get_webview_window("main") {
+                // Started at sign-in to sit in the tray: no window until the tray opens one, and
+                // with no database unlocked yet, that window shows the unlock screen.
+                if settings::launch_at_login::launched_to_tray() {
+                    window.destroy()?;
+                    return Ok(());
+                }
                 webview_browser_features::disable_browser_features(&window);
                 windows_session_notifications::install(&window).map_err(std::io::Error::other)?;
                 if let Err(error) = restore_window_state(&window) {
@@ -133,6 +139,34 @@ fn main() {
             }
         })
         .invoke_handler(taskmap_invoke_handler!())
-        .run(context)
-        .expect("error while running tauri application");
+        .build(context)
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            // With its window closed TaskMap lives on, locked, in the tray: only an explicit quit
+            // (which passes an exit code) ends the process. The storage-free preview has no tray.
+            if let tauri::RunEvent::ExitRequested {
+                api, code: None, ..
+            } = event
+            {
+                if !storage_preview::ENABLED {
+                    api.prevent_exit();
+                }
+            }
+        });
+}
+
+/// Brings the Windows sign-in entry in line with the device preferences, e.g. after an update moved
+/// the executable or on the first start, when starting with Windows defaults to on.
+fn sync_launch_at_login(app: &tauri::AppHandle) {
+    let Ok(directory) = app.path().app_config_dir() else {
+        return;
+    };
+    let edition = database_window_commands::application_edition(app);
+    if let Ok(state) = settings::device_preferences::load(&directory, &edition) {
+        settings::launch_at_login::apply(
+            app,
+            state.preferences.launch_at_login,
+            state.preferences.launch_to_tray,
+        );
+    }
 }

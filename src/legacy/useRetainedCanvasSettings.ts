@@ -159,10 +159,12 @@ export function useRetainedCanvasSettings(): ReturnType<typeof useLegacyCanvasSe
     setToolbarButtons: preferenceSetter("toolbarButtons"),
     calendarVisible: preferences.calendarVisible,
     setCalendarVisible: preferenceSetter("calendarVisible"),
-    closeToTray: preferences.closeToTray,
-    setCloseToTray: preferenceSetter("closeToTray"),
-    trayLockMinutes: preferences.trayLockMinutes,
-    setTrayLockMinutes: preferenceSetter("trayLockMinutes"),
+    calendarStaysOpen: preferences.calendarStaysOpen,
+    setCalendarStaysOpen: preferenceSetter("calendarStaysOpen"),
+    launchAtLogin: preferences.launchAtLogin,
+    setLaunchAtLogin: preferenceSetter("launchAtLogin"),
+    launchToTray: preferences.launchToTray,
+    setLaunchToTray: preferenceSetter("launchToTray"),
     dismissedUpdateVersion: preferences.dismissedUpdateVersion ?? undefined,
     setDismissedUpdateVersion(value) {
       void runtime.preferences

@@ -59,10 +59,6 @@ describe("modal keyboard behavior", () => {
               lock: vi.fn(async () => true),
               close: vi.fn(async () => true),
               quit: vi.fn(async () => true),
-              closeToTray: false,
-              onCloseToTrayChange: vi.fn(),
-              trayLockMinutes: 0,
-              onTrayLockMinutesChange: vi.fn(),
             }}
             canvasBackgroundColor="#0F1011"
             onCanvasBackgroundColorChange={vi.fn()}
@@ -81,6 +77,12 @@ describe("modal keyboard behavior", () => {
             onFpsCounterVisibleChange={vi.fn()}
             privacyModeEnabled={false}
             onPrivacyModeEnabledChange={vi.fn()}
+            launchAtLogin
+            onLaunchAtLoginChange={vi.fn()}
+            launchToTray={false}
+            onLaunchToTrayChange={vi.fn()}
+            calendarStaysOpen={false}
+            onCalendarStaysOpenChange={vi.fn()}
             chromeRadii={DEFAULT_CHROME_RADII}
             onChromeRadiusChange={vi.fn()}
             sleepDelayMs={3000}

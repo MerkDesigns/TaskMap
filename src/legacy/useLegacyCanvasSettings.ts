@@ -38,8 +38,9 @@ export function useLegacyCanvasSettings() {
   const [toolbarButtons, setToolbarButtons] = useState<ToolbarButtonId[]>([
     ...DEFAULT_TOOLBAR_BUTTONS,
   ]);
-  const [closeToTray, setCloseToTray] = useState(true);
-  const [trayLockMinutes, setTrayLockMinutes] = useState(0);
+  const [launchAtLogin, setLaunchAtLogin] = useState(true);
+  const [launchToTray, setLaunchToTray] = useState(false);
+  const [calendarStaysOpen, setCalendarStaysOpen] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
     undefined,
   );
@@ -72,10 +73,12 @@ export function useLegacyCanvasSettings() {
     setToolbarButtons,
     calendarVisible,
     setCalendarVisible,
-    closeToTray,
-    setCloseToTray,
-    trayLockMinutes,
-    setTrayLockMinutes,
+    launchAtLogin,
+    setLaunchAtLogin,
+    launchToTray,
+    setLaunchToTray,
+    calendarStaysOpen,
+    setCalendarStaysOpen,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit: undefined as SettingsGesture | undefined,

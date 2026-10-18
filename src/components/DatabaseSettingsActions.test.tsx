@@ -12,10 +12,6 @@ const renderActions = (overrides: Partial<DatabaseSettingsActionsProps> = {}) =>
     lock: vi.fn(async () => true),
     close: vi.fn(async () => true),
     quit: vi.fn(async () => true),
-    closeToTray: true,
-    onCloseToTrayChange: vi.fn(),
-    trayLockMinutes: 0,
-    onTrayLockMinutesChange: vi.fn(),
     ...overrides,
   };
   render(<DatabaseSettingsActions {...props} />);
@@ -31,18 +27,10 @@ describe("DatabaseSettingsActions", () => {
     expect(props.quit).toHaveBeenCalled();
   });
 
-  it("chooses how long the database may stay unlocked in the tray", () => {
-    const props = renderActions();
+  it("offers no tray timer: closing the window always locks into the tray", () => {
+    renderActions();
 
-    fireEvent.click(screen.getByRole("button", { name: "1 hour" }));
-
-    expect(props.onTrayLockMinutesChange).toHaveBeenCalledWith(60);
-  });
-
-  it("hides the tray timer when closing quits instead", () => {
-    renderActions({ closeToTray: false });
-
-    expect(screen.getByText("Closing the window locks it and quits TaskMap.")).toBeVisible();
     expect(screen.queryByText("Lock in the tray after")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Keep running in the tray" })).toBeNull();
   });
 });

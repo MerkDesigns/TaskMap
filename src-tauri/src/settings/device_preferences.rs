@@ -46,7 +46,7 @@ pub(crate) const MAX_CHROME_RADIUS: u8 = 32;
 fn default_chrome_auto_hide_delay_ms() -> u32 {
     3000
 }
-fn default_close_to_tray() -> bool {
+fn default_launch_at_login() -> bool {
     true
 }
 /// The shipped canvas colour, `--taskmap-canvas-bg` in the theme.
@@ -89,8 +89,6 @@ fn valid_toolbar_buttons(buttons: &[String]) -> bool {
             TOOLBAR_BUTTON_IDS.contains(&id.as_str()) && !buttons[..index].contains(id)
         })
 }
-/// Longest "lock after this long in the tray" choice: one day.
-pub(crate) const MAX_TRAY_LOCK_MINUTES: u32 = 24 * 60;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DevicePreferences {
@@ -108,13 +106,12 @@ pub(crate) struct DevicePreferences {
     #[serde(default)]
     pub chrome_radii: ChromeRadii,
     pub dismissed_update_version: Option<String>,
-    /// Closing the window keeps the unlocked session running in the tray; otherwise it quits.
-    /// Absent in older files; defaults to the tray.
-    #[serde(default = "default_close_to_tray")]
-    pub close_to_tray: bool,
-    /// Minutes in the tray before the session locks and TaskMap exits; 0 never locks.
+    /// TaskMap starts when the user signs in to Windows. Absent in older files; defaults on.
+    #[serde(default = "default_launch_at_login")]
+    pub launch_at_login: bool,
+    /// Started at sign-in, TaskMap stays locked in the tray instead of opening its window.
     #[serde(default)]
-    pub tray_lock_minutes: u32,
+    pub launch_to_tray: bool,
     /// Background colour of every canvas. Absent in older files; defaults to the shipped colour.
     #[serde(default = "default_canvas_background_color")]
     pub canvas_background_color: String,
@@ -124,6 +121,9 @@ pub(crate) struct DevicePreferences {
     /// The calendar island beside the toolbar is shown. Absent in older files; defaults to hidden.
     #[serde(default)]
     pub calendar_visible: bool,
+    /// An expanded calendar stays open; only its chevron and sleep mode collapse it.
+    #[serde(default)]
+    pub calendar_stays_open: bool,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -151,11 +151,12 @@ impl Default for DevicePreferences {
             chrome_auto_hide_delay_ms: default_chrome_auto_hide_delay_ms(),
             chrome_radii: ChromeRadii::default(),
             dismissed_update_version: None,
-            close_to_tray: default_close_to_tray(),
-            tray_lock_minutes: 0,
+            launch_at_login: default_launch_at_login(),
+            launch_to_tray: false,
             canvas_background_color: default_canvas_background_color(),
             toolbar_buttons: default_toolbar_buttons(),
             calendar_visible: false,
+            calendar_stays_open: false,
         }
     }
 }
@@ -192,7 +193,6 @@ impl DevicePreferences {
             .any(|radius| radius > MAX_CHROME_RADIUS)
             || self.recent_colors.iter().any(|s| !valid_color(s))
             || !valid_color(&self.canvas_background_color)
-            || self.tray_lock_minutes > MAX_TRAY_LOCK_MINUTES
             || !valid_toolbar_buttons(&self.toolbar_buttons)
             || self
                 .dismissed_update_version
@@ -287,6 +287,9 @@ mod tests {
             super::default_toolbar_buttons()
         );
         assert!(!preferences.calendar_visible);
+        assert!(preferences.launch_at_login);
+        assert!(!preferences.launch_to_tray);
+        assert!(!preferences.calendar_stays_open);
         assert!(preferences.validate().is_ok());
     }
 

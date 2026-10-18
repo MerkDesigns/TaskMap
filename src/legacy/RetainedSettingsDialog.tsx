@@ -61,10 +61,6 @@ export function RetainedSettingsDialog({
               },
               close: async () => (await session.close()).ok,
               quit: async () => (await session.quit()).ok,
-              closeToTray: settings.closeToTray,
-              onCloseToTrayChange: settings.setCloseToTray,
-              trayLockMinutes: settings.trayLockMinutes,
-              onTrayLockMinutesChange: settings.setTrayLockMinutes,
             }}
             gridOpacityEdit={gridOpacityEdit}
             canvasBackgroundColor={settings.canvasBackgroundColor}
@@ -88,6 +84,12 @@ export function RetainedSettingsDialog({
             onFpsCounterVisibleChange={onFpsCounterVisibleChange}
             privacyModeEnabled={settings.privacyModeEnabled}
             onPrivacyModeEnabledChange={settings.setPrivacyModeEnabled}
+            launchAtLogin={settings.launchAtLogin}
+            onLaunchAtLoginChange={settings.setLaunchAtLogin}
+            launchToTray={settings.launchToTray}
+            onLaunchToTrayChange={settings.setLaunchToTray}
+            calendarStaysOpen={settings.calendarStaysOpen}
+            onCalendarStaysOpenChange={settings.setCalendarStaysOpen}
             chromeRadii={settings.chromeRadii}
             onChromeRadiusChange={(key, radius) =>
               settings.setChromeRadii((current) => ({ ...current, [key]: radius }))

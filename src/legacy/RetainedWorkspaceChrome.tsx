@@ -251,6 +251,7 @@ export function RetainedWorkspaceChrome({
         <FloatingToolbar
           buttons={settings.toolbarButtons}
           calendarOpen={settings.calendarVisible}
+          calendarStaysOpen={settings.calendarStaysOpen}
           canRedo={history.canRedo}
           canUndo={history.canUndo}
           canvasesOpen={canvasManagerOpen && !canvasManagerClosing}

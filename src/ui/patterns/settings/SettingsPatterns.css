@@ -85,6 +85,17 @@
   opacity: var(--taskmap-state-disabled-opacity);
 }
 
+/* Start with Windows and its Start in the tray option, as two rows of one island. */
+.taskmap-settings-startup .taskmap-settings-island__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--taskmap-space-3);
+}
+
+.taskmap-settings-startup [data-disabled="true"] {
+  opacity: var(--taskmap-state-disabled-opacity);
+}
+
 .taskmap-settings-section-heading,
 .taskmap-settings-slider-heading,
 .taskmap-settings-key-group {
@@ -303,7 +314,8 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--taskmap-space-2);
+  /* The same island spacing as the other tabs. */
+  gap: var(--taskmap-space-3);
 }
 
 /* The shortcuts tab fits the visible height: its heading stays put and only the rows scroll,

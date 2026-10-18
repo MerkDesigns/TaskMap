@@ -48,12 +48,15 @@ The raw password must never be written to disk, logs, analytics, crash reports, 
 
 ### Close window
 
-Unsaved document changes are validated and saved before the window closes; if that save fails, close is prevented. What happens next is the device setting **Keep running in the tray** (`closeToTray`, default on), read by the backend after the save:
+Unsaved document changes are validated and saved before the window closes; if that save fails, close is prevented. After the save the backend destroys the window and locks the session: the derived key and decrypted buffers are cleared exactly as for an explicit lock, so no unlocked session ever stays behind with the window closed.
 
-- **On:** the background session stays active and unlocked. The derived key remains in process memory, so reopening the window during that session does not require the password. A tray icon shows that TaskMap is running and offers _Open TaskMap_ and _Quit TaskMap_. The optional **Lock in the tray after** setting (`trayLockMinutes`: never, 15 minutes, 1 hour or 4 hours) locks the session and exits once the window has stayed closed that long; reopening cancels the timer.
-- **Off:** closing quits (see Quit).
+TaskMap itself keeps running, locked, in the tray. The tray icon offers _Open TaskMap_ and _Quit TaskMap_; opening (from the tray, or by launching the same edition again through the single-instance callback) recreates the main window at the unlock screen. Closing the last window never ends the process on its own; only Quit does. If recreating the window cannot produce a safe document window, the backend closes the session and exits.
 
-A hidden, content-free session-keeper webview (`session-keeper.html`) keeps the process alive while the window is closed and receives Windows session notifications. Locking destroys the keeper with the key, so a locked session never stays behind in the tray: with the window closed, locking ends the process (the tray therefore offers Quit, not Lock). Launching the same edition again, or _Open TaskMap_ in the tray, activates the single-instance callback and recreates or shows the main window. If recreation cannot produce a safe document window, the backend closes the session, destroys the keeper, and exits instead of leaving an inaccessible unlocked process.
+A hidden, content-free session-keeper webview (`session-keeper.html`) exists only while a database is unlocked and receives Windows session notifications; locking destroys it with the key.
+
+### Start with Windows
+
+The device setting **Start with Windows** (`launchAtLogin`, default on) keeps one value for the edition under the user's `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` key, named after the edition's product name so stable and Beta stay separate; startup and every preference save bring it in line with the setting. With **Start in the tray** (`launchToTray`) the entry passes `--tray`, and TaskMap starts locked in the tray without a window. Either way nothing is unlocked without the password. Development builds never write the entry.
 
 ### Explicit lock
 
@@ -81,7 +84,7 @@ Configurable inactivity locking remains unimplemented and is not claimed as comp
 
 ### Quit
 
-Quit terminates the visible window and background process, clears key material, releases database and process locks, and requires the password on the next launch. It is available as _Quit TaskMap_ in Settings → Database and in the tray menu; with the window open, the tray asks the window to save and quit through its session controller, and with the window closed (everything already saved) the backend quits directly.
+Quit terminates the visible window and the background process in the tray, clears key material, releases database and process locks, and requires the password on the next launch. It is available as _Quit TaskMap_ in Settings → Database and in the tray menu; with the window open, the tray asks the window to save and quit through its session controller, and with the window closed (everything already saved) the backend quits directly.
 
 ## Key memory
 

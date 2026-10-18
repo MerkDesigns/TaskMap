@@ -17,7 +17,15 @@ import {
 } from "../platform/settings/preferenceContracts";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { DefaultElementColors } from "../types";
-import { Button, IconButton, Keycap, LiquidTabs, ScrollArea, Slider } from "../ui/primitives";
+import {
+  Button,
+  IconButton,
+  Keycap,
+  LiquidTabs,
+  LiquidToggleSwitch,
+  ScrollArea,
+  Slider,
+} from "../ui/primitives";
 import {
   isNestedModalPresenceBlocking,
   ModalDialogHeader,
@@ -28,6 +36,7 @@ import {
   SettingsIsland,
   SettingsIslandList,
   SettingsShell,
+  SettingsRow,
   SettingsToggleRow,
 } from "../ui/patterns/settings";
 import { ColorPickerMenu } from "./ColorPickerMenu";
@@ -58,6 +67,12 @@ type SettingsModalProps = {
   onFpsCounterVisibleChange: (visible: boolean) => void;
   privacyModeEnabled: boolean;
   onPrivacyModeEnabledChange: (enabled: boolean) => void;
+  launchAtLogin: boolean;
+  onLaunchAtLoginChange: (enabled: boolean) => void;
+  launchToTray: boolean;
+  onLaunchToTrayChange: (enabled: boolean) => void;
+  calendarStaysOpen: boolean;
+  onCalendarStaysOpenChange: (enabled: boolean) => void;
   chromeRadii: ChromeRadii;
   onChromeRadiusChange: (key: keyof ChromeRadii, radius: number) => void;
   sleepDelayMs: number;
@@ -128,6 +143,12 @@ export function SettingsModal({
   onFpsCounterVisibleChange,
   privacyModeEnabled,
   onPrivacyModeEnabledChange,
+  launchAtLogin,
+  onLaunchAtLoginChange,
+  launchToTray,
+  onLaunchToTrayChange,
+  calendarStaysOpen,
+  onCalendarStaysOpenChange,
   chromeRadii,
   onChromeRadiusChange,
   sleepDelayMs,
@@ -369,13 +390,42 @@ export function SettingsModal({
                     checked={privacyModeEnabled}
                     onCheckedChange={onPrivacyModeEnabledChange}
                   />
+                  <SettingsIsland className="taskmap-settings-startup">
+                    <SettingsRow
+                      label="Start with Windows"
+                      description="Opens TaskMap when you sign in."
+                      control={
+                        <LiquidToggleSwitch
+                          checked={launchAtLogin}
+                          label="Start with Windows"
+                          onCheckedChange={onLaunchAtLoginChange}
+                        />
+                      }
+                    />
+                    <SettingsRow
+                      data-disabled={!launchAtLogin || undefined}
+                      label="Start in the tray"
+                      description="Starts locked in the tray instead of opening the window."
+                      control={
+                        <LiquidToggleSwitch
+                          checked={launchToTray}
+                          disabled={!launchAtLogin}
+                          label="Start in the tray"
+                          onCheckedChange={onLaunchToTrayChange}
+                        />
+                      }
+                    />
+                  </SettingsIsland>
+                  <SettingsToggleRow
+                    label="Keep calendar open"
+                    description="Only its arrow and sleep mode collapse it."
+                    checked={calendarStaysOpen}
+                    onCheckedChange={onCalendarStaysOpenChange}
+                  />
                   <SettingsIsland>
                     <div className="taskmap-settings-section-heading">
                       <IconMoon size={16} stroke={2} />
                       <span>Sleep mode</span>
-                    </div>
-                    <div className="taskmap-settings-section-description">
-                      Hides the toolbars and side panel after this long without input.
                     </div>
                     <SettingsCommittedSlider
                       label="Delay"

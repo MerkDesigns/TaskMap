@@ -101,7 +101,7 @@ pub(crate) async fn app_save_preferences(
         .app_config_dir()
         .map_err(|_| CommandError::from(ServiceFailure::Settings))?;
     let edition = application_edition(&app);
-    tauri::async_runtime::spawn_blocking(move || {
+    let state = tauri::async_runtime::spawn_blocking(move || {
         device_preferences::save(
             &directory,
             &edition,
@@ -111,5 +111,11 @@ pub(crate) async fn app_save_preferences(
     })
     .await
     .map_err(|_| CommandError::from(ServiceFailure::Internal))?
-    .map_err(CommandError::from)
+    .map_err(CommandError::from)?;
+    crate::settings::launch_at_login::apply(
+        &app,
+        state.preferences.launch_at_login,
+        state.preferences.launch_to_tray,
+    );
+    Ok(state)
 }

@@ -11,9 +11,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 ### Added
 
 - Calendar: a toolbar button shows a calendar island beside the History buttons with today's
-  date. Its chevron slides it down to the full month, with arrows to browse months, today marked
-  and a liquid glass highlight that glides to the day you click. Calendar replaces Minimap in the
-  default toolbar; Minimap is still available among the unused buttons.
+  date and a clock with seconds. Its chevron slides it down to the full month, with arrows to
+  browse months, today marked and a glass highlight that glides to the day you click. Calendar
+  replaces Minimap in the default toolbar; Minimap is still available among the unused buttons.
 - Customize Toolbar in Settings > Misc: on a copy of the toolbar, drag buttons to reorder them,
   into a second bar to hide them, or drag a hidden one onto a toolbar button to swap them, like
   icons on a phone. The toolbar has six slots and Settings always stays in it. Three placeholder buttons stand in for
@@ -91,14 +91,29 @@ Architecture v1 (`architecture-v1`), not yet released.
   Browser previews.
 - Unlocking is much faster (about 0.15 s from Unlock to workspace on a typical database).
 - The Canvas Browser opens automatically after unlocking.
-- Closing the window keeps TaskMap running in the tray (unlocked, reopens without the password),
-  with a tray icon offering Open and Quit. Settings → Database can switch closing to quit instead,
-  lock and quit after 15 minutes, 1 hour or 4 hours in the tray, and adds a Quit TaskMap button.
+- Closing the window locks the database and keeps TaskMap running in the tray, with a tray icon
+  offering Open (at the unlock screen) and Quit; TaskMap never quits on its own. Settings →
+  Database adds a Quit TaskMap button.
+- Start with Windows (on by default) in Settings > Misc, with an option to start locked in the
+  tray instead of opening the window.
+- Keep calendar open in Settings > Misc: clicks elsewhere and Escape leave the calendar expanded.
+- A soft glow along the top edge of the window follows the pointer wherever it can drag the
+  window.
 - Settings: Lock database and Close database share one island, Check for updates sits at the
   bottom of the Misc tab, and "Shadows below elements" is renamed "Canvas-only shadows".
 
 ### Fixed
 
+- Box selection inside a container keeps going while the container scrolls, with the mouse wheel
+  or by dragging past its top or bottom edge, so all of its cards can be selected at once.
+- Resizing a container or text block snaps to the edges of both containers and text blocks, as
+  moving does.
+- A canvas card held over the Canvases panel header blurs the header behind it instead of letting
+  it show through.
+- The calendar's selection no longer flashes bright when the calendar expands.
+- Switching months in the calendar scrolls its weeks up or down, as does choosing a greyed-out day
+  of the month before or after.
+- Settings > Misc spaces its islands like the other tabs.
 - Cards cut off at the edge of a scrolling glass list (canvas browser, settings) narrow once they are
   too thin for full corners, so a thin strip never reaches into the rounded corner area.
 - A canvas card that was cut off at the bottom of the canvas list no longer shows a stretched rim
@@ -108,8 +123,6 @@ Architecture v1 (`architecture-v1`), not yet released.
 - Toggling the minimap from the toolbar is no longer an undo step.
 - Highlighted text in a text block can be copied with Ctrl+C, as plain text, without opening the
   editor.
-- The "Keep running in the tray" setting keeps its height when switched; both descriptions fit on
-  one line.
 - In Settings → Shortcuts the title stays in place and only the list scrolls, inside its glass
   island.
 - Panning over busy canvases runs at the display's full rate without stutters: a pan frame no

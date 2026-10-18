@@ -72,16 +72,18 @@ export const devicePreferencesSchema = z
     chromeAutoHideEnabled: z.boolean(),
     chromeAutoHideDelayMs: z.number().int().min(1000).max(15000),
     chromeRadii: chromeRadiiSchema,
-    /** Closing the window keeps the unlocked session in the tray; otherwise TaskMap quits. */
-    closeToTray: z.boolean(),
-    /** Minutes in the tray before the session locks and TaskMap exits; 0 never locks. */
-    trayLockMinutes: z.number().int().min(0).max(1440),
+    /** TaskMap starts when the user signs in to Windows. */
+    launchAtLogin: z.boolean(),
+    /** Started at sign-in, it stays locked in the tray instead of opening its window. */
+    launchToTray: z.boolean(),
     /** Background colour of every canvas. */
     canvasBackgroundColor: color,
     /** The toolbar's workspace buttons, in order. */
     toolbarButtons: toolbarButtonsSchema,
     /** The calendar island beside the toolbar is shown. */
     calendarVisible: z.boolean(),
+    /** An expanded calendar stays open; only its chevron and sleep mode collapse it. */
+    calendarStaysOpen: z.boolean(),
     dismissedUpdateVersion: z
       .string()
       .min(1)
