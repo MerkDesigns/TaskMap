@@ -3,6 +3,7 @@ import type {
   CanvasInteractionController,
   GeometryPreview,
   InteractionElement,
+  SelectionScope,
 } from "../app/interactions/canvasInteractionTypes";
 import { rectanglesIntersect } from "../canvas/geometry/canvasGeometry";
 import { viewportWorldRectangle } from "../canvas/geometry/viewportMath";
@@ -17,7 +18,11 @@ import {
   measureRenderedCard,
 } from "./canvasElementBounds";
 import {
+  CONTAINER_TEXT_CARD_PADDING,
   CONTAINER_TEXT_CARD_ROW_HEIGHT,
+  CONTAINER_TEXT_CARD_ROW_PITCH,
+  containerCardStackTop,
+  containerCardViewport,
   type ContainerCardLayoutModel,
 } from "./containerCardLayout";
 import type { DropBounds } from "./extensionDropTarget";
@@ -127,27 +132,45 @@ export function createCanvasGeometry({
         (id) => previewById.get(id),
       ),
     cardRippleBounds,
-    /** A container's shown cards as move targets, at their on-screen bounds. */
-    containerCardCandidates(container: ContainerElement): InteractionElement[] {
-      return cardLayout.visible(container).flatMap((card) => {
-        const bounds = cardRippleBounds(card);
-        return bounds
-          ? [
-              {
-                id: card.id,
-                geometry: {
-                  x: bounds.left,
-                  y: bounds.top,
-                  width: bounds.width,
-                  height: bounds.height,
-                },
-                locked: isLocked(card.id),
-                movable: true,
-                resizable: false,
-              },
-            ]
-          : [];
+    /**
+     * Box selection inside a container: every card it lists (not only the rows on screen) at its
+     * unscrolled row, the container's live scroll as the content offset, and its card viewport
+     * as the clip, so the box can be carried on while the container scrolls.
+     */
+    containerSelectionScope(
+      container: ContainerElement,
+      scrolled: () => number,
+    ): Omit<SelectionScope, "additive"> {
+      const maxScroll = cardLayout.maxScroll(container);
+      const top = containerCardStackTop(container);
+      const zoom = controller.getSnapshot().viewport.zoom;
+      const candidates = cardLayout.visible(container).map((card, index): InteractionElement => {
+        const measured = measureRenderedCard(worldRef.current, zoom, card.id);
+        const row = containerRowSize(container);
+        return {
+          id: card.id,
+          geometry: {
+            x: measured?.left ?? container.x + CONTAINER_TEXT_CARD_PADDING,
+            y: top + index * CONTAINER_TEXT_CARD_ROW_PITCH,
+            width: measured?.width ?? row.width,
+            height: CONTAINER_TEXT_CARD_ROW_HEIGHT,
+          },
+          locked: isLocked(card.id),
+          movable: true,
+          resizable: false,
+        };
       });
+      const viewport = containerCardViewport(container);
+      return {
+        candidates,
+        contentOffset: () => ({ x: 0, y: clamp(scrolled(), 0, maxScroll) }),
+        clip: {
+          x: container.x,
+          y: viewport.top,
+          width: container.width,
+          height: viewport.bottom - viewport.top,
+        },
+      };
     },
     /** The element a gesture acts on; contained cards only when the gesture can move them. */
     gestureElement(id: string, includeContainedCard = false): InteractionElement | null {

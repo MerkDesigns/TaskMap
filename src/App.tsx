@@ -455,8 +455,9 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     canvasPoint: geometry.canvasPoint,
     canvasSize: () => ({ width: canvasWidth, height: canvasHeight }),
     cardPosition: (card) => cardScroll.restingPosition(card),
-    containerCardCandidates: geometry.containerCardCandidates,
+    containerSelectionScope: geometry.containerSelectionScope,
     containerScrollOffsets: cardScroll.currentOffsets,
+    scrollContainer: cardScroll.scrollTo,
     camera: () => ({ pan: activeCanvas.pan, zoom: activeCanvas.zoom }),
     editingCardId: () => editingTextCardId,
     saveOpenEdits: () => {

@@ -1,5 +1,7 @@
 import { useLayoutEffect, type RefObject } from "react";
 import type { CanvasInteractionController } from "../../app/interactions/canvasInteractionTypes";
+import type { CanvasRectangle } from "../../canvas/geometry/canvasGeometry";
+import type { CanvasViewport } from "../../canvas/geometry/viewportMath";
 import "./legacyCameraPresentation.css";
 
 /** How long the zoom must stay unchanged before element layers are recreated at its scale. */
@@ -30,7 +32,7 @@ export function useLegacyCameraPresentation(
       }, ZOOM_SETTLE_MS);
     };
     const present = () => {
-      const { viewport, selectionRectangle } = controller.getSnapshot();
+      const { viewport, selectionRectangle, selectionClip } = controller.getSnapshot();
       const stage = stageRef.current;
       if (!stage) return;
       const { pan, zoom } = viewport;
@@ -51,12 +53,8 @@ export function useLegacyCameraPresentation(
         }
       }
       const selection = selectionRef.current;
-      if (selection && selectionRectangle) {
-        selection.style.left = `${pan.x + selectionRectangle.x * zoom}px`;
-        selection.style.top = `${pan.y + selectionRectangle.y * zoom}px`;
-        selection.style.width = `${selectionRectangle.width * zoom}px`;
-        selection.style.height = `${selectionRectangle.height * zoom}px`;
-      }
+      if (selection && selectionRectangle)
+        presentSelection(selection, viewport, selectionRectangle, selectionClip);
     };
     present();
     const unsubscribe = controller.subscribe(present);
@@ -70,11 +68,31 @@ export function useLegacyCameraPresentation(
   // A selection overlay can mount after the controller publication that created it.
   useLayoutEffect(() => {
     const selection = selectionRef.current;
-    const { viewport, selectionRectangle } = controller.getSnapshot();
-    if (!selection || !selectionRectangle) return;
-    selection.style.left = `${viewport.pan.x + selectionRectangle.x * viewport.zoom}px`;
-    selection.style.top = `${viewport.pan.y + selectionRectangle.y * viewport.zoom}px`;
-    selection.style.width = `${selectionRectangle.width * viewport.zoom}px`;
-    selection.style.height = `${selectionRectangle.height * viewport.zoom}px`;
+    const { viewport, selectionRectangle, selectionClip } = controller.getSnapshot();
+    if (selection && selectionRectangle)
+      presentSelection(selection, viewport, selectionRectangle, selectionClip);
   });
+}
+
+/** Places the box on screen and hides whatever part of it lies outside `clip`. */
+function presentSelection(
+  selection: HTMLElement,
+  { pan, zoom }: CanvasViewport,
+  rectangle: CanvasRectangle,
+  clip: CanvasRectangle | null,
+) {
+  selection.style.left = `${pan.x + rectangle.x * zoom}px`;
+  selection.style.top = `${pan.y + rectangle.y * zoom}px`;
+  selection.style.width = `${rectangle.width * zoom}px`;
+  selection.style.height = `${rectangle.height * zoom}px`;
+  if (!clip) {
+    selection.style.clipPath = "";
+    return;
+  }
+  const inset = (amount: number) => `${Math.max(0, amount) * zoom}px`;
+  const right = rectangle.x + rectangle.width - (clip.x + clip.width);
+  const bottom = rectangle.y + rectangle.height - (clip.y + clip.height);
+  selection.style.clipPath = `inset(${inset(clip.y - rectangle.y)} ${inset(right)} ${inset(
+    bottom,
+  )} ${inset(clip.x - rectangle.x)})`;
 }

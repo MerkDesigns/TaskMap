@@ -7,7 +7,10 @@ export const CONTAINER_HEADER_HEIGHT = 48;
 export const CONTAINER_TEXT_CARD_PADDING = 17;
 export const CONTAINER_TEXT_CARD_ROW_HEIGHT = 43;
 export const CONTAINER_TEXT_CARD_GAP = 8;
-const ROW_PITCH = CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
+/** The distance from one card row to the next. */
+export const CONTAINER_TEXT_CARD_ROW_PITCH =
+  CONTAINER_TEXT_CARD_ROW_HEIGHT + CONTAINER_TEXT_CARD_GAP;
+const ROW_PITCH = CONTAINER_TEXT_CARD_ROW_PITCH;
 
 type Point = { readonly x: number; readonly y: number };
 type Cards = readonly TextCardElement[];

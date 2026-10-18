@@ -25,7 +25,6 @@ interface GeometryCanvas {
   readonly textCards: readonly TextCardElement[];
   readonly images: readonly GeometryImage[];
 }
-export type LegacyResizeKind = "container" | "text-block" | "image";
 
 export function getLegacyInteractionElements(
   canvas: GeometryCanvas,
@@ -57,11 +56,14 @@ export function projectLegacyGeometry<T extends LegacyGeometryElement>(
   });
 }
 
+/**
+ * What a resized element snaps to: the same targets as a move, whatever its kind, so containers and
+ * text blocks snap to each other's edges. Off-screen containers and text blocks are left out.
+ */
 export function filterLegacyResizeSnapTargets(
   candidates: readonly InteractionElement[],
   options: {
     readonly activeId: string;
-    readonly activeKind: LegacyResizeKind;
     readonly containerIds: ReadonlySet<string>;
     readonly textBlockIds: ReadonlySet<string>;
     readonly visibleIds: ReadonlySet<string>;
@@ -69,13 +71,8 @@ export function filterLegacyResizeSnapTargets(
 ): InteractionElement[] {
   return candidates.filter((candidate) => {
     if (candidate.id === options.activeId) return false;
-    const container = options.containerIds.has(candidate.id);
-    const textBlock = options.textBlockIds.has(candidate.id);
-    if (options.activeKind === "container")
-      return container && options.visibleIds.has(candidate.id);
-    if (options.activeKind === "text-block")
-      return textBlock && options.visibleIds.has(candidate.id);
-    return (!container && !textBlock) || options.visibleIds.has(candidate.id);
+    const frame = options.containerIds.has(candidate.id) || options.textBlockIds.has(candidate.id);
+    return !frame || options.visibleIds.has(candidate.id);
   });
 }
 

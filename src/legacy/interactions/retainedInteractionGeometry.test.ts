@@ -89,7 +89,7 @@ it("uses the picked card's actual bounds without changing other bundle members",
   expect(plan.targets[0].geometry.width).toBe(215);
 });
 
-it("reuses visibility/type-specific snap filtering and does not cascade parent locks", () => {
+it("snaps resizes to the same visible targets as moves and does not cascade parent locks", () => {
   const geometry = createRetainedInteractionGeometry(
     dropView(geometryLock(dropInput(), ids.container)),
     new Map(),
@@ -99,12 +99,10 @@ it("reuses visibility/type-specific snap filtering and does not cascade parent l
   expect(geometry.gestureElement(ids.container)?.locked).toBe(true);
   expect(geometry.gestureElement(ids.card, true)?.locked).toBe(false);
   expect(geometry.snapTargets.map((item) => item.id)).toEqual([ids.container, ids.mindmap]);
-  expect(geometry.resizeSnapTargets(ids.target, "container").map((item) => item.id)).toEqual([
-    ids.container,
-  ]);
-  expect(geometry.resizeSnapTargets(ids.block, "text-block")).toEqual([]);
-  expect(geometry.resizeSnapTargets(ids.image, "image").map((item) => item.id)).toEqual([
-    ids.container,
-    ids.mindmap,
-  ]);
+  for (const id of [ids.target, ids.block, ids.image]) {
+    expect(geometry.resizeSnapTargets(id).map((item) => item.id)).toEqual([
+      ids.container,
+      ids.mindmap,
+    ]);
+  }
 });

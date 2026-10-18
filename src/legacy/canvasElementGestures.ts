@@ -1,6 +1,9 @@
 import type { PointerEvent } from "react";
 import type { CanvasInteractionController } from "../app/interactions/canvasInteractionController";
-import type { InteractionElement } from "../app/interactions/canvasInteractionTypes";
+import type {
+  InteractionElement,
+  SelectionScope,
+} from "../app/interactions/canvasInteractionTypes";
 import type { ElementGeometry } from "../canvas/geometry/canvasGeometry";
 import { MIN_HEIGHT, MIN_IMAGE_SIZE, MIN_WIDTH } from "../constants";
 import type { ContainerElement, ImageElement, TextBlockElement, TextCardElement } from "../types";
@@ -50,7 +53,12 @@ export interface CanvasGesturePorts {
   /** Where a card sits, inside its container's rows or loose. */
   readonly cardPosition: (card: TextCardElement) => Point;
   /** A container's visible cards as box-selection candidates. */
-  readonly containerCardCandidates: (container: ContainerElement) => InteractionElement[];
+  readonly containerSelectionScope: (
+    container: ContainerElement,
+    scrolled: () => number,
+  ) => Omit<SelectionScope, "additive">;
+  /** Scrolls a container's card list to `offset`; view state, outside the document. */
+  readonly scrollContainer: (containerId: string, offset: number) => void;
   readonly containerScrollOffsets: () => Record<string, number>;
   readonly camera: () => { readonly pan: Point; readonly zoom: number };
   readonly editingCardId: () => string | null;
@@ -147,7 +155,6 @@ export function createElementGestures(ports: () => CanvasGesturePorts) {
   const beginResize = (
     event: PointerEvent<HTMLButtonElement>,
     id: string,
-    activeKind: "container" | "text-block" | "image",
     constraints: Parameters<CanvasInteractionController["beginResize"]>[0]["constraints"],
   ) => {
     if (event.button !== 0) return;
@@ -167,7 +174,6 @@ export function createElementGestures(ports: () => CanvasGesturePorts) {
       constraints,
       snapTargets: filterLegacyResizeSnapTargets(p().interactionElements(), {
         activeId: id,
-        activeKind,
         containerIds: new Set(containers.map((frame) => frame.id)),
         textBlockIds: new Set(textBlocks.map((frame) => frame.id)),
         visibleIds: new Set(
@@ -247,12 +253,7 @@ export function createElementGestures(ports: () => CanvasGesturePorts) {
     /** Frames resize down to the minimum size and up to the canvas edge. */
     resizeFrame(event: PointerEvent<HTMLButtonElement>, frame: Frame) {
       const canvas = p().canvasSize();
-      const kind = p()
-        .scene()
-        .containers.some(({ id }) => id === frame.id)
-        ? "container"
-        : "text-block";
-      beginResize(event, frame.id, kind, {
+      beginResize(event, frame.id, {
         minimum: { width: MIN_WIDTH, height: MIN_HEIGHT },
         maximum: { width: canvas.width - frame.x, height: canvas.height - frame.y },
       });
@@ -261,7 +262,7 @@ export function createElementGestures(ports: () => CanvasGesturePorts) {
     resizeImage(event: PointerEvent<HTMLButtonElement>, image: ImageElement) {
       const canvas = p().canvasSize();
       const aspectRatio = image.height > 0 ? image.width / image.height : 1;
-      beginResize(event, image.id, "image", {
+      beginResize(event, image.id, {
         minimum: { width: MIN_IMAGE_SIZE, height: MIN_IMAGE_SIZE / aspectRatio },
         maximum: {
           width: Math.min(canvas.width - image.x, (canvas.height - image.y) * aspectRatio),

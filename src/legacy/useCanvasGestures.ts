@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type PointerEvent, type WheelEvent } from "react";
-import type { InteractionElement } from "../app/interactions/canvasInteractionTypes";
+import type { PointerSample, SelectionScope } from "../app/interactions/canvasInteractionTypes";
 import type { ContainerElement } from "../types";
 import {
   captureOnStage,
@@ -11,6 +11,11 @@ export type { CanvasGesturePorts } from "./canvasElementGestures";
 
 /** The will-change hint on the world layer outlives a wheel burst by this much. */
 const WHEEL_LAYER_MS = 120;
+/**
+ * Dragging a selection past a container's card area scrolls it, faster the further out the
+ * pointer is: screen px per ms at the edge, the gain per px beyond it, and the cap.
+ */
+const EDGE_SCROLL = { base: 0.15, gain: 0.01, max: 1.5 } as const;
 
 const release = (event: PointerEvent<HTMLElement>) => {
   if (event.currentTarget.hasPointerCapture(event.pointerId))
@@ -58,30 +63,85 @@ export function useCanvasGestures(ports: CanvasGesturePorts) {
       p().controller.beginPan(event.pointerId, { x: event.clientX, y: event.clientY });
     };
 
+    // The latest pointer sample, replayed when content scrolls under a still pointer.
+    let lastSample: PointerSample | null = null;
+
     const startBoxSelection = (
       event: PointerEvent<HTMLElement>,
-      candidates: readonly InteractionElement[],
+      scope: Omit<SelectionScope, "additive">,
     ) => {
       p().closeContextMenus();
       p().saveOpenEdits();
       p().endRename();
       captureOnStage(event);
-      p().controller.beginSelection({
+      lastSample = {
         pointerId: event.pointerId,
         screen: { x: event.clientX, y: event.clientY },
-        candidates: [...candidates],
+        snapping: false,
+      };
+      return p().controller.beginSelection({
+        ...scope,
+        pointerId: event.pointerId,
+        screen: lastSample.screen,
         additive: event.shiftKey,
       });
+    };
+
+    /**
+     * While a box selection runs inside a container, scrolls it when the pointer is past its card
+     * area and keeps the box on the content as it scrolls (by this or by the wheel). Runs once per
+     * frame for the gesture only; it stops when the selection ends.
+     */
+    const followContainerSelection = (
+      container: ContainerElement,
+      scope: Omit<SelectionScope, "additive">,
+      pointerId: number,
+    ) => {
+      const offsetOf = () => scope.contentOffset?.().y ?? 0;
+      const clip = scope.clip;
+      let shownOffset = offsetOf();
+      let previous: number | null = null;
+      const tick = (now: number) => {
+        const { controller } = p();
+        const active = controller.getSnapshot().activeInteraction;
+        if (active?.kind !== "selection-box" || active.pointerId !== pointerId) return;
+        const elapsed = previous === null ? 0 : Math.min(48, now - previous);
+        previous = now;
+        const sample = lastSample?.pointerId === pointerId ? lastSample : null;
+        if (sample && clip) {
+          const world = p().canvasPoint({ clientX: sample.screen.x, clientY: sample.screen.y });
+          const beyond =
+            world.y < clip.y ? world.y - clip.y : Math.max(0, world.y - (clip.y + clip.height));
+          if (beyond !== 0) {
+            const { zoom } = p().camera();
+            const screenPerMs = Math.min(
+              EDGE_SCROLL.max,
+              EDGE_SCROLL.base + Math.abs(beyond) * zoom * EDGE_SCROLL.gain,
+            );
+            // The scope's offset reader clamps to the container's scroll range.
+            const next = offsetOf() + Math.sign(beyond) * (screenPerMs / zoom) * elapsed;
+            p().scrollContainer(container.id, Math.max(0, next));
+          }
+        }
+        const offset = offsetOf();
+        if (sample && offset !== shownOffset) {
+          shownOffset = offset;
+          controller.updatePointer(sample);
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
     };
 
     const pointerMove = (event: PointerEvent<HTMLElement>) => {
       if (p().connections.move(event)) return;
       const { controller, cardDrags } = p();
-      controller.updatePointer({
+      lastSample = {
         pointerId: event.pointerId,
         screen: { x: event.clientX, y: event.clientY },
         snapping: event.shiftKey,
-      });
+      };
+      controller.updatePointer(lastSample);
       const held = cardDrags.getSnapshot().active;
       if (held?.pointerId !== event.pointerId) return;
       const primary = controller
@@ -109,14 +169,22 @@ export function useCanvasGestures(ports: CanvasGesturePorts) {
       worldPointerDown(event: PointerEvent<HTMLDivElement>) {
         if (event.button !== 0 || event.target !== p().world()) return;
         event.preventDefault();
-        startBoxSelection(event, p().interactionElements());
+        startBoxSelection(event, { candidates: [...p().interactionElements()] });
       },
-      /** A press in a container's empty card area box-selects its visible cards. */
+      /**
+       * A press in a container's empty card area box-selects its cards; the wheel or dragging past
+       * the card area scrolls the container and carries the box on with the content.
+       */
       containerContentPointerDown(event: PointerEvent<HTMLElement>, container: ContainerElement) {
         if (event.button !== 0) return;
         event.preventDefault();
         event.stopPropagation();
-        startBoxSelection(event, p().containerCardCandidates(container));
+        const scope = p().containerSelectionScope(
+          container,
+          () => p().containerScrollOffsets()[container.id] ?? 0,
+        );
+        if (startBoxSelection(event, scope))
+          followContainerSelection(container, scope, event.pointerId);
       },
 
       ...elementGestures,

@@ -5,7 +5,6 @@ import {
   getLegacyInteractionElements,
   filterLegacyResizeSnapTargets,
   LEGACY_TEXT_CARD_ROW_HEIGHT,
-  type LegacyResizeKind,
 } from "./legacyCanvasGeometry";
 import {
   getLegacyTextCardDragIds,
@@ -101,10 +100,9 @@ export function createRetainedInteractionGeometry(
             : [primaryId],
       };
     },
-    resizeSnapTargets(activeId: string, activeKind: LegacyResizeKind) {
+    resizeSnapTargets(activeId: string) {
       return filterLegacyResizeSnapTargets(roots, {
         activeId,
-        activeKind,
         containerIds,
         textBlockIds,
         visibleIds,

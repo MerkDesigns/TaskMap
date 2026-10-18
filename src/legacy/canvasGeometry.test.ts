@@ -95,11 +95,18 @@ describe("createCanvasGeometry", () => {
     });
   });
 
-  it("offers a container's shown cards as move targets at their bounds", () => {
-    const [candidate] = setup().containerCardCandidates(box);
+  it("scopes a container selection to all its cards at their unscrolled rows", () => {
+    let scrolled = 0;
+    const scope = setup().containerSelectionScope(box, () => scrolled);
+    const [candidate] = scope.candidates;
 
     expect(candidate).toMatchObject({ id: "inside", locked: false, resizable: false });
     expect(candidate?.geometry).toMatchObject({ x: 117, height: 43 });
+    expect(scope.contentOffset?.()).toEqual({ x: 0, y: 0 });
+    scrolled = -40;
+    // The offset never leaves the container's scroll range.
+    expect(scope.contentOffset?.()).toEqual({ x: 0, y: 0 });
+    expect(scope.clip).toMatchObject({ x: box.x, width: box.width });
   });
 
   it("anchors connections to mind-map nodes at their measured size", () => {

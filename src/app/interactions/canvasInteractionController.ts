@@ -23,12 +23,7 @@ import {
   NO_SNAP_GUIDES,
   snapGuidesOf,
 } from "./canvasInteractionTypes";
-import {
-  isTinySelection,
-  mergeSelection,
-  selectIntersectingIds,
-  selectionRectangle,
-} from "./selectionEngine";
+import { mergeSelection, previewSelection, selectionContentPoint } from "./selectionEngine";
 import { constrainResizeGeometry, resizeBottomRight } from "./resizeGeometry";
 import {
   prepareSnapTargets,
@@ -55,6 +50,7 @@ type PanGesture = PanGestureFrameState & {
 type SelectionGesture = {
   readonly kind: "selection-box";
   readonly pointerId: number;
+  /** In the scope's content, which may scroll under the box. */
   readonly startWorld: { x: number; y: number };
   readonly input: SelectionGestureInput;
 };
@@ -103,6 +99,7 @@ export function createCanvasInteractionController(
     publish({
       activeInteraction: null,
       selectionRectangle: null,
+      selectionClip: null,
       selectionPreviewIds: [],
       geometryPreviews: [],
       snapGuides: NO_SNAP_GUIDES,
@@ -133,6 +130,7 @@ export function createCanvasInteractionController(
     publish({
       activeInteraction: active,
       selectionRectangle: null,
+      selectionClip: null,
       selectionPreviewIds: [],
       geometryPreviews: [],
       snapGuides: NO_SNAP_GUIDES,
@@ -149,14 +147,9 @@ export function createCanvasInteractionController(
     }
     const pointerWorld = screenToWorld(sample.screen, snapshot.viewport);
     if (gesture.kind === "selection-box") {
-      const rectangle = selectionRectangle(gesture.startWorld, pointerWorld);
-      const incoming = isTinySelection(rectangle)
-        ? []
-        : selectIntersectingIds(rectangle, gesture.input.candidates);
-      publish({
-        selectionRectangle: rectangle,
-        selectionPreviewIds: mergeSelection(snapshot.selectedIds, incoming, gesture.input.additive),
-      });
+      publish(
+        previewSelection(gesture.startWorld, pointerWorld, gesture.input, snapshot.selectedIds),
+      );
       return;
     }
     const dx = (sample.screen.x - gesture.lastScreen.x) / snapshot.viewport.zoom;
@@ -245,7 +238,10 @@ export function createCanvasInteractionController(
         { kind: "pan", pointerId },
       ),
     beginSelection: (input) => {
-      const startWorld = screenToWorld(input.screen, snapshot.viewport);
+      const startWorld = selectionContentPoint(
+        screenToWorld(input.screen, snapshot.viewport),
+        input,
+      );
       return start(
         { kind: "selection-box", pointerId: input.pointerId, startWorld, input },
         { kind: "selection-box", pointerId: input.pointerId },
@@ -306,12 +302,8 @@ export function createCanvasInteractionController(
       }
       updatePointer(sample);
       if (current.kind === "selection-box") {
-        const rectangle =
-          snapshot.selectionRectangle ?? selectionRectangle(current.startWorld, current.startWorld);
-        const incoming = isTinySelection(rectangle)
-          ? []
-          : selectIntersectingIds(rectangle, current.input.candidates);
-        const selectedIds = mergeSelection(snapshot.selectedIds, incoming, current.input.additive);
+        // The final sample above has just previewed the selection this box makes.
+        const selectedIds = [...snapshot.selectionPreviewIds];
         finishGesture();
         publish({ selectedIds });
         return;

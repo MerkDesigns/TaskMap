@@ -80,6 +80,13 @@ export interface ResizeConstraints {
 export interface SelectionScope {
   readonly candidates: readonly InteractionElement[];
   readonly additive: boolean;
+  /**
+   * For a selection inside scrolling content: how far the content is scrolled now, in world units.
+   * Candidates are then in unscrolled content positions and the box follows the content.
+   */
+  readonly contentOffset?: () => CanvasPoint;
+  /** The shown box is cut to this area, e.g. a container's card viewport. */
+  readonly clip?: CanvasRectangle;
 }
 
 export interface MoveGestureInput {
@@ -117,6 +124,8 @@ export interface CanvasInteractionSnapshot {
   readonly selectedIds: readonly string[];
   readonly selectionPreviewIds: readonly string[];
   readonly selectionRectangle: CanvasRectangle | null;
+  /** Only this part of the box shows; the rest has scrolled out of its container's view. */
+  readonly selectionClip: CanvasRectangle | null;
   readonly geometryPreviews: readonly GeometryPreview[];
   readonly snapGuides: readonly SnapGuide[];
 }
@@ -174,6 +183,7 @@ export function idleCanvasInteractionSnapshot(
     selectedIds: [],
     selectionPreviewIds: [],
     selectionRectangle: null,
+    selectionClip: null,
     geometryPreviews: [],
     snapGuides: NO_SNAP_GUIDES,
   };

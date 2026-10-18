@@ -292,4 +292,36 @@ describe("selection controller", () => {
     controller.completePointer({ pointerId: 2, screen: { x: 6, y: 6 }, snapping: false });
     expect(controller.getSnapshot().selectedIds).toEqual([]);
   });
+  it("carries a box on with scrolling content and selects what scrolled into it", () => {
+    const controller = createCanvasInteractionController({
+      canvasKey: "a",
+      viewport: createViewport({ x: 0, y: 0 }, 1, { width: 800, height: 600 }),
+      commitPort: commitPort(),
+    });
+    let scrolled = 0;
+    // Content candidates sit at unscrolled positions; "below" starts 300 units down, off screen.
+    controller.beginSelection({
+      pointerId: 1,
+      screen: { x: 10, y: 20 },
+      candidates: [candidate("top", 20, 30), candidate("below", 20, 330)],
+      additive: false,
+      contentOffset: () => ({ x: 0, y: scrolled }),
+      clip: { x: 0, y: 0, width: 400, height: 200 },
+    });
+    controller.updatePointer({ pointerId: 1, screen: { x: 100, y: 190 }, snapping: false });
+    expect(controller.getSnapshot().selectionPreviewIds).toEqual(["top"]);
+
+    scrolled = 200;
+    controller.updatePointer({ pointerId: 1, screen: { x: 100, y: 190 }, snapping: false });
+    // The start corner scrolled 200 up with the content, out of the clip that hides it.
+    expect(controller.getSnapshot().selectionRectangle).toEqual({
+      x: 10,
+      y: -180,
+      width: 90,
+      height: 370,
+    });
+    expect(controller.getSnapshot().selectionClip).toEqual({ x: 0, y: 0, width: 400, height: 200 });
+    controller.completePointer({ pointerId: 1, screen: { x: 100, y: 190 }, snapping: false });
+    expect(controller.getSnapshot().selectedIds).toEqual(["top", "below"]);
+  });
 });

@@ -77,16 +77,43 @@ describe("legacy interaction geometry", () => {
     expect(snapped.geometry.x).toBe(134);
   });
 
-  it("excludes off-screen same-kind resize targets and contained generic move targets", () => {
+  it("excludes off-screen resize targets and contained generic move targets", () => {
     const elements = getLegacyInteractionElements(canvas());
     const filtered = filterLegacyResizeSnapTargets(elements, {
       activeId: "visible",
-      activeKind: "container",
       containerIds: new Set(["visible", "offscreen"]),
       textBlockIds: new Set(),
       visibleIds: new Set(["visible"]),
     });
-    expect(filtered).toEqual([]);
+    expect(filtered.map(({ id }) => id)).not.toContain("offscreen");
+    expect(filtered.map(({ id }) => id)).not.toContain("visible");
     expect(elements.some(({ id }) => id === "contained")).toBe(false);
+  });
+
+  it("lets containers and text blocks snap to each other's edges while resizing", () => {
+    const frame = (id: string, x: number) => ({
+      id,
+      geometry: { x, y: 0, width: 100, height: 100 },
+      locked: false,
+      movable: true,
+      resizable: true,
+      centerSnapping: false,
+    });
+    const options = {
+      containerIds: new Set(["container"]),
+      textBlockIds: new Set(["block"]),
+      visibleIds: new Set(["container", "block"]),
+    };
+    const elements = [frame("container", 0), frame("block", 300)];
+    expect(
+      filterLegacyResizeSnapTargets(elements, { ...options, activeId: "container" }).map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["block"]);
+    expect(
+      filterLegacyResizeSnapTargets(elements, { ...options, activeId: "block" }).map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["container"]);
   });
 });
