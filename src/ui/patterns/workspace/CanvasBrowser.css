@@ -155,7 +155,10 @@
   pointer-events: none;
 }
 
+/* The held card can be dragged over the header, and a backdrop filter only draws inside its own
+   box, so the drag plane reaches up over the header (CANVAS_BROWSER_LAYOUT.headerHeight). */
 .taskmap-shared-small-glass-plane--canvas-drag {
   z-index: calc(var(--taskmap-layer-workspace-chrome) + 19);
+  top: -58px;
   overflow: visible;
 }

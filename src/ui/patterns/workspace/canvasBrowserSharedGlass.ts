@@ -53,14 +53,21 @@ export function syncCanvasBrowserDragGlass<Id extends string>(
   const shapeX = scaled(x, width, centerX);
   const shapeY = scaled(y, record.height, centerY);
   const clipY = scaled(y + offset, visible, centerY);
+  // The drag plane starts above the list, over the header (CanvasBrowser.css).
+  const top = CANVAS_BROWSER_LAYOUT.headerHeight;
   writeSharedSmallGlassShapes(plane, [
     {
       x: shapeX.start,
-      y: shapeY.start,
+      y: shapeY.start + top,
       width: shapeX.size,
       height: shapeY.size,
       radius: Math.round(radius * scale * 2) / 2,
-      clip: { left: shapeX.start, top: clipY.start, width: shapeX.size, height: clipY.size },
+      clip: {
+        left: shapeX.start,
+        top: clipY.start + top,
+        width: shapeX.size,
+        height: clipY.size,
+      },
       morph: true,
     },
   ]);

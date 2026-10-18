@@ -167,3 +167,21 @@ it("hides the output instead of writing layers that all lie outside the element"
   const partly = [{ x: -100, y: 10, width: 200, height: 40, radius: 14, opacity: 1 }];
   expect(layeredOutputMask(partly, 0, { width: 1000, height: 800 })?.image).toContain("data:image");
 });
+
+it("draws a new size from gradients until its mask image has decoded", async () => {
+  // jsdom cannot decode images; this stands in for WebView2's asynchronous decode.
+  let decoded: () => void = () => undefined;
+  Object.defineProperty(HTMLImageElement.prototype, "decode", {
+    configurable: true,
+    value: () => new Promise<void>((resolve) => (decoded = resolve)),
+  });
+  try {
+    const fresh = [{ x: 0, y: 0, width: 311, height: 97, radius: 12, opacity: 1 }];
+    expect(layeredOutputMask(fresh, 0)?.image).not.toContain("data:image");
+    decoded();
+    await Promise.resolve();
+    expect(layeredOutputMask(fresh, 0)?.image).toContain("data:image");
+  } finally {
+    delete (HTMLImageElement.prototype as { decode?: unknown }).decode;
+  }
+});

@@ -60,6 +60,16 @@
   display: none;
 }
 
+/* A clear selection has nothing to blur, so it skips the backdrop pass entirely: tint, rim and
+   highlight alone. Sampling for nothing was costly, and nested in a surface whose clip changes it
+   flashed for a few frames while WebView2 re-resolved the backdrop. */
+.taskmap-native-glass-recipe.taskmap-material-surface--clear-selection
+  .taskmap-native-glass-preblur,
+.taskmap-native-glass-recipe.taskmap-material-surface--clear-selection
+  .taskmap-native-glass-backdrop {
+  display: none;
+}
+
 .taskmap-native-glass-recipe .taskmap-native-glass-backdrop {
   z-index: 1;
   backface-visibility: hidden;

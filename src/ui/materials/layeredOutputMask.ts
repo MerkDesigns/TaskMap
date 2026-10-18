@@ -74,11 +74,14 @@ function fullLayer(shape: NativeGlassShape): MaskLayer[] {
   const alpha = quantizedOpacity(shape.opacity);
   if (alpha === 0) return [];
   // Fading shapes are pure gradients: a frame must never reference a mask image that is still
-  // loading, because WebView2 then paints the unmasked filter output across the whole plane.
+  // loading, because WebView2 then paints the unmasked filter output across the whole plane. A
+  // size seen for the first time is drawn from gradients too until its image has decoded.
   if (alpha < 1) return gradientRoundedLayers(shape, alpha);
+  const image = roundedRectangleImage(shape.width, shape.height, shape.radius, alpha);
+  if (!decodedImageReady(image)) return gradientRoundedLayers(shape, alpha);
   return [
     {
-      image: roundedRectangleImage(shape.width, shape.height, shape.radius, alpha),
+      image,
       left: shape.x,
       top: shape.y,
       width: shape.width,
@@ -192,11 +195,19 @@ function solidLayer(alpha: number): string {
 const roundedRectangleImages = new Map<string, string>();
 /** Keeps cached mask images decoded so a returning shape never references a loading image. */
 const decodedImages = new Map<string, HTMLImageElement>();
+/** Mask images (their CSS values) that have finished decoding and are safe to reference. */
+const readyImages = new Set<string>();
+
+function decodedImageReady(image: string): boolean {
+  // Without image decoding (jsdom), there is nothing to wait for.
+  return typeof Image === "undefined" || !("decode" in Image.prototype) || readyImages.has(image);
+}
 
 function cacheMaskImage(key: string, svg: string): string {
   if (roundedRectangleImages.size >= MAX_CACHED_IMAGES) {
     roundedRectangleImages.clear();
     decodedImages.clear();
+    readyImages.clear();
   }
   const source = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   const image = `url("${source}")`;
@@ -204,7 +215,12 @@ function cacheMaskImage(key: string, svg: string): string {
   if (typeof Image !== "undefined") {
     const element = new Image();
     element.src = source;
-    element.decode?.().catch(() => undefined);
+    element.decode?.().then(
+      () => {
+        if (decodedImages.get(key) === element) readyImages.add(image);
+      },
+      () => undefined,
+    );
     decodedImages.set(key, element);
   }
   return image;
