@@ -128,6 +128,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- With the calendar expanded, the top of the Canvas Browser can be clicked again; an invisible
+  strip beside the calendar covered it.
 - Box selection inside a container keeps going while the container scrolls, with the mouse wheel
   or by dragging past its top or bottom edge, so all of its cards can be selected at once.
 - Resizing a container or text block snaps to the edges of both containers and text blocks, as

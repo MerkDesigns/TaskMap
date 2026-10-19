@@ -8,6 +8,16 @@
   gap: var(--taskmap-chrome-gap);
 }
 
+/* The row is as tall as its tallest island (an expanded calendar), so its empty area below the
+   shorter groups lies over the side panel; only the islands themselves take clicks. */
+.taskmap-workspace-chrome-layer > .taskmap-floating-canvas-toolbar {
+  pointer-events: none;
+}
+
+.taskmap-floating-canvas-toolbar > * {
+  pointer-events: auto;
+}
+
 .taskmap-floating-canvas-toolbar__group {
   display: flex;
   align-items: center;
