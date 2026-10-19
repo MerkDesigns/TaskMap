@@ -1,4 +1,5 @@
 import type { ExtensionInstallation, TaskMapDocument } from "../../domain/document/documentTypes";
+import { findDocumentModule } from "../../domain/document-modules/documentModules";
 import type { ElementId } from "../../domain/ids/entityIds";
 import { findArchitectureExtensionDefinition } from "../../extensions/architectureRegistry";
 import type {
@@ -20,11 +21,22 @@ interface Group {
 
 export function createRetainedExtensionsProjection() {
   let cache = new WeakMap<ExtensionInstallation, Entry>();
+  let acceptedModules = new WeakSet<ExtensionInstallation>();
   let previousGroups = new Map<ElementId, Group>();
 
   function clear() {
     cache = new WeakMap();
+    acceptedModules = new WeakSet();
     previousGroups = new Map();
+  }
+
+  /** Document modules (ADR 011) carry whole-document data and contribute nothing to elements. */
+  function acceptsDocumentModule(source: ExtensionInstallation) {
+    if (acceptedModules.has(source)) return true;
+    const module = findDocumentModule(source.extensionId);
+    if (!module?.schema.safeParse(source.configuration).success) return false;
+    acceptedModules.add(source);
+    return true;
   }
 
   function project(document: TaskMapDocument) {
@@ -33,6 +45,12 @@ export function createRetainedExtensionsProjection() {
     const grouped = new Map<ElementId, Entry[]>();
     for (const source of Object.values(document.extensionInstallations)) {
       const extensionInstanceId = source.id;
+      if (source.target.kind === "document") {
+        if (!acceptsDocumentModule(source)) {
+          issues.push({ code: "invalid-document-module", extensionInstanceId });
+        }
+        continue;
+      }
       const definition = findArchitectureExtensionDefinition(source.extensionId);
       if (!definition) {
         issues.push({ code: "unsupported-extension", extensionInstanceId });

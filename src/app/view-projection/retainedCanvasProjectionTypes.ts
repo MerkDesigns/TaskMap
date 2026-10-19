@@ -40,6 +40,7 @@ export interface RetainedCanvasProjectionIssue {
     | "invalid-extension-configuration"
     | "duplicate-extension-installation"
     | "conflicting-extension-installation"
+    | "invalid-document-module"
     | "invalid-image-media"
     | "missing-image-media"
     | "invalid-container-parent"

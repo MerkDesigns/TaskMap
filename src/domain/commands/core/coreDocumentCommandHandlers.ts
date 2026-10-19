@@ -6,6 +6,8 @@ import { elementCommandHandlers } from "./elementCommands";
 import { updateElementGeometriesCommand } from "./elementGeometryCommands";
 import { extensionCommandHandlers } from "./extensionCommands";
 import { mediaCommandHandlers } from "./mediaCommands";
+import { calendarCommandHandlers } from "../modules/calendarCommands";
+import { inboxCommandHandlers } from "../modules/inboxCommands";
 
 export const coreDocumentCommandHandlers: readonly DomainCommandHandler[] = Object.freeze([
   ...canvasCommandHandlers,
@@ -15,4 +17,6 @@ export const coreDocumentCommandHandlers: readonly DomainCommandHandler[] = Obje
   ...mediaCommandHandlers,
   ...extensionCommandHandlers,
   ...documentSettingsCommandHandlers,
+  ...calendarCommandHandlers,
+  ...inboxCommandHandlers,
 ]);

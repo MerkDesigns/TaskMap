@@ -205,6 +205,39 @@ product transport/workspace admission and candidate-publication boundaries. Acti
 rules and callback guards still precede editable startup. No legacy conversion or database
 schema-version bump is introduced.
 
+## Document modules
+
+Whole-document feature data is stored as a _document module_ (ADR 011): one
+`extensionInstallations` record with `target: { kind: "document" }`, the module's id as
+`extensionId` and the module's data as its strict configuration. Acceptance parses each record with
+its module's schema and rejects unknown modules and invalid data; the duplicate-installation
+invariant allows one record per module. Records are created by the first command that needs them.
+
+| Module               | Configuration                                                                                      | Changed by                   |
+| -------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `calendar`           | `{ version: 1, events: Record<id, Event>, reminders: Record<id, Reminder> }`                       | recorded (undoable) commands |
+| `notification-inbox` | `{ version: 1, entries: Record<id, Entry>, fired: Record<key, instant>, scannedThrough: instant }` | unrecorded commands          |
+
+Times are floating local wall-clock strings: dates `"2026-10-19"`, times `"09:30"`, date-times
+`"2026-10-19T09:30"`. An `Event` is `{ id, title, timing, location, accent, alerts }`;
+`timing` is `{ kind: "all-day", startDate, endDate }` (inclusive) or `{ kind: "timed", start, end }`,
+never ending before it starts; `alerts` holds at most two `{ amount: 0-999, unit: "minute" | "hour" |
+"day" | "week" }` offsets before the start. A `Reminder` is `{ id, title, notes, accent, completed,
+due: { date, time | null } | null, alert: offset | null }`; its `notes` are free text, often a link.
+Accents are `#RRGGBB` colours.
+Event ids are `calendar-event-<uuid>`, reminder ids `reminder-<uuid>`; records are keyed by their id.
+At most 1,000 events and 1,000 reminders; titles and locations at most 512 characters, reminder notes 16,384.
+
+An inbox `Entry` is `{ id: "inbox-entry-<uuid>", kind: "event-alert" | "reminder-alert" |
+"reminder-due" | "missed-alerts", source: { kind: "event" | "reminder", id } | null, occurrence,
+firedAt, read, snoozedUntil, missedCount }`. Entries reference their source and never copy its
+title. `firedAt`, `snoozedUntil`, `fired` values and `scannedThrough` are epoch-millisecond instants,
+the one place the document records when something happened. At most 200 entries (oldest dropped)
+and 2,000 fired keys, forgotten after 30 days. A fired key names the item, the occurrence it was set
+for and the offset (`event:<id>:<start>:<offset>`, `reminder:<id>:<due>:due` or
+`reminder:<id>:<due>:<offset>`), so an item moved to a new time alerts again. Alerts that fall due
+after `scannedThrough` and are not in `fired` are still to come.
+
 ## Version 1 limits
 
 The reader checks structure and lengths before fetching variable-size BLOBs or invoking Argon2:

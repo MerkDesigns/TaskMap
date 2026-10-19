@@ -68,13 +68,20 @@ describe("retained extension projection", () => {
     });
   });
 
-  it.each(["document", "canvas"])("rejects unsupported %s scope", (kind) => {
+  it("rejects element extensions on a canvas or the document, which only document modules use", () => {
     const input = inputWithExtension();
-    input.extensionInstallations[ids.extensionA].target =
-      kind === "document" ? { kind, documentId: ids.document } : { kind, canvasId: ids.canvasA };
+    input.extensionInstallations[ids.extensionA].target = { kind: "canvas", canvasId: ids.canvasA };
     expect(createRetainedCanvasProjection().project(validated(input))).toEqual({
       ok: false,
       issues: [{ code: "incompatible-extension-target", extensionInstanceId: ids.extensionA }],
+    });
+    input.extensionInstallations[ids.extensionA].target = {
+      kind: "document",
+      documentId: ids.document,
+    };
+    expect(createRetainedCanvasProjection().project(validated(input))).toEqual({
+      ok: false,
+      issues: [{ code: "invalid-document-module", extensionInstanceId: ids.extensionA }],
     });
   });
 

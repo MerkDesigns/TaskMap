@@ -28,6 +28,19 @@ describe("core document command registry", () => {
       ["document.extension.replace-configuration", "record"],
       ["document.extension.remove", "record"],
       ["document.settings.update", "record"],
+      ["calendar.event.create", "record"],
+      ["calendar.event.update", "record"],
+      ["calendar.event.delete", "record"],
+      ["calendar.reminder.create", "record"],
+      ["calendar.reminder.update", "record"],
+      ["calendar.reminder.set-completed", "record"],
+      ["calendar.reminder.delete", "record"],
+      ["inbox.alerts.record", "ignore"],
+      ["inbox.entries.mark-read", "ignore"],
+      ["inbox.entries.dismiss", "ignore"],
+      ["inbox.clear-all", "ignore"],
+      ["inbox.entry.snooze", "ignore"],
+      ["inbox.watermark.advance", "ignore"],
     ]);
   });
 });
