@@ -8,6 +8,7 @@ import { retainedExtensionCallbacks } from "./retainedExtensionCallbacks";
 import { retainedSettingsCallbacks } from "./retainedSettingsCallbacks";
 import { retainedCanvasCallbacks } from "./retainedCanvasCallbacks";
 import { retainedCreationCallbacks } from "./retainedCreationCallbacks";
+import { retainedCalendarCallbacks } from "./retainedCalendarCallbacks";
 import {
   createRetainedCompletionOwner,
   type RetainedCallbackSession,
@@ -29,6 +30,7 @@ export function createRetainedActionCallbacks(session: RetainedCallbackSession) 
     ...retainedSettingsCallbacks(owner),
     ...retainedCanvasCallbacks(owner),
     ...retainedCreationCallbacks(owner),
+    ...retainedCalendarCallbacks(owner),
     undo: () => owner.runHistory("undo"),
     redo: () => owner.runHistory("redo"),
     canInteract(canvasId: string) {

@@ -36,3 +36,9 @@ if (typeof document !== "undefined" && !document.elementFromPoint) {
 if (typeof HTMLCanvasElement !== "undefined") {
   HTMLCanvasElement.prototype.getContext = (() => null) as HTMLCanvasElement["getContext"];
 }
+
+// jsdom does not scroll. Browsers have scrollTo; here it does nothing, as on an element that
+// cannot scroll, instead of throwing.
+if (typeof Element !== "undefined" && !Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = () => undefined;
+}

@@ -3,7 +3,9 @@
   gap: var(--taskmap-space-1);
 }
 
+/* Only the text is the label's hit area: a full-row label opened a control from empty space. */
 .taskmap-field__label {
+  justify-self: start;
   color: var(--taskmap-text);
   font-size: var(--taskmap-text-label-size);
   font-weight: 650;

@@ -1,0 +1,361 @@
+/* Notification island, left of the window controls: one inbox button that grows leftward and
+   downward into the notification centre. It is laid out at the full size while expanding or
+   expanded and useIslandReveal animates how much of it shows. */
+
+/* Right of the island: the window controls (three compact buttons with their gaps and padding)
+   and one chrome gap. */
+.taskmap-notifications-anchor {
+  position: absolute;
+  top: var(--taskmap-chrome-inset-top);
+  right: calc(
+    var(--taskmap-chrome-inset-inline) + 3 * var(--taskmap-control-height-compact) + 2 *
+      var(--taskmap-space-1) + 2 * var(--taskmap-toolbar-group-padding-inline) +
+      var(--taskmap-chrome-gap)
+  );
+}
+
+/* COMPACT_WIDTH and ISLAND_WIDTH in NotificationIsland: one button, growing leftward from the
+   window controls into the full centre. */
+.taskmap-floating-canvas-toolbar__group.taskmap-notifications {
+  display: block;
+  width: 44px;
+  height: var(--taskmap-toolbar-height);
+  padding: 0;
+}
+
+/* EXPANDED_HEIGHT in NotificationIsland. */
+.taskmap-floating-canvas-toolbar__group.taskmap-notifications[data-tall] {
+  width: 300px;
+  height: 460px;
+}
+
+.taskmap-notifications__content {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* The button keeps its place at the right end; the title fades in beside it once expanded. */
+.taskmap-notifications__header {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--taskmap-toolbar-height);
+  padding: 0 var(--taskmap-toolbar-group-padding-inline);
+}
+
+.taskmap-notifications__title {
+  position: absolute;
+  top: 0;
+  left: 14px;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 600;
+  line-height: var(--taskmap-toolbar-height);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  white-space: nowrap;
+}
+
+.taskmap-notifications[data-expanded] .taskmap-notifications__title {
+  opacity: 1;
+  transition: opacity 180ms ease-out 60ms;
+}
+
+.taskmap-notifications__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+/* The unread count sits on the icon's top-right corner. */
+.taskmap-notifications__count {
+  position: absolute;
+  top: -7px;
+  left: 9px;
+  min-width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border-radius: var(--taskmap-radius-pill);
+  background: var(--taskmap-accent);
+  color: rgb(0 0 0 / 0.85);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Always laid out at the expanded width (ISLAND_WIDTH), anchored to the right edge and clipped
+   while the island is narrower, so the tabs and cards never reflow and the tab glass never
+   springs to a new size as the island opens. */
+.taskmap-notifications__panel {
+  display: flex;
+  box-sizing: border-box;
+  width: 300px;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-self: flex-end;
+  padding: 0 10px 10px;
+  opacity: 0;
+  transition:
+    opacity 180ms ease-out,
+    translate 170ms cubic-bezier(0.33, 1, 0.68, 1);
+  translate: 0 -8px;
+}
+
+.taskmap-notifications[data-expanded] .taskmap-notifications__panel {
+  opacity: 1;
+  transition-delay: 60ms, 0ms;
+  transition-duration: 180ms, 270ms;
+  transition-timing-function: ease-out, cubic-bezier(0.25, 1, 0.5, 1);
+  translate: 0 0;
+}
+
+.taskmap-notifications__tabs {
+  flex: none;
+}
+
+.taskmap-notifications__tab-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.taskmap-notifications__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 36px;
+  gap: var(--taskmap-space-1);
+  padding-left: 4px;
+}
+
+.taskmap-notifications__summary {
+  flex: 1;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-notifications__list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.taskmap-notifications__empty {
+  margin: auto;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+/* Cards are quiet fills on the island's glass, never glass of their own. */
+.taskmap-notification-card {
+  position: relative;
+  display: flex;
+  flex: none;
+  gap: 12px;
+  padding: 12px 12px 8px;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.06);
+  touch-action: pan-y;
+}
+
+.taskmap-notification-card__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.07);
+  color: var(--taskmap-text);
+}
+
+.taskmap-notification-card__body {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Room on the right for the time, pinned to the card's top-right corner. */
+.taskmap-notification-card__heading {
+  display: flex;
+  padding-right: 64px;
+}
+
+.taskmap-notification-card__title {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 650;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-notification-card__time {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+/* An unread card has an accent dot before its time. */
+.taskmap-notification-card[data-unread] .taskmap-notification-card__time::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--taskmap-accent);
+  content: "";
+  vertical-align: 1px;
+}
+
+.taskmap-notification-card__detail {
+  overflow: hidden;
+  margin: 2px 0 0;
+  color: var(--taskmap-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-notification-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--taskmap-space-1);
+  margin-top: 2px;
+}
+
+.taskmap-notification-card__actions:empty {
+  height: 4px;
+}
+
+.taskmap-notification-card__dismiss.taskmap-icon-button {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.taskmap-notification-card:hover .taskmap-notification-card__dismiss,
+.taskmap-notification-card__dismiss:focus-visible {
+  opacity: 1;
+}
+
+.taskmap-notification-card:hover .taskmap-notification-card__time {
+  visibility: hidden;
+}
+
+.taskmap-notifications__section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.taskmap-notifications__section-title {
+  margin: 4px 4px 2px;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.taskmap-notifications__section[data-overdue] .taskmap-notifications__section-title {
+  color: var(--taskmap-danger);
+}
+
+.taskmap-notifications__row {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--taskmap-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.taskmap-notifications__row[data-reminder] {
+  cursor: default;
+}
+
+.taskmap-notifications__row:hover {
+  background: var(--taskmap-state-hover);
+}
+
+.taskmap-notifications__row:focus-visible,
+.taskmap-notifications__row-text:focus-visible {
+  outline: 2px solid rgb(var(--taskmap-accent-rgb) / 0.8);
+  outline-offset: -2px;
+}
+
+.taskmap-notifications__row-accent {
+  width: 4px;
+  height: 32px;
+  flex: none;
+  margin: 0 6px 0 2px;
+  border-radius: 2px;
+}
+
+.taskmap-notifications__row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.taskmap-notifications__row-title,
+.taskmap-notifications__row-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-notifications__row-title {
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.taskmap-notifications__row-detail {
+  color: var(--taskmap-muted);
+  font-size: 13px;
+}
+
+.taskmap-notifications__complete.taskmap-icon-button {
+  flex: none;
+}

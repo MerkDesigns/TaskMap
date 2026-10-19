@@ -4,6 +4,7 @@ import {
   IconCalendar,
   IconEye,
   IconEyeOff,
+  IconInbox,
   IconMap,
   IconMapOff,
   IconMenu2,
@@ -15,6 +16,12 @@ import {
 import type { ReactNode } from "react";
 import type { ToolbarButtonId } from "../platform/settings/preferenceContracts";
 import { CalendarIsland } from "../features/calendar/CalendarIsland";
+import {
+  NOTIFICATION_PANEL_TOGGLE,
+  requestNotificationPanelToggle,
+  useNotificationPanelExpanded,
+} from "../features/notifications/notificationCenter";
+import type { CalendarIslandBinding } from "../features/calendar/calendarEditing";
 import { TOOLBAR_BUTTONS } from "./toolbarButtons";
 import {
   FloatingCanvasToolbar,
@@ -28,6 +35,8 @@ export type FloatingToolbarProps = {
   calendarOpen: boolean;
   /** The expanded calendar ignores clicks elsewhere (Settings > Misc). */
   calendarStaysOpen?: boolean;
+  /** Events, reminders and their editors for the calendar island. */
+  calendar?: CalendarIslandBinding;
   canRedo: boolean;
   canUndo: boolean;
   canvasesOpen: boolean;
@@ -51,6 +60,7 @@ export function FloatingToolbar({
   buttons,
   calendarOpen,
   calendarStaysOpen,
+  calendar,
   canRedo,
   canUndo,
   canvasesOpen,
@@ -72,6 +82,7 @@ export function FloatingToolbar({
   const privacyTitle = privacyModeEnabled ? "Disable privacy mode" : "Enable privacy mode";
   const minimapTitle = minimapEnabled ? "Disable minimap" : "Enable minimap";
   const sleepTitle = sleepModeEnabled ? "Disable sleep mode" : "Enable sleep mode";
+  const notificationsExpanded = useNotificationPanelExpanded();
 
   const workspaceButtons: Record<ToolbarButtonId, ReactNode> = {
     canvases: (
@@ -153,6 +164,23 @@ export function FloatingToolbar({
     "placeholder-1": placeholderButton("placeholder-1"),
     "placeholder-2": placeholderButton("placeholder-2"),
     "placeholder-3": placeholderButton("placeholder-3"),
+    notifications: (
+      <ToggleButton
+        key="notifications"
+        variant="ghost"
+        size="compact"
+        className="taskmap-floating-canvas-toolbar__icon-toggle"
+        pressed={notificationsExpanded}
+        onClick={requestNotificationPanelToggle}
+        title="Notifications"
+        aria-label="Notifications"
+        {...{ [NOTIFICATION_PANEL_TOGGLE]: "" }}
+      >
+        <span aria-hidden="true">
+          <IconInbox size={18} stroke={2} />
+        </span>
+      </ToggleButton>
+    ),
   };
 
   return (
@@ -180,7 +208,12 @@ export function FloatingToolbar({
           icon={<IconArrowForwardUp size={18} stroke={2} />}
         />
       </ToolbarGroup>
-      <CalendarIsland open={calendarOpen} radius={toolbarRadius} staysOpen={calendarStaysOpen} />
+      <CalendarIsland
+        open={calendarOpen}
+        radius={toolbarRadius}
+        staysOpen={calendarStaysOpen}
+        calendar={calendar}
+      />
     </FloatingCanvasToolbar>
   );
 }

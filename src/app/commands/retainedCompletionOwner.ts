@@ -32,7 +32,9 @@ export function createRetainedCompletionOwner(session: RetainedCallbackSession) 
     | "settings"
     | "canvas"
     | "creation"
-    | "image-import";
+    | "image-import"
+    | "calendar"
+    | "inbox";
   const pending = new Map<symbol, { slot: Slot; build: (input: unknown) => unknown }>();
   const invalidationListeners = new Set<() => void>();
   const clear = () => {

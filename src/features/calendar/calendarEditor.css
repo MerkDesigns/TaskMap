@@ -1,0 +1,243 @@
+/* The event and reminder forms and the time picker inside the calendar island, each in place of
+   the month. */
+
+.taskmap-calendar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 13px 13px;
+  animation: taskmap-calendar-form-in 180ms ease-out;
+}
+
+@keyframes taskmap-calendar-form-in {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskmap-calendar-form {
+    animation: none;
+  }
+}
+
+.taskmap-calendar-form__header {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  gap: var(--taskmap-space-1);
+  margin: 0 -6px 2px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.taskmap-calendar-form__title {
+  overflow: hidden;
+  flex: 1;
+  margin: 0 0 0 4px;
+  color: var(--taskmap-text);
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two lines, never resized. */
+.taskmap-calendar-form__notes.taskmap-textarea {
+  height: 58px;
+  min-height: 0;
+  resize: none;
+}
+
+/* Date and time: an icon and label, a switch, then the field it turns on. */
+.taskmap-calendar-form__when {
+  display: grid;
+  align-items: center;
+  gap: 10px 12px;
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.taskmap-calendar-form__when-label {
+  display: flex;
+  align-items: center;
+  gap: var(--taskmap-space-2);
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 600;
+}
+
+.taskmap-calendar-form__span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Starts and Ends: a label, then the day and the time. */
+.taskmap-calendar-form__range {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: 42px minmax(0, 1fr) 96px;
+}
+
+.taskmap-calendar-form__range-label {
+  color: var(--taskmap-text);
+  font-size: var(--taskmap-text-body-size);
+  font-weight: 600;
+}
+
+/* A typed date or time; the icon at its end opens the matching picker. */
+.taskmap-calendar-form__typed {
+  display: block;
+  min-width: 0;
+}
+
+.taskmap-calendar-form__typed .taskmap-input {
+  padding-right: 0;
+  padding-left: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.taskmap-calendar-form__typed .taskmap-input-shell__slot {
+  padding: 0 4px 0 0;
+}
+
+.taskmap-calendar-form__typed .taskmap-input-shell:has(.taskmap-input:disabled) {
+  opacity: var(--taskmap-state-disabled-opacity);
+}
+
+.taskmap-calendar-form__typed .taskmap-input:disabled {
+  opacity: 1;
+}
+
+.taskmap-calendar-form__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--taskmap-space-2);
+  margin-top: 2px;
+}
+
+.taskmap-calendar-form__swatches {
+  display: flex;
+  gap: 5px;
+}
+
+.taskmap-calendar-form__swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.taskmap-calendar-form__swatch[aria-checked="true"] {
+  border-color: var(--taskmap-text);
+}
+
+.taskmap-calendar-form__swatch:focus-visible {
+  outline: 2px solid rgb(var(--taskmap-accent-rgb) / 0.8);
+  outline-offset: 2px;
+}
+
+.taskmap-calendar-form__error {
+  margin: 0;
+  color: var(--taskmap-danger);
+  font-size: var(--taskmap-text-caption-size);
+}
+
+/* The time picker: two wheels of rows (ROW in CalendarTimePicker) that snap to the middle row,
+   under one fixed glass band. Five rows show; the outer ones fade away. */
+.taskmap-time-picker__value {
+  display: block;
+  margin: 2px 0 -2px;
+  color: var(--taskmap-text);
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.taskmap-time-picker__captions,
+.taskmap-time-picker__wheels {
+  display: grid;
+  justify-content: center;
+  grid-template-columns: 84px 20px 84px;
+}
+
+.taskmap-time-picker__captions {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+  font-weight: 600;
+  text-align: center;
+}
+
+.taskmap-time-picker__captions > :last-child {
+  grid-column: 3;
+}
+
+.taskmap-time-picker__wheels {
+  position: relative;
+  align-items: center;
+  height: 180px;
+}
+
+.taskmap-time-picker__band {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  width: 212px;
+  height: 36px;
+  pointer-events: none;
+  translate: -50% 0;
+}
+
+.taskmap-time-picker__wheel {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  height: 180px;
+  padding: 72px 0;
+  border-radius: 12px;
+  mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent);
+  outline: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.taskmap-time-picker__wheel:focus-visible {
+  box-shadow: inset 0 0 0 2px rgb(var(--taskmap-accent-rgb) / 0.8);
+}
+
+.taskmap-time-picker__row {
+  height: 36px;
+  color: var(--taskmap-muted);
+  cursor: pointer;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  line-height: 36px;
+  scroll-snap-align: center;
+  text-align: center;
+}
+
+.taskmap-time-picker__row[aria-selected="true"] {
+  color: var(--taskmap-text);
+  font-weight: 650;
+}
+
+.taskmap-time-picker__separator {
+  position: relative;
+  z-index: 1;
+  color: var(--taskmap-text);
+  font-size: 18px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.taskmap-time-picker__set {
+  margin-top: 4px;
+}

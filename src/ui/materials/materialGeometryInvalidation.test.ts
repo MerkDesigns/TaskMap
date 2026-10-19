@@ -41,4 +41,16 @@ describe("material reveal", () => {
     expect(surface.style.clipPath).toBe("");
     expect(readMaterialPresentation(surface).visibleHeight).toBe(40);
   });
+
+  it("can also hide a surface from the left, keeping its right edge", () => {
+    const surface = document.createElement("div");
+    writeMaterialReveal(surface, 200, 460, { visible: 120, full: 300 });
+    expect(surface.style.clipPath).toBe(
+      "inset(0 0 260px 180px round var(--taskmap-material-radius))",
+    );
+    expect(readMaterialPresentation(surface)).toMatchObject({
+      visibleHeight: 200,
+      visibleWidth: 120,
+    });
+  });
 });

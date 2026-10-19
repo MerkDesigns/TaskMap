@@ -68,16 +68,27 @@ export function createWorkspaceMajorOwner(
     const width = window.innerWidth;
     const height = window.innerHeight;
     const visible = [...shapes].map(([element, shape]) => {
-      const { translateX, translateY, scale, opacity, visibleHeight } =
+      const { translateX, translateY, scale, opacity, visibleHeight, visibleWidth } =
         readMaterialPresentation(element);
       const width = shape.width * scale;
       const height = shape.height * scale;
       const x = shape.x + translateX + (shape.width - width) / 2;
       const y = shape.y + translateY + (shape.height - height) / 2;
-      // A partial reveal is a morph: cached cap images, whatever the visible height this frame.
+      // A partial reveal is a morph: cached cap images, whatever the visible size this frame. A
+      // narrower reveal keeps the right edge, where its owner is anchored.
+      const shownHeight = Math.min(visibleHeight ?? shape.height, shape.height) * scale;
+      const shownWidth = Math.min(visibleWidth ?? shape.width, shape.width) * scale;
       const revealed =
-        visibleHeight !== undefined && visibleHeight < shape.height
-          ? { clip: { left: x, top: y, width, height: visibleHeight * scale }, morph: true }
+        shownHeight < height || shownWidth < width
+          ? {
+              clip: {
+                left: x + width - shownWidth,
+                top: y,
+                width: shownWidth,
+                height: shownHeight,
+              },
+              morph: true,
+            }
           : null;
       return {
         ...shape,

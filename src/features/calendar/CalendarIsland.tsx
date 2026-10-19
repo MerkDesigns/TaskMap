@@ -1,74 +1,37 @@
-import {
-  IconChevronDown,
-  IconChevronLeft,
-  IconChevronRight,
-  IconCircleDashed,
-} from "@tabler/icons-react";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type MouseEvent,
-} from "react";
-import {
-  supplyMaterialSurfaceSize,
-  writeMaterialReveal,
-} from "../../ui/materials/materialGeometryInvalidation";
-import { useMotionFrameScheduler } from "../../ui/motion/MotionProvider";
-import { useReducedMotion } from "../../ui/motion/reducedMotionPreference";
-import { useChromeAsleep } from "../../ui/patterns/workspace/chromeSleep";
+import { IconArrowLeft, IconChevronDown } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useIslandReveal } from "../../ui/patterns/workspace/useIslandReveal";
 import { ToolbarGroup } from "../../ui/patterns/workspace/FloatingCanvasToolbar";
 import { IconButton } from "../../ui/primitives/Button";
-import { ContextMenu } from "../../ui/primitives/ContextMenu";
-import { ContextMenuItem } from "../../ui/primitives/ContextMenuParts";
-import { LiquidCellIndicator } from "../../ui/primitives/LiquidCellIndicator";
-import { useClampedFixedPosition } from "../../useClampedFixedPosition";
+import { CalendarDayMenu } from "./CalendarDayMenu";
+import { CalendarDayPanel, dayItemCount, dayPanelHeight } from "./CalendarDayPanel";
+import type { CalendarIslandBinding } from "./calendarEditing";
+import type { CalendarPick } from "./calendarFormParts";
+import { calendarDayOfLocal, localDateOf, markedDates } from "./calendarItems";
 import {
-  addDays,
-  addMonths,
-  daysOfWeeks,
-  calendarWeekOf,
   formatCompactDate,
   formatFullDate,
-  formatMonthTitle,
-  monthGrid,
   monthOf,
   sameDay,
   sameMonth,
-  WEEKDAY_LABELS,
   type CalendarDay,
   type CalendarMonth,
 } from "./calendarMonth";
+import { CalendarMonthGrid } from "./CalendarMonthGrid";
 import { CalendarClock, useToday } from "./calendarTime";
+import { CalendarTimePicker } from "./CalendarTimePicker";
+import { EventEditor } from "./EventEditor";
+import { ReminderEditor } from "./ReminderEditor";
 import "./calendarIsland.css";
 
-/** Day cells: 36px targets on a 39px pitch, seven across the island's fixed width. */
-const CELL = 36;
-const PITCH = 39;
-/** Six weeks show any month. */
-const GRID_WEEKS = 6;
-/** Months further apart than this jump instead of scrolling past every week in between. */
-const MAX_SCROLL_WEEKS = 14;
-/** Today's mark and the selection glass share this rounded-square shape at rest. */
-const MARK_RADIUS = 10;
-/** Sleep mode's flight out; the island collapses only once it is out of sight. */
-const SLEEP_FLIGHT_MS = 320;
-/** The island's size, compact and expanded; calendarIsland.css lays out the same. */
+/** The island's width, its compact height and its height showing the month. */
 const ISLAND_WIDTH = 300;
 const COMPACT_HEIGHT = 40;
-const EXPANDED_HEIGHT = 348;
-/** A full expand or collapse, at the side panel's ease-in-out. */
-const REVEAL_MS = 300;
-const easeInOutCubic = (progress: number) =>
-  progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
-const ARROW_STEPS: Readonly<Record<string, number>> = {
-  ArrowLeft: -1,
-  ArrowRight: 1,
-  ArrowUp: -7,
-  ArrowDown: 7,
-};
+const MONTH_HEIGHT = 348;
+/** The bar above the month while it picks a day for a form. */
+const PICK_BAR_HEIGHT = 40;
+/** A form's or the time picker's height until it has been measured. */
+const VIEW_FALLBACK_HEIGHT = 420;
 
 export interface CalendarIslandProps {
   /** The island is shown; it slides out before unmounting when this turns false. */
@@ -76,13 +39,16 @@ export interface CalendarIslandProps {
   readonly radius?: number;
   /** Clicks elsewhere and Escape leave it expanded; only its chevron and sleep collapse it. */
   readonly staysOpen?: boolean;
+  /** The document's events and reminders and their editors; absent outside a session. */
+  readonly calendar?: CalendarIslandBinding;
 }
 
 /**
  * The calendar beside the toolbar, after the Windows calendar flyout: a compact strip with today's
- * date that expands downward into the month, with a glass highlight gliding to the selected day.
+ * date that expands downward into the month. It also holds the event and reminder forms, and the
+ * day and time pickers those forms open in their place.
  */
-export function CalendarIsland({ open, radius, staysOpen = false }: CalendarIslandProps) {
+export function CalendarIsland({ open, radius, staysOpen = false, calendar }: CalendarIslandProps) {
   const [mounted, setMounted] = useState(open);
   useEffect(() => {
     if (open) setMounted(true);
@@ -93,6 +59,7 @@ export function CalendarIsland({ open, radius, staysOpen = false }: CalendarIsla
       open={open}
       radius={radius}
       staysOpen={staysOpen}
+      calendar={calendar}
       onClosed={() => setMounted(false)}
     />
   );
@@ -102,137 +69,122 @@ function CalendarIslandSurface({
   open,
   radius,
   staysOpen,
+  calendar,
   onClosed,
 }: CalendarIslandProps & { readonly onClosed: () => void }) {
   const today = useToday();
-  const [expanded, setExpanded] = useState(false);
-  // Laid out at the expanded height from the start of an expand until a collapse has finished.
-  const [tall, setTall] = useState(false);
-  const revealRef = useRef(COMPACT_HEIGHT);
-  const scheduler = useMotionFrameScheduler();
-  const reducedMotion = useReducedMotion();
   const [selected, setSelected] = useState<CalendarDay>(today);
   const [view, setView] = useState<CalendarMonth>(() => monthOf(today));
   const surfaceRef = useRef<HTMLElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const focusSelected = useRef(false);
-  const asleep = useChromeAsleep();
   const [dayMenu, setDayMenu] = useState<{ readonly left: number; readonly top: number } | null>(
     null,
   );
   const [dayMenuOpen, setDayMenuOpen] = useState(false);
-  const dayMenuRef = useRef<HTMLElement | null>(null);
   const dayMenuReturnFocus = useRef<HTMLElement | null>(null);
-  const dayMenuPosition = useClampedFixedPosition(dayMenuRef, dayMenu ?? { left: 0, top: 0 });
-
-  // The grid is one continuous list of weeks: switching months scrolls it to the month's first
-  // week, rendering both months' rows until the scroll has settled.
-  const viewWeek = calendarWeekOf(monthGrid(view)[0]);
-  const [settledWeek, setSettledWeek] = useState(viewWeek);
-  const instant = reducedMotion || Math.abs(viewWeek - settledWeek) > MAX_SCROLL_WEEKS;
-  if (instant && settledWeek !== viewWeek) setSettledWeek(viewWeek);
-  const firstWeek = Math.min(settledWeek, viewWeek);
-  const days = daysOfWeeks(firstWeek, Math.max(settledWeek, viewWeek) + GRID_WEEKS - 1);
-  const inView = (week: number) => week >= viewWeek && week < viewWeek + GRID_WEEKS;
-  const selectedShown = days.some((day) => sameDay(day, selected) && inView(day.week));
-  const todayCell = days.find((day) => sameDay(day, today));
-  const selectedWeek = calendarWeekOf(selected);
-  const selectedColumn = (new Date(selected.year, selected.month, selected.day).getDay() + 6) % 7;
-
-  useLayoutEffect(() => {
-    if (!focusSelected.current) return;
-    focusSelected.current = false;
-    gridRef.current?.querySelector<HTMLButtonElement>("[aria-pressed='true']")?.focus();
+  const [dayPanelOpen, setDayPanelOpen] = useState(false);
+  const [formHeight, setFormHeight] = useState(VIEW_FALLBACK_HEIGHT);
+  const [timePickerHeight, setTimePickerHeight] = useState(VIEW_FALLBACK_HEIGHT);
+  const [pick, setPick] = useState<CalendarPick | null>(null);
+  const editing = calendar?.editing ?? null;
+  const shown: "month" | "form" | "pick-date" | "pick-time" =
+    pick?.kind === "date"
+      ? "pick-date"
+      : pick?.kind === "time"
+        ? "pick-time"
+        : editing
+          ? "form"
+          : "month";
+  const selectedDate = localDateOf(selected);
+  const expandedHeight =
+    shown === "form"
+      ? COMPACT_HEIGHT + formHeight
+      : shown === "pick-time"
+        ? COMPACT_HEIGHT + timePickerHeight
+        : shown === "pick-date"
+          ? MONTH_HEIGHT + PICK_BAR_HEIGHT
+          : MONTH_HEIGHT +
+            (dayPanelOpen
+              ? dayPanelHeight(dayItemCount(calendar?.calendar ?? null, selectedDate))
+              : 0);
+  const { expanded, size, expand, collapse } = useIslandReveal({
+    surfaceRef,
+    width: ISLAND_WIDTH,
+    compactHeight: COMPACT_HEIGHT,
+    expandedHeight,
+    staysOpen,
+    // An event or reminder being written must not be lost to a stray click or Escape.
+    holdOpen: dayMenuOpen || editing !== null,
   });
+  const marked = useMemo(() => markedDates(calendar?.calendar ?? null), [calendar?.calendar]);
 
-  // The calendar stays compact most of the time: sleep, a click elsewhere and Escape collapse it.
+  // Opening an event or reminder, from here or from elsewhere such as the inbox, shows its form.
+  const editingSession = editing?.session;
   useEffect(() => {
-    if (!asleep) return;
-    const timer = window.setTimeout(() => setExpanded(false), SLEEP_FLIGHT_MS);
-    return () => window.clearTimeout(timer);
-  }, [asleep]);
+    setPick(null);
+    if (editingSession !== undefined) expand();
+  }, [editingSession, expand]);
+
   useEffect(() => {
-    // An open day menu takes the outside click and Escape for itself.
-    if (!expanded || dayMenuOpen || staysOpen) return;
-    const collapseOutside = (event: PointerEvent) => {
-      if (!surfaceRef.current?.contains(event.target as Node)) setExpanded(false);
-    };
-    const collapseOnEscape = (event: globalThis.KeyboardEvent) => {
-      // A menu that just closed on this Escape has already claimed it.
-      if (event.key === "Escape" && !event.defaultPrevented) setExpanded(false);
-    };
-    window.addEventListener("pointerdown", collapseOutside, true);
-    window.addEventListener("keydown", collapseOnEscape);
-    return () => {
-      window.removeEventListener("pointerdown", collapseOutside, true);
-      window.removeEventListener("keydown", collapseOnEscape);
-    };
-  }, [dayMenuOpen, expanded, staysOpen]);
+    if (!expanded) setDayPanelOpen(false);
+  }, [expanded]);
 
   const select = (day: CalendarDay) => {
     setSelected(day);
     if (!sameMonth(monthOf(day), view)) setView(monthOf(day));
   };
 
-  const toggleExpanded = () => {
-    if (!expanded) {
-      setView(monthOf(selected));
-      setTall(true);
-    }
-    setExpanded(!expanded);
-  };
-
-  // Expanding animates how much of the full-height island is revealed rather than its height, so
-  // no frame relayouts the island or rebuilds its glass; only the end of a collapse shrinks it.
-  // The island supplies its size, so its glass rim is redrawn in the same frame as a height change;
-  // an observed size arrives a frame late and the old rim shows stretched over the new height.
-  useLayoutEffect(() => {
-    const surface = surfaceRef.current;
-    if (!surface) return;
-    const size = { width: ISLAND_WIDTH, height: tall ? EXPANDED_HEIGHT : COMPACT_HEIGHT };
-    supplyMaterialSurfaceSize(surface, size)?.();
-  }, [tall]);
-
-  useLayoutEffect(() => {
-    const surface = surfaceRef.current;
-    if (!surface) return;
-    if (!tall) {
-      revealRef.current = COMPACT_HEIGHT;
-      writeMaterialReveal(surface, COMPACT_HEIGHT, COMPACT_HEIGHT);
+  const clickDay = (day: CalendarDay) => {
+    if (pick?.kind === "date") {
+      pick.apply(localDateOf(day));
+      setPick(null);
       return;
     }
-    const from = revealRef.current;
-    const to = expanded ? EXPANDED_HEIGHT : COMPACT_HEIGHT;
-    const durationMs = reducedMotion
-      ? 0
-      : (REVEAL_MS * Math.abs(to - from)) / (EXPANDED_HEIGHT - COMPACT_HEIGHT);
-    writeMaterialReveal(surface, from, EXPANDED_HEIGHT);
-    let elapsedMs = 0;
-    return scheduler.subscribe(({ deltaMs }) => {
-      elapsedMs += deltaMs;
-      const progress = durationMs === 0 ? 1 : Math.min(1, elapsedMs / durationMs);
-      revealRef.current = from + (to - from) * easeInOutCubic(progress);
-      writeMaterialReveal(surface, revealRef.current, EXPANDED_HEIGHT);
-      if (progress < 1) return true;
-      if (!expanded) setTall(false);
-      return false;
-    });
-  }, [expanded, reducedMotion, scheduler, tall]);
+    // Clicking a day shows its events and reminders below the month; clicking it again hides them.
+    setDayPanelOpen(!(dayPanelOpen && sameDay(day, selected)));
+    select(day);
+  };
+
+  const startPick = (next: CalendarPick) => {
+    if (next.kind === "date") {
+      const day = calendarDayOfLocal(next.value);
+      setSelected(day);
+      setView(monthOf(day));
+    }
+    setPick(next);
+  };
+
+  const toggleExpanded = () => {
+    if (expanded) {
+      collapse();
+      return;
+    }
+    setView(monthOf(selected));
+    expand();
+  };
 
   const openDayMenu = (event: MouseEvent<HTMLButtonElement>, day: CalendarDay) => {
     event.preventDefault();
+    if (shown !== "month") return;
     select(day);
     dayMenuReturnFocus.current = event.currentTarget;
     setDayMenu({ left: event.clientX, top: event.clientY });
     setDayMenuOpen(true);
   };
 
-  const handleGridKeyDown = (event: KeyboardEvent) => {
-    const step = ARROW_STEPS[event.key];
-    if (step === undefined) return;
-    event.preventDefault();
-    focusSelected.current = true;
-    select(addDays(selected, step));
+  const closeEditor = () => {
+    setPick(null);
+    calendar?.closeEditor();
+  };
+  const formProps = {
+    onBack: closeEditor,
+    onClose: () => {
+      closeEditor();
+      collapse();
+    },
+    onPick: startPick,
+    onHeightChange: (height: number) => {
+      if (height > 0) setFormHeight(height);
+    },
   };
 
   return (
@@ -247,7 +199,7 @@ function CalendarIslandSurface({
         onClosed={onClosed}
         className="taskmap-calendar"
         data-expanded={expanded || undefined}
-        data-tall={tall || undefined}
+        style={{ width: size.width, height: size.height }}
       >
         <div className="taskmap-calendar__content">
           <div className="taskmap-calendar__strip">
@@ -265,126 +217,104 @@ function CalendarIslandSurface({
               onClick={toggleExpanded}
             />
           </div>
-          <div className="taskmap-calendar__month" inert={!expanded}>
-            <div className="taskmap-calendar__month-header">
-              <IconButton
-                variant="ghost"
-                size="compact"
-                aria-label="Previous month"
-                title="Previous month"
-                icon={<IconChevronLeft size={18} stroke={2} />}
-                onClick={() => setView(addMonths(view, -1))}
-              />
-              <span className="taskmap-calendar__month-title" aria-live="polite">
-                {formatMonthTitle(view)}
-              </span>
-              <IconButton
-                variant="ghost"
-                size="compact"
-                aria-label="Next month"
-                title="Next month"
-                icon={<IconChevronRight size={18} stroke={2} />}
-                onClick={() => setView(addMonths(view, 1))}
-              />
-            </div>
-            <div className="taskmap-calendar__weekdays" aria-hidden="true">
-              {WEEKDAY_LABELS.map((label) => (
-                <span key={label}>{label}</span>
-              ))}
-            </div>
-            <div
-              ref={gridRef}
-              className="taskmap-calendar__grid"
-              role="group"
-              aria-label={formatMonthTitle(view)}
-              onKeyDown={handleGridKeyDown}
-            >
-              <div
-                className="taskmap-calendar__weeks"
-                data-instant={instant || undefined}
-                style={{ transform: `translate3d(0, ${-viewWeek * PITCH}px, 0)` }}
-                onTransitionEnd={(event) => {
-                  if (event.target === event.currentTarget) setSettledWeek(viewWeek);
-                }}
-              >
-                {todayCell && (
-                  <span
-                    className="taskmap-calendar__today-mark"
-                    style={{
-                      translate: `${cellLeft(todayCell.column)}px ${cellTop(todayCell.week)}px`,
-                    }}
-                  />
-                )}
-                {/* Always shown: away from the month on screen it simply scrolls out of view. */}
-                <LiquidCellIndicator
-                  x={cellLeft(selectedColumn) + CELL / 2}
-                  y={cellTop(selectedWeek) + CELL / 2}
-                  size={CELL}
-                  settledRadius={MARK_RADIUS}
-                  rigid
-                  clear
+          {/* The form stays mounted while a picker shows in its place, keeping what was typed. */}
+          {editing && (
+            <div className="taskmap-calendar__view" inert={!expanded} hidden={shown !== "form"}>
+              {editing.kind === "event" ? (
+                <EventEditor
+                  key={editing.session}
+                  editing={editing}
+                  onSave={(event) => calendar?.saveEvent(event)}
+                  onDelete={() => calendar?.deleteEvent(editing.event.id)}
+                  {...formProps}
                 />
-                {days.map((day, index) => {
-                  const isSelected = sameDay(day, selected);
-                  const isToday = sameDay(day, today);
-                  return (
-                    <button
-                      key={`${day.year}-${day.month}-${day.day}`}
-                      type="button"
-                      className="taskmap-calendar__day"
-                      data-outside={day.month !== view.month || undefined}
-                      data-today={isToday || undefined}
-                      aria-hidden={!inView(day.week) || undefined}
-                      aria-pressed={isSelected}
-                      aria-current={isToday ? "date" : undefined}
-                      aria-label={formatFullDate(day)}
-                      tabIndex={
-                        (isSelected && selectedShown) ||
-                        (!selectedShown && index === (viewWeek - firstWeek) * 7)
-                          ? 0
-                          : -1
-                      }
-                      style={{ translate: `${cellLeft(day.column)}px ${cellTop(day.week)}px` }}
-                      onClick={() => select(day)}
-                      onContextMenu={(event) => openDayMenu(event, day)}
-                    >
-                      {day.day}
-                    </button>
-                  );
-                })}
-              </div>
+              ) : (
+                <ReminderEditor
+                  key={editing.session}
+                  editing={editing}
+                  onSave={(reminder) => calendar?.saveReminder(reminder)}
+                  onDelete={() => calendar?.deleteReminder(editing.reminder.id)}
+                  {...formProps}
+                />
+              )}
             </div>
+          )}
+          {pick?.kind === "time" && (
+            <div className="taskmap-calendar__view" inert={!expanded}>
+              <CalendarTimePicker
+                title={pick.title}
+                value={pick.value}
+                onSet={(time) => {
+                  pick.apply(time);
+                  setPick(null);
+                }}
+                onBack={() => setPick(null)}
+                onHeightChange={(height) => {
+                  if (height > 0) setTimePickerHeight(height);
+                }}
+              />
+            </div>
+          )}
+          <div
+            className="taskmap-calendar__month"
+            inert={!expanded}
+            hidden={shown !== "month" && shown !== "pick-date"}
+            onKeyDown={(event) => {
+              if (shown !== "pick-date" || event.key !== "Escape" || event.defaultPrevented) {
+                return;
+              }
+              event.preventDefault();
+              setPick(null);
+            }}
+          >
+            {pick?.kind === "date" && (
+              <div className="taskmap-calendar__pick-bar">
+                <IconButton
+                  variant="ghost"
+                  size="compact"
+                  aria-label="Back"
+                  title="Back"
+                  icon={<IconArrowLeft size={18} stroke={2} />}
+                  onClick={() => setPick(null)}
+                />
+                <span className="taskmap-calendar__pick-title">{pick.title}</span>
+              </div>
+            )}
+            <CalendarMonthGrid
+              today={today}
+              selected={selected}
+              view={view}
+              marked={marked}
+              onViewChange={setView}
+              onSelect={select}
+              onDayClick={clickDay}
+              onDayContextMenu={openDayMenu}
+            />
+            {dayPanelOpen && shown === "month" && (
+              <CalendarDayPanel
+                calendar={calendar?.calendar ?? null}
+                date={selectedDate}
+                label={`${formatFullDate(selected)}: events and reminders`}
+                onOpenEvent={(eventId) => calendar?.openEvent(eventId)}
+                onOpenReminder={(reminderId) => calendar?.openReminder(reminderId)}
+                onSetReminderCompleted={(reminderId, completed) =>
+                  calendar?.setReminderCompleted(reminderId, completed)
+                }
+              />
+            )}
           </div>
         </div>
       </ToolbarGroup>
       {dayMenu && (
-        <ContextMenu
-          ref={dayMenuRef}
-          portal
-          label={formatFullDate(selected)}
+        <CalendarDayMenu
+          day={selected}
           open={dayMenuOpen}
           onOpenChange={setDayMenuOpen}
-          position={dayMenuPosition}
+          at={dayMenu}
           returnFocusRef={dayMenuReturnFocus}
-        >
-          {/* Reminders and calendar extensions will fill this menu. */}
-          <ContextMenuItem
-            icon={<IconCircleDashed size={17} stroke={2} />}
-            onClick={() => setDayMenuOpen(false)}
-          >
-            Placeholder
-          </ContextMenuItem>
-        </ContextMenu>
+          binding={calendar}
+        />
       )}
     </>
   );
-}
-
-function cellLeft(column: number): number {
-  return column * PITCH + (PITCH - CELL) / 2;
-}
-
-/** Rows sit at their week's place in the continuous list; the weeks layer scrolls past them. */
-function cellTop(week: number): number {
-  return week * PITCH + (PITCH - CELL) / 2;
 }

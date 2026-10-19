@@ -3,6 +3,7 @@ import {
   lazy,
   memo,
   Suspense,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,6 +17,9 @@ import {
   QuickExtensionsMenu,
 } from "../components/ExtensionsPanel";
 import { FloatingToolbar } from "../components/FloatingToolbar";
+import type { CalendarIslandBinding } from "../features/calendar/calendarEditing";
+import type { NotificationCenter } from "../features/notifications/notificationCenter";
+import { NotificationIsland } from "../features/notifications/NotificationIsland";
 import { Minimap } from "../components/Minimap";
 import type { RetainedExtensionKey } from "../extensions/retainedExtensionDefinition";
 import type { TaskCanvas } from "../types";
@@ -107,6 +111,10 @@ export interface RetainedWorkspaceChromeProps {
   readonly quickExtensions: { readonly left: number; readonly top: number } | null;
   readonly onCloseQuickExtensions: () => void;
   readonly fpsCounterVisible: boolean;
+  /** The calendar island's events, reminders and editors. */
+  readonly calendar: CalendarIslandBinding;
+  /** The notification island's notifications and upcoming events. */
+  readonly notifications: NotificationCenter;
 }
 
 function useHistoryAvailability(store: RetainedWorkspaceChromeProps["historyStore"]) {
@@ -153,8 +161,8 @@ function useSidePanelPresence(
 
 /**
  * The chrome over the canvas: the side panel switching between the Canvas Browser and the
- * Extensions panel, the minimap, the floating toolbar, the quick extensions menu and the
- * development FPS counter.
+ * Extensions panel, the minimap, the floating toolbar, the notification island, the quick
+ * extensions menu and the development FPS counter.
  */
 export function RetainedWorkspaceChrome({
   controller,
@@ -173,6 +181,8 @@ export function RetainedWorkspaceChrome({
   quickExtensions,
   onCloseQuickExtensions,
   fpsCounterVisible,
+  calendar,
+  notifications,
 }: RetainedWorkspaceChromeProps) {
   const radii = useWorkspaceRadii();
   const history = useHistoryAvailability(historyStore);
@@ -186,6 +196,13 @@ export function RetainedWorkspaceChrome({
   const { canvasManagerOpen, canvasManagerClosing, extensionsOpen, extensionsClosing } =
     useLeftPanelPresence(leftPanel);
   const panelOpen = canvasManagerOpen || extensionsOpen;
+  // Events and reminders are edited inside the calendar island, so opening one (e.g. from the
+  // inbox) shows it.
+  const editingCalendar = calendar.editing !== null;
+  const { calendarVisible, setCalendarVisible } = settings;
+  useEffect(() => {
+    if (editingCalendar && !calendarVisible) setCalendarVisible(true);
+  }, [calendarVisible, editingCalendar, setCalendarVisible]);
   const panelClosing = canvasManagerClosing || extensionsClosing;
   const activeIndex = extensionsOpen ? 1 : 0;
 
@@ -252,6 +269,7 @@ export function RetainedWorkspaceChrome({
           buttons={settings.toolbarButtons}
           calendarOpen={settings.calendarVisible}
           calendarStaysOpen={settings.calendarStaysOpen}
+          calendar={calendar}
           canRedo={history.canRedo}
           canUndo={history.canUndo}
           canvasesOpen={canvasManagerOpen && !canvasManagerClosing}
@@ -270,6 +288,9 @@ export function RetainedWorkspaceChrome({
           onUndo={onUndo}
           onOpenSettings={onOpenSettings}
         />
+        <div className="taskmap-notifications-anchor">
+          <NotificationIsland center={notifications} radius={radii.chrome} />
+        </div>
       </WorkspaceChromeLayer>
       {import.meta.env.DEV && fpsCounterVisible && DevelopmentFpsCounter && (
         <Suspense fallback={null}>

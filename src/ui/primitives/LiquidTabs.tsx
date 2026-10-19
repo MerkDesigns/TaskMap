@@ -27,11 +27,14 @@ export interface LiquidTabsProps<Value extends string = string> extends Omit<
   readonly orientation?: "horizontal" | "vertical";
   readonly value: Value;
   readonly onValueChange: (value: Value) => void;
+  /** The selection glass samples nothing behind it (`LiquidSelectionIndicator`'s `clear`). */
+  readonly clearIndicator?: boolean;
 }
 
 export function LiquidTabs<Value extends string>({
   backgroundRadius,
   className,
+  clearIndicator = false,
   indicatorRadius,
   items,
   label,
@@ -218,6 +221,7 @@ export function LiquidTabs<Value extends string>({
           target={indicatorTarget}
           settledRadius={indicatorRadius}
           movingRadius={movingIndicatorRadius}
+          clear={clearIndicator}
         />
       ) : null}
       {items.map((item, index) => (

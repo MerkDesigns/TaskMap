@@ -29,6 +29,11 @@ import { useRetainedElementActions } from "./legacy/useRetainedElementActions";
 import { useExtensionDrop } from "./legacy/useExtensionDrop";
 import { useWorkspaceServices } from "./legacy/useWorkspaceServices";
 import { useRetainedExtensionFlows } from "./legacy/useRetainedExtensionFlows";
+import { useRetainedCalendar } from "./legacy/useRetainedCalendar";
+import { useCalendarEditors } from "./features/calendar/calendarEditing";
+import { useNotificationCenter } from "./features/notifications/notificationCenter";
+import { alertToast } from "./features/notifications/notificationItems";
+import { useAlertScheduler } from "./legacy/useAlertScheduler";
 import { useCanvasDeletion } from "./legacy/useCanvasDeletion";
 import { useCanvasInteraction } from "./legacy/useCanvasInteraction";
 import { useCanvasScene } from "./legacy/useCanvasScene";
@@ -326,6 +331,15 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     openCanvasMenu: menus.openCanvas,
   });
 
+  const calendarSource = useRetainedCalendar();
+  const calendar = useCalendarEditors(calendarSource);
+  const notifications = useNotificationCenter(calendarSource, services.updates, calendar);
+  useAlertScheduler((entries) => {
+    for (const entry of entries) {
+      const toast = alertToast(entry, calendarSource.calendar, settings.privacyModeEnabled);
+      if (toast) services.showToast(toast);
+    }
+  });
   const extensionFlows = useRetainedExtensionFlows({
     retained,
     container: scene.find.container,
@@ -583,6 +597,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
             quickExtensions={quickExtensionsMenu}
             onCloseQuickExtensions={() => setQuickExtensionsMenu(null)}
             fpsCounterVisible={services.fpsCounterVisible}
+            calendar={calendar}
+            notifications={notifications}
           />
           <RetainedCanvasStage
             stageRef={stageRef}

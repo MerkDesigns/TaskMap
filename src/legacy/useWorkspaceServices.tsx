@@ -53,6 +53,8 @@ export function useWorkspaceServices({
 
   return {
     showToast,
+    /** The update check's state, which the notification inbox offers as a notification. */
+    updates,
     openSettings: () => setSettingsOpen(true),
     /** Settings or the update prompt is open, so canvas shortcuts stand down. */
     dialogOpen: settingsOpen || updates.updateModalOpen,

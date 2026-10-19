@@ -16,6 +16,7 @@ describe("toolbar button layout", () => {
   it("keeps every button that is not in the toolbar in the tray, in a fixed order", () => {
     expect(toolbarArrangement(full).tray).toEqual([
       "calendar",
+      "notifications",
       "placeholder-1",
       "placeholder-2",
       "placeholder-3",
@@ -44,6 +45,7 @@ describe("toolbar button layout", () => {
     expect(fewer.tray).toEqual([
       "privacy",
       "calendar",
+      "notifications",
       "placeholder-1",
       "placeholder-2",
       "placeholder-3",

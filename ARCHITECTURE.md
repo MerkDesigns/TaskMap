@@ -336,6 +336,16 @@ Key entry points:
   lifecycle (open/unlock/lock/close), epochs, admission, save flushing and revocation.
 - `src/features/database-entry/` — unlock/create/recent-database screens and the unlock/lock reveal.
 - `src/features/calendar/` — the calendar island beside the toolbar and its local-date month math.
+- `src/features/notifications/` — the notification island left of the window controls: the
+  notification centre merging inbox entries with app notifications, and the Upcoming list.
+- `src/domain/document-modules/` — built-in document modules: whole-document feature data stored as
+  one document-targeted `extensionInstallations` record each (ADR 011). `src/domain/calendar/`
+  (events, reminders, local wall-clock time, the zone resolver) and `src/domain/notifications/`
+  (the inbox) define the two modules; their commands live in `src/domain/commands/modules/`.
+  `src/domain/calendar/alertSchedule.ts` works out when every alert falls.
+- `src/app/calendar/createAlertScheduler.ts` — fires due alerts into the inbox while unlocked: one
+  timer, catch-up after unlock, the fired ledger and missed-alert summaries, with its clock, timer
+  and document access injected; `src/legacy/useAlertScheduler.ts` runs it for the open session.
 - `src/legacy/RetainedCanvasApplication.tsx` + `src/App.tsx` + `src/components/` — retained
   presentation; not the persistence owner. Presentation state moves out of `App.tsx` into
   `src/legacy/` hooks as it migrates, e.g. `useRetainedInlineEdit.ts` (in-place text and name

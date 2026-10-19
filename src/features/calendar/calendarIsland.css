@@ -1,6 +1,7 @@
-/* Calendar island: a toolbar-height strip that grows downward into the month. It is laid out at
-   the full height while expanding or expanded and CalendarIsland animates how much of it shows,
-   so the island never relayouts per frame. */
+/* Calendar island: a toolbar-height strip that grows downward into the month, the selected day's
+   items or a reminder form. CalendarIsland sets its size, laid out at the largest size it passes
+   through while it animates and only how much of it shows changing, so it never relayouts per
+   frame. */
 
 .taskmap-floating-canvas-toolbar__group.taskmap-calendar {
   display: block;
@@ -9,11 +10,6 @@
   padding: 0;
   /* Sets the calendar further apart from the toolbar groups: 1.625 times their gap. */
   margin-left: calc(var(--taskmap-chrome-gap) * 0.625);
-}
-
-/* EXPANDED_HEIGHT in CalendarIsland. */
-.taskmap-floating-canvas-toolbar__group.taskmap-calendar[data-tall] {
-  height: 348px;
 }
 
 .taskmap-calendar__content {
@@ -55,12 +51,15 @@
   font-weight: 600;
 }
 
+/* With the reveal in CalendarIsland: collapsing 170 ms, expanding 270 ms, both easing out. */
 .taskmap-calendar__chevron svg {
-  transition: rotate 300ms cubic-bezier(0.65, 0, 0.35, 1);
+  transition: rotate 170ms cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 .taskmap-calendar[data-expanded] .taskmap-calendar__chevron svg {
   rotate: 180deg;
+  transition-duration: 270ms;
+  transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .taskmap-calendar__month {
@@ -68,13 +67,15 @@
   opacity: 0;
   transition:
     opacity 180ms ease-out,
-    translate 300ms cubic-bezier(0.65, 0, 0.35, 1);
+    translate 170ms cubic-bezier(0.33, 1, 0.68, 1);
   translate: 0 -8px;
 }
 
 .taskmap-calendar[data-expanded] .taskmap-calendar__month {
   opacity: 1;
   transition-delay: 60ms, 0ms;
+  transition-duration: 180ms, 270ms;
+  transition-timing-function: ease-out, cubic-bezier(0.25, 1, 0.5, 1);
   translate: 0 0;
 }
 
@@ -166,5 +167,150 @@
 
 .taskmap-calendar__day[data-today] {
   color: rgb(0 0 0 / 0.85);
+  font-weight: 650;
+}
+
+/* A dot below the number marks a day with an event or an open reminder. */
+.taskmap-calendar__day[data-marked]::after {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--taskmap-muted);
+  content: "";
+  translate: -50% 0;
+}
+
+.taskmap-calendar__day[data-today][data-marked]::after {
+  background: rgb(0 0 0 / 0.6);
+}
+
+/* The selected day's events and reminders below the month. DAY_PANEL_ROW, DAY_PANEL_VISIBLE_ROWS
+   and DAY_PANEL_CHROME in CalendarDayPanel size the island to fit. */
+.taskmap-calendar-day {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  animation: taskmap-calendar-day-in 180ms ease-out;
+}
+
+@keyframes taskmap-calendar-day-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.taskmap-calendar-day__list {
+  max-height: calc(44px * 4);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.taskmap-calendar-day__empty {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-calendar-day__row {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  width: 100%;
+  height: 44px;
+  gap: 8px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--taskmap-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+div.taskmap-calendar-day__row {
+  cursor: default;
+}
+
+.taskmap-calendar-day__row:hover {
+  background: var(--taskmap-state-hover);
+}
+
+.taskmap-calendar-day__row:focus-visible,
+.taskmap-calendar-day__text:focus-visible {
+  outline: 2px solid rgb(var(--taskmap-accent-rgb) / 0.8);
+  outline-offset: -2px;
+}
+
+.taskmap-calendar-day__accent {
+  width: 4px;
+  height: 28px;
+  flex: none;
+  margin: 0 6px 0 2px;
+  border-radius: 2px;
+}
+
+.taskmap-calendar-day__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.taskmap-calendar-day__title,
+.taskmap-calendar-day__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskmap-calendar-day__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.taskmap-calendar-day__detail {
+  color: var(--taskmap-muted);
+  font-size: var(--taskmap-text-small-size);
+}
+
+.taskmap-calendar-day__row[data-completed] .taskmap-calendar-day__title {
+  color: var(--taskmap-muted);
+  text-decoration: line-through;
+}
+
+.taskmap-calendar-day__check.taskmap-icon-button {
+  flex: none;
+}
+
+/* Above the month while it picks a day for a form: back to the form, and what is being picked. */
+.taskmap-calendar__pick-bar {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  height: 40px;
+  gap: var(--taskmap-space-1);
+  margin: 0 -6px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.taskmap-calendar__pick-title {
+  margin-left: 4px;
+  color: var(--taskmap-accent);
+  font-size: var(--taskmap-text-body-size);
   font-weight: 650;
 }

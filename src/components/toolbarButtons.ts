@@ -3,6 +3,7 @@ import {
   IconCircleDashed,
   IconEye,
   IconEyeOff,
+  IconInbox,
   IconMap,
   IconMapOff,
   IconMenu2,
@@ -30,6 +31,7 @@ export const TOOLBAR_BUTTONS: Readonly<
   "placeholder-1": { label: "Placeholder 1", Icon: IconCircleDashed },
   "placeholder-2": { label: "Placeholder 2", Icon: IconSquareRotated },
   "placeholder-3": { label: "Placeholder 3", Icon: IconTriangle },
+  notifications: { label: "Notifications", Icon: IconInbox },
 });
 
 /** The toolbar toggles whose icon and colour follow a setting. */

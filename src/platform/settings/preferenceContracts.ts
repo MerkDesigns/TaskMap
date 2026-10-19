@@ -36,6 +36,7 @@ export const TOOLBAR_BUTTON_IDS = [
   "calendar",
   "sleep",
   "minimap",
+  "notifications",
   "placeholder-1",
   "placeholder-2",
   "placeholder-3",

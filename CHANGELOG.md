@@ -10,6 +10,29 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Added
 
+- Alerts: while the database is unlocked, event and reminder alerts arrive in the inbox at their
+  time, with a short in-app notification (privacy mode shows only "Event alert" or "Reminder").
+  A reminder with a time is due at that time and can alert earlier; one with only a date alerts at
+  09:00 if it has an alert. Alerts that fell due while TaskMap was locked or asleep arrive after
+  unlocking, and several that are long overdue are summed into one "missed alerts" card. No alert
+  ever fires twice. Snooze an alert card for 5 minutes, an hour or until tomorrow at 09:00.
+- Notification centre: an inbox button left of the window controls shows how many notifications
+  are unread and grows, like a phone's notification centre, into a panel with two tabs; while it is
+  open the button is an X that closes it. Times read "now", "5m ago", "3h ago", "2d ago". Notifications lists event and
+  reminder alerts and available updates, newest first, with Open, Mark done and Install; swipe a
+  card sideways or press its X to dismiss it, or Clear all. Upcoming lists overdue reminders and
+  everything in the next 14 days, with a check to complete a reminder and buttons for a new
+  event or reminder. A Notifications button for the toolbar is among the unused buttons.
+- Events and reminders in the calendar: right-click a day for New event… or New reminder…, and
+  click a day to list its events and reminders below the month, where a reminder can be checked
+  off or opened. Both are written inside the calendar itself, which grows to fit the form. Events
+  have a title, a location, all day or a start and end, an alert and a colour; reminders have a
+  title, short notes or a link, an optional date and time, an alert and a colour. Dates and times
+  can be typed ("21/10", "2026-10-21", "930", "21:45"), or picked: a date field's calendar icon
+  turns the calendar back to the month to choose a day, and a time field's clock icon opens two
+  scrolling wheels of hours and minutes under a fixed glass band, with the time shown above them
+  following as they scroll. Days with something on them get a dot, and every change
+  can be undone.
 - Calendar: a toolbar button shows a calendar island beside the History buttons with today's
   date and a clock with seconds. Its chevron slides it down to the full month, with arrows to
   browse months, today marked and a glass highlight that glides to the day you click. Calendar
@@ -50,6 +73,7 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- The window can no longer be made narrower than 1074 px, so the toolbar islands never overlap.
 - Extra colors is built into every element instead of being an extension: the last swatch of each
   element menu (where pink was) opens the full color picker, with your recent colors. Elements that
   had the Extra colors extension keep working; it no longer appears in the Extensions panel, and the

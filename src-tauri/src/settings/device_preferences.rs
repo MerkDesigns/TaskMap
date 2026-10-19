@@ -54,7 +54,7 @@ fn default_canvas_background_color() -> String {
     "#0F1011".to_string()
 }
 /// Every button the toolbar can show; the ids match `TOOLBAR_BUTTON_IDS` in TypeScript.
-const TOOLBAR_BUTTON_IDS: [&str; 10] = [
+const TOOLBAR_BUTTON_IDS: [&str; 11] = [
     "canvases",
     "extensions",
     "settings",
@@ -62,6 +62,7 @@ const TOOLBAR_BUTTON_IDS: [&str; 10] = [
     "calendar",
     "sleep",
     "minimap",
+    "notifications",
     "placeholder-1",
     "placeholder-2",
     "placeholder-3",

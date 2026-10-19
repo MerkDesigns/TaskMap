@@ -17,6 +17,11 @@ export interface LiquidSelectionIndicatorProps extends HTMLAttributes<HTMLElemen
   readonly movingRadius?: number;
   readonly settledRadius?: number;
   readonly target: LiquidIndicatorTarget;
+  /**
+   * No blur: the glass never samples what lies behind it, so a backdrop that changes under it (an
+   * ancestor fading or unclipping as it opens) cannot make it flash.
+   */
+  readonly clear?: boolean;
 }
 
 export function LiquidSelectionIndicator({
@@ -24,6 +29,7 @@ export function LiquidSelectionIndicator({
   movingRadius = LIQUID_MAX_RADIUS_PX,
   settledRadius = LIQUID_REST_RADIUS_PX,
   target,
+  clear = false,
   ...props
 }: LiquidSelectionIndicatorProps) {
   const surfaceRef = useRef<HTMLElement>(null);
@@ -109,7 +115,7 @@ export function LiquidSelectionIndicator({
       {...props}
       ref={surfaceRef}
       material="acrylic-small"
-      effect="bright-selection"
+      effect={clear ? "clear-selection" : "bright-selection"}
       elevation="none"
       radius={radius}
       aria-hidden="true"
