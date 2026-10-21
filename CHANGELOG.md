@@ -131,6 +131,7 @@ Architecture v1 (`architecture-v1`), not yet released.
 - Several selected mind-map nodes (or a mix of cards and other elements) move together while
   dragged; all but one used to trail behind the pointer.
 - Tab, as it hides the Canvas Browser, also collapses an expanded calendar.
+- A reminder's notes show beside it in the inbox's Upcoming list and the calendar's day list.
 - With the calendar expanded, the top of the Canvas Browser can be clicked again; an invisible
   strip beside the calendar covered it.
 - Box selection inside a container keeps going while the container scrolls, with the mouse wheel

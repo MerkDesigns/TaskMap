@@ -101,7 +101,9 @@ export function CalendarDayPanel({
               >
                 <span className="taskmap-calendar-day__title">{reminder.title}</span>
                 <span className="taskmap-calendar-day__detail">
-                  {reminder.due?.time ?? "Reminder"}
+                  {[reminder.due?.time ?? "Reminder", reminder.notes.trim()]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </button>
             </div>

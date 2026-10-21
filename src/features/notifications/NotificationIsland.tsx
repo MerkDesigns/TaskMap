@@ -366,7 +366,11 @@ function UpcomingRow({
         onClick={() => center.calendar.openReminder(reminder.id)}
       >
         <span className="taskmap-notifications__row-title">{reminder.title}</span>
-        {item.when && <span className="taskmap-notifications__row-detail">{item.when}</span>}
+        {(item.when || reminder.notes) && (
+          <span className="taskmap-notifications__row-detail">
+            {[item.when, reminder.notes.trim()].filter(Boolean).join(" · ")}
+          </span>
+        )}
       </button>
     </div>
   );

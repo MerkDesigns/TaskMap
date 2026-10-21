@@ -16,7 +16,7 @@ const calendar: CalendarModule = {
     [REMINDER_ID]: {
       id: REMINDER_ID,
       title: "Pay rent",
-      notes: "",
+      notes: "Bank app",
       accent: "#476FA8",
       completed: false,
       due: { date: "2026-10-18", time: "12:00" },
@@ -160,6 +160,7 @@ describe("NotificationIsland", () => {
     expect(screen.getByText("No notifications")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Upcoming" }));
     const overdue = screen.getByRole("region", { name: "Overdue" });
+    expect(within(overdue).getByText(/Bank app/)).toBeInTheDocument();
     await user.click(within(overdue).getByRole("button", { name: 'Mark "Pay rent" done' }));
     expect(value.setReminderCompleted).toHaveBeenCalledWith(REMINDER_ID, true);
     await user.click(within(overdue).getByText("Pay rent"));
