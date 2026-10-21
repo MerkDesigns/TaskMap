@@ -73,7 +73,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
-- The window can no longer be made narrower than 1074 px, so the toolbar islands never overlap.
+- The window can no longer be made smaller than 1062 × 712 px, so the toolbar islands never
+  overlap and the Canvas Browser always shows six canvases.
 - Extra colors is built into every element instead of being an extension: the last swatch of each
   element menu (where pink was) opens the full color picker, with your recent colors. Elements that
   had the Extra colors extension keep working; it no longer appears in the Extensions panel, and the
