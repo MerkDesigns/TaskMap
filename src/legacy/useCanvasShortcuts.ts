@@ -10,6 +10,8 @@ export interface CanvasShortcutPorts {
   readonly setShiftHeld: (held: boolean) => void;
   readonly openQuickExtensionsAtPointer: () => void;
   readonly closeQuickExtensions: () => void;
+  /** Collapses an expanded calendar island. */
+  readonly collapseCalendar: () => void;
   readonly leftPanel: {
     readonly current: () => LeftPanelState;
     readonly show: (panel: "canvases" | "extensions") => void;
@@ -83,7 +85,8 @@ export function useCanvasShortcuts(ports: CanvasShortcutPorts) {
         return;
       }
 
-      // Tab toggles the Canvas Browser; Shift+Tab switches between the two panels.
+      // Tab toggles the Canvas Browser, collapsing the calendar as it hides the panel; Shift+Tab
+      // switches between the two panels.
       if (plain && event.key === "Tab" && !editing) {
         claim(event);
         blurFocusedElement();
@@ -92,6 +95,7 @@ export function useCanvasShortcuts(ports: CanvasShortcutPorts) {
           p.leftPanel.show(shown === "canvases" ? "extensions" : "canvases");
         } else if (shown === "canvases") {
           p.leftPanel.close("canvases");
+          p.collapseCalendar();
         } else {
           p.leftPanel.close("extensions");
           p.closeQuickExtensions();

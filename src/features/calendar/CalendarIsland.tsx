@@ -33,6 +33,13 @@ const PICK_BAR_HEIGHT = 40;
 /** A form's or the time picker's height until it has been measured. */
 const VIEW_FALLBACK_HEIGHT = 420;
 
+const collapseListeners = new Set<() => void>();
+
+/** Collapses the calendar island if it is expanded, e.g. when Tab hides the side panel. */
+export function requestCalendarCollapse() {
+  collapseListeners.forEach((collapse) => collapse());
+}
+
 export interface CalendarIslandProps {
   /** The island is shown; it slides out before unmounting when this turns false. */
   readonly open: boolean;
@@ -116,6 +123,13 @@ function CalendarIslandSurface({
     holdOpen: dayMenuOpen || editing !== null,
   });
   const marked = useMemo(() => markedDates(calendar?.calendar ?? null), [calendar?.calendar]);
+
+  useEffect(() => {
+    collapseListeners.add(collapse);
+    return () => {
+      collapseListeners.delete(collapse);
+    };
+  }, [collapse]);
 
   // Opening an event or reminder, from here or from elsewhere such as the inbox, shows its form.
   const editingSession = editing?.session;

@@ -15,6 +15,7 @@ function setup(overrides: Partial<CanvasShortcutPorts> = {}, panel: LeftPanelSta
     setShiftHeld: vi.fn(),
     openQuickExtensionsAtPointer: vi.fn(),
     closeQuickExtensions: vi.fn(),
+    collapseCalendar: vi.fn(),
     leftPanel: { current: () => panel, show: vi.fn(), close: vi.fn() },
     closeContextMenus: vi.fn(),
     endRename: vi.fn(),
@@ -61,14 +62,16 @@ describe("useCanvasShortcuts", () => {
     expect(vi.mocked(ports.setConnectionMode).mock.calls).toEqual([[true], [false]]);
   });
 
-  it("toggles the Canvas Browser with Tab and switches panels with Shift+Tab", () => {
+  it("toggles the Canvas Browser with Tab, collapsing the calendar as it hides, and switches panels with Shift+Tab", () => {
     const closed = setup();
     press("Tab");
     expect(closed.ports.leftPanel.show).toHaveBeenCalledWith("canvases");
+    expect(closed.ports.collapseCalendar).not.toHaveBeenCalled();
     cleanup();
 
     const browsing = setup({}, "canvases");
     press("Tab");
+    expect(browsing.ports.collapseCalendar).toHaveBeenCalledTimes(1);
     press("Tab", { shiftKey: true });
     expect(browsing.ports.leftPanel.close).toHaveBeenCalledWith("canvases");
     expect(browsing.ports.leftPanel.show).toHaveBeenCalledWith("extensions");

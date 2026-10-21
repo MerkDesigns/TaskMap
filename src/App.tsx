@@ -31,6 +31,7 @@ import { useWorkspaceServices } from "./legacy/useWorkspaceServices";
 import { useRetainedExtensionFlows } from "./legacy/useRetainedExtensionFlows";
 import { useRetainedCalendar } from "./legacy/useRetainedCalendar";
 import { useCalendarEditors } from "./features/calendar/calendarEditing";
+import { requestCalendarCollapse } from "./features/calendar/CalendarIsland";
 import { useNotificationCenter } from "./features/notifications/notificationCenter";
 import { alertToast } from "./features/notifications/notificationItems";
 import { useAlertScheduler } from "./legacy/useAlertScheduler";
@@ -423,6 +424,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
         top: lastPointerPositionRef.current.y,
       }),
     closeQuickExtensions: () => setQuickExtensionsMenu(null),
+    collapseCalendar: requestCalendarCollapse,
     leftPanel,
     closeContextMenus,
     endRename,
