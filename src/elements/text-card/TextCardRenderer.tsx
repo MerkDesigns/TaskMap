@@ -32,6 +32,11 @@ export interface TextCardDrag {
    * in the stack. It plays once as the card mounts and never restarts during the drag.
    */
   readonly pickup?: { readonly x: number; readonly y: number };
+  /**
+   * Moved with a plain group (e.g. selected mind-map nodes or mixed elements), not bundled: the
+   * card follows the pointer exactly, without stacking or gliding.
+   */
+  readonly group?: boolean;
 }
 
 /** Transient presentation state; everything persistent is read from the element. */
@@ -132,7 +137,7 @@ function TextCardRendererComponent({
     .map((adornment) => adornment.textState?.(adornmentContext))
     .find(Boolean);
   const sized = Boolean(position?.width || position?.maxWidth);
-  const bundled = drag !== undefined && !drag.primary;
+  const bundled = drag !== undefined && !drag.primary && !drag.group;
   const restTransform =
     bundled && !drag.spread
       ? bundleRestTransform(drag.swayX, drag.swayY, drag.bundleIndex, drag.atTrueSize)
@@ -198,7 +203,9 @@ function TextCardRendererComponent({
             ? drag.atTrueSize
               ? "primary-true-size"
               : "primary"
-            : "bundle"
+            : drag.group
+              ? "group"
+              : "bundle"
           : undefined
       }
       data-bundle-spread={(bundled && drag.spread) || undefined}

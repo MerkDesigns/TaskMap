@@ -128,6 +128,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- Several selected mind-map nodes (or a mix of cards and other elements) move together while
+  dragged; all but one used to trail behind the pointer.
 - With the calendar expanded, the top of the Canvas Browser can be clicked again; an invisible
   strip beside the calendar covered it.
 - Box selection inside a container keeps going while the container scrolls, with the mouse wheel

@@ -69,6 +69,11 @@
   transform: scale(1);
 }
 
+/* A card moved with a plain group follows the pointer frame by frame, like every other element. */
+.taskmap-text-card[data-drag="group"] {
+  transition: none;
+}
+
 /* Bundled cards hold their arrangement over open canvas and gather into a swaying stack behind
    the held card over a container. Their position is relative to the held card, so it only changes
    when they gather or spread, which glides. */

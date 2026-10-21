@@ -142,6 +142,20 @@ describe("TextCardRenderer", () => {
     expect(spread.style.transform).toBe("none");
   });
 
+  it("moves a card of a plain group drag with the pointer, neither stacked nor gliding", () => {
+    const drag = {
+      primary: false,
+      atTrueSize: false,
+      bundleIndex: 2,
+      depth: 1,
+      swayX: 10,
+      swayY: 0,
+    };
+    const card = renderCard(textCard(), { drag: { ...drag, group: true } }).card;
+    expect(card).toHaveAttribute("data-drag", "group");
+    expect(card.style.transform).not.toContain("rotate(");
+  });
+
   it("only animates moves while it is not being dragged", () => {
     expect(renderCard(textCard(), { motion: "settling" }).card).toHaveAttribute(
       "data-motion",

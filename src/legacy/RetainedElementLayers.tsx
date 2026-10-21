@@ -226,6 +226,8 @@ export function LooseTextCardLayer({
                   depth: dragDepth.get(card.id) ?? 0,
                   swayX: 0,
                   swayY: 0,
+                  // Cards on the layers move as a plain group; held card drags are an overlay.
+                  group: true,
                 }
               : undefined,
             motion: dragged ? "moving" : undefined,
