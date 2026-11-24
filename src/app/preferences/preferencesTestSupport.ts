@@ -27,6 +27,8 @@ export const preferencesFixture = (): PreferencesState => ({
     calendarStaysOpen: false,
     canvasBrowserRemembersClosed: false,
     canvasBrowserClosed: false,
+    smoothZoomEnabled: true,
+    smoothZoomSpeedPercent: 115,
     launchAtLogin: true,
     launchToTray: false,
     canvasBackgroundColor: "#0F1011",

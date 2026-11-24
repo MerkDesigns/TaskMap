@@ -22,6 +22,7 @@ import { useMinimapPresence } from "./legacy/useMinimapPresence";
 import { useCanvasElementCreation } from "./legacy/useCanvasElementCreation";
 import { useCanvasManagement } from "./legacy/useCanvasManagement";
 import { useLeftPanel } from "./legacy/useLeftPanel";
+import { useReducedMotion } from "./ui/motion/reducedMotionPreference";
 import { RetainedCanvasMenus } from "./legacy/RetainedCanvasMenus";
 import { useCanvasShortcuts } from "./legacy/useCanvasShortcuts";
 import { useRetainedClipboard } from "./legacy/useRetainedClipboard";
@@ -102,6 +103,7 @@ function App({ useDocument, useSettings, retained }: AppProps) {
   const measuredCards = useMeasuredTextCardSizes(activeCanvas.id);
   const measuredInteractionCardSizes = measuredCards.sizes;
   const settings = useSettings();
+  const reducedMotion = useReducedMotion();
   const {
     canvasBackgroundColor,
     canvasGridOpacity,
@@ -487,6 +489,8 @@ function App({ useDocument, useSettings, retained }: AppProps) {
     endRename: () => rename.end(),
     closeContextMenus,
     showMinimap: () => showMinimap(),
+    smoothZoomSpeedPercent: () =>
+      settings.smoothZoomEnabled && !reducedMotion ? settings.smoothZoomSpeedPercent : null,
   });
   const elementActions = useRetainedElementActions({
     callbacks: retained.runtime.callbacks,

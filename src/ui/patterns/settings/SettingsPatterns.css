@@ -85,14 +85,17 @@
   opacity: var(--taskmap-state-disabled-opacity);
 }
 
-/* Start with Windows and its Start in the tray option, as two rows of one island. */
-.taskmap-settings-startup .taskmap-settings-island__content {
+/* Start with Windows and its Start in the tray option, and Smooth zoom and its speed, as two rows
+   of one island each. */
+.taskmap-settings-startup .taskmap-settings-island__content,
+.taskmap-settings-smooth-zoom .taskmap-settings-island__content {
   display: flex;
   flex-direction: column;
   gap: var(--taskmap-space-3);
 }
 
-.taskmap-settings-startup [data-disabled="true"] {
+.taskmap-settings-startup [data-disabled="true"],
+.taskmap-settings-smooth-zoom [data-disabled="true"] {
   opacity: var(--taskmap-state-disabled-opacity);
 }
 

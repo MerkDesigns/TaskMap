@@ -10,6 +10,9 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Added
 
+- Smooth zoom: the mouse wheel glides between zoom levels around the pointer, and quick notches
+  join into one motion that eases into the next five-percent step. Settings > Misc can turn it off
+  and set its speed (50-200%, 115% by default). It is off while Windows reduces animations.
 - Settings > Misc: "Remember closed Canvas Browser". With it on, a Canvas Browser you closed stays
   closed after unlocking or restarting TaskMap.
 - Alerts: while the database is unlocked, event and reminder alerts arrive in the inbox at their

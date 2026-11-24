@@ -27,6 +27,8 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       calendarStaysOpen: false,
       canvasBrowserRemembersClosed: false,
       canvasBrowserClosed: false,
+      smoothZoomEnabled: true,
+      smoothZoomSpeedPercent: 115,
       launchAtLogin: false,
       launchToTray: false,
       canvasBackgroundColor: "#0F1011",

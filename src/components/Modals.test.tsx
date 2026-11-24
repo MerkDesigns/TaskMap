@@ -85,6 +85,10 @@ describe("modal keyboard behavior", () => {
             onCalendarStaysOpenChange={vi.fn()}
             canvasBrowserRemembersClosed={false}
             onCanvasBrowserRemembersClosedChange={vi.fn()}
+            smoothZoomEnabled
+            onSmoothZoomEnabledChange={vi.fn()}
+            smoothZoomSpeedPercent={115}
+            onSmoothZoomSpeedChange={vi.fn()}
             chromeRadii={DEFAULT_CHROME_RADII}
             onChromeRadiusChange={vi.fn()}
             sleepDelayMs={3000}

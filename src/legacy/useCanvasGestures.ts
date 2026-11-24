@@ -12,6 +12,12 @@ export type { CanvasGesturePorts } from "./canvasElementGestures";
 /** The will-change hint on the world layer outlives a wheel burst by this much. */
 const WHEEL_LAYER_MS = 120;
 /**
+ * At 100% speed a smooth wheel zoom covers about two thirds of its remaining distance in this
+ * time, so it starts on the next frame and eases in. The world layer stays promoted until it has
+ * landed, about six time constants.
+ */
+const SMOOTH_ZOOM_TIME_CONSTANT_MS = 70;
+/**
  * Dragging a selection past a container's card area scrolls it, faster the further out the
  * pointer is: screen px per ms at the edge, the gain per px beyond it, and the cap.
  */
@@ -236,13 +242,22 @@ export function useCanvasGestures(ports: CanvasGesturePorts) {
         p().showMinimap();
         const world = p().world();
         if (world) world.style.willChange = "transform";
+        const speed = p().smoothZoomSpeedPercent();
+        const timeConstantMs = speed === null ? null : (SMOOTH_ZOOM_TIME_CONSTANT_MS * 100) / speed;
         if (wheelTimer.current !== null) clearTimeout(wheelTimer.current);
-        wheelTimer.current = setTimeout(() => {
-          wheelTimer.current = null;
-          const current = p().world();
-          if (current) current.style.willChange = "";
-        }, WHEEL_LAYER_MS);
-        p().controller.wheelZoom({ x: event.clientX, y: event.clientY }, event.deltaY);
+        wheelTimer.current = setTimeout(
+          () => {
+            wheelTimer.current = null;
+            const current = p().world();
+            if (current) current.style.willChange = "";
+          },
+          WHEEL_LAYER_MS + (timeConstantMs === null ? 0 : 6 * timeConstantMs),
+        );
+        p().controller.wheelZoom(
+          { x: event.clientX, y: event.clientY },
+          event.deltaY,
+          timeConstantMs === null ? undefined : { timeConstantMs },
+        );
       },
     };
   }, []);

@@ -1,4 +1,4 @@
-import { getWheelZoom, quantizeZoom } from "../../canvasMath";
+import { clampZoom, getWheelZoom, quantizeZoom } from "../../canvasMath";
 import type { CanvasPoint, CanvasRectangle, CanvasSize } from "./canvasGeometry";
 
 export interface CanvasViewport {
@@ -7,10 +7,14 @@ export interface CanvasViewport {
   readonly screen: CanvasSize;
 }
 
+/**
+ * A camera. Its zoom is clamped but not rounded: zoom changes land on the five-percent steps, but
+ * a smooth wheel zoom passes through the zooms between them.
+ */
 export function createViewport(pan: CanvasPoint, zoom: number, screen: CanvasSize): CanvasViewport {
   return {
     pan: finitePoint(pan),
-    zoom: quantizeZoom(Number.isFinite(zoom) ? zoom : 1),
+    zoom: clampZoom(zoom),
     screen: finiteSize(screen),
   };
 }
@@ -51,6 +55,22 @@ export function zoomViewportAt(
   return createViewport(
     { x: anchor.x - worldAnchor.x * zoom, y: anchor.y - worldAnchor.y * zoom },
     zoom,
+    viewport.screen,
+  );
+}
+
+/** Zooms to `zoom` exactly (clamped, not rounded to a step), keeping the anchor's world point. */
+export function scaleViewportAt(
+  viewport: CanvasViewport,
+  screenAnchor: CanvasPoint,
+  zoom: number,
+): CanvasViewport {
+  const anchor = finitePoint(screenAnchor);
+  const worldAnchor = screenToWorld(anchor, viewport);
+  const next = clampZoom(zoom);
+  return createViewport(
+    { x: anchor.x - worldAnchor.x * next, y: anchor.y - worldAnchor.y * next },
+    next,
     viewport.screen,
   );
 }

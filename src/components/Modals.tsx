@@ -75,6 +75,10 @@ type SettingsModalProps = {
   onCalendarStaysOpenChange: (enabled: boolean) => void;
   canvasBrowserRemembersClosed: boolean;
   onCanvasBrowserRemembersClosedChange: (enabled: boolean) => void;
+  smoothZoomEnabled: boolean;
+  onSmoothZoomEnabledChange: (enabled: boolean) => void;
+  smoothZoomSpeedPercent: number;
+  onSmoothZoomSpeedChange: (percent: number) => void;
   chromeRadii: ChromeRadii;
   onChromeRadiusChange: (key: keyof ChromeRadii, radius: number) => void;
   sleepDelayMs: number;
@@ -153,6 +157,10 @@ export function SettingsModal({
   onCalendarStaysOpenChange,
   canvasBrowserRemembersClosed,
   onCanvasBrowserRemembersClosedChange,
+  smoothZoomEnabled,
+  onSmoothZoomEnabledChange,
+  smoothZoomSpeedPercent,
+  onSmoothZoomSpeedChange,
   chromeRadii,
   onChromeRadiusChange,
   sleepDelayMs,
@@ -432,6 +440,30 @@ export function SettingsModal({
                     checked={canvasBrowserRemembersClosed}
                     onCheckedChange={onCanvasBrowserRemembersClosedChange}
                   />
+                  <SettingsIsland className="taskmap-settings-smooth-zoom">
+                    <SettingsRow
+                      label="Smooth zoom"
+                      description="The mouse wheel glides between zoom levels."
+                      control={
+                        <LiquidToggleSwitch
+                          checked={smoothZoomEnabled}
+                          label="Smooth zoom"
+                          onCheckedChange={onSmoothZoomEnabledChange}
+                        />
+                      }
+                    />
+                    <div data-disabled={!smoothZoomEnabled || undefined} inert={!smoothZoomEnabled}>
+                      <SettingsCommittedSlider
+                        label="Speed"
+                        value={smoothZoomSpeedPercent}
+                        min={50}
+                        max={200}
+                        step={5}
+                        format={(value) => `${value}%`}
+                        onCommit={(value) => onSmoothZoomSpeedChange(Math.round(value))}
+                      />
+                    </div>
+                  </SettingsIsland>
                   <SettingsIsland>
                     <div className="taskmap-settings-section-heading">
                       <IconMoon size={16} stroke={2} />

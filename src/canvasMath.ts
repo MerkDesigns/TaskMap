@@ -13,16 +13,26 @@ export function quantizeZoom(value: number) {
   return Number((step * ZOOM_STEP).toFixed(10));
 }
 
-export function getWheelZoom(currentZoom: number, deltaY: number) {
-  const wheelNotch = 100;
-  const rawSteps = -deltaY / wheelNotch;
+/** Zoom steps for one wheel event: at least one per event, at most four. */
+export function wheelZoomSteps(deltaY: number) {
+  const rawSteps = -deltaY / 100;
   const direction = Math.sign(rawSteps);
-  if (direction === 0) {
-    return quantizeZoom(currentZoom);
-  }
+  if (!Number.isFinite(rawSteps) || direction === 0) return 0;
+  return direction * Math.min(4, Math.max(1, Math.round(Math.abs(rawSteps))));
+}
 
-  const steps = direction * Math.min(4, Math.max(1, Math.round(Math.abs(rawSteps))));
-  return quantizeZoom(currentZoom * (1 + ZOOM_STEP) ** steps);
+/** The zoom `steps` wheel steps from `zoom`, before it is rounded to a step or clamped. */
+export function zoomAfterWheelSteps(zoom: number, steps: number) {
+  return zoom * (1 + ZOOM_STEP) ** steps;
+}
+
+export function getWheelZoom(currentZoom: number, deltaY: number) {
+  return quantizeZoom(zoomAfterWheelSteps(currentZoom, wheelZoomSteps(deltaY)));
+}
+
+/** Clamps a zoom to the allowed range without rounding it to a step. */
+export function clampZoom(value: number) {
+  return clamp(Number.isFinite(value) ? value : 1, MIN_ZOOM, MAX_ZOOM);
 }
 
 type AlignmentGuide = {

@@ -201,6 +201,43 @@ describe("canvas viewport controller", () => {
     expect(controller.getSnapshot()).toBe(beforeDispose);
     expect(settled).toHaveBeenCalledTimes(2);
   });
+
+  it("glides a smooth wheel zoom around the pointer and remembers the camera once it lands", () => {
+    const frames = controlledPanFrames();
+    const settled = vi.fn();
+    let time = 0;
+    const controller = createCanvasInteractionController({
+      canvasKey: "a",
+      viewport,
+      commitPort: commitPort(),
+      panFrameScheduler: frames.scheduler,
+      now: () => time,
+      onViewportSettled: settled,
+    });
+    const anchor = { x: 300, y: 250 };
+    const world = screenToWorld(anchor, controller.getSnapshot().viewport);
+    controller.wheelZoom(anchor, -100, { timeConstantMs: 70 });
+    controller.wheelZoom(anchor, -100, { timeConstantMs: 70 });
+    expect(controller.getSnapshot().viewport.zoom).toBe(2);
+
+    time += 16;
+    frames.flush();
+    const between = controller.getSnapshot().viewport;
+    expect(between.zoom).toBeGreaterThan(2);
+    expect(between.zoom).toBeLessThan(2.2);
+    expect(screenToWorld(anchor, between).x).toBeCloseTo(world.x);
+    expect(screenToWorld(anchor, between).y).toBeCloseTo(world.y);
+    expect(settled).not.toHaveBeenCalled();
+
+    for (let frame = 0; frame < 100 && frames.pending() > 0; frame++) {
+      time += 16;
+      frames.flush();
+    }
+    const landed = controller.getSnapshot().viewport;
+    expect(landed.zoom).toBe(2.2);
+    expect(screenToWorld(anchor, landed).x).toBeCloseTo(world.x);
+    expect(settled).toHaveBeenCalledOnce();
+  });
 });
 
 function controlledPanFrames() {

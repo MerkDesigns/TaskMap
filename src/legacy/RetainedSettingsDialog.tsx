@@ -92,6 +92,10 @@ export function RetainedSettingsDialog({
             onCalendarStaysOpenChange={settings.setCalendarStaysOpen}
             canvasBrowserRemembersClosed={settings.canvasBrowserRemembersClosed}
             onCanvasBrowserRemembersClosedChange={settings.setCanvasBrowserRemembersClosed}
+            smoothZoomEnabled={settings.smoothZoomEnabled}
+            onSmoothZoomEnabledChange={settings.setSmoothZoomEnabled}
+            smoothZoomSpeedPercent={settings.smoothZoomSpeedPercent}
+            onSmoothZoomSpeedChange={settings.setSmoothZoomSpeedPercent}
             chromeRadii={settings.chromeRadii}
             onChromeRadiusChange={(key, radius) =>
               settings.setChromeRadii((current) => ({ ...current, [key]: radius }))

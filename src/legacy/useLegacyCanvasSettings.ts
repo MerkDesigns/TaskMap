@@ -43,6 +43,8 @@ export function useLegacyCanvasSettings() {
   const [calendarStaysOpen, setCalendarStaysOpen] = useState(false);
   const [canvasBrowserRemembersClosed, setCanvasBrowserRemembersClosed] = useState(false);
   const [canvasBrowserClosed, setCanvasBrowserClosed] = useState(false);
+  const [smoothZoomEnabled, setSmoothZoomEnabled] = useState(true);
+  const [smoothZoomSpeedPercent, setSmoothZoomSpeedPercent] = useState(115);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
     undefined,
   );
@@ -85,6 +87,10 @@ export function useLegacyCanvasSettings() {
     setCanvasBrowserRemembersClosed,
     canvasBrowserClosed,
     setCanvasBrowserClosed,
+    smoothZoomEnabled,
+    setSmoothZoomEnabled,
+    smoothZoomSpeedPercent,
+    setSmoothZoomSpeedPercent,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit: undefined as SettingsGesture | undefined,

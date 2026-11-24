@@ -1,6 +1,6 @@
 import { findSnapOffset } from "../../canvasMath";
 import type { CanvasPoint, ElementGeometry } from "../../canvas/geometry/canvasGeometry";
-import type { InteractionElement, SnapGuide } from "./canvasInteractionTypes";
+import type { GeometryPreview, InteractionElement, SnapGuide } from "./canvasInteractionTypes";
 
 type AlignmentKind = "start" | "center" | "end";
 type AlignmentGuide = { readonly value: number; readonly kind: AlignmentKind };
@@ -43,6 +43,26 @@ export function snapMovedGeometry(
       ...x.guides.map((position) => ({ axis: "x" as const, position, pointerPosition: pointer.y })),
       ...y.guides.map((position) => ({ axis: "y" as const, position, pointerPosition: pointer.x })),
     ],
+  };
+}
+
+/** Snaps a moved group by its primary element and shifts every element by the same offset. */
+export function snapMovedGroup(
+  moved: readonly GeometryPreview[],
+  primary: InteractionElement,
+  targets: PreparedSnapTargets,
+  pointer: CanvasPoint,
+): { previews: readonly GeometryPreview[]; guides: SnapGuide[] } {
+  const geometry = moved.find(({ id }) => id === primary.id)!.geometry;
+  const snapped = snapMovedGeometry(geometry, primary.centerSnapping ?? false, targets, pointer);
+  const x = snapped.geometry.x - geometry.x;
+  const y = snapped.geometry.y - geometry.y;
+  return {
+    previews: moved.map((preview) => ({
+      id: preview.id,
+      geometry: { ...preview.geometry, x: preview.geometry.x + x, y: preview.geometry.y + y },
+    })),
+    guides: snapped.guides,
   };
 }
 

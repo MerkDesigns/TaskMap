@@ -136,6 +136,13 @@ export interface CanvasInteractionControllerOptions {
   readonly commitPort: CanvasInteractionCommitPort;
   readonly panFrameScheduler?: PanGestureFrameScheduler;
   readonly onViewportSettled?: (viewport: CanvasViewport, canvasKey: string) => void;
+  /** Milliseconds for smooth zoom frames; `performance.now` by default. */
+  readonly now?: () => number;
+}
+
+/** A smooth wheel zoom eases into its target with this time constant. */
+export interface WheelZoomSmoothing {
+  readonly timeConstantMs: number;
 }
 
 export interface CanvasInteractionController extends TransientInteractionService {
@@ -151,7 +158,11 @@ export interface CanvasInteractionController extends TransientInteractionService
   readonly setMoveSnapping: (pointerId: number, enabled: boolean) => void;
   readonly completePointer: (sample: PointerSample) => void;
   readonly cancelPointer: (pointerId: number) => void;
-  readonly wheelZoom: (screen: CanvasPoint, deltaY: number) => void;
+  /**
+   * Zooms around a screen point by one wheel event's steps: at once, or with `smoothing` gliding
+   * there over the next frames (when the controller has a frame scheduler).
+   */
+  readonly wheelZoom: (screen: CanvasPoint, deltaY: number, smoothing?: WheelZoomSmoothing) => void;
   readonly resetZoom: () => void;
   /**
    * Centres the camera on a world point, e.g. from the minimap. `settled` marks the end of a

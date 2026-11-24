@@ -89,6 +89,10 @@ export const devicePreferencesSchema = z
     canvasBrowserRemembersClosed: z.boolean(),
     /** The user last closed the Canvas Browser; read only while it is remembered. */
     canvasBrowserClosed: z.boolean(),
+    /** Wheel zoom glides between steps instead of jumping. */
+    smoothZoomEnabled: z.boolean(),
+    /** How fast smooth zoom glides, in percent; 100 is a 70 ms time constant. */
+    smoothZoomSpeedPercent: z.number().int().min(50).max(200),
     dismissedUpdateVersion: z
       .string()
       .min(1)

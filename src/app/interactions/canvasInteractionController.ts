@@ -7,6 +7,7 @@ import {
   centerViewportOn,
   createViewport,
   resetViewportZoom,
+  scaleViewportAt,
   screenToWorld,
   wheelZoomViewport,
   type CanvasViewport,
@@ -31,11 +32,12 @@ import { mergeSelection, previewSelection, selectionContentPoint } from "./selec
 import { constrainResizeGeometry, resizeBottomRight } from "./resizeGeometry";
 import {
   prepareSnapTargets,
-  snapMovedGeometry,
+  snapMovedGroup,
   snapResizedGeometry,
   type PreparedSnapTargets,
 } from "./snappingEngine";
 import type { TransientInteractionListener } from "./transientInteractionService";
+import { createWheelZoomGlide } from "./wheelZoomGlide";
 import {
   createPanGestureFrameQueue,
   projectPanViewport,
@@ -119,6 +121,17 @@ export function createCanvasInteractionController(
     }
   });
 
+  const zoomGlide = options.panFrameScheduler
+    ? createWheelZoomGlide({
+        scheduler: options.panFrameScheduler,
+        now: options.now ?? (() => performance.now()),
+        zoom: () => snapshot.viewport.zoom,
+        apply: (zoom, anchor) =>
+          transformCamera((current) => scaleViewportAt(current, anchor, zoom)),
+        settled: () => options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey),
+      })
+    : null;
+
   /** Applies a camera change; during a canvas pan it composes with the pan's own movement. */
   const transformCamera = (transform: (viewport: CanvasViewport) => CanvasViewport) => {
     const activePan = gesture?.kind === "pan" ? gesture : null;
@@ -171,35 +184,18 @@ export function createCanvasInteractionController(
         id,
         geometry: { ...geometry, x: geometry.x + dx, y: geometry.y + dy },
       }));
-      const primary = move.raw.find(({ id }) => id === move.input.primaryId)!;
-      const primaryElement = move.original.find(({ id }) => id === move.input.primaryId)!;
+      const primary = move.original.find(({ id }) => id === move.input.primaryId)!;
       const snapped = sample.snapping
-        ? snapMovedGeometry(
-            primary.geometry,
-            primaryElement.centerSnapping ?? false,
-            move.targets,
-            pointerWorld,
-          )
-        : { geometry: primary.geometry, guides: [] };
-      const offset = {
-        x: snapped.geometry.x - primary.geometry.x,
-        y: snapped.geometry.y - primary.geometry.y,
-      };
-      publish({
-        geometryPreviews: move.raw.map(({ id, geometry }) => ({
-          id,
-          geometry: { ...geometry, x: geometry.x + offset.x, y: geometry.y + offset.y },
-        })),
-        snapGuides: snapGuidesOf(snapped.guides),
-      });
+        ? snapMovedGroup(move.raw, primary, move.targets, pointerWorld)
+        : { previews: move.raw, guides: [] };
+      publish({ geometryPreviews: snapped.previews, snapGuides: snapGuidesOf(snapped.guides) });
       return;
     }
     const { constraints } = gesture.input;
-    const ratio = constraints.aspectRatio;
     gesture.travel = { x: gesture.travel.x + dx, y: gesture.travel.y + dy };
     gesture.raw = resizeBottomRight(gesture.input.target.geometry, gesture.travel, constraints);
     const snapped = sample.snapping
-      ? snapResizedGeometry(gesture.raw, ratio, gesture.targets, pointerWorld)
+      ? snapResizedGeometry(gesture.raw, constraints.aspectRatio, gesture.targets, pointerWorld)
       : { geometry: gesture.raw, guides: [] };
     const preview = constrainResizeGeometry(snapped.geometry, constraints);
     publish({
@@ -354,19 +350,23 @@ export function createCanvasInteractionController(
       if (gesture.kind === "pan") panFrames.cancel();
       finishGesture(gesture.kind === "pan" ? { viewport: gesture.cancelViewport } : undefined);
     },
-    wheelZoom: (screen, deltaY) => {
+    wheelZoom: (screen, deltaY, smoothing) => {
       if (disposed) return;
+      if (smoothing && zoomGlide) return zoomGlide.wheel(screen, deltaY, smoothing.timeConstantMs);
+      zoomGlide?.cancel();
       transformCamera((current) => wheelZoomViewport(current, screen, deltaY));
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     resetZoom: () => {
       if (disposed) return;
+      zoomGlide?.cancel();
       transformCamera(resetViewportZoom);
       options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
     centerOn: (world, settled) => {
       // A canvas pan owns the camera until it ends.
       if (disposed || gesture?.kind === "pan") return;
+      zoomGlide?.cancel();
       publish({ viewport: centerViewportOn(snapshot.viewport, world) });
       if (settled) options.onViewportSettled?.(snapshot.viewport, snapshot.canvasKey);
     },
@@ -377,6 +377,7 @@ export function createCanvasInteractionController(
     replaceCanvas: (canvasKey, viewport) => {
       if (disposed) return;
       panFrames.cancel();
+      zoomGlide?.cancel();
       gesture = null;
       snapshot = idleCanvasInteractionSnapshot(canvasKey, viewport);
       listeners.forEach((listener) => listener());
@@ -390,6 +391,7 @@ export function createCanvasInteractionController(
     dispose: () => {
       disposed = true;
       panFrames.cancel();
+      zoomGlide?.cancel();
       gesture = null;
       listeners.clear();
     },

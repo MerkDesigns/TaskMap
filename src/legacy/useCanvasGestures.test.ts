@@ -61,6 +61,7 @@ function setup({ locked = [] as string[], selection = [] as string[] } = {}) {
     endRename: vi.fn(),
     closeContextMenus: vi.fn(),
     showMinimap: vi.fn(),
+    smoothZoomSpeedPercent: () => null,
   };
   const { result } = renderHook(() => useCanvasGestures(ports));
   return { gestures: result.current, controller, beginMove, ports };

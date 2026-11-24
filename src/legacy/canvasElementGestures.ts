@@ -70,6 +70,11 @@ export interface CanvasGesturePorts {
   readonly endRename: () => void;
   readonly closeContextMenus: () => void;
   readonly showMinimap: () => void;
+  /**
+   * How fast wheel zoom glides between steps, in percent, or null to step at once (the setting is
+   * off or motion is reduced).
+   */
+  readonly smoothZoomSpeedPercent: () => number | null;
 }
 
 /** Captures the pointer on the canvas stage, so the gesture follows it outside the element. */
