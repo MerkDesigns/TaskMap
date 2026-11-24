@@ -25,6 +25,8 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       toolbarButtons: [...DEFAULT_TOOLBAR_BUTTONS],
       calendarVisible: false,
       calendarStaysOpen: false,
+      canvasBrowserRemembersClosed: false,
+      canvasBrowserClosed: false,
       launchAtLogin: false,
       launchToTray: false,
       canvasBackgroundColor: "#0F1011",

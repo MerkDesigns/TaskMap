@@ -132,31 +132,66 @@ function useHistoryAvailability(store: RetainedWorkspaceChromeProps["historyStor
 /**
  * The side panel follows the chrome: sleep mode closes it with the toolbars and reopens it when
  * they wake, the unlock reveal ends with the Canvas Browser sliding in, and locking slides it out.
+ * Whether the user last left it closed is saved, so the reveal can keep it closed when that
+ * setting is on; the chrome's own closing and reopening is not the user's choice and is not saved.
  */
 function useSidePanelPresence(
   leftPanel: LeftPanelController,
   settings: ReturnType<typeof useLegacyCanvasSettings>,
 ) {
   const slept = useRef<"canvases" | "extensions" | null>(null);
+  const latestSettings = useRef(settings);
+  latestSettings.current = settings;
+  const automatic = useRef(false);
+  const automatically = (change: () => void) => {
+    automatic.current = true;
+    try {
+      change();
+    } finally {
+      automatic.current = false;
+    }
+  };
+  useEffect(() => {
+    let shown = leftPanel.current();
+    return leftPanel.subscribe(() => {
+      const next = leftPanel.current();
+      if (next === shown) return;
+      shown = next;
+      if (automatic.current) return;
+      const closed = next === "closed";
+      if (latestSettings.current.canvasBrowserClosed !== closed) {
+        latestSettings.current.setCanvasBrowserClosed(closed);
+      }
+    });
+  }, [leftPanel]);
   useChromeAutoHide(
     settings.chromeAutoHideEnabled,
-    () => {
-      const shown = leftPanel.current();
-      slept.current = shown === "closed" ? null : shown;
-      if (shown !== "closed") leftPanel.close(shown);
-    },
-    () => {
-      const panel = slept.current;
-      slept.current = null;
-      if (panel) leftPanel.show(panel);
-    },
+    () =>
+      automatically(() => {
+        const shown = leftPanel.current();
+        slept.current = shown === "closed" ? null : shown;
+        if (shown !== "closed") leftPanel.close(shown);
+      }),
+    () =>
+      automatically(() => {
+        const panel = slept.current;
+        slept.current = null;
+        if (panel) leftPanel.show(panel);
+      }),
     settings.chromeAutoHideDelayMs,
   );
-  useWorkspaceIntroArrival(() => leftPanel.show("canvases"));
-  useWorkspaceIntroDeparture(() => {
-    const shown = leftPanel.current();
-    if (shown !== "closed") leftPanel.close(shown);
-  });
+  useWorkspaceIntroArrival(() =>
+    automatically(() => {
+      const { canvasBrowserRemembersClosed, canvasBrowserClosed } = latestSettings.current;
+      if (!(canvasBrowserRemembersClosed && canvasBrowserClosed)) leftPanel.show("canvases");
+    }),
+  );
+  useWorkspaceIntroDeparture(() =>
+    automatically(() => {
+      const shown = leftPanel.current();
+      if (shown !== "closed") leftPanel.close(shown);
+    }),
+  );
 }
 
 /**

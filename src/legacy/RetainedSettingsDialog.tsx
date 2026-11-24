@@ -90,6 +90,8 @@ export function RetainedSettingsDialog({
             onLaunchToTrayChange={settings.setLaunchToTray}
             calendarStaysOpen={settings.calendarStaysOpen}
             onCalendarStaysOpenChange={settings.setCalendarStaysOpen}
+            canvasBrowserRemembersClosed={settings.canvasBrowserRemembersClosed}
+            onCanvasBrowserRemembersClosedChange={settings.setCanvasBrowserRemembersClosed}
             chromeRadii={settings.chromeRadii}
             onChromeRadiusChange={(key, radius) =>
               settings.setChromeRadii((current) => ({ ...current, [key]: radius }))

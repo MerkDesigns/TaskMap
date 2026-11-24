@@ -25,6 +25,8 @@ export const preferencesFixture = (): PreferencesState => ({
     toolbarButtons: [...DEFAULT_TOOLBAR_BUTTONS],
     calendarVisible: false,
     calendarStaysOpen: false,
+    canvasBrowserRemembersClosed: false,
+    canvasBrowserClosed: false,
     launchAtLogin: true,
     launchToTray: false,
     canvasBackgroundColor: "#0F1011",

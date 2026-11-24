@@ -73,6 +73,8 @@ type SettingsModalProps = {
   onLaunchToTrayChange: (enabled: boolean) => void;
   calendarStaysOpen: boolean;
   onCalendarStaysOpenChange: (enabled: boolean) => void;
+  canvasBrowserRemembersClosed: boolean;
+  onCanvasBrowserRemembersClosedChange: (enabled: boolean) => void;
   chromeRadii: ChromeRadii;
   onChromeRadiusChange: (key: keyof ChromeRadii, radius: number) => void;
   sleepDelayMs: number;
@@ -149,6 +151,8 @@ export function SettingsModal({
   onLaunchToTrayChange,
   calendarStaysOpen,
   onCalendarStaysOpenChange,
+  canvasBrowserRemembersClosed,
+  onCanvasBrowserRemembersClosedChange,
   chromeRadii,
   onChromeRadiusChange,
   sleepDelayMs,
@@ -421,6 +425,12 @@ export function SettingsModal({
                     description="Only its arrow and sleep mode collapse it."
                     checked={calendarStaysOpen}
                     onCheckedChange={onCalendarStaysOpenChange}
+                  />
+                  <SettingsToggleRow
+                    label="Remember closed Canvas Browser"
+                    description="A Canvas Browser you closed stays closed after unlocking."
+                    checked={canvasBrowserRemembersClosed}
+                    onCheckedChange={onCanvasBrowserRemembersClosedChange}
                   />
                   <SettingsIsland>
                     <div className="taskmap-settings-section-heading">

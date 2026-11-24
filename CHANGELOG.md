@@ -10,6 +10,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Added
 
+- Settings > Misc: "Remember closed Canvas Browser". With it on, a Canvas Browser you closed stays
+  closed after unlocking or restarting TaskMap.
 - Alerts: while the database is unlocked, event and reminder alerts arrive in the inbox at their
   time, with a short in-app notification (privacy mode shows only "Event alert" or "Reminder").
   A reminder with a time is due at that time and can alert earlier; one with only a date alerts at

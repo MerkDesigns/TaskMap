@@ -41,6 +41,8 @@ export function useLegacyCanvasSettings() {
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [launchToTray, setLaunchToTray] = useState(false);
   const [calendarStaysOpen, setCalendarStaysOpen] = useState(false);
+  const [canvasBrowserRemembersClosed, setCanvasBrowserRemembersClosed] = useState(false);
+  const [canvasBrowserClosed, setCanvasBrowserClosed] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(
     undefined,
   );
@@ -79,6 +81,10 @@ export function useLegacyCanvasSettings() {
     setLaunchToTray,
     calendarStaysOpen,
     setCalendarStaysOpen,
+    canvasBrowserRemembersClosed,
+    setCanvasBrowserRemembersClosed,
+    canvasBrowserClosed,
+    setCanvasBrowserClosed,
     dismissedUpdateVersion,
     setDismissedUpdateVersion,
     gridOpacityEdit: undefined as SettingsGesture | undefined,

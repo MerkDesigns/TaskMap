@@ -85,6 +85,10 @@ export const devicePreferencesSchema = z
     calendarVisible: z.boolean(),
     /** An expanded calendar stays open; only its chevron and sleep mode collapse it. */
     calendarStaysOpen: z.boolean(),
+    /** A Canvas Browser closed by the user stays closed after unlocking and restarting. */
+    canvasBrowserRemembersClosed: z.boolean(),
+    /** The user last closed the Canvas Browser; read only while it is remembered. */
+    canvasBrowserClosed: z.boolean(),
     dismissedUpdateVersion: z
       .string()
       .min(1)

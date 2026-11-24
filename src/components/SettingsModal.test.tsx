@@ -329,6 +329,8 @@ function settingsProps(
     onLaunchToTrayChange: vi.fn(),
     calendarStaysOpen: false,
     onCalendarStaysOpenChange: vi.fn(),
+    canvasBrowserRemembersClosed: false,
+    onCanvasBrowserRemembersClosedChange: vi.fn(),
     chromeRadii: DEFAULT_CHROME_RADII,
     onChromeRadiusChange: vi.fn(),
     sleepDelayMs: 3000,

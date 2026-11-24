@@ -126,6 +126,12 @@ pub(crate) struct DevicePreferences {
     /// An expanded calendar stays open; only its chevron and sleep mode collapse it.
     #[serde(default)]
     pub calendar_stays_open: bool,
+    /// A Canvas Browser closed by the user stays closed after unlocking and restarting.
+    #[serde(default)]
+    pub canvas_browser_remembers_closed: bool,
+    /// The user last closed the Canvas Browser; read only while it is remembered.
+    #[serde(default)]
+    pub canvas_browser_closed: bool,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -159,6 +165,8 @@ impl Default for DevicePreferences {
             toolbar_buttons: default_toolbar_buttons(),
             calendar_visible: false,
             calendar_stays_open: false,
+            canvas_browser_remembers_closed: false,
+            canvas_browser_closed: false,
         }
     }
 }
@@ -292,6 +300,8 @@ mod tests {
         assert!(preferences.launch_at_login);
         assert!(!preferences.launch_to_tray);
         assert!(!preferences.calendar_stays_open);
+        assert!(!preferences.canvas_browser_remembers_closed);
+        assert!(!preferences.canvas_browser_closed);
         assert!(preferences.validate().is_ok());
     }
 
