@@ -73,6 +73,8 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- A hyperlinked text card opens its link from a small link button before its text, like a folder
+  card; its text is no longer the link.
 - Pasted group containers and text blocks keep their name instead of gaining " copy".
 - The window can no longer be made smaller than 1062 × 712 px, so the toolbar islands never
   overlap and the Canvas Browser always shows six canvases.

@@ -199,50 +199,41 @@
   background-color: rgb(255 255 255 / 0.25);
 }
 
-.taskmap-text-card__link {
-  display: inline-flex;
-  max-width: 100%;
-  height: 1.5rem;
-  min-width: 0;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.taskmap-text-card[data-sized="true"] .taskmap-text-card__link {
-  width: 100%;
-}
-
+/* The link button before a hyperlinked card's text, sized and placed like the folder button. */
 .taskmap-text-card__link-button {
-  max-width: 100%;
-  height: 1.25rem;
-  min-width: 0;
-  line-height: 1.25rem;
-  text-align: left;
-  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: -7px 5px -7px -10px;
+  border-radius: 0.25rem;
+  color: #fff;
+  place-items: center;
+  transition:
+    transform 150ms ease-out,
+    background-color 150ms ease-out;
 }
 
 .taskmap-text-card__link-button:hover {
-  opacity: 0.85;
+  background-color: rgb(255 255 255 / 0.1);
 }
 
-.taskmap-text-card[data-sized="true"] .taskmap-text-card__link-button {
-  max-width: none;
-  flex: 1 1 0%;
+.taskmap-text-card__link-button:active {
+  transform: scale(0.9);
 }
 
-/* With links disabled (multi-selection) the link text is a drag handle like the card. */
+/* With links disabled (multi-selection) the button is a drag handle like the card. */
 .taskmap-text-card__link-button[data-disabled="true"] {
   cursor: grab;
 }
 
-.taskmap-text-card__link-button[data-disabled="true"]:active {
-  cursor: grabbing;
+.taskmap-text-card__link-button[data-disabled="true"]:hover {
+  background-color: transparent;
 }
 
-.taskmap-text-card__link-icon {
-  flex-shrink: 0;
-  opacity: 0.7;
-  pointer-events: none;
+.taskmap-text-card__link-button[data-disabled="true"]:active {
+  cursor: grabbing;
+  transform: none;
 }
 
 .taskmap-text-card__text {

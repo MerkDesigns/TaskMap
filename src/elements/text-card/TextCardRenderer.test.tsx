@@ -284,18 +284,16 @@ describe("TextCardRenderer mind-map variant", () => {
 });
 
 describe("TextCardRenderer hyperlinks", () => {
-  it("opens the link from the text, while the icon stays a drag handle", () => {
-    const { container, actions } = renderCard(textCard({ link: "https://example.com/" }));
-    const linkButton = screen.getByRole("button", { name: "Build" });
-    const linkIcon = container.querySelector(".tabler-icon-link")!;
+  it("opens the link from its button before the text, while the text stays a drag handle", () => {
+    const { actions } = renderCard(textCard({ link: "https://example.com/" }));
+    const linkButton = screen.getByRole("button", { name: "Open https://example.com/" });
 
-    expect(linkIcon.closest("button")).toBeNull();
     fireEvent.pointerDown(linkButton);
     expect(actions.onStartMove).not.toHaveBeenCalled();
     fireEvent.click(linkButton);
     expect(openExternalTarget).toHaveBeenCalledWith("https://example.com/");
 
-    fireEvent.pointerDown(linkIcon);
+    fireEvent.pointerDown(screen.getByText("Build"));
     expect(actions.onStartMove).toHaveBeenCalledOnce();
   });
 
@@ -303,7 +301,7 @@ describe("TextCardRenderer hyperlinks", () => {
     const { actions } = renderCard(textCard({ link: "https://example.com/" }), {
       linksDisabled: true,
     });
-    const linkButton = screen.getByRole("button", { name: "Build" });
+    const linkButton = screen.getByRole("button", { name: "Open https://example.com/" });
 
     fireEvent.pointerDown(linkButton);
     fireEvent.click(linkButton);

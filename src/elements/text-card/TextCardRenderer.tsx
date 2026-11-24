@@ -86,21 +86,6 @@ export interface TextCardRendererProps {
   readonly extensionCommands: ExtensionCommands;
 }
 
-/** Linked text is the accent lifted towards white, so it reads as a link on the tinted card. */
-function tintTowardWhite(hexColor: string, amount = 0.61) {
-  const hex = hexColor.replace("#", "");
-  const value = Number.parseInt(
-    hex.length === 3 ? hex.replace(/./g, (character) => `${character}${character}`) : hex,
-    16,
-  );
-  if (!Number.isFinite(value)) return "#ffffff";
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  const mix = (channel: number) => Math.round(channel + (255 - channel) * amount);
-  return `rgb(${mix(red)}, ${mix(green)}, ${mix(blue)})`;
-}
-
 /** Bundled cards sway behind the held card, further back cards a little more. */
 function bundleRestTransform(
   swayX: number,
@@ -244,6 +229,24 @@ function TextCardRendererComponent({
           <Leading key={extension} context={adornmentContext} commands={extensionCommands} />
         ) : null,
       )}
+      {link && !editing && (
+        <button
+          type="button"
+          className="taskmap-text-card__link-button"
+          data-disabled={linksDisabled || undefined}
+          aria-label={`Open ${link}`}
+          title={`Open ${link}`}
+          onPointerDown={(event) => {
+            if (!linksDisabled) event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!linksDisabled) openLink();
+          }}
+        >
+          <IconLink size={19} stroke={2.25} aria-hidden />
+        </button>
+      )}
       {editing ? (
         <span className="taskmap-text-card__editor" data-multiline={isMindMapNode || undefined}>
           <span className="taskmap-text-card__editor-sizer" aria-hidden>
@@ -274,26 +277,6 @@ function TextCardRendererComponent({
               onKeyDown={editorKeyDown}
             />
           )}
-        </span>
-      ) : link ? (
-        <span className="taskmap-text-card__link" style={{ color: tintTowardWhite(accent) }}>
-          <button
-            type="button"
-            className="taskmap-text-card__link-button"
-            data-disabled={linksDisabled || undefined}
-            onPointerDown={(event) => {
-              if (!linksDisabled) event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (!linksDisabled) openLink();
-            }}
-          >
-            <span className="taskmap-text-card__text" data-text-state={textState}>
-              {data.text}
-            </span>
-          </button>
-          <IconLink size={15} stroke={2} className="taskmap-text-card__link-icon" />
         </span>
       ) : (
         <span
