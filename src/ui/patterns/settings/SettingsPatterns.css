@@ -136,8 +136,8 @@
   flex: 1;
   flex-direction: column;
   overflow-x: hidden;
-  padding: var(--taskmap-space-4) var(--taskmap-space-3) var(--taskmap-space-4)
-    var(--taskmap-space-1);
+  /* The scrollbar is hidden, so the sides are even; islands sit just inside the tabs above. */
+  padding: var(--taskmap-space-4) var(--taskmap-space-1);
 }
 
 .taskmap-settings-content-stack {
