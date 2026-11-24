@@ -1,3 +1,33 @@
+/* The Extensions panel's header sits where the Canvas Browser's does: the same 58px band reaching
+   over the panel padding, with the icon and title offset and sized by the same variables. */
+.taskmap-workspace-panel-header.taskmap-extension-browser__header {
+  min-height: 58px;
+  margin: calc(-1 * var(--taskmap-panel-padding)) calc(-1 * var(--taskmap-panel-padding)) 0;
+  padding: 10px 13px;
+  gap: 12px;
+}
+
+.taskmap-extension-browser__header .taskmap-workspace-panel-header__identity {
+  gap: 8px;
+  transform: translate(
+    var(--taskmap-canvas-browser-heading-x, 7.5px),
+    var(--taskmap-canvas-browser-heading-y, 0px)
+  );
+}
+
+.taskmap-extension-browser__header .taskmap-workspace-panel-header__icon {
+  color: rgb(255 255 255 / 55%);
+}
+
+.taskmap-extension-browser__header .taskmap-workspace-panel-header__title {
+  color: rgb(255 255 255 / 88%);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: var(--taskmap-canvas-browser-title-size, 16px);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: normal;
+}
+
 .taskmap-extension-browser-controls {
   display: flex;
   align-items: center;

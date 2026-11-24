@@ -489,7 +489,11 @@ export function ExtensionsPanel({
 
   const panelContent = (
     <>
-      <WorkspacePanelHeader icon={<IconPuzzle size={17} stroke={2} />} title="Extensions" />
+      <WorkspacePanelHeader
+        className="taskmap-extension-browser__header"
+        icon={<IconPuzzle size={18} stroke={2} />}
+        title="Extensions"
+      />
 
       <div className="taskmap-extension-browser-controls">
         <div className="taskmap-extension-browser-search">
