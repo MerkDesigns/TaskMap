@@ -212,7 +212,7 @@ describe("resize and layers", () => {
     expect(commits.commitResize).toHaveBeenCalledOnce();
   });
 
-  it("retains image aspect ratio and blocks locked resize", () => {
+  it("keeps an image's aspect ratio along the pointer's diagonal and blocks locked resize", () => {
     const { controller, commits } = setup();
     const image = element("image", { x: 0, y: 0, width: 160, height: 80 });
     controller.beginResize({
@@ -228,7 +228,7 @@ describe("resize and layers", () => {
     });
     controller.completePointer({ pointerId: 1, screen: { x: 40, y: 30 }, snapping: false });
     expect(commits.commitResize).toHaveBeenCalledWith(
-      expect.objectContaining({ to: { x: 0, y: 0, width: 220, height: 110 } }),
+      expect.objectContaining({ to: { x: 0, y: 0, width: 204, height: 102 } }),
     );
     expect(
       controller.beginResize({

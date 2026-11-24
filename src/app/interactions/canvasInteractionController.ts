@@ -1,4 +1,8 @@
-import { geometryEquals, type ElementGeometry } from "../../canvas/geometry/canvasGeometry";
+import {
+  geometryEquals,
+  type CanvasPoint,
+  type ElementGeometry,
+} from "../../canvas/geometry/canvasGeometry";
 import {
   centerViewportOn,
   createViewport,
@@ -72,6 +76,8 @@ type ResizeGesture = {
   readonly input: ResizeGestureInput;
   readonly targets: PreparedSnapTargets;
   lastScreen: { x: number; y: number };
+  /** The pointer's travel since the gesture began, unclamped, so the size always follows it. */
+  travel: CanvasPoint;
   raw: ElementGeometry;
 };
 
@@ -190,7 +196,8 @@ export function createCanvasInteractionController(
     }
     const { constraints } = gesture.input;
     const ratio = constraints.aspectRatio;
-    gesture.raw = resizeBottomRight(gesture.raw, { x: dx, y: dy }, constraints);
+    gesture.travel = { x: gesture.travel.x + dx, y: gesture.travel.y + dy };
+    gesture.raw = resizeBottomRight(gesture.input.target.geometry, gesture.travel, constraints);
     const snapped = sample.snapping
       ? snapResizedGeometry(gesture.raw, ratio, gesture.targets, pointerWorld)
       : { geometry: gesture.raw, guides: [] };
@@ -276,6 +283,7 @@ export function createCanvasInteractionController(
           input,
           targets: prepareSnapTargets(input.snapTargets.filter(({ id }) => id !== input.target.id)),
           lastScreen: input.screen,
+          travel: { x: 0, y: 0 },
           raw: input.target.geometry,
         },
         { kind: "resize", pointerId: input.pointerId, targetIds: [input.target.id] },
