@@ -46,7 +46,7 @@ pub(crate) const MAX_CHROME_RADIUS: u8 = 32;
 fn default_chrome_auto_hide_delay_ms() -> u32 {
     3000
 }
-fn default_launch_at_login() -> bool {
+fn launch_at_login_in_older_files() -> bool {
     true
 }
 /// The shipped canvas colour, `--taskmap-canvas-bg` in the theme.
@@ -107,8 +107,9 @@ pub(crate) struct DevicePreferences {
     #[serde(default)]
     pub chrome_radii: ChromeRadii,
     pub dismissed_update_version: Option<String>,
-    /// TaskMap starts when the user signs in to Windows. Absent in older files; defaults on.
-    #[serde(default = "default_launch_at_login")]
+    /// TaskMap starts when the user signs in to Windows. Off for new installs; files from before
+    /// the setting existed keep it on, as those installs always started at sign-in.
+    #[serde(default = "launch_at_login_in_older_files")]
     pub launch_at_login: bool,
     /// Started at sign-in, TaskMap stays locked in the tray instead of opening its window.
     #[serde(default)]
@@ -152,7 +153,7 @@ impl Default for DevicePreferences {
             chrome_auto_hide_delay_ms: default_chrome_auto_hide_delay_ms(),
             chrome_radii: ChromeRadii::default(),
             dismissed_update_version: None,
-            launch_at_login: default_launch_at_login(),
+            launch_at_login: false,
             launch_to_tray: false,
             canvas_background_color: default_canvas_background_color(),
             toolbar_buttons: default_toolbar_buttons(),
@@ -292,6 +293,11 @@ mod tests {
         assert!(!preferences.launch_to_tray);
         assert!(!preferences.calendar_stays_open);
         assert!(preferences.validate().is_ok());
+    }
+
+    #[test]
+    fn new_installs_do_not_start_with_windows() {
+        assert!(!DevicePreferences::default().launch_at_login);
     }
 
     #[test]

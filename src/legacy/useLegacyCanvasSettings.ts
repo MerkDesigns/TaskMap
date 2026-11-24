@@ -38,7 +38,7 @@ export function useLegacyCanvasSettings() {
   const [toolbarButtons, setToolbarButtons] = useState<ToolbarButtonId[]>([
     ...DEFAULT_TOOLBAR_BUTTONS,
   ]);
-  const [launchAtLogin, setLaunchAtLogin] = useState(true);
+  const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [launchToTray, setLaunchToTray] = useState(false);
   const [calendarStaysOpen, setCalendarStaysOpen] = useState(false);
   const [dismissedUpdateVersion, setDismissedUpdateVersion] = useState<string | undefined>(

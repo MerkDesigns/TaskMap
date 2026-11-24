@@ -25,7 +25,7 @@ export function createPreviewPreferencesClient(): ApplicationPreferencesClient {
       toolbarButtons: [...DEFAULT_TOOLBAR_BUTTONS],
       calendarVisible: false,
       calendarStaysOpen: false,
-      launchAtLogin: true,
+      launchAtLogin: false,
       launchToTray: false,
       canvasBackgroundColor: "#0F1011",
       chromeRadii: { ...DEFAULT_CHROME_RADII },
