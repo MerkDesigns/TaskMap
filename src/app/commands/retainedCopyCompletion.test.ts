@@ -19,7 +19,7 @@ it.each(Object.values(ids))("copies retained type %s without changing the source
     expect(after.elements[source.id]).toBe(before.elements[source.id]);
     expect(duplicate.geometry).toEqual({ ...source.geometry, ...mapped.position });
     if (source.type === "container" || source.type === "text-block")
-      expect(duplicate.data.name).toBe(`${source.data.name} copy`);
+      expect(duplicate.data.name).toBe(source.data.name);
     if ((source.type === "text-card" || source.type === "image") && source.id === id)
       expect(duplicate.data.placement).toBeNull();
   }

@@ -41,8 +41,6 @@ export function buildRetainedPaste(snapshot: RetainedCopyGraph, input: RetainedP
                 ? { ...placement, containerId: elements.get(placement.containerId)!.id }
                 : null,
           };
-        } else if (source.type === "container" || source.type === "text-block") {
-          data = { ...source.data, name: `${source.data.name} copy` };
         }
         return {
           ...source,

@@ -73,6 +73,7 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Changed
 
+- Pasted group containers and text blocks keep their name instead of gaining " copy".
 - The window can no longer be made smaller than 1062 × 712 px, so the toolbar islands never
   overlap and the Canvas Browser always shows six canvases.
 - Extra colors is built into every element instead of being an extension: the last swatch of each
