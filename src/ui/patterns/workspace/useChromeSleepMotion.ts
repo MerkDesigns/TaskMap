@@ -93,9 +93,10 @@ export function useChromeSleepMotion(
     const surface = surfaceRef.current;
     const motion = motionRef.current;
     if (!surface || !motion) return;
-    if (asleep || ownerHidden || !enteredRef.current) {
-      // Measured at rest, before flying out; reused for the flight back in. A toggled surface's
-      // first entrance is measured where it mounted, out of view but untransformed.
+    // Measured only at rest: before flying out, or where a toggled surface mounted, out of view but
+    // untransformed. A surface still out of view is already slid away, so measuring it again (e.g.
+    // when the unlock reveal ends) would shrink its flight in to nothing.
+    if (distancesRef.current === null || (enteredRef.current && (asleep || ownerHidden))) {
       distancesRef.current = cornerDistances(surface, corner);
       markMaterialPresenceContent(surface);
     }

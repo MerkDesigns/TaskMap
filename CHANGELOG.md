@@ -133,6 +133,7 @@ Architecture v1 (`architecture-v1`), not yet released.
 
 ### Fixed
 
+- The calendar bar slides in with the rest of the toolbar after unlocking instead of only fading in.
 - Several selected mind-map nodes (or a mix of cards and other elements) move together while
   dragged; all but one used to trail behind the pointer.
 - Tab, as it hides the Canvas Browser, also collapses an expanded calendar.
